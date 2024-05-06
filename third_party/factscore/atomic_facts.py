@@ -27,9 +27,8 @@ import rank_bm25
 import spacy
 
 # pylint: disable=g-bad-import-order
-from common import modeling
-from common import shared_config
-from common import utils
+from common import modeling, utils, shared_config
+
 # pylint: enable=g-bad-import-order
 
 nltk.download('punkt', quiet=True)
