@@ -19,30 +19,30 @@ DEFAULT_MAX_CLAIMS = 100
 
 
 def calculate_metrics(
-    supported: int, not_supported: int, max_claims: int = DEFAULT_MAX_CLAIMS
+        supported: int, not_supported: int, max_claims: int = DEFAULT_MAX_CLAIMS
 ) -> float:
-  """Gets aggregated metrics."""
-  if max_claims <= 0:
-    raise ValueError('max_claims must be positive.')
-  if supported < 0 or not_supported < 0:
-    raise ValueError('Cannot have negative numbers of claims.')
+    """Gets aggregated metrics."""
+    if max_claims <= 0:
+        raise ValueError('max_claims must be positive.')
+    if supported < 0 or not_supported < 0:
+        raise ValueError('Cannot have negative numbers of claims.')
 
-  if supported == 0:
-    return 0
+    if supported == 0:
+        return 0
 
-  precision = float(supported / (supported + not_supported))
-  recall = min(1, float(supported / max_claims))
-  return 2 * precision * recall / (precision + recall)
+    precision = float(supported / (supported + not_supported))
+    recall = min(1, float(supported / max_claims))
+    return 2 * precision * recall / (precision + recall)
 
 
 def round_to_sigfigs(num_to_round: int | float, num_sigfigs: int) -> float:
-  """Rounds num_to_round to the nearest number of significant figures."""
-  if num_to_round == 0 or num_sigfigs <= 0:
-    return 0
-  elif math.isnan(num_to_round):
-    return num_to_round
-  else:
-    return round(
-        num_to_round,
-        num_sigfigs - int(math.floor(math.log10(abs(num_to_round)))) - 1
-    )
+    """Rounds num_to_round to the nearest number of significant figures."""
+    if num_to_round == 0 or num_sigfigs <= 0:
+        return 0
+    elif math.isnan(num_to_round):
+        return num_to_round
+    else:
+        return round(
+            num_to_round,
+            num_sigfigs - int(math.floor(math.log10(abs(num_to_round)))) - 1
+        )

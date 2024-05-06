@@ -17,18 +17,18 @@ from data_creation import config as data_creation_config
 
 
 class Example:
-  def __init__(self, prompt: str, topic: str):
-    self.prompt = prompt
-    self.topic = topic.upper()
+    def __init__(self, prompt: str, topic: str):
+        self.prompt = prompt
+        self.topic = topic.upper()
 
 
 class Placeholder:
-  def __init__(self) -> None:
-    self.prompt = '[PROMPT]'
-    self.topic = '[TOPIC]'
+    def __init__(self) -> None:
+        self.prompt = '[PROMPT]'
+        self.topic = '[TOPIC]'
 
-  def list_placeholders(self) -> list[str]:
-    return [self.prompt, self.topic]
+    def list_placeholders(self) -> list[str]:
+        return [self.prompt, self.topic]
 
 
 PLACEHOLDERS = Placeholder()
@@ -139,15 +139,15 @@ OBJECT_EXAMPLES = [
 
 
 def fill_format(prompt_format: str, examples: list[Example]) -> list[str]:
-  """Fills a format with in-context examples."""
-  if data_creation_config.max_in_context_examples <= 0:
-    return []
+    """Fills a format with in-context examples."""
+    if data_creation_config.max_in_context_examples <= 0:
+        return []
 
-  constructed_examples = []
+    constructed_examples = []
 
-  for example in examples[-data_creation_config.max_in_context_examples:]:
-    curr_example = prompt_format.replace(PLACEHOLDERS.topic, example.topic)
-    curr_example = curr_example.replace(PLACEHOLDERS.prompt, example.prompt)
-    constructed_examples.append(curr_example)
+    for example in examples[-data_creation_config.max_in_context_examples:]:
+        curr_example = prompt_format.replace(PLACEHOLDERS.topic, example.topic)
+        curr_example = curr_example.replace(PLACEHOLDERS.prompt, example.prompt)
+        constructed_examples.append(curr_example)
 
-  return constructed_examples
+    return constructed_examples

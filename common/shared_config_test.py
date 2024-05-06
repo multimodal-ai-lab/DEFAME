@@ -24,47 +24,50 @@ from absl.testing import absltest
 # pylint: disable=g-bad-import-order
 from common import data_loader
 from common import shared_config
+
+
 # pylint: enable=g-bad-import-order
 
 
 class SharedConfigTest(absltest.TestCase):
 
-  def test_settings(self) -> None:
-    self.assertIsInstance(shared_config.prompt_postamble, str)
-    self.assertNotEmpty(
-        shared_config.prompt_postamble
-    )  # turn off instead of deleting
-    self.assertIsInstance(shared_config.openai_api_key, str)
-    self.assertIsInstance(shared_config.anthropic_api_key, str)
-    self.assertIsInstance(shared_config.serper_api_key, str)
-    self.assertIsInstance(shared_config.random_seed, int)
-    self.assertIsInstance(shared_config.model_options, dict)
-    self.assertNotEmpty(shared_config.model_options)
+    def test_settings(self) -> None:
+        self.assertIsInstance(shared_config.prompt_postamble, str)
+        self.assertNotEmpty(
+            shared_config.prompt_postamble
+        )  # turn off instead of deleting
+        self.assertIsInstance(shared_config.openai_api_key, str)
+        self.assertIsInstance(shared_config.anthropic_api_key, str)
+        self.assertIsInstance(shared_config.serper_api_key, str)
+        self.assertIsInstance(shared_config.random_seed, int)
+        self.assertIsInstance(shared_config.model_options, dict)
+        self.assertNotEmpty(shared_config.model_options)
 
-    for key, value in shared_config.model_options.items():
-      self.assertIsInstance(key, str)
-      self.assertIsInstance(value, str)
+        for key, value in shared_config.model_options.items():
+            self.assertIsInstance(key, str)
+            self.assertIsInstance(value, str)
 
-    self.assertIsInstance(shared_config.model_string, dict)
-    self.assertNotEmpty(shared_config.model_string)
+        self.assertIsInstance(shared_config.model_string, dict)
+        self.assertNotEmpty(shared_config.model_string)
 
-    for key, value in shared_config.model_string.items():
-      self.assertIsInstance(key, str)
-      self.assertIsInstance(value, str)
+        for key, value in shared_config.model_string.items():
+            self.assertIsInstance(key, str)
+            self.assertIsInstance(value, str)
 
-    self.assertIsInstance(shared_config.task_options, dict)
+        self.assertIsInstance(shared_config.task_options, dict)
 
-    for key, value in shared_config.task_options.items():
-      self.assertIsInstance(key, str)
-      self.assertIsInstance(value, tuple)
-      self.assertLen(value, data_loader.TASK_TUPLE_LENGTH)
+        for key, value in shared_config.task_options.items():
+            self.assertIsInstance(key, str)
+            self.assertIsInstance(value, tuple)
+            self.assertLen(value, data_loader.TASK_TUPLE_LENGTH)
 
-    self.assertIsInstance(shared_config.root_dir, str)
-    self.assertNotEmpty(shared_config.root_dir)
-    self.assertIsInstance(shared_config.path_to_data, str)
-    self.assertNotEmpty(shared_config.path_to_data)
-    self.assertIsInstance(shared_config.path_to_result, str)
-    self.assertNotEmpty(shared_config.path_to_result)
+        self.assertIsInstance(shared_config.root_dir, str)
+        self.assertNotEmpty(shared_config.root_dir)
+        self.assertIsInstance(shared_config.path_to_data, str)
+        self.assertNotEmpty(shared_config.path_to_data)
+        self.assertIsInstance(shared_config.path_to_result, str)
+        self.assertNotEmpty(shared_config.path_to_result)
+
 
 if __name__ == '__main__':
-  absltest.main()
+    absltest.main()

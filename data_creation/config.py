@@ -15,7 +15,6 @@
 
 from common import shared_config
 
-
 ################################################################################
 #                               MODEL SETTINGS
 # generator_model: str = the model for generating data.

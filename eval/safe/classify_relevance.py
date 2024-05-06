@@ -19,6 +19,7 @@ from typing import Any
 from common import modeling
 from common import utils
 from eval.safe import config as safe_config
+
 # pylint: enable=g-bad-import-order
 
 SYMBOL = 'Foo'
@@ -225,62 +226,62 @@ RESPONSE:
 
 
 def check_relevance(
-    prompt: str,
-    response: str,
-    atomic_fact: str,
-    model: modeling.Model,
-    do_debug: bool = safe_config.debug_safe,
-    max_retries: int = safe_config.max_retries,
+        prompt: str,
+        response: str,
+        atomic_fact: str,
+        model: modeling.Model,
+        do_debug: bool = safe_config.debug_safe,
+        max_retries: int = safe_config.max_retries,
 ) -> tuple[str, bool]:
-  """Check if the atomic fact is relevant for answering the prompt."""
-  full_prompt = _RELEVANCE_FORMAT.replace(_STATEMENT_PLACEHOLDER, atomic_fact)
-  full_prompt = full_prompt.replace(_PROMPT_PLACEHOLDER, prompt)
-  full_prompt = full_prompt.replace(_RESPONSE_PLACEHOLDER, response)
-  full_prompt = utils.strip_string(full_prompt)
-  model_response, answer, num_tries = '', '', 0
+    """Check if the atomic fact is relevant for answering the prompt."""
+    full_prompt = _RELEVANCE_FORMAT.replace(_STATEMENT_PLACEHOLDER, atomic_fact)
+    full_prompt = full_prompt.replace(_PROMPT_PLACEHOLDER, prompt)
+    full_prompt = full_prompt.replace(_RESPONSE_PLACEHOLDER, response)
+    full_prompt = utils.strip_string(full_prompt)
+    model_response, answer, num_tries = '', '', 0
 
-  while not answer and num_tries <= max_retries:
-    model_response = model.generate(full_prompt, do_debug=do_debug)
-    answer = utils.extract_first_square_brackets(model_response)
-    answer = answer if answer in [SYMBOL, NOT_SYMBOL] else None
-    num_tries += 1
+    while not answer and num_tries <= max_retries:
+        model_response = model.generate(full_prompt, do_debug=do_debug)
+        answer = utils.extract_first_square_brackets(model_response)
+        answer = answer if answer in [SYMBOL, NOT_SYMBOL] else None
+        num_tries += 1
 
-  answer = not answer or answer.lower() == SYMBOL.lower()
-  return model_response, answer  # if no parsed answer, assume relevant
+    answer = not answer or answer.lower() == SYMBOL.lower()
+    return model_response, answer  # if no parsed answer, assume relevant
 
 
 def revise_fact(
-    response: str,
-    atomic_fact: str,
-    model: modeling.Model,
-    do_debug: bool = safe_config.debug_safe,
-    max_retries: int = safe_config.max_retries,
+        response: str,
+        atomic_fact: str,
+        model: modeling.Model,
+        do_debug: bool = safe_config.debug_safe,
+        max_retries: int = safe_config.max_retries,
 ) -> tuple[str, str]:
-  """Modify the atomic fact to be self-contained."""
-  full_prompt = _REVISE_FORMAT.replace(_STATEMENT_PLACEHOLDER, atomic_fact)
-  full_prompt = full_prompt.replace(_RESPONSE_PLACEHOLDER, response)
-  full_prompt = utils.strip_string(full_prompt)
-  model_response, revised_fact, num_tries = '', '', 0
+    """Modify the atomic fact to be self-contained."""
+    full_prompt = _REVISE_FORMAT.replace(_STATEMENT_PLACEHOLDER, atomic_fact)
+    full_prompt = full_prompt.replace(_RESPONSE_PLACEHOLDER, response)
+    full_prompt = utils.strip_string(full_prompt)
+    model_response, revised_fact, num_tries = '', '', 0
 
-  while not revised_fact and num_tries <= max_retries:
-    model_response = model.generate(full_prompt, do_debug=do_debug)
-    revised_fact = utils.extract_first_code_block(
-        model_response, ignore_language=True
-    )
-    num_tries += 1
+    while not revised_fact and num_tries <= max_retries:
+        model_response = model.generate(full_prompt, do_debug=do_debug)
+        revised_fact = utils.extract_first_code_block(
+            model_response, ignore_language=True
+        )
+        num_tries += 1
 
-  return model_response, revised_fact or atomic_fact
+    return model_response, revised_fact or atomic_fact
 
 
 def main(
-    prompt: str, response: str, atomic_fact: str, model: modeling.Model
+        prompt: str, response: str, atomic_fact: str, model: modeling.Model
 ) -> tuple[bool, str, dict[str, Any]]:
-  """Check if the fact is relevant and modify it to be self-contained."""
-  model_responses = {'atomic_fact': atomic_fact}
-  model_responses['revised_fact'], atomic_fact = revise_fact(
-      response=response, atomic_fact=atomic_fact, model=model
-  )
-  model_responses['is_relevant'], is_relevant = check_relevance(
-      prompt=prompt, response=response, atomic_fact=atomic_fact, model=model
-  )
-  return is_relevant, atomic_fact, model_responses
+    """Check if the fact is relevant and modify it to be self-contained."""
+    model_responses = {'atomic_fact': atomic_fact}
+    model_responses['revised_fact'], atomic_fact = revise_fact(
+        response=response, atomic_fact=atomic_fact, model=model
+    )
+    model_responses['is_relevant'], is_relevant = check_relevance(
+        prompt=prompt, response=response, atomic_fact=atomic_fact, model=model
+    )
+    return is_relevant, atomic_fact, model_responses

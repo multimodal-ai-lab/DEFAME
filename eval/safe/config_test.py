@@ -23,6 +23,7 @@ from absl.testing import absltest
 
 # pylint: disable=g-bad-import-order
 from eval.safe import config
+
 # pylint: enable=g-bad-import-order
 
 _SUPPORTED_MODELS = (
@@ -42,31 +43,31 @@ _SUPPORTED_SEARCH_TYPES = ('serper')
 
 class ConfigTest(absltest.TestCase):
 
-  def test_model_settings(self) -> None:
-    self.assertIsInstance(config.model_short, str)
-    self.assertIn(config.model_short, _SUPPORTED_MODELS)
-    self.assertIsInstance(config.model_temp, float)
-    self.assertGreaterEqual(config.model_temp, 0.0)
-    self.assertIsInstance(config.max_tokens, int)
-    self.assertGreater(config.max_tokens, 0)
+    def test_model_settings(self) -> None:
+        self.assertIsInstance(config.model_short, str)
+        self.assertIn(config.model_short, _SUPPORTED_MODELS)
+        self.assertIsInstance(config.model_temp, float)
+        self.assertGreaterEqual(config.model_temp, 0.0)
+        self.assertIsInstance(config.max_tokens, int)
+        self.assertGreater(config.max_tokens, 0)
 
-  def test_search_settings(self) -> None:
-    self.assertIsInstance(config.search_type, str)
-    self.assertIn(config.search_type, _SUPPORTED_SEARCH_TYPES)
-    self.assertIsInstance(config.num_searches, int)
-    self.assertGreater(config.num_searches, 0)
+    def test_search_settings(self) -> None:
+        self.assertIsInstance(config.search_type, str)
+        self.assertIn(config.search_type, _SUPPORTED_SEARCH_TYPES)
+        self.assertIsInstance(config.num_searches, int)
+        self.assertGreater(config.num_searches, 0)
 
-  def test_autorater_settings(self) -> None:
-    self.assertIsInstance(config.max_steps, int)
-    self.assertGreater(config.max_steps, 0)
-    self.assertIsInstance(config.max_retries, int)
-    self.assertGreaterEqual(config.max_retries, 0)
-    self.assertIsInstance(config.debug_safe, bool)
+    def test_autorater_settings(self) -> None:
+        self.assertIsInstance(config.max_steps, int)
+        self.assertGreater(config.max_steps, 0)
+        self.assertIsInstance(config.max_retries, int)
+        self.assertGreaterEqual(config.max_retries, 0)
+        self.assertIsInstance(config.debug_safe, bool)
 
-  def test_forced_settings(self) -> None:
-    self.assertIsInstance(config.model, str)
-    self.assertNotEmpty(config.model)
+    def test_forced_settings(self) -> None:
+        self.assertIsInstance(config.model, str)
+        self.assertNotEmpty(config.model)
 
 
 if __name__ == '__main__':
-  absltest.main()
+    absltest.main()

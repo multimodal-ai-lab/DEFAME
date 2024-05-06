@@ -23,6 +23,7 @@ from absl.testing import absltest
 
 # pylint: disable=g-bad-import-order
 from data_creation import examples
+
 # pylint: enable=g-bad-import-order
 
 _FORMAT = f"""
@@ -36,30 +37,30 @@ TOPIC:
 
 class ExamplesTest(absltest.TestCase):
 
-  def test_fill_format_base_concepts(self) -> None:
-    constructed_examples = examples.fill_format(
-        _FORMAT, examples=examples.CONCEPT_EXAMPLES
-    )
+    def test_fill_format_base_concepts(self) -> None:
+        constructed_examples = examples.fill_format(
+            _FORMAT, examples=examples.CONCEPT_EXAMPLES
+        )
 
-    self.assertEqual(len(constructed_examples), len(examples.CONCEPT_EXAMPLES))
+        self.assertEqual(len(constructed_examples), len(examples.CONCEPT_EXAMPLES))
 
-    for example in constructed_examples:
-      for placeholder in examples.PLACEHOLDERS.list_placeholders():
-        self.assertNotIn(placeholder, example)
-      self.assertNotIn('\n\n\n', example)
+        for example in constructed_examples:
+            for placeholder in examples.PLACEHOLDERS.list_placeholders():
+                self.assertNotIn(placeholder, example)
+            self.assertNotIn('\n\n\n', example)
 
-  def test_fill_format_base_objects(self) -> None:
-    constructed_examples = examples.fill_format(
-        _FORMAT, examples=examples.OBJECT_EXAMPLES
-    )
-    self.assertEqual(len(constructed_examples), len(examples.OBJECT_EXAMPLES))
+    def test_fill_format_base_objects(self) -> None:
+        constructed_examples = examples.fill_format(
+            _FORMAT, examples=examples.OBJECT_EXAMPLES
+        )
+        self.assertEqual(len(constructed_examples), len(examples.OBJECT_EXAMPLES))
 
-    for example in constructed_examples:
-      for placeholder in examples.PLACEHOLDERS.list_placeholders():
-        self.assertNotIn(placeholder, example)
+        for example in constructed_examples:
+            for placeholder in examples.PLACEHOLDERS.list_placeholders():
+                self.assertNotIn(placeholder, example)
 
-      self.assertNotIn('\n\n\n', example)
+            self.assertNotIn('\n\n\n', example)
 
 
 if __name__ == '__main__':
-  absltest.main()
+    absltest.main()

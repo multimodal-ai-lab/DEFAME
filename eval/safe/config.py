@@ -15,7 +15,6 @@
 
 from common import shared_config
 
-
 ################################################################################
 #                               MODEL SETTINGS
 # model_short: str = model for fact checking.

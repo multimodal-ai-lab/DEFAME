@@ -15,7 +15,6 @@
 
 from common import shared_config
 
-
 ################################################################################
 #                             PIPELINE SETTINGS
 # side_1: str = prompting method to use for side 1.
@@ -94,7 +93,6 @@ response_length_postamble = (
     f'Respond in exactly {num_sentences} sentences.' if num_sentences > 1
     else 'Respond in exactly 1 sentence.'
 )
-
 
 ################################################################################
 #                         FORCED SETTINGS, DO NOT EDIT

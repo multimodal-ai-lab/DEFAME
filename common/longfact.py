@@ -19,14 +19,16 @@ import os
 # pylint: disable=g-bad-import-order
 from common import shared_config
 from common import utils
+
+
 # pylint: enable=g-bad-import-order
 
 
 @dataclasses.dataclass()
 class LongFactDataset:
-  """Class for storing details for a single LongFact dataset."""
-  topic: str
-  path: str = ''
+    """Class for storing details for a single LongFact dataset."""
+    topic: str
+    path: str = ''
 
 
 LONGFACT_CONCEPTS_FOLDER = os.path.join(
@@ -81,45 +83,45 @@ PROMPT_KEY = 'prompt'
 
 
 def list_topics() -> list[str]:
-  return [dataset.topic for dataset in DATASETS]
+    return [dataset.topic for dataset in DATASETS]
 
 
 def load_datasets(
-    datasets: list[LongFactDataset], prompt_key: str = PROMPT_KEY
+        datasets: list[LongFactDataset], prompt_key: str = PROMPT_KEY
 ) -> list[str]:
-  """Joins a list of longfact datasets into one dataset."""
-  master_dataset, num_expected = [], 0
+    """Joins a list of longfact datasets into one dataset."""
+    master_dataset, num_expected = [], 0
 
-  for dataset in datasets:
-    if dataset.path:
-      loaded_dataset = utils.read_from_jsonlines(dataset.path)
-      num_expected += len(loaded_dataset)
+    for dataset in datasets:
+        if dataset.path:
+            loaded_dataset = utils.read_from_jsonlines(dataset.path)
+            num_expected += len(loaded_dataset)
 
-      for data in loaded_dataset:
-        master_dataset.append({prompt_key: data[prompt_key]})
+            for data in loaded_dataset:
+                master_dataset.append({prompt_key: data[prompt_key]})
 
-  assert len(master_dataset) == num_expected
-  return [data[prompt_key] for data in master_dataset]
+    assert len(master_dataset) == num_expected
+    return [data[prompt_key] for data in master_dataset]
 
 
 def load_datasets_from_folder(
-    directory: str, prompt_key: str = PROMPT_KEY
+        directory: str, prompt_key: str = PROMPT_KEY
 ) -> list[str]:
-  """Loads all LongFacts datasets from a folder."""
-  datasets = []
+    """Loads all LongFacts datasets from a folder."""
+    datasets = []
 
-  for file in os.listdir(directory):
-    topic = file.split('_')[-1].replace('.jsonl', '')
-    datasets.append(
-        LongFactDataset(topic=topic, path=os.path.join(directory, file))
-    )
+    for file in os.listdir(directory):
+        topic = file.split('_')[-1].replace('.jsonl', '')
+        datasets.append(
+            LongFactDataset(topic=topic, path=os.path.join(directory, file))
+        )
 
-  return load_datasets(datasets, prompt_key=prompt_key)
+    return load_datasets(datasets, prompt_key=prompt_key)
 
 
 def load_longfact_concepts() -> list[str]:
-  return load_datasets_from_folder(LONGFACT_CONCEPTS_FOLDER)
+    return load_datasets_from_folder(LONGFACT_CONCEPTS_FOLDER)
 
 
 def load_longfact_objects() -> list[str]:
-  return load_datasets_from_folder(LONGFACT_OBJECTS_FOLDER)
+    return load_datasets_from_folder(LONGFACT_OBJECTS_FOLDER)

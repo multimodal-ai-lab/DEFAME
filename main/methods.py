@@ -18,6 +18,7 @@ from typing import Any
 # pylint: disable=g-bad-import-order
 from common import modeling
 from common import utils
+
 # pylint: enable=g-bad-import-order
 
 _PROMPT_PLACEHOLDER = '[PROMPT]'
@@ -55,43 +56,43 @@ PLACEHOLDER_RESPONSE = '[PLACEHOLDER RESPONSE]'
 
 
 def fill_format_with_prompt(prompt_format: str, prompt: str) -> str:
-  return utils.strip_string(prompt_format.replace(_PROMPT_PLACEHOLDER, prompt))
+    return utils.strip_string(prompt_format.replace(_PROMPT_PLACEHOLDER, prompt))
 
 
 def vanilla_prompting(prompt: str, responder: modeling.Model) -> dict[str, Any]:
-  return {RESPONSE_KEY: responder.generate(prompt, temperature=0)}
+    return {RESPONSE_KEY: responder.generate(prompt, temperature=0)}
 
 
 def naive_factuality_prompt(
-    prompt: str, responder: modeling.Model
+        prompt: str, responder: modeling.Model
 ) -> dict[str, Any]:
-  prompt = fill_format_with_prompt(NAIVE_FACTUALITY_PROMPT, prompt)
-  return {RESPONSE_KEY: responder.generate(prompt, temperature=0)}
+    prompt = fill_format_with_prompt(NAIVE_FACTUALITY_PROMPT, prompt)
+    return {RESPONSE_KEY: responder.generate(prompt, temperature=0)}
 
 
 def punt_if_unsure(prompt: str, responder: modeling.Model) -> dict[str, Any]:
-  prompt = fill_format_with_prompt(PUNT_PROMPT, prompt)
-  response = responder.generate(prompt, temperature=0)
-  is_idk = PUNTED_PLACEHOLDER in response
-  response = utils.strip_string(response.replace(PUNTED_PLACEHOLDER, ''))
-  return {RESPONSE_KEY: response, IDK_KEY: is_idk}
+    prompt = fill_format_with_prompt(PUNT_PROMPT, prompt)
+    response = responder.generate(prompt, temperature=0)
+    is_idk = PUNTED_PLACEHOLDER in response
+    response = utils.strip_string(response.replace(PUNTED_PLACEHOLDER, ''))
+    return {RESPONSE_KEY: response, IDK_KEY: is_idk}
 
 
 def respond(
-    prompt: str, responder: modeling.Model, method: str
+        prompt: str, responder: modeling.Model, method: str
 ) -> dict[str, Any]:
-  """Responds to the given prompt using a selected method."""
-  if method == 'naive_factuality_prompt':
-    return naive_factuality_prompt(prompt, responder)
-  elif method == 'punt_if_unsure':
-    return punt_if_unsure(prompt, responder)
-  elif method == 'vanilla_prompting':
-    return vanilla_prompting(prompt, responder)
-  elif method == 'placeholder':
-    return {RESPONSE_KEY: PLACEHOLDER_RESPONSE}
-  elif method == 'none':
-    return {RESPONSE_KEY: ''}
-  else:
-    utils.maybe_print_error(f'Unsupported method: {method}')
-    utils.stop_all_execution(True)
-    return {RESPONSE_KEY: ''}
+    """Responds to the given prompt using a selected method."""
+    if method == 'naive_factuality_prompt':
+        return naive_factuality_prompt(prompt, responder)
+    elif method == 'punt_if_unsure':
+        return punt_if_unsure(prompt, responder)
+    elif method == 'vanilla_prompting':
+        return vanilla_prompting(prompt, responder)
+    elif method == 'placeholder':
+        return {RESPONSE_KEY: PLACEHOLDER_RESPONSE}
+    elif method == 'none':
+        return {RESPONSE_KEY: ''}
+    else:
+        utils.maybe_print_error(f'Unsupported method: {method}')
+        utils.stop_all_execution(True)
+        return {RESPONSE_KEY: ''}

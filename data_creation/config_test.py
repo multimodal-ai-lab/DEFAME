@@ -23,6 +23,7 @@ from absl.testing import absltest
 
 # pylint: disable=g-bad-import-order
 from data_creation import config
+
 # pylint: enable=g-bad-import-order
 
 _ACCEPTED_MODELS = (
@@ -42,37 +43,37 @@ _ACCEPTED_SUBTASKS = ('longfact_concepts', 'longfact_objects')
 
 class ConfigTest(absltest.TestCase):
 
-  def test_model_settings(self) -> None:
-    self.assertIsInstance(config.generator_model, str)
-    self.assertIn(config.generator_model, _ACCEPTED_MODELS)
-    self.assertIsInstance(config.generation_temp, float)
-    self.assertGreaterEqual(config.generation_temp, 0.0)
+    def test_model_settings(self) -> None:
+        self.assertIsInstance(config.generator_model, str)
+        self.assertIn(config.generator_model, _ACCEPTED_MODELS)
+        self.assertIsInstance(config.generation_temp, float)
+        self.assertGreaterEqual(config.generation_temp, 0.0)
 
-  def test_debug_settings(self) -> None:
-    self.assertIsInstance(config.generate_data_debug, bool)
-    self.assertIsInstance(config.show_generator_prompts, bool)
-    self.assertIsInstance(config.show_generator_responses, bool)
-    self.assertFalse(
-        config.generate_data_debug
-        and not config.show_generator_prompts
-        and not config.show_generator_responses
-    )  # Don't uselessly turn on the debug mode
+    def test_debug_settings(self) -> None:
+        self.assertIsInstance(config.generate_data_debug, bool)
+        self.assertIsInstance(config.show_generator_prompts, bool)
+        self.assertIsInstance(config.show_generator_responses, bool)
+        self.assertFalse(
+            config.generate_data_debug
+            and not config.show_generator_prompts
+            and not config.show_generator_responses
+        )  # Don't uselessly turn on the debug mode
 
-  def test_data_generation_settings(self) -> None:
-    self.assertIsInstance(config.subtask, str)
-    self.assertIn(config.subtask, _ACCEPTED_SUBTASKS)
-    self.assertIsInstance(config.num_prompts_to_generate, int)
-    self.assertGreater(config.num_prompts_to_generate, 0)
-    self.assertIsInstance(config.max_in_context_examples, int)
-    self.assertGreaterEqual(config.max_in_context_examples, 0)
-    self.assertIsInstance(config.save_results, bool)
+    def test_data_generation_settings(self) -> None:
+        self.assertIsInstance(config.subtask, str)
+        self.assertIn(config.subtask, _ACCEPTED_SUBTASKS)
+        self.assertIsInstance(config.num_prompts_to_generate, int)
+        self.assertGreater(config.num_prompts_to_generate, 0)
+        self.assertIsInstance(config.max_in_context_examples, int)
+        self.assertGreaterEqual(config.max_in_context_examples, 0)
+        self.assertIsInstance(config.save_results, bool)
 
-  def test_forced_settings(self) -> None:
-    self.assertIsInstance(config.generator_shorthand, str)
-    self.assertNotEmpty(config.generator_shorthand)
-    self.assertIsInstance(config.generator, str)
-    self.assertNotEmpty(config.generator)
+    def test_forced_settings(self) -> None:
+        self.assertIsInstance(config.generator_shorthand, str)
+        self.assertNotEmpty(config.generator_shorthand)
+        self.assertIsInstance(config.generator, str)
+        self.assertNotEmpty(config.generator)
 
 
 if __name__ == '__main__':
-  absltest.main()
+    absltest.main()

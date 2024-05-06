@@ -25,6 +25,7 @@ from absl.testing import absltest
 
 # pylint: disable=g-bad-import-order
 from eval import metric_utils
+
 # pylint: enable=g-bad-import-order
 
 _SUPPORTED = 10
@@ -36,89 +37,90 @@ _TEST_NUMBER = 12345.6789
 
 class MetricUtilsTest(absltest.TestCase):
 
-  def test_calculate_metrics_base(self) -> None:
-    actual_f1 = metric_utils.calculate_metrics(
-        supported=_SUPPORTED,
-        not_supported=_NOT_SUPPORTED,
-        max_claims=_TEST_MAX_CLAIMS,
-    )
-    self.assertGreaterEqual(actual_f1, 0)
-    self.assertLessEqual(actual_f1, 1)
+    def test_calculate_metrics_base(self) -> None:
+        actual_f1 = metric_utils.calculate_metrics(
+            supported=_SUPPORTED,
+            not_supported=_NOT_SUPPORTED,
+            max_claims=_TEST_MAX_CLAIMS,
+        )
+        self.assertGreaterEqual(actual_f1, 0)
+        self.assertLessEqual(actual_f1, 1)
 
-  def test_calculate_metrics_invalid_max_claims(self) -> None:
-    self.assertRaises(
-        ValueError,
-        metric_utils.calculate_metrics,
-        supported=_SUPPORTED,
-        not_supported=_NOT_SUPPORTED,
-        max_claims=0,
-    )
-    self.assertRaises(
-        ValueError,
-        metric_utils.calculate_metrics,
-        supported=_SUPPORTED,
-        not_supported=_NOT_SUPPORTED,
-        max_claims=-1,
-    )
+    def test_calculate_metrics_invalid_max_claims(self) -> None:
+        self.assertRaises(
+            ValueError,
+            metric_utils.calculate_metrics,
+            supported=_SUPPORTED,
+            not_supported=_NOT_SUPPORTED,
+            max_claims=0,
+        )
+        self.assertRaises(
+            ValueError,
+            metric_utils.calculate_metrics,
+            supported=_SUPPORTED,
+            not_supported=_NOT_SUPPORTED,
+            max_claims=-1,
+        )
 
-  def test_calculate_metrics_zero_claims(self) -> None:
-    actual_f1 = metric_utils.calculate_metrics(
-        supported=0, not_supported=_NOT_SUPPORTED, max_claims=_TEST_MAX_CLAIMS
-    )
-    self.assertEqual(actual_f1, 0)
+    def test_calculate_metrics_zero_claims(self) -> None:
+        actual_f1 = metric_utils.calculate_metrics(
+            supported=0, not_supported=_NOT_SUPPORTED, max_claims=_TEST_MAX_CLAIMS
+        )
+        self.assertEqual(actual_f1, 0)
 
-  def test_calculate_metrics_negative_input(self) -> None:
-    self.assertRaises(
-        ValueError,
-        metric_utils.calculate_metrics,
-        supported=-1,
-        not_supported=_NOT_SUPPORTED,
-        max_claims=_TEST_MAX_CLAIMS,
-    )
-    self.assertRaises(
-        ValueError,
-        metric_utils.calculate_metrics,
-        supported=_SUPPORTED,
-        not_supported=-1,
-        max_claims=_TEST_MAX_CLAIMS,
-    )
+    def test_calculate_metrics_negative_input(self) -> None:
+        self.assertRaises(
+            ValueError,
+            metric_utils.calculate_metrics,
+            supported=-1,
+            not_supported=_NOT_SUPPORTED,
+            max_claims=_TEST_MAX_CLAIMS,
+        )
+        self.assertRaises(
+            ValueError,
+            metric_utils.calculate_metrics,
+            supported=_SUPPORTED,
+            not_supported=-1,
+            max_claims=_TEST_MAX_CLAIMS,
+        )
 
-  def test_round_to_sigfigs(self) -> None:
-    self.assertAlmostEqual(
-        metric_utils.round_to_sigfigs(_TEST_NUMBER, num_sigfigs=1), 10000
-    )
-    self.assertAlmostEqual(
-        metric_utils.round_to_sigfigs(_TEST_NUMBER, num_sigfigs=3), 12300
-    )
-    self.assertAlmostEqual(
-        metric_utils.round_to_sigfigs(_TEST_NUMBER, num_sigfigs=6), 12345.7
-    )
-    self.assertAlmostEqual(
-        metric_utils.round_to_sigfigs(-_TEST_NUMBER, num_sigfigs=3), -12300
-    )
-    self.assertAlmostEqual(
-        metric_utils.round_to_sigfigs(-_TEST_NUMBER, num_sigfigs=6), -12345.7
-    )
-    self.assertAlmostEqual(
-        metric_utils.round_to_sigfigs(_TEST_NUMBER % 1, num_sigfigs=2), 0.68
-    )
-    self.assertAlmostEqual(
-        metric_utils.round_to_sigfigs(_TEST_NUMBER % 1, num_sigfigs=3), 0.679
-    )
-    self.assertEqual(metric_utils.round_to_sigfigs(9999, 1), 10000)
-    self.assertEqual(metric_utils.round_to_sigfigs(9999, 2), 10000)
+    def test_round_to_sigfigs(self) -> None:
+        self.assertAlmostEqual(
+            metric_utils.round_to_sigfigs(_TEST_NUMBER, num_sigfigs=1), 10000
+        )
+        self.assertAlmostEqual(
+            metric_utils.round_to_sigfigs(_TEST_NUMBER, num_sigfigs=3), 12300
+        )
+        self.assertAlmostEqual(
+            metric_utils.round_to_sigfigs(_TEST_NUMBER, num_sigfigs=6), 12345.7
+        )
+        self.assertAlmostEqual(
+            metric_utils.round_to_sigfigs(-_TEST_NUMBER, num_sigfigs=3), -12300
+        )
+        self.assertAlmostEqual(
+            metric_utils.round_to_sigfigs(-_TEST_NUMBER, num_sigfigs=6), -12345.7
+        )
+        self.assertAlmostEqual(
+            metric_utils.round_to_sigfigs(_TEST_NUMBER % 1, num_sigfigs=2), 0.68
+        )
+        self.assertAlmostEqual(
+            metric_utils.round_to_sigfigs(_TEST_NUMBER % 1, num_sigfigs=3), 0.679
+        )
+        self.assertEqual(metric_utils.round_to_sigfigs(9999, 1), 10000)
+        self.assertEqual(metric_utils.round_to_sigfigs(9999, 2), 10000)
 
-  def test_round_to_sigfigs_unnecessary(self) -> None:
-    self.assertEqual(metric_utils.round_to_sigfigs(_TEST_NUMBER, -1), 0)
-    self.assertEqual(metric_utils.round_to_sigfigs(_TEST_NUMBER, -0), 0)
-    self.assertEqual(metric_utils.round_to_sigfigs(0, 3), 0)
-    self.assertEqual(
-        metric_utils.round_to_sigfigs(_TEST_NUMBER, num_sigfigs=10),
-        _TEST_NUMBER,
-    )
-    self.assertTrue(
-        math.isnan(metric_utils.round_to_sigfigs(float('nan'), num_sigfigs=3))
-    )
+    def test_round_to_sigfigs_unnecessary(self) -> None:
+        self.assertEqual(metric_utils.round_to_sigfigs(_TEST_NUMBER, -1), 0)
+        self.assertEqual(metric_utils.round_to_sigfigs(_TEST_NUMBER, -0), 0)
+        self.assertEqual(metric_utils.round_to_sigfigs(0, 3), 0)
+        self.assertEqual(
+            metric_utils.round_to_sigfigs(_TEST_NUMBER, num_sigfigs=10),
+            _TEST_NUMBER,
+        )
+        self.assertTrue(
+            math.isnan(metric_utils.round_to_sigfigs(float('nan'), num_sigfigs=3))
+        )
+
 
 if __name__ == '__main__':
-  absltest.main()
+    absltest.main()

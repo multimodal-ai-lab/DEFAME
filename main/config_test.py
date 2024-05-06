@@ -24,6 +24,7 @@ from absl.testing import absltest
 # pylint: disable=g-bad-import-order
 from common import data_loader
 from main import config
+
 # pylint: enable=g-bad-import-order
 
 ACCEPTED_METHODS = (
@@ -55,43 +56,43 @@ ACCEPTED_TASKS = (
 
 class ConfigTest(absltest.TestCase):
 
-  def test_pipeline_settings(self) -> None:
-    self.assertIsInstance(config.side_1, str)
-    self.assertIn(config.side_1, ACCEPTED_METHODS)
-    self.assertIsInstance(config.side_2, str)
-    self.assertIn(config.side_2, ACCEPTED_METHODS)
-    self.assertIsInstance(config.parallelize, bool)
-    self.assertIsInstance(config.save_results, bool)
+    def test_pipeline_settings(self) -> None:
+        self.assertIsInstance(config.side_1, str)
+        self.assertIn(config.side_1, ACCEPTED_METHODS)
+        self.assertIsInstance(config.side_2, str)
+        self.assertIn(config.side_2, ACCEPTED_METHODS)
+        self.assertIsInstance(config.parallelize, bool)
+        self.assertIsInstance(config.save_results, bool)
 
-  def test_model_settings(self) -> None:
-    self.assertIsInstance(config.responder_model_short, str)
-    self.assertIn(config.responder_model_short, ACCEPTED_MODELS)
+    def test_model_settings(self) -> None:
+        self.assertIsInstance(config.responder_model_short, str)
+        self.assertIn(config.responder_model_short, ACCEPTED_MODELS)
 
-  def test_debug_settings(self) -> None:
-    self.assertIsInstance(config.show_responder_prompts, bool)
-    self.assertIsInstance(config.show_responder_responses, bool)
-    self.assertIsInstance(config.save_results, bool)
+    def test_debug_settings(self) -> None:
+        self.assertIsInstance(config.show_responder_prompts, bool)
+        self.assertIsInstance(config.show_responder_responses, bool)
+        self.assertIsInstance(config.save_results, bool)
 
-  def test_data_settings(self) -> None:
-    self.assertIsInstance(config.task_short, str)
-    self.assertIsInstance(config.shuffle_data, bool)
-    self.assertIsInstance(config.max_num_examples, int)
-    self.assertTrue(
-        config.max_num_examples > 0 or config.max_num_examples == -1
-    )
-    self.assertIsInstance(config.add_universal_postamble, bool)
-
-  def test_forced_settings(self) -> None:
-    self.assertIsInstance(config.responder_model, str)
-    self.assertNotEmpty(config.responder_model)
-    self.assertTrue(
-        isinstance(config.task, str)
-        or (
-            isinstance(config.task, tuple)
-            and len(config.task) == data_loader.TASK_TUPLE_LENGTH
+    def test_data_settings(self) -> None:
+        self.assertIsInstance(config.task_short, str)
+        self.assertIsInstance(config.shuffle_data, bool)
+        self.assertIsInstance(config.max_num_examples, int)
+        self.assertTrue(
+            config.max_num_examples > 0 or config.max_num_examples == -1
         )
-    )
+        self.assertIsInstance(config.add_universal_postamble, bool)
+
+    def test_forced_settings(self) -> None:
+        self.assertIsInstance(config.responder_model, str)
+        self.assertNotEmpty(config.responder_model)
+        self.assertTrue(
+            isinstance(config.task, str)
+            or (
+                    isinstance(config.task, tuple)
+                    and len(config.task) == data_loader.TASK_TUPLE_LENGTH
+            )
+        )
 
 
 if __name__ == '__main__':
-  absltest.main()
+    absltest.main()
