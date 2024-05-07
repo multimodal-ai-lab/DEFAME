@@ -6,10 +6,16 @@ The codebase was forked from the unimodal [Search-Augmented Factuality Evaluator
 
 ## Installation
 
-First, clone our GitHub repository with
+1. Clone our GitHub repository with
 ```bash
 git clone https://github.com/maggir/mafc.git
 ```
+2. Install the `spacy` package and download the spacy pipeline components for English via 
+```bash
+pip install spacy
+python -m spacy download en_core_web_sm
+```
+
 TBC
 
 ## Usage
