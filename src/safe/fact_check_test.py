@@ -27,7 +27,7 @@ from absl.testing import absltest
 # pylint: disable=g-bad-import-order
 from common import modeling
 from safe import rate_atomic_fact
-from safe import search_augmented_factuality_eval
+from safe import fact_check
 
 # pylint: enable=g-bad-import-order
 
@@ -169,11 +169,11 @@ class SearchAugmentedFactualityEvalTest(absltest.TestCase):
         )
         mock_checked_statement.return_value = _TEST_CHECKED_STATEMENT
         actual_checked_statement, actual_revised_dict, actual_steps_dict = (
-            search_augmented_factuality_eval.classify_relevance_and_rate_single(
+            search_augmented_factuality_eval.verify_claim(
                 prompt=_TEST_PROMPT,
-                response=_TEST_RESPONSE,
+                context=_TEST_RESPONSE,
                 sentence=_TEST_STATEMENT,
-                atomic_fact=_TEST_ATOMIC_FACT,
+                claim=_TEST_ATOMIC_FACT,
                 rater=_TEST_RATER,
             )
         )
@@ -207,7 +207,7 @@ class SearchAugmentedFactualityEvalTest(absltest.TestCase):
         mock_check_atomic_fact.return_value = None, {}
         self.assertRaises(
             ValueError,
-            search_augmented_factuality_eval.classify_relevance_and_rate_single,
+            search_augmented_factuality_eval.verify_claim,
             prompt=_TEST_PROMPT,
             response=_TEST_RESPONSE,
             sentence=_TEST_STATEMENT,
@@ -232,11 +232,11 @@ class SearchAugmentedFactualityEvalTest(absltest.TestCase):
         )
         mock_checked_statement.return_value = _TEST_CHECKED_STATEMENT
         actual_checked_statement, actual_revised_dict, actual_steps_dict = (
-            search_augmented_factuality_eval.classify_relevance_and_rate_single(
+            search_augmented_factuality_eval.verify_claim(
                 prompt=_TEST_PROMPT,
-                response=_TEST_RESPONSE,
+                context=_TEST_RESPONSE,
                 sentence=_TEST_STATEMENT,
-                atomic_fact=_TEST_ATOMIC_FACT,
+                claim=_TEST_ATOMIC_FACT,
                 rater=_TEST_RATER,
             )
         )
@@ -308,8 +308,8 @@ class SearchAugmentedFactualityEvalTest(absltest.TestCase):
         actual_output = (
             search_augmented_factuality_eval.classify_relevance_and_rate(
                 prompt=_TEST_PROMPT,
-                response=_TEST_RESPONSE,
-                sentences_and_atomic_facts=[{
+                context=_TEST_RESPONSE,
+                atomic_facts=[{
                     'sentence': _TEST_STATEMENT, 'atomic_facts': [_TEST_ATOMIC_FACT]
                 }],
                 rater=_TEST_RATER,
@@ -349,8 +349,8 @@ class SearchAugmentedFactualityEvalTest(absltest.TestCase):
         actual_output = (
             search_augmented_factuality_eval.classify_relevance_and_rate(
                 prompt=_TEST_PROMPT,
-                response=_TEST_RESPONSE,
-                sentences_and_atomic_facts=[{
+                context=_TEST_RESPONSE,
+                atomic_facts=[{
                     'sentence': _TEST_STATEMENT, 'atomic_facts': [_TEST_ATOMIC_FACT]
                 }],
                 rater=_TEST_RATER,
@@ -389,7 +389,7 @@ class SearchAugmentedFactualityEvalTest(absltest.TestCase):
             **rating_result_dict,
         }
         actual_output = search_augmented_factuality_eval.main(
-            prompt=_TEST_PROMPT, response=_TEST_RESPONSE, rater=_TEST_RATER
+            prompt=_TEST_PROMPT, content=_TEST_RESPONSE, rater=_TEST_RATER
         )
         mock_get_atomic_facts.assert_called_once_with(
             response=_TEST_RESPONSE, model=_TEST_RATER

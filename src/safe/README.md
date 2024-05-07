@@ -1,5 +1,23 @@
 # SAFE: Search-Augmented Factuality Evaluation
 
+In/out format:
+* Input: `"This is an outrageous claim. It claims multiple things."`
+* Output: TBC
+```json
+{
+  "claims": [
+    {
+      "sentence": "sen1",
+    },
+    {
+      "sentence": "sen2",
+    },
+  ]
+}
+```
+
+# Original Readme (needs overhaul)
+
 ## Overview
 
 Search-Augmented Factuality Evaluation (SAFE) is our proposed method of automatically evaluating long-form factuality generations using a language model connected to Google Search.

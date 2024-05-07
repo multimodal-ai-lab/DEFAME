@@ -23,9 +23,10 @@ from unittest import mock
 
 from absl.testing import absltest
 
+import safe.decontextualize
 # pylint: disable=g-bad-import-order
 from common import modeling
-from safe import classify_relevance
+from safe import check_worthiness
 
 # pylint: enable=g-bad-import-order
 
@@ -53,9 +54,9 @@ class ClassifyRelevanceTest(absltest.TestCase):
         mock_strip_string.return_value = _TEST_PROMPT_TO_SEND
         mock_generate.return_value = _TEST_RESPONSE_TO_RECEIVE
         mock_extract_first_square_brackets.return_value = classify_relevance.SYMBOL
-        actual_model_response, actual_answer = classify_relevance.check_relevance(
+        actual_model_response, actual_answer = classify_relevance.determine_check_worthiness_single(
             prompt=_TEST_PROMPT,
-            response=_TEST_RESPONSE,
+            context=_TEST_RESPONSE,
             atomic_fact=_TEST_REVISED_STATEMENT,
             model=_TEST_MODEL,
             do_debug=False,
@@ -83,9 +84,9 @@ class ClassifyRelevanceTest(absltest.TestCase):
         mock_extract_first_square_brackets.return_value = (
             classify_relevance.NOT_SYMBOL
         )
-        actual_model_response, actual_answer = classify_relevance.check_relevance(
+        actual_model_response, actual_answer = classify_relevance.determine_check_worthiness_single(
             prompt=_TEST_PROMPT,
-            response=_TEST_RESPONSE,
+            context=_TEST_RESPONSE,
             atomic_fact=_TEST_REVISED_STATEMENT,
             model=_TEST_MODEL,
             do_debug=False,
@@ -111,9 +112,9 @@ class ClassifyRelevanceTest(absltest.TestCase):
         mock_strip_string.return_value = _TEST_PROMPT_TO_SEND
         mock_generate.return_value = _TEST_RESPONSE_TO_RECEIVE
         mock_extract_first_square_brackets.return_value = ''
-        actual_model_response, actual_answer = classify_relevance.check_relevance(
+        actual_model_response, actual_answer = classify_relevance.determine_check_worthiness_single(
             prompt=_TEST_PROMPT,
-            response=_TEST_RESPONSE,
+            context=_TEST_RESPONSE,
             atomic_fact=_TEST_REVISED_STATEMENT,
             model=_TEST_MODEL,
             do_debug=False,
@@ -139,7 +140,7 @@ class ClassifyRelevanceTest(absltest.TestCase):
         mock_strip_string.return_value = _TEST_PROMPT_TO_SEND
         mock_generate.return_value = _TEST_RESPONSE_TO_RECEIVE
         mock_extract_first_code_block.return_value = _TEST_REVISED_STATEMENT
-        actual_model_response, actual_answer = classify_relevance.revise_fact(
+        actual_model_response, actual_answer = safe.decontextualize.revise_fact(
             response=_TEST_RESPONSE,
             atomic_fact=_TEST_STATEMENT,
             model=_TEST_MODEL,
@@ -166,7 +167,7 @@ class ClassifyRelevanceTest(absltest.TestCase):
         mock_strip_string.return_value = _TEST_PROMPT_TO_SEND
         mock_generate.return_value = _TEST_RESPONSE_TO_RECEIVE
         mock_extract_first_code_block.return_value = ''
-        actual_model_response, actual_answer = classify_relevance.revise_fact(
+        actual_model_response, actual_answer = safe.decontextualize.revise_fact(
             response=_TEST_RESPONSE,
             atomic_fact=_TEST_STATEMENT,
             model=_TEST_MODEL,
@@ -199,7 +200,7 @@ class ClassifyRelevanceTest(absltest.TestCase):
         actual_is_relevant, actual_revised_fact, actual_model_responses = (
             classify_relevance.main(
                 prompt=_TEST_PROMPT,
-                response=_TEST_RESPONSE,
+                context=_TEST_RESPONSE,
                 atomic_fact=_TEST_STATEMENT,
                 model=_TEST_MODEL,
             )
