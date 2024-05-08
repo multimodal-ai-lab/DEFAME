@@ -19,6 +19,8 @@ import os
 import threading
 import time
 from concurrent import futures
+import transformers
+import torch
 from typing import Any, Annotated, Optional
 
 import anthropic
@@ -208,6 +210,13 @@ class Model:
                 api_key=shared_config.anthropic_api_key,
                 sampling_options=sampling,
             )
+        elif model_name.lower().startswith('huggingface:'):
+            return transformers.Pipeline(
+                'text-generation', 
+                model=model_name[12:],
+                model_kwargs={"torch_dtype": torch.bfloat16},
+                device="cuda"
+                )
         elif 'unittest' == model_name.lower():
             return lf.llms.Echo()
         else:
