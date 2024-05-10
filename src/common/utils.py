@@ -17,6 +17,7 @@ import copy
 import io
 import json
 import os
+import shutil
 import random
 import re
 import string
@@ -192,12 +193,12 @@ def save_buffer(buffer: io.BytesIO, filepath: str) -> None:
 ################################################################################
 def clear_line() -> None:
     """Clears the current line."""
-    print(' ' * os.get_terminal_size().columns, end='\r')
+    print(' ' * shutil.get_terminal_size().columns, end='\r')
 
 
 def print_divider() -> None:
     """Prints a dividing line as wide as the terminal."""
-    print('-' * os.get_terminal_size().columns)
+    print('-' * shutil.get_terminal_size().columns)
 
 
 def print_color(message: str, color: str) -> None:
