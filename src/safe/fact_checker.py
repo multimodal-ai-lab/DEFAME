@@ -109,7 +109,8 @@ class FactChecker:
         return overall_veracity
 
     def aggregate_predictions(self, veracities):
-        overall_veracity = NOT_SUPPORTED_LABEL if np.any(veracities == NOT_SUPPORTED_LABEL) else SUPPORTED_LABEL
+        overall_supported = np.all(np.array(veracities) == SUPPORTED_LABEL)
+        overall_veracity = SUPPORTED_LABEL if overall_supported else NOT_SUPPORTED_LABEL
         return overall_veracity
 
     def verify_claim(self, claim: str):
