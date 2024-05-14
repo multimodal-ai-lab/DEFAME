@@ -2,6 +2,8 @@ import dataclasses
 import re
 from typing import Sequence
 
+import numpy as np
+
 from common import shared_config, utils
 from common.modeling import Model
 from safe import config as safe_config, query_serper
@@ -76,7 +78,11 @@ class FactChecker:
         self.max_steps = safe_config.max_steps
         self.max_retries = safe_config.max_retries
 
-    def check(self, content: str | Sequence[str]):
+    def check(self, content: str | Sequence[str]) -> str:
+        """Fact-checks the given content by first extracting all elementary claims and then
+        verifying each claim individually. Returns the overall veracity which is true iff
+        all elementary claims are true."""
+
         print(f"Content to be fact-checked: '{content}'")
 
         claims = self.claim_extractor.extract_claims(content)
@@ -93,6 +99,18 @@ class FactChecker:
             print(f"The claim '{claim}' is {veracity}.")
             print(justification)
             print()
+
+        print("The veracity of each individual claim is:")
+        print(veracities)
+
+        overall_veracity = self.aggregate_predictions(veracities)
+        print(f"So, the overall veracity is: {overall_veracity}")
+
+        return overall_veracity
+
+    def aggregate_predictions(self, veracities):
+        overall_veracity = NOT_SUPPORTED_LABEL if np.any(veracities == NOT_SUPPORTED_LABEL) else SUPPORTED_LABEL
+        return overall_veracity
 
     def verify_claim(self, claim: str):
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it."""
