@@ -180,7 +180,12 @@ class Model:
         self.max_tokens = max_tokens
         self.show_responses = show_responses
         self.show_prompts = show_prompts
+
+        #temporary token to distinguish external requesting from internal querrying
+        self.open_source = False
+        
         self.model = self.load(model_name, self.temperature, self.max_tokens)
+
 
     def load(
             self, model_name: str, temperature: float, max_tokens: int
@@ -211,8 +216,12 @@ class Model:
                 sampling_options=sampling,
             )
         elif model_name.lower().startswith('huggingface:'):
-            return transformers.Pipeline(
+            self.open_source = True
+            return transformers.pipeline(
                 'text-generation', 
+                max_length=self.max_tokens,
+                temperature=self.temperature,
+                top_k=30,
                 model=model_name[12:],
                 model_kwargs={"torch_dtype": torch.bfloat16},
                 device="cuda"
@@ -241,23 +250,26 @@ class Model:
         gen_max_tokens = max_tokens or self.max_tokens
         response, num_attempts = '', 0
 
-        with modeling_utils.get_lf_context(gen_temp, gen_max_tokens):
-            while not response and num_attempts < max_attempts:
-                with futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(lf.LangFunc(prompt, lm=self.model))
+        if self.open_source:
+            response = self.model(prompt)[0]['generated_text']
+        else:
+            with modeling_utils.get_lf_context(gen_temp, gen_max_tokens):
+                while not response and num_attempts < max_attempts:
+                    with futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(lf.LangFunc(prompt, lm=self.model))
 
-                    try:
-                        response = future.result(timeout=timeout).text
-                    except (
-                            openai.error.OpenAIError,
-                            futures.TimeoutError,
-                            lf.core.concurrent.RetryError,
-                            anthropic.AnthropicError,
-                    ) as e:
-                        utils.maybe_print_error(e)
-                        time.sleep(retry_interval)
+                        try:
+                            response = future.result(timeout=timeout).text
+                        except (
+                                openai.error.OpenAIError,
+                                futures.TimeoutError,
+                                lf.core.concurrent.RetryError,
+                                anthropic.AnthropicError,
+                        ) as e:
+                            utils.maybe_print_error(e)
+                            time.sleep(retry_interval)
 
-                num_attempts += 1
+                    num_attempts += 1
 
         if do_debug:
             with _DEBUG_PRINT_LOCK:
