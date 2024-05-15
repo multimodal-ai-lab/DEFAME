@@ -29,6 +29,13 @@ import os
 # path_to_data: str = directory storing task information.
 # path_to_result: str = directory to output results.
 ################################################################################
+#                         LIMITED SUPPORT FOR OPENSOURCE MODELS
+#                         THROUGH HUGGINGFACE
+# model options for opensource models: 'huggingface:[huggingface_model_path]'
+# e.g. for Llama3-8B-Instruct: 'huggingface:meta-llama/Meta-Llama-3-8B-Instruct'
+# try out open source models and resort to common/modeling_utils handle_prompt()
+# for adequate prompt-preprocessing
+################################################################################
 prompt_postamble = """\
 Provide as many specific details and examples as possible (such as names of \
 people, numbers, events, locations, dates, times, etc.)
@@ -49,6 +56,7 @@ model_options = {
     'claude_21': 'ANTHROPIC:claude-2.1',
     'claude_20': 'ANTHROPIC:claude-2.0',
     'claude_instant': 'ANTHROPIC:claude-instant-1.2',
+    'llama3_8b_instruct': 'huggingface:meta-llama/Meta-Llama-3-8B-Instruct'
 }
 model_string = {
     'gpt_4_turbo': 'gpt4turbo',
@@ -61,6 +69,7 @@ model_string = {
     'claude_21': 'claude21',
     'claude_20': 'claude20',
     'claude_instant': 'claudeinstant',
+    'llama3_8B_instruct': 'llama3_8B_instruct',
 }
 task_options = {}
 root_dir = '/'.join(os.path.abspath(__file__).split('/')[:-2])

@@ -184,10 +184,7 @@ class Model:
         self.repetition_penalty = repetition_penalty
         self.show_responses = show_responses
         self.show_prompts = show_prompts
-        
-        #for open source models
         self.open_source = False
-        
         self.model = self.load(model_name, self.temperature, self.max_tokens)
 
     def load(
@@ -218,7 +215,7 @@ class Model:
                 api_key=shared_config.anthropic_api_key,
                 sampling_options=sampling,
             )
-        #vanilla transformers.pipeline that works with many out-of-the-box huggingface models 
+        # Pipeline works with various out-of-the-box huggingface models 
         elif model_name.lower().startswith('huggingface:'):
             self.open_source = True
             model_name = model_name[12:]
@@ -257,12 +254,8 @@ class Model:
         response, num_attempts = '', 0
 
         if self.open_source:
-            prompt = modeling_utils.prepare_prompt(prompt)
-            prompt = self.model.tokenizer.apply_chat_template(
-                prompt,
-                tokenize=False, 
-                add_generation_prompt=True
-            )
+            # Due to high variability of open source models, handling needs to be done case by case. Default uses meta-llama formatting.
+            prompt = modeling_utils.handle_prompt(self, prompt)
             terminators = [
             self.model.tokenizer.eos_token_id,
             self.model.tokenizer.convert_tokens_to_ids("<|eot_id|>")
