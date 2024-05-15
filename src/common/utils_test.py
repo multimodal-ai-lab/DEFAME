@@ -293,12 +293,6 @@ class UtilsTest(absltest.TestCase):
         mock_get_terminal_size.assert_called_once_with()
         mock_print.assert_called_once()
 
-    @mock.patch('termcolor.cprint')
-    def test_print_color(self, mock_cprint: mock.Mock) -> None:
-        test_color = 'red'
-        utils.print_color(message=_TEST_STRING, color=test_color)
-        mock_cprint.assert_called_once_with(_TEST_STRING, test_color)
-
     @mock.patch('common.utils.print_color')
     @mock.patch('common.utils.clear_line')
     def test_print_step_errors(

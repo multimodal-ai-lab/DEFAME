@@ -3,10 +3,12 @@ from typing import Sequence
 from pathlib import Path
 from abc import ABC
 
+from common.label import Label
+
 
 class Benchmark(ABC):
     data: Sequence[dict]  # Each element is of the form {"content", "label"}
-    labels: set[str]
+    label_meaning: dict[str, Label]
     file_path: Path
 
     def __init__(self, name: str):
@@ -26,7 +28,12 @@ class Benchmark(ABC):
 
 
 class AVeriTeC(Benchmark):
-    labels = {"Supported", "Refuted", "Not Enough Evidence", "Conflicting Evidence/Cherrypicking"}
+    label_meaning = {
+        "Supported": Label.SUPPORTED,
+        "Not Enough Evidence": Label.NEI,
+        "Refuted": Label.REFUTED,
+        "Conflicting Evidence/Cherrypicking": Label.CONFLICTING,
+    }
 
     def __init__(self, variant="dev"):
         super().__init__("averitec")
@@ -36,11 +43,15 @@ class AVeriTeC(Benchmark):
         with open(self.file_path, 'r') as f:
             data = json.load(f)
 
-        self.data = [{"content": d["claim"], "label": d["label"]} for d in data]
+        self.data = [{"content": d["claim"], "label": self.label_meaning[d["label"]]} for d in data]
 
 
 class FEVER(Benchmark):
-    labels = {"SUPPORTS", "NOT ENOUGH INFO", "REFUTES"}
+    data_labels_to_model_labels = {
+        "SUPPORTS": Label.SUPPORTED,
+        "NOT ENOUGH INFO": Label.NEI,
+        "REFUTES": Label.REFUTED,
+    }
 
     def __init__(self, variant="dev"):
         super().__init__("averitec")
@@ -50,4 +61,4 @@ class FEVER(Benchmark):
         with open(self.file_path, 'r') as f:
             data = json.load(f)
 
-        self.data = [{"content": d["claim"], "label": d["label"]} for d in data]
+        self.data = [{"content": d["claim"], "label": self.data_labels_to_model_labels[d["label"]]} for d in data]

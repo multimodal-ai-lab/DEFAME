@@ -8,9 +8,13 @@ from common import shared_config, utils
 from common.modeling import Model
 from safe import config as safe_config, query_serper
 from safe.claim_extractor import ClaimExtractor
+from common.label import Label
+from common.console import gray, light_blue, bold
 
-SUPPORTED_LABEL = 'Supported'
-NOT_SUPPORTED_LABEL = 'Not Supported'
+
+SUPPORTED_LABEL = Label.SUPPORTED.value
+NOT_SUPPORTED_LABEL = Label.REFUTED.value
+# TODO: implement NEI and conflicting evidence
 _STATEMENT_PLACEHOLDER = '[STATEMENT]'
 _KNOWLEDGE_PLACEHOLDER = '[KNOWLEDGE]'
 _NEXT_SEARCH_FORMAT = f"""\
@@ -78,16 +82,16 @@ class FactChecker:
         self.max_steps = safe_config.max_steps
         self.max_retries = safe_config.max_retries
 
-    def check(self, content: str | Sequence[str]) -> str:
+    def check(self, content: str | Sequence[str]) -> Label:
         """Fact-checks the given content by first extracting all elementary claims and then
         verifying each claim individually. Returns the overall veracity which is true iff
         all elementary claims are true."""
 
-        print(f"Content to be fact-checked: '{content}'")
+        print(bold(f"Content to be fact-checked: '{light_blue(content)}'"))
 
         claims = self.claim_extractor.extract_claims(content)
 
-        print("Verifying the claims...")
+        print(bold("Verifying the claims..."))
         veracities = []
         justifications = []
         for claim in claims:
@@ -96,24 +100,21 @@ class FactChecker:
             justifications.append(justification)
 
         for claim, veracity, justification in zip(claims, veracities, justifications):
-            print(f"The claim '{claim}' is {veracity}.")
-            print(justification)
+            print(bold(f"The claim '{light_blue(claim)}' is {veracity.value}."))
+            print(gray(justification))
             print()
 
-        print("The veracity of each individual claim is:")
-        print(veracities)
-
         overall_veracity = self.aggregate_predictions(veracities)
-        print(f"So, the overall veracity is: {overall_veracity}")
+        print(bold(f"So, the overall veracity is: {overall_veracity.value}"))
 
         return overall_veracity
 
-    def aggregate_predictions(self, veracities):
-        overall_supported = np.all(np.array(veracities) == SUPPORTED_LABEL)
-        overall_veracity = SUPPORTED_LABEL if overall_supported else NOT_SUPPORTED_LABEL
+    def aggregate_predictions(self, veracities: Sequence[Label]) -> Label:
+        overall_supported = np.all(np.array(veracities) == Label.SUPPORTED)
+        overall_veracity = Label.SUPPORTED if overall_supported else Label.REFUTED
         return overall_veracity
 
-    def verify_claim(self, claim: str):
+    def verify_claim(self, claim: str) -> (Label, str):
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it."""
         search_results = []
 
@@ -144,7 +145,9 @@ class FactChecker:
         if final_answer is None:
             utils.maybe_print_error('Unsuccessful parsing for `final_answer`')
 
-        return final_answer.answer, final_answer.response
+        predicted_label = Label(final_answer.answer)
+
+        return predicted_label, final_answer.response
 
     def call_search(self,
                     search_query: str,

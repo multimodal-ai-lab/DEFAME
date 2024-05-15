@@ -2,6 +2,7 @@ from common import utils
 from common.modeling import Model
 from safe import config as safe_config
 from third_party.factscore.atomic_facts import AtomicFactGenerator
+from common.console import light_blue
 
 SYMBOL = 'Foo'
 NOT_SYMBOL = 'Not Foo'
@@ -217,17 +218,18 @@ class ClaimExtractor:
     def extract_claims(self, content):
         print("Decomposing...")
         atomic_facts = self.decompose(content)
-        print(atomic_facts)
+        for atomic_fact in atomic_facts:
+            print(light_blue(f"'{atomic_fact}'"))
 
         print("Decontextualizing...")
         atomic_facts_decontextualized = [self.decontextualize(atomic_fact, content) for atomic_fact in atomic_facts]
         for atomic_fact in atomic_facts_decontextualized:
-            print(f"'{atomic_fact}'")
+            print(light_blue(f"'{atomic_fact}'"))
 
         print("Filtering for check-worthy claims...")
         claims = [claim for claim in atomic_facts_decontextualized if self.is_check_worthy(claim, content)]
         for claim in claims:
-            print(f"'{claim}'")
+            print(light_blue(f"'{claim}'"))
 
         return claims
 

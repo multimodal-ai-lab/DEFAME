@@ -24,6 +24,6 @@ for instance in benchmark:
 
 # Compute metrics
 ground_truth = benchmark.get_labels()[:n]
-correct_predictions = np.array(predictions) == np.array(ground_truth)  # TODO: translate labels
+correct_predictions = np.array(predictions) == np.array(ground_truth)
 accuracy = np.sum(correct_predictions) / n
 print(f"Accuracy: {accuracy*100:.1f} %")

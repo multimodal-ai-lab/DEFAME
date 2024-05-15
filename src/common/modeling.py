@@ -32,6 +32,7 @@ import pyglove as pg
 from common import modeling_utils
 from common import shared_config
 from common import utils
+from console import cyan, magenta
 
 # pylint: enable=g-bad-import-order
 
@@ -274,9 +275,9 @@ class Model:
         if do_debug:
             with _DEBUG_PRINT_LOCK:
                 if self.show_prompts:
-                    utils.print_color(prompt, 'magenta')
+                    print(magenta(prompt))
                 if self.show_responses:
-                    utils.print_color(response, 'cyan')
+                    print(cyan(response))
 
         return response
 

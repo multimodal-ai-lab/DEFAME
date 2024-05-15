@@ -1,16 +1,3 @@
-# Copyright 2024 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """Shared utility functions."""
 
 import copy
@@ -24,7 +11,7 @@ import string
 import types
 from typing import Any
 
-import termcolor
+from console import green, red
 
 
 ################################################################################
@@ -201,16 +188,11 @@ def print_divider() -> None:
     print('-' * shutil.get_terminal_size().columns)
 
 
-def print_color(message: str, color: str) -> None:
-    """Prints a message with a color."""
-    termcolor.cprint(message, color)
-
-
 def print_step_errors(step_name: str, success_rate: float) -> None:
     """Prints the success rate of a step."""
     message = f'{step_name} success rate: {round(success_rate * 100, 1)}%'
     clear_line()
-    print_color(message, 'green')
+    print(green(message))
 
 
 def print_info(message: str, add_punctuation: bool = True) -> None:
@@ -223,7 +205,7 @@ def print_info(message: str, add_punctuation: bool = True) -> None:
             f'{message}.' if message[-1] not in string.punctuation else message
         )
     clear_line()
-    print_color(f'INFO: {message}', color='green')
+    print(green(f'INFO: {message}'))
 
 
 def maybe_print_error(
@@ -239,7 +221,7 @@ def maybe_print_error(
     message = f'{error}: {str(message)}'
     message += f'\n{additional_info}' if verbose else ''
     clear_line()
-    print_color(message, color='red')
+    print(red(message))
 
 
 def print_progress(sentence: str, progress: int, out_of: int) -> None:
@@ -257,7 +239,7 @@ def print_progress(sentence: str, progress: int, out_of: int) -> None:
         empty = ' ' * (num_remaining - num_fill)
         sentence = f'{sentence}[{fill}{empty}]'
 
-    print(termcolor.colored(sentence, 'green'), end='\r')
+    print(green(sentence), end='\r')
 
     if progress == out_of:
         print()
