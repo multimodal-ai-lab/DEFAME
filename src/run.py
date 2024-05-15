@@ -11,7 +11,7 @@ content = "Switzerland is the winner of ESC 2024."
 #            "Democrats, he was unlawfully relieved from presidency.")
 
 model = "OPENAI:gpt-3.5-turbo-0125"
-# model = Model("huggingface:meta-llama/Meta-Llama-3-8B-Instruct", temperature= 0.2, max_tokens=1000)
+model = Model("huggingface:meta-llama/Meta-Llama-3-8B-Instruct")
 
 fc = FactChecker(model=model)
 fc.check(content)
