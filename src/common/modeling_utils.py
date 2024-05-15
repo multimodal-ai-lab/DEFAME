@@ -52,3 +52,23 @@ def get_lf_context(
         return lf.use_settings(max_tokens=max_tokens)
     else:
         return dummy_context_manager()
+
+def prepare_prompt(prompt, sys_prompt="Make sure to follow the instructions. Do not repeat the input and keep the output to the minimum."):
+    """
+    Formats the prompt to fit into a structured conversation template taken from https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct on 15.05.2024. 
+    Each message in the conversation is represented as a dictionary with 'role' and 'content'.
+
+    Args:
+    prompt (str): The user's input prompt.
+    sys_prompt (str, optional): Optional system-level prompt or instructions.
+
+    Returns:
+    list: A list of dictionaries, each containing 'role' and 'content' keys that fit the conversation template.
+    """
+    messages = []
+    if sys_prompt:
+        messages.append({"role": "system", "content": sys_prompt})
+    messages.append({"role": "user", "content": prompt})
+    # The 'assistant' role could also be added here if needed for further processing,
+    # or if the model expects to generate the next part of the conversation from this point.
+    return messages
