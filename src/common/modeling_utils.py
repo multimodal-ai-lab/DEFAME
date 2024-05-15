@@ -52,3 +52,63 @@ def get_lf_context(
         return lf.use_settings(max_tokens=max_tokens)
     else:
         return dummy_context_manager()
+
+def prepare_prompt(
+    prompt: str,
+    sys_prompt: Optional[str] = "Make sure to follow the instructions. Do not repeat the input and keep the output to the minimum."
+) -> str:
+    """
+    Formats the prompt to fit into a structured conversation template taken from https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct on 15.05.2024. 
+    Each message in the conversation is represented as a dictionary with 'role' and 'content'.
+
+    Args:
+    prompt (str): The user's input prompt.
+    sys_prompt (str, optional): Optional system-level prompt or instructions.
+
+    Returns:
+    list: A list of dictionaries, each containing 'role' and 'content' keys that fit the conversation template.
+    """
+    messages = []
+    if sys_prompt:
+        messages.append({"role": "system", "content": sys_prompt})
+    messages.append({"role": "user", "content": prompt})
+    # The 'assistant' role could also be added here if needed for further processing,
+    # or if the model expects to generate the next part of the conversation from this point.
+    return messages
+
+def handle_prompt(
+    model: Any, 
+    original_prompt: str, 
+    system_prompt: Optional[str] = "Make sure to follow the instructions. Do not repeat the input and keep the output to the minimum."
+) -> str:
+    """
+    Processes the prompt using the model's tokenizer with a specific template,
+    and continues execution even if an error occurs during formatting.
+
+    Args:
+    original_prompt (str): The initial user-provided prompt.
+
+    Returns:
+    str: The formatted prompt or the original prompt if an error occurs.
+    """
+    original_prompt =  prepare_prompt(original_prompt, system_prompt)
+    try:
+        # Attempt to apply the chat template formatting
+        formatted_prompt = model.model.tokenizer.apply_chat_template(
+            original_prompt,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+    except Exception as e:
+        # Log the error and continue with the original prompt
+        error_message = (
+            f"An error occurred while formatting the prompt: {str(e)}. "
+            f"Please check the model's documentation on Hugging Face for the correct prompt formatting: "
+            f"https://huggingface.co/{model.model_name[12:]}"
+        )
+        print(error_message)
+        # Use the original prompt if the formatting fails
+        formatted_prompt = original_prompt
+
+    # The function continues processing with either the formatted or original prompt
+    return formatted_prompt

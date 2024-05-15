@@ -27,6 +27,7 @@ import anthropic
 import langfun as lf
 import openai
 import pyglove as pg
+from accelerate import Accelerator
 
 # pylint: disable=g-bad-import-order
 from common import modeling_utils
@@ -163,7 +164,6 @@ class AnthropicModel(lf.LanguageModel):
             ),
         )
 
-
 class Model:
     """Class for storing any single language model."""
 
@@ -172,6 +172,8 @@ class Model:
             model_name: str,
             temperature: float = 0.5,
             max_tokens: int = 2048,
+            top_k: int = 50,
+            repetition_penalty: float = 1.2,
             show_responses: bool = False,
             show_prompts: bool = False,
     ) -> None:
@@ -179,14 +181,12 @@ class Model:
         self.model_name = model_name
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.top_k = top_k
+        self.repetition_penalty = repetition_penalty
         self.show_responses = show_responses
         self.show_prompts = show_prompts
-
-        #temporary token to distinguish external requesting from internal querrying
         self.open_source = False
-        
         self.model = self.load(model_name, self.temperature, self.max_tokens)
-
 
     def load(
             self, model_name: str, temperature: float, max_tokens: int
@@ -216,16 +216,19 @@ class Model:
                 api_key=shared_config.anthropic_api_key,
                 sampling_options=sampling,
             )
+        # Pipeline works with various out-of-the-box huggingface models 
         elif model_name.lower().startswith('huggingface:'):
             self.open_source = True
+            model_name = model_name[12:]
             return transformers.pipeline(
                 'text-generation', 
                 max_length=self.max_tokens,
                 temperature=self.temperature,
-                top_k=30,
-                model=model_name[12:],
+                top_k=self.top_k,
+                model=model_name,
+                repetition_penalty=self.repetition_penalty,
                 model_kwargs={"torch_dtype": torch.bfloat16},
-                device="cuda"
+                device_map="auto"
                 )
         elif 'unittest' == model_name.lower():
             return lf.llms.Echo()
@@ -239,6 +242,7 @@ class Model:
             temperature: Optional[float] = None,
             max_tokens: Optional[int] = None,
             max_attempts: int = 1000,
+            top_k=50,
             timeout: int = 60,
             retry_interval: int = 10,
     ) -> str:
@@ -248,11 +252,21 @@ class Model:
         self.model.timeout = timeout
         prompt = modeling_utils.add_format(prompt, self.model, self.model_name)
         gen_temp = temperature or self.temperature
-        gen_max_tokens = max_tokens or self.max_tokens
         response, num_attempts = '', 0
 
         if self.open_source:
-            response = self.model(prompt)[0]['generated_text']
+            # Due to high variability of open source models, handling needs to be done case by case. Default uses meta-llama formatting.
+            prompt = modeling_utils.handle_prompt(self, prompt)
+            terminators = [
+            self.model.tokenizer.eos_token_id,
+            self.model.tokenizer.convert_tokens_to_ids("<|eot_id|>")
+            ]
+            output = self.model(prompt,
+                eos_token_id=terminators,
+                do_sample=True,
+                temperature=0.6,
+                top_p=0.9,)
+            response = output[0]['generated_text'][len(prompt):]
         else:
             with modeling_utils.get_lf_context(gen_temp, gen_max_tokens):
                 while not response and num_attempts < max_attempts:
