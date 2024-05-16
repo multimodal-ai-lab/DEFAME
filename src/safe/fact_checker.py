@@ -1,6 +1,6 @@
 import dataclasses
 import re
-from typing import Sequence
+from typing import Sequence, Optional
 
 import numpy as np
 
@@ -19,15 +19,33 @@ _STATEMENT_PLACEHOLDER = '[STATEMENT]'
 _KNOWLEDGE_PLACEHOLDER = '[KNOWLEDGE]'
 _NEXT_SEARCH_FORMAT = f"""\
 Instructions:
-1. You have been given a STATEMENT and some KNOWLEDGE points.
+1. You have been given a STATEMENT and KNOWLEDGE points.
+2. Your goal is to try to find evidence that either supports or does \
+not support the factual accuracy of the given STATEMENT.
+3. To do this, you are allowed to issue ONE Google Search query.
+4. Your query should aim to obtain new information that does not appear \
+in the KNOWLEDGE. 
+5. Format your final query by putting it in a markdown code block. \
+
+KNOWLEDGE:
+{_KNOWLEDGE_PLACEHOLDER}
+
+STATEMENT:
+{_STATEMENT_PLACEHOLDER}
+"""
+
+_NEXT_SEARCH_FORMAT_OPEN_SOURCE = f"""\
+Instructions:
+1. You have been given a STATEMENT and some KNOWLEDGE.
 2. Your goal is to try to find evidence that either supports or does not \
-support the factual accuracy of the given STATEMENT.
+support the given STATEMENT.
 3. To do this, you are allowed to issue ONE Google Search query that you think \
 will allow you to find additional useful evidence.
-4. Your query should aim to obtain new information that does not appear in the \
+4. Your query should aim to obtain new information that does NOT appear in the \
 KNOWLEDGE. This new information should be useful for determining the factual \
-accuracy of the given STATEMENT.
-5. Format your final query by putting it in a markdown code block.
+accuracy of the given STATEMENT. Remember, the query should yield new, additional information that is not in KNOWLEDGE.
+5. Do NOT include any websites, do NOT use the token 'site:' and only output the pure natural query that I would use in Google Search.
+6. Format your final query by putting it in a markdown code block.
 
 KNOWLEDGE:
 {_KNOWLEDGE_PLACEHOLDER}
@@ -82,7 +100,7 @@ class FactChecker:
         self.max_steps = safe_config.max_steps
         self.max_retries = safe_config.max_retries
 
-    def check(self, content: str | Sequence[str]) -> Label:
+    def check(self, content: str | Sequence[str], verbose: Optional[bool] = False) -> Label:
         """Fact-checks the given content by first extracting all elementary claims and then
         verifying each claim individually. Returns the overall veracity which is true iff
         all elementary claims are true."""
@@ -95,7 +113,7 @@ class FactChecker:
         veracities = []
         justifications = []
         for claim in claims:
-            veracity, justification = self.verify_claim(claim)
+            veracity, justification = self.verify_claim(claim, verbose=verbose)
             veracities.append(veracity)
             justifications.append(justification)
 
@@ -114,7 +132,7 @@ class FactChecker:
         overall_veracity = Label.SUPPORTED if overall_supported else Label.REFUTED
         return overall_veracity
 
-    def verify_claim(self, claim: str) -> (Label, str):
+    def verify_claim(self, claim: str, verbose: Optional[bool] = False) -> (Label, str):
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it."""
         search_results = []
 
@@ -122,7 +140,9 @@ class FactChecker:
             next_search, num_tries = None, 0
 
             while not next_search and num_tries <= self.max_retries:
-                next_search = self.maybe_get_next_search(claim, search_results)
+                next_search = self.maybe_get_next_search(claim, search_results, verbose=verbose)
+                if verbose:
+                    print("next_search: ", next_search)
                 num_tries += 1
 
             if next_search is None:
@@ -168,16 +188,31 @@ class FactChecker:
     def maybe_get_next_search(self,
                               claim: str,
                               past_searches: list[GoogleSearchResult],
+                              verbose: Optional[bool] = False,
                               ) -> GoogleSearchResult | None:
         """Get the next query from the model."""
         knowledge = '\n'.join([s.result for s in past_searches])
         knowledge = 'N/A' if not knowledge else knowledge
-        full_prompt = _NEXT_SEARCH_FORMAT.replace(_STATEMENT_PLACEHOLDER, claim)
+        if self.model.open_source:
+            full_prompt = _NEXT_SEARCH_FORMAT_OPEN_SOURCE.replace(_STATEMENT_PLACEHOLDER, claim)
+        else:
+            full_prompt = _NEXT_SEARCH_FORMAT.replace(_STATEMENT_PLACEHOLDER, claim)
         full_prompt = full_prompt.replace(_KNOWLEDGE_PLACEHOLDER, knowledge)
         full_prompt = utils.strip_string(full_prompt)
-        model_response = self.model.generate(full_prompt, do_debug=self.debug)
+        model_response = self.model.generate(full_prompt, do_debug=self.debug).replace('"', '')
+        if model_response.startswith("I cannot"):
+            if verbose: 
+                print("Model hit the railguards -.-'")
+            model_response = claim
         query = utils.extract_first_code_block(model_response, ignore_language=True)
-
+        print("query: ", query)
+        if verbose:
+            print("_____________DEBUG_____________")
+            print("_________fact_checker.py_______")
+            print("claim: ", claim)
+            print("KNOWLEDGE: ", knowledge)
+            print("________MODEL RESPONSE_________")
+            print("model_response: ", model_response)
         if model_response and query:
             return GoogleSearchResult(query=query, result=self.call_search(query))
 
@@ -195,6 +230,9 @@ class FactChecker:
         full_prompt = full_prompt.replace(_KNOWLEDGE_PLACEHOLDER, knowledge)
         full_prompt = utils.strip_string(full_prompt)
         model_response = self.model.generate(full_prompt, do_debug=self.debug)
+        if model_response.startswith("I cannot"):
+            print("Model hit the railguards -.-'. Defaulting to NOT_SUPPORTED.")
+            model_response = '[NOT_SUPPORTED_LABEL]'
         answer = utils.extract_first_square_brackets(model_response)
         answer = re.sub(r'[^\w\s]', '', answer).strip()
 

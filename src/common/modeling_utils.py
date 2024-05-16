@@ -55,22 +55,17 @@ def get_lf_context(
 
 def prepare_prompt(
     prompt: str,
-    sys_prompt: Optional[str] = "Make sure to follow the instructions. Do not repeat the input and keep the output to the minimum."
-) -> str:
+    sys_prompt: Optional[str] = "Make sure to exactly follow the instructions. Do not introduce the answer. Keep the output to the minimum.",
+    model_name: Optional[str] = None
+) -> list:
     """
     Formats the prompt to fit into a structured conversation template taken from https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct on 15.05.2024. 
     Each message in the conversation is represented as a dictionary with 'role' and 'content'.
-
-    Args:
-    prompt (str): The user's input prompt.
-    sys_prompt (str, optional): Optional system-level prompt or instructions.
-
-    Returns:
-    list: A list of dictionaries, each containing 'role' and 'content' keys that fit the conversation template.
     """
     messages = []
     if sys_prompt:
-        messages.append({"role": "system", "content": sys_prompt})
+        if "meta" in model_name:
+            messages.append({"role": "system", "content": sys_prompt})
     messages.append({"role": "user", "content": prompt})
     # The 'assistant' role could also be added here if needed for further processing,
     # or if the model expects to generate the next part of the conversation from this point.
@@ -84,14 +79,8 @@ def handle_prompt(
     """
     Processes the prompt using the model's tokenizer with a specific template,
     and continues execution even if an error occurs during formatting.
-
-    Args:
-    original_prompt (str): The initial user-provided prompt.
-
-    Returns:
-    str: The formatted prompt or the original prompt if an error occurs.
     """
-    original_prompt =  prepare_prompt(original_prompt, system_prompt)
+    original_prompt =  prepare_prompt(original_prompt, system_prompt, model.model_name)
     try:
         # Attempt to apply the chat template formatting
         formatted_prompt = model.model.tokenizer.apply_chat_template(

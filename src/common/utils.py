@@ -11,7 +11,7 @@ import string
 import types
 from typing import Any
 
-from console import green, red
+from common.console import green, red
 
 
 ################################################################################
@@ -67,12 +67,26 @@ def extract_first_square_brackets(input_string: str) -> str:
         return raw_result[0][1:-1]
     else:
         return ''
+    
+def ensure_triple_trailing_ticks(input_string: str) -> str:
+    """
+    Ensures that if a string starts with triple backticks,
+    it also ends with them. If not, appends the corresponding triple ticks at the end.
+    This is due to behavioral observation of some models forgetting the trailing ticks.
+    """
+    triple_backticks = "```"
 
+    # Check if starts with triple backticks
+    if input_string.startswith(triple_backticks):
+        if not input_string.endswith(triple_backticks):
+            input_string += triple_backticks
+    return input_string
 
 def extract_first_code_block(
         input_string: str, ignore_language: bool = False
 ) -> str:
     """Extracts the contents of a string between the first code block (```)."""
+    input_string = ensure_triple_trailing_ticks(input_string)
     if ignore_language:
         pattern = re.compile(r'```(?:\w+\n)?(.*?)```', re.DOTALL)
     else:

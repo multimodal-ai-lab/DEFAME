@@ -4,7 +4,8 @@ from safe.fact_checker import FactChecker
 from eval.benchmark import AVeriTeC
 
 n = 5
-model = "OPENAI:gpt-3.5-turbo-0125"
+#model = "OPENAI:gpt-3.5-turbo-0125"
+model = "huggingface:meta-llama/Meta-Llama-3-70B-Instruct"
 benchmark = AVeriTeC("dev")
 assert n <= len(benchmark)
 
@@ -17,7 +18,7 @@ fc = FactChecker(model=model)
 predictions = []
 for instance in benchmark:
     content = instance["content"]
-    prediction = fc.check(content)
+    prediction = fc.check(content,verbose=False)
     predictions.append(prediction)
     if len(predictions) == 5:
         break

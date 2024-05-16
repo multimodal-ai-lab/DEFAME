@@ -27,13 +27,12 @@ import anthropic
 import langfun as lf
 import openai
 import pyglove as pg
-from accelerate import Accelerator
 
 # pylint: disable=g-bad-import-order
 from common import modeling_utils
 from common import shared_config
 from common import utils
-from console import cyan, magenta
+from common.console import cyan, magenta
 
 # pylint: enable=g-bad-import-order
 
@@ -255,20 +254,23 @@ class Model:
         response, num_attempts = '', 0
 
         if self.open_source:
-            # Due to high variability of open source models, handling needs to be done case by case. Default uses meta-llama formatting.
+            # Handling needs to be done case by case. Default uses meta-llama formatting.
             prompt = modeling_utils.handle_prompt(self, prompt)
             terminators = [
             self.model.tokenizer.eos_token_id,
             self.model.tokenizer.convert_tokens_to_ids("<|eot_id|>")
             ]
+            # useful for controlling the length of the generated sequences.
+            self.model.tokenizer.pad_token_id = self.model.tokenizer.eos_token_id
             output = self.model(prompt,
                 eos_token_id=terminators,
+                pad_token_id=terminators[0],
                 do_sample=True,
                 temperature=0.6,
                 top_p=0.9,)
             response = output[0]['generated_text'][len(prompt):]
         else:
-            with modeling_utils.get_lf_context(gen_temp, gen_max_tokens):
+            with modeling_utils.get_lf_context(gen_temp, max_tokens):
                 while not response and num_attempts < max_attempts:
                     with futures.ThreadPoolExecutor() as executor:
                         future = executor.submit(lf.LangFunc(prompt, lm=self.model))
