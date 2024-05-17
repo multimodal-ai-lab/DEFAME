@@ -1,7 +1,7 @@
 import dataclasses
 from typing import Any
 
-from safe.fact_checker import FinalAnswer
+from safe.reasoner import FinalAnswer
 
 
 class CheckedStatement:
