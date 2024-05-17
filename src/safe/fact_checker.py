@@ -52,16 +52,15 @@ class FactChecker:
 
         return overall_veracity
 
-    def verify_claim(self, claim: str, verbose: bool = False) -> (Label, str):
+    def verify_claim(self, claim: str, verbose: Optional[bool] = False) -> (Label, str):
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it."""
         # TODO: Enable the model to dynamically choose the tool to use
         # TODO: Enable interleaved reasoning and evidence retrieval
         search_results = self.searcher.search(claim, verbose)
         verdict, justification = self.reasoner.reason(claim, evidence=search_results)
         return verdict, justification
-
-
+    
 def aggregate_predictions(veracities: Sequence[Label]) -> Label:
-    overall_supported = np.all(np.array(veracities) == Label.SUPPORTED)
-    overall_veracity = Label.SUPPORTED if overall_supported else Label.REFUTED
-    return overall_veracity
+        overall_supported = np.all(np.array(veracities) == Label.SUPPORTED)
+        overall_veracity = Label.SUPPORTED if overall_supported else Label.REFUTED
+        return overall_veracity

@@ -25,7 +25,7 @@ class Searcher:
         self.model = model
 
         self.serper_searcher = SerperAPI(serper_api_key, k=num_searches)
-        self.wiki_searcher = WikiDumpAPI()
+        #self.wiki_searcher = WikiDumpAPI()
 
         self.max_steps = max_steps
         self.max_retries = max_retries
@@ -52,10 +52,10 @@ class Searcher:
         return search_results
 
     def _maybe_get_next_search(self,
-                               claim: str,
-                               past_searches: list[SearchResult],
-                               verbose: Optional[bool] = False,
-                               ) -> SearchResult | None:
+                              claim: str,
+                              past_searches: list[SearchResult],
+                              verbose: Optional[bool] = False,
+                              ) -> SearchResult | None:
         """Get the next query from the model."""
         knowledge = '\n'.join([s.result for s in past_searches])
         knowledge = 'N/A' if not knowledge else knowledge
@@ -64,22 +64,15 @@ class Searcher:
                                      open_source=self.model.open_source)
         model_response = self.model.generate(str(search_prompt), do_debug=self.debug).replace('"', '')
         if model_response.startswith("I cannot"):
-            if verbose:
-                print("Model hit the railguards -.-'")
+            if verbose: 
+                utils.print_guard()
             model_response = claim
         query = utils.extract_first_code_block(model_response, ignore_language=True)
-        if verbose:
-            print("_____________DEBUG_____________")
-            print("_________searcher.py_______")
-            print("claim: ", claim)
-            print("KNOWLEDGE: ", knowledge)
-            print("________MODEL RESPONSE_________")
-            print("model_response: ", model_response)
-        if model_response and query:
-            print("query: ", query)
-            return SearchResult(query=query, result=self._call_api(query))
+        if not query:
+            query = utils.post_process_query(model_response, model=self.model)
 
-        return None
+        return SearchResult(query=query, result=self._call_api(query))
+
 
     def _call_api(self, search_query: str) -> str:
         """Call the respective search API to get the search result."""

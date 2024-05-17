@@ -56,7 +56,9 @@ model_options = {
     'claude_21': 'ANTHROPIC:claude-2.1',
     'claude_20': 'ANTHROPIC:claude-2.0',
     'claude_instant': 'ANTHROPIC:claude-instant-1.2',
-    'llama3_8b_instruct': 'huggingface:meta-llama/Meta-Llama-3-8B-Instruct'
+    'llama3_8b_instruct': 'huggingface:meta-llama/Meta-Llama-3-8B-Instruct',
+    'llama3_70b_instruct': 'huggingface:meta-llama/Meta-Llama-3-70B-Instruct',
+    'mixtral-8x7B-Instruct-v0.1': 'huggingface:mistralai/Mixtral-8x7B-Instruct-v0.1',
 }
 model_string = {
     'gpt_4_turbo': 'gpt4turbo',

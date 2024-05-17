@@ -6,6 +6,7 @@ from common.label import Label
 from common.modeling import Model
 from safe.config import debug_safe, max_steps, max_retries
 from safe.searcher import SearchResult
+from common.console import red
 from safe.prompts.prompt import ReasonPrompt
 
 
@@ -50,11 +51,23 @@ class Reasoner:
         reason_prompt = ReasonPrompt(claim, knowledge)
         model_response = self.model.generate(str(reason_prompt), do_debug=self.debug)
         if model_response.startswith("I cannot"):
-            print("Model hit the railguards -.-'. Defaulting to NOT_SUPPORTED.")
-            model_response = '[NOT_SUPPORTED_LABEL]'
+            utils.print_guard()
+            answer = 'Refused'
+            return FinalAnswer(response=model_response, answer=answer)
         answer = utils.extract_first_square_brackets(model_response)
         answer = re.sub(r'[^\w\s]', '', answer).strip()
 
         valid_labels = [label.value for label in Label]
         if model_response and answer in valid_labels:
             return FinalAnswer(response=model_response, answer=answer)
+        else: 
+            # Adjust the model response
+            select = f"Respond with one word! From {valid_labels}, select the most fitting for the following string:\n"
+            adjusted_response = self.model.generate(select + model_response)
+            utils.print_wrong_answer(model_response, adjusted_response)
+            if adjusted_response not in valid_labels:
+                print(red("Error in generating answer.\nmodel_response: {adjusted_response}\nDefaulting to REFUSED"))
+                return FinalAnswer(response=model_response, answer='Refused')
+            else:
+                return FinalAnswer(response=model_response, answer=adjusted_response)
+

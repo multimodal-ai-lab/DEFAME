@@ -56,7 +56,7 @@ class FEVER(Benchmark):
 
     def __init__(self, variant="dev"):
         super().__init__("averitec")
-        self.file_path = Path(f"/pfss/mlde/workspaces/mlde_wsp_Rohrbach/data/raw/FEVER/{variant}.json")
+        self.file_path = Path(f"/pfss/mlde/workspaces/mlde_wsp_Rohrbach/data/raw/FEVER/{variant}.jsonl")
 
         # Load the data
         data = orjsonl.load(self.file_path)
