@@ -19,9 +19,9 @@ class SearchResult:
 class Searcher:
     """Searches the specified resource (Google, Wikipedia, ...) for evidence."""
 
-    def __init__(self, search_tool: str, model: Model):
-        assert search_tool in ["serper", "wiki"]
-        self.search_tool = search_tool
+    def __init__(self, search_engine: str, model: Model):
+        assert search_engine in ["google", "wiki"]
+        self.search_engine = search_engine
         self.model = model
 
         self.serper_searcher = SerperAPI(serper_api_key, k=num_searches)
@@ -59,7 +59,9 @@ class Searcher:
         """Get the next query from the model."""
         knowledge = '\n'.join([s.result for s in past_searches])
         knowledge = 'N/A' if not knowledge else knowledge
-        search_prompt = SearchPrompt(claim, knowledge, open_source=self.model.open_source)
+        search_prompt = SearchPrompt(claim, knowledge,
+                                     search_engine=self.search_engine,
+                                     open_source=self.model.open_source)
         model_response = self.model.generate(str(search_prompt), do_debug=self.debug).replace('"', '')
         if model_response.startswith("I cannot"):
             if verbose:
@@ -81,7 +83,7 @@ class Searcher:
 
     def _call_api(self, search_query: str) -> str:
         """Call the respective search API to get the search result."""
-        match self.search_tool:
+        match self.search_engine:
             case 'serper':
                 return self.serper_searcher.run(search_query)
             case 'wiki':

@@ -13,7 +13,7 @@ from safe.searcher import Searcher
 class FactChecker:
     def __init__(self,
                  model: str | Model = "OPENAI:gpt-3.5-turbo-0125",
-                 search_tool: str = "serper",
+                 search_engine: str = "google",
                  extract_claims: bool = True):
         if isinstance(model, str):
             model = Model(model)
@@ -22,7 +22,7 @@ class FactChecker:
         self.claim_extractor = ClaimExtractor(model)
         self.extract_claims = extract_claims
 
-        self.searcher = Searcher(search_tool, model)
+        self.searcher = Searcher(search_engine, model)
         self.reasoner = Reasoner(model)
 
     def check(self, content: str | Sequence[str], verbose: Optional[bool] = False) -> Label:

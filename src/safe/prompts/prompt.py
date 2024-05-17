@@ -33,17 +33,23 @@ class Prompt(ABC):
 
 
 class SearchPrompt(Prompt):
-    def __init__(self, claim: str, knowledge: str, open_source: bool = False):
+    def __init__(self, claim: str, knowledge: str, search_engine: str = "google", open_source: bool = False):
         self.placeholder_targets[STATEMENT_PLACEHOLDER] = claim
         self.placeholder_targets[KNOWLEDGE_PLACEHOLDER] = knowledge
         self.open_source = open_source
+        assert search_engine in ["google", "wiki"]
+        self.search_engine = search_engine
         super().__init__()
 
     def assemble_prompt(self) -> str:
-        if self.open_source:
-            return read_md_file("safe/prompts/search_google_open_source.md")
-        else:
-            return read_md_file("safe/prompts/search_google.md")
+        match self.search_engine:
+            case "google":
+                if self.open_source:
+                    return read_md_file("safe/prompts/search_google_open_source.md")
+                else:
+                    return read_md_file("safe/prompts/search_google.md")
+            case "wiki":
+                return read_md_file("safe/prompts/search_wiki_dump.md")
 
 
 class ReasonPrompt(Prompt):

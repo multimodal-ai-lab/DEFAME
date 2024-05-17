@@ -6,7 +6,7 @@ from eval.benchmark import AVeriTeC, FEVER
 
 model = "OPENAI:gpt-3.5-turbo-0125"
 # model = "huggingface:meta-llama/Meta-Llama-3-70B-Instruct"
-search_tool = "wiki"  # "serper" or "wiki"
+search_engine = "wiki"  # "google" or "wiki"
 benchmark = FEVER("dev")
 n = 5
 extract_claims = False
@@ -17,7 +17,7 @@ assert n <= len(benchmark)
 print(f"Loaded {benchmark.name} containing {len(benchmark)} instances.")
 print(f"Evaluating on {n} samples.")
 
-fc = FactChecker(model=model, search_tool=search_tool, extract_claims=extract_claims)
+fc = FactChecker(model=model, search_engine=search_engine, extract_claims=extract_claims)
 
 # For each single instance in the benchmark, predict its veracity
 predictions = []
