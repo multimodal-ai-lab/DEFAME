@@ -57,13 +57,16 @@ class Searcher:
                                verbose: Optional[bool] = False,
                                ) -> SearchResult | None:
         """Get the next query from the model."""
-        knowledge = '\n'.join([s.result for s in past_searches])
+        # Construct the prompt tasking the model to produce a search query
+        knowledge = '\n'.join([s.result for s in past_searches if s.result is not None])
         knowledge = 'N/A' if not knowledge else knowledge
         past_queries = '\n'.join([s.query for s in past_searches])
         past_queries = 'N/A' if not past_queries else past_queries
         search_prompt = SearchPrompt(claim, knowledge, past_queries,
                                      search_engine=self.search_engine,
                                      open_source=self.model.open_source)
+
+        # Get and validate the model's response
         model_response = self.model.generate(str(search_prompt), do_debug=self.debug).replace('"', '')
         if model_response.startswith("I cannot"):
             if verbose:
@@ -72,6 +75,10 @@ class Searcher:
         query = utils.extract_first_code_block(model_response, ignore_language=True)
         if not query:
             query = self.post_process_query(model_response)
+
+        # Avoid casting the same, previously used query again
+        if query in past_queries:
+            return
 
         return SearchResult(query=query, result=self._call_api(query))
 
@@ -90,7 +97,7 @@ class Searcher:
     def _call_api(self, search_query: str) -> str:
         """Call the respective search API to get the search result."""
         match self.search_engine:
-            case 'serper':
+            case 'google':
                 return self.serper_searcher.run(search_query)
             case 'wiki':
                 return self.wiki_searcher.search(search_query)
