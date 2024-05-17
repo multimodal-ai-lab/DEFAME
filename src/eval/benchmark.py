@@ -1,4 +1,5 @@
 import json
+import orjsonl
 from typing import Sequence
 from pathlib import Path
 from abc import ABC
@@ -48,9 +49,9 @@ class AVeriTeC(Benchmark):
 
 class FEVER(Benchmark):
     data_labels_to_model_labels = {
-        "SUPPORTS": Label.SUPPORTED,
-        "NOT ENOUGH INFO": Label.NEI,
-        "REFUTES": Label.REFUTED,
+        "supports": Label.SUPPORTED,
+        "not enough info": Label.NEI,
+        "refutes": Label.REFUTED,
     }
 
     def __init__(self, variant="dev"):
@@ -58,7 +59,8 @@ class FEVER(Benchmark):
         self.file_path = Path(f"/pfss/mlde/workspaces/mlde_wsp_Rohrbach/data/raw/FEVER/{variant}.json")
 
         # Load the data
-        with open(self.file_path, 'r') as f:
-            data = json.load(f)
+        data = orjsonl.load(self.file_path)
 
-        self.data = [{"content": d["claim"], "label": self.data_labels_to_model_labels[d["label"]]} for d in data]
+        self.data = [{"content": d["claim"],
+                      "label": self.data_labels_to_model_labels[d["label"].lower()]}
+                     for d in data]
