@@ -38,6 +38,7 @@ class SerperAPI:
     def run(self, query: str, **kwargs: Any) -> str:
         """Run query through GoogleSearch and parse result."""
         assert self.serper_api_key, 'Missing serper_api_key.'
+        print(f"Searching Google with query: {query}")
         results = self._google_serper_api_results(
             query,
             gl=self.gl,

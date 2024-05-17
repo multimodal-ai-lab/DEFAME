@@ -4,6 +4,10 @@ from common.label import Label
 from common.utils import strip_string
 
 
+SYMBOL = 'Foo'
+NOT_SYMBOL = 'Not Foo'
+
+
 class Prompt(ABC):
     text: str
     placeholder_targets: dict[str, str] = {}
@@ -71,6 +75,33 @@ class ReasonPrompt(Prompt):
 
     def assemble_prompt(self) -> str:
         return read_md_file("safe/prompts/reason.md")
+
+
+class DecontextualizePrompt(Prompt):
+    def __init__(self, atomic_fact: str, context: str):
+        self.placeholder_targets["[ATOMIC_FACT]"] = atomic_fact
+        self.placeholder_targets["[CONTEXT]"] = context
+        super().__init__()
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("safe/prompts/decontextualize.md")
+
+
+class FilterCheckWorthyPrompt(Prompt):
+    # TODO: Rework the entire prompt
+
+    placeholder_targets = {
+        "[SYMBOL]": SYMBOL,
+        "[NOT_SYMBOL]": NOT_SYMBOL,
+    }
+
+    def __init__(self, atomic_fact: str, context: str):
+        self.placeholder_targets["[ATOMIC_FACT]"] = atomic_fact
+        self.placeholder_targets["[CONTEXT]"] = context
+        super().__init__()
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("safe/prompts/filter_check_worthy.md")
 
 
 def read_md_file(file_path: str) -> str:

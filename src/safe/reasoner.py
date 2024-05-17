@@ -1,5 +1,6 @@
 import dataclasses
 import re
+from typing import Sequence
 
 from common import utils
 from common.label import Label
@@ -26,7 +27,7 @@ class Reasoner:
         self.max_steps = max_steps
         self.max_retries = max_retries
 
-    def reason(self, claim: str, evidence: list[SearchResult]) -> (Label, str):
+    def reason(self, claim: str, evidence: Sequence[SearchResult]) -> (Label, str):
         """Takes the claim and the gathered evidence, determines the
         claim's veracity through reasoning and returns the verdict with
         the reasoning as justification."""

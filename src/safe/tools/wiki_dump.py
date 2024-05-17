@@ -16,6 +16,7 @@ class WikiDumpAPI:
         self.cur = db.cursor()
 
     def search(self, phrase: str) -> str:
+        print(f"Searching Wiki dump with query: {phrase}")
         result = self._search_exact_title(phrase)
         if len(result) == 0:
             result = self._search_closest_title(phrase)

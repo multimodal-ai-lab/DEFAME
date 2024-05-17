@@ -1,6 +1,4 @@
 from typing import Sequence, Optional
-import requests
-from PIL import Image
 import numpy as np
 
 from common.console import gray, light_blue, bold
@@ -60,7 +58,8 @@ class FactChecker:
         search_results = self.searcher.search(claim, verbose)
         verdict, justification = self.reasoner.reason(claim, evidence=search_results)
         return verdict, justification
-    
+
+
 def aggregate_predictions(veracities: Sequence[Label]) -> Label:
         overall_supported = np.all(np.array(veracities) == Label.SUPPORTED)
         overall_veracity = Label.SUPPORTED if overall_supported else Label.REFUTED
