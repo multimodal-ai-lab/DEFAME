@@ -5,9 +5,7 @@ from common import utils
 from common.modeling import Model
 from common.shared_config import serper_api_key
 from safe.config import num_searches, debug_safe, max_steps, max_retries
-from safe.prompts.common import STATEMENT_PLACEHOLDER, KNOWLEDGE_PLACEHOLDER
-from safe.prompts.google_search import NEXT_SEARCH_FORMAT, \
-    NEXT_SEARCH_FORMAT_OPEN_SOURCE
+from safe.prompts.prompt import SearchPrompt
 from safe.tools.query_serper import SerperAPI
 from safe.tools.wiki_dump import WikiDumpAPI
 
@@ -61,19 +59,13 @@ class Searcher:
         """Get the next query from the model."""
         knowledge = '\n'.join([s.result for s in past_searches])
         knowledge = 'N/A' if not knowledge else knowledge
-        if self.model.open_source:
-            full_prompt = NEXT_SEARCH_FORMAT_OPEN_SOURCE.replace(STATEMENT_PLACEHOLDER, claim)
-        else:
-            full_prompt = NEXT_SEARCH_FORMAT.replace(STATEMENT_PLACEHOLDER, claim)
-        full_prompt = full_prompt.replace(KNOWLEDGE_PLACEHOLDER, knowledge)
-        full_prompt = utils.strip_string(full_prompt)
-        model_response = self.model.generate(full_prompt, do_debug=self.debug).replace('"', '')
+        search_prompt = SearchPrompt(claim, knowledge, open_source=self.model.open_source)
+        model_response = self.model.generate(str(search_prompt), do_debug=self.debug).replace('"', '')
         if model_response.startswith("I cannot"):
             if verbose:
                 print("Model hit the railguards -.-'")
             model_response = claim
         query = utils.extract_first_code_block(model_response, ignore_language=True)
-        print("query: ", query)
         if verbose:
             print("_____________DEBUG_____________")
             print("_________searcher.py_______")
@@ -82,6 +74,7 @@ class Searcher:
             print("________MODEL RESPONSE_________")
             print("model_response: ", model_response)
         if model_response and query:
+            print("query: ", query)
             return SearchResult(query=query, result=self._call_api(query))
 
         return None
