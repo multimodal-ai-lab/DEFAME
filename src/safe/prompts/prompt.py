@@ -4,8 +4,8 @@ from common.label import Label
 from common.utils import strip_string
 
 
-SYMBOL = 'Foo'
-NOT_SYMBOL = 'Not Foo'
+SYMBOL = 'Check-worthy'
+NOT_SYMBOL = 'Unimportant'
 
 
 class Prompt(ABC):
