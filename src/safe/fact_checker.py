@@ -1,5 +1,6 @@
 from typing import Sequence, Optional
-
+import requests
+from PIL import Image
 import numpy as np
 
 from common.console import gray, light_blue, bold

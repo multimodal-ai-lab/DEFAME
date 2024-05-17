@@ -57,16 +57,16 @@ class Reasoner:
         answer = utils.extract_first_square_brackets(model_response)
         answer = re.sub(r'[^\w\s]', '', answer).strip()
 
-        valid_labels = [label.value for label in Label]
-        if model_response and answer in valid_labels:
+        valid_labels = [label.value.lower() for label in Label]
+        if model_response and answer.lower() in valid_labels:
             return FinalAnswer(response=model_response, answer=answer)
         else: 
             # Adjust the model response
             select = f"Respond with one word! From {valid_labels}, select the most fitting for the following string:\n"
             adjusted_response = self.model.generate(select + model_response)
             utils.print_wrong_answer(model_response, adjusted_response)
-            if adjusted_response not in valid_labels:
-                print(red("Error in generating answer.\nmodel_response: {adjusted_response}\nDefaulting to REFUSED"))
+            if adjusted_response.lower() not in valid_labels:
+                print(red(f"Error in generating answer. Defaulting to 'Refused'\n"))
                 return FinalAnswer(response=model_response, answer='Refused')
             else:
                 return FinalAnswer(response=model_response, answer=adjusted_response)
