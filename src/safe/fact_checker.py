@@ -4,9 +4,12 @@ from typing import Sequence, Optional
 
 import numpy as np
 
-from common import shared_config, utils
+from common import utils
+from common.shared_config import serper_api_key
 from common.modeling import Model
-from safe import config as safe_config, query_serper
+from safe.config import num_searches, debug_safe, max_steps, max_retries
+from safe.tools.query_serper import SerperAPI
+from safe.tools.wiki_dump import WikiDumpAPI
 from safe.claim_extractor import ClaimExtractor
 from common.label import Label
 from common.console import gray, light_blue, bold
@@ -78,7 +81,7 @@ STATEMENT:
 
 
 @dataclasses.dataclass()
-class GoogleSearchResult:
+class SearchResult:
     query: str
     result: str
 
@@ -90,15 +93,23 @@ class FinalAnswer:
 
 
 class FactChecker:
-    def __init__(self, model: str | Model = "OPENAI:gpt-3.5-turbo-0125"):
+    def __init__(self,
+                 model: str | Model = "OPENAI:gpt-3.5-turbo-0125",
+                 search_tool: str = "serper"):
         if isinstance(model, str):
             model = Model(model)
         self.model = model
         self.claim_extractor = ClaimExtractor(model)
 
-        self.debug = safe_config.debug_safe
-        self.max_steps = safe_config.max_steps
-        self.max_retries = safe_config.max_retries
+        # Tools
+        assert search_tool in ["serper", "wiki"]
+        self.search_tool = search_tool
+        self.serper_searcher = SerperAPI(serper_api_key, k=num_searches)
+        self.wiki_searcher = WikiDumpAPI()
+
+        self.debug = debug_safe
+        self.max_steps = max_steps
+        self.max_retries = max_retries
 
     def check(self, content: str | Sequence[str], verbose: Optional[bool] = False) -> Label:
         """Fact-checks the given content by first extracting all elementary claims and then
@@ -169,27 +180,18 @@ class FactChecker:
 
         return predicted_label, final_answer.response
 
-    def call_search(self,
-                    search_query: str,
-                    search_type: str = safe_config.search_type,
-                    num_searches: int = safe_config.num_searches,
-                    serper_api_key: str = shared_config.serper_api_key,
-                    search_postamble: str = '',  # ex: 'site:https://en.wikipedia.org'
-                    ) -> str:
-        """Call Google Search to get the search result."""
-        search_query += f' {search_postamble}' if search_postamble else ''
-
-        if search_type == 'serper':
-            serper_searcher = query_serper.SerperAPI(serper_api_key, k=num_searches)
-            return serper_searcher.run(search_query, k=num_searches)
-        else:
-            raise ValueError(f'Unsupported search type: {search_type}')
+    def search(self, search_query: str) -> str:
+        """Call the respective search API to get the search result."""
+        # TODO: Enable the model to dynamically choose the tool
+        match self.search_tool:
+            case 'serper': return self.serper_searcher.run(search_query)
+            case 'wiki': return self.wiki_searcher.search(search_query)
 
     def maybe_get_next_search(self,
                               claim: str,
-                              past_searches: list[GoogleSearchResult],
+                              past_searches: list[SearchResult],
                               verbose: Optional[bool] = False,
-                              ) -> GoogleSearchResult | None:
+                              ) -> SearchResult | None:
         """Get the next query from the model."""
         knowledge = '\n'.join([s.result for s in past_searches])
         knowledge = 'N/A' if not knowledge else knowledge
@@ -214,13 +216,13 @@ class FactChecker:
             print("________MODEL RESPONSE_________")
             print("model_response: ", model_response)
         if model_response and query:
-            return GoogleSearchResult(query=query, result=self.call_search(query))
+            return SearchResult(query=query, result=self.search(query))
 
         return None
 
     def maybe_get_final_answer(self,
                                claim: str,
-                               searches: list[GoogleSearchResult],
+                               searches: list[SearchResult],
                                ) -> FinalAnswer | None:
         """Get the final answer from the model."""
         knowledge = '\n'.join([search.result for search in searches])
