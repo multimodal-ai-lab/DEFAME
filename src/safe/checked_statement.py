@@ -1,19 +1,11 @@
-
 import dataclasses
 from typing import Any
 
-import safe.fact_checker
-from safe import rate_atomic_fact
-
-IRRELEVANT_LABEL = 'Irrelevant'
-SUPPORTED_LABEL = safe.fact_checker.SUPPORTED_LABEL
-NOT_SUPPORTED_LABEL = safe.fact_checker.NOT_SUPPORTED_LABEL
-
-_MAX_PIPELINE_RETRIES = 3
+from safe.fact_checker import FinalAnswer
 
 
 class CheckedStatement:
-    """Class for storing checked statements."""
+    """Class for storing checked statements. Currently unused."""
 
     def __init__(
             self,
@@ -21,7 +13,7 @@ class CheckedStatement:
             atomic_fact: str,
             self_contained_atomic_fact: str,
             relevance_data: dict[str, Any] | None = None,
-            rate_data: safe.fact_checker.FinalAnswer | None = None,
+            rate_data: FinalAnswer | None = None,
             annotation: str = '',
     ):
         self.sentence = sentence
