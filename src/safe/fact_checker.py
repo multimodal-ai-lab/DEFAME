@@ -9,11 +9,12 @@ from common.modeling import Model
 from safe import config as safe_config, query_serper
 from safe.claim_extractor import ClaimExtractor
 from common.label import Label
-from common.console import gray, light_blue, bold
+from common.console import gray, light_blue, bold, red
 
 
 SUPPORTED_LABEL = Label.SUPPORTED.value
 NOT_SUPPORTED_LABEL = Label.REFUTED.value
+REFUSED_TO_ANSWER = Label.REFUSED_TO_ANSWER.value
 # TODO: implement NEI and conflicting evidence
 _STATEMENT_PLACEHOLDER = '[STATEMENT]'
 _KNOWLEDGE_PLACEHOLDER = '[KNOWLEDGE]'
@@ -202,21 +203,13 @@ class FactChecker:
         model_response = self.model.generate(full_prompt, do_debug=self.debug).replace('"', '')
         if model_response.startswith("I cannot"):
             if verbose: 
-                print("Model hit the railguards -.-'")
+                utils.print_guard()
             model_response = claim
         query = utils.extract_first_code_block(model_response, ignore_language=True)
-        print("query: ", query)
-        if verbose:
-            print("_____________DEBUG_____________")
-            print("_________fact_checker.py_______")
-            print("claim: ", claim)
-            print("KNOWLEDGE: ", knowledge)
-            print("________MODEL RESPONSE_________")
-            print("model_response: ", model_response)
-        if model_response and query:
-            return GoogleSearchResult(query=query, result=self.call_search(query))
+        if not query:
+            query = utils.post_process_query(model_response, model=self.model)
 
-        return None
+        return GoogleSearchResult(query=query, result=self.call_search(query))
 
     def maybe_get_final_answer(self,
                                claim: str,
@@ -231,12 +224,22 @@ class FactChecker:
         full_prompt = utils.strip_string(full_prompt)
         model_response = self.model.generate(full_prompt, do_debug=self.debug)
         if model_response.startswith("I cannot"):
-            print("Model hit the railguards -.-'. Defaulting to NOT_SUPPORTED.")
-            model_response = '[NOT_SUPPORTED_LABEL]'
+            utils.print_guard()
+            answer = 'Refused'
+            return FinalAnswer(response=model_response, answer=answer)
+        labels = [SUPPORTED_LABEL, NOT_SUPPORTED_LABEL, REFUSED_TO_ANSWER]
         answer = utils.extract_first_square_brackets(model_response)
         answer = re.sub(r'[^\w\s]', '', answer).strip()
-
-        if model_response and answer in [SUPPORTED_LABEL, NOT_SUPPORTED_LABEL]:
+        
+        if model_response and answer in labels:
             return FinalAnswer(response=model_response, answer=answer)
-
-        return None
+        else: 
+            # Adjust the model response
+            select = f"Respond with one word! From {labels}, select the most fitting for the following string:\n"
+            adjusted_response = self.model.generate(select + model_response)
+            utils.print_wrong_answer(model_response, adjusted_response)
+            if adjusted_response not in labels:
+                print(red("Error in generating answer.\nmodel_response: {adjusted_response}\nDefaulting to REFUSED"))
+                return FinalAnswer(response=model_response, answer='Refused')
+            else:
+                return FinalAnswer(response=model_response, answer=adjusted_response)

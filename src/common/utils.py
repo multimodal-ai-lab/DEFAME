@@ -9,7 +9,7 @@ import random
 import re
 import string
 import types
-from typing import Any
+from typing import Any, Optional
 
 from common.console import green, red
 
@@ -59,7 +59,9 @@ def strip_string(s: str) -> str:
     return s.strip(' \n')
 
 
-def extract_first_square_brackets(input_string: str) -> str:
+def extract_first_square_brackets(
+        input_string: str,
+        ) -> str:
     """Extracts the contents of the FIRST string between square brackets."""
     raw_result = re.findall(r'\[.*?\]', input_string, flags=re.DOTALL)
 
@@ -68,11 +70,12 @@ def extract_first_square_brackets(input_string: str) -> str:
     else:
         return ''
     
-def ensure_triple_trailing_ticks(input_string: str) -> str:
+    
+def ensure_triple_ticks(input_string: str) -> str:
     """
-    Ensures that if a string starts with triple backticks,
-    it also ends with them. If not, appends the corresponding triple ticks at the end.
-    This is due to behavioral observation of some models forgetting the trailing ticks.
+    Ensures that if a string starts with triple backticks, it also ends with them.
+    If the string does not contain triple backticks at all, wraps the entire string in triple backticks.
+    This is due to behavioral observation of some models forgetting the ticks.
     """
     triple_backticks = "```"
 
@@ -80,13 +83,18 @@ def ensure_triple_trailing_ticks(input_string: str) -> str:
     if input_string.startswith(triple_backticks):
         if not input_string.endswith(triple_backticks):
             input_string += triple_backticks
+    # If triple backticks are not present, wrap the whole string in them
+    elif triple_backticks not in input_string:
+        input_string = f"{triple_backticks}\n{input_string}\n{triple_backticks}"
     return input_string
 
+
 def extract_first_code_block(
-        input_string: str, ignore_language: bool = False
+        input_string: str,
+        ignore_language: bool = False,
 ) -> str:
-    """Extracts the contents of a string between the first code block (```)."""
-    input_string = ensure_triple_trailing_ticks(input_string)
+    """Extracts the query from the generated response."""
+    input_string = ensure_triple_ticks(input_string)
     if ignore_language:
         pattern = re.compile(r'```(?:\w+\n)?(.*?)```', re.DOTALL)
     else:
@@ -95,6 +103,20 @@ def extract_first_code_block(
     match = pattern.search(input_string)
     return strip_string(match.group(1)) if match else ''
 
+def post_process_query(
+        model_response: str, 
+        model: Any
+        ) -> None:
+    """
+    Processes the model response, ensures correct formatting, and adjusts the response if needed.
+    """
+    # Check if there is no query in the model response
+    print("No query was found in output - likely due to wrong formatting.\nModel Output: {model_response}")
+    # Adjust the model response
+    adjustment_instruct = "Extract a simple sentence that I can use for a Google Search Query from this string:\n"
+    adjusted_model_response = model.generate(adjustment_instruct + model_response)
+    print(f'Extracted Query: {adjusted_model_response}')
+    return adjusted_model_response
 
 ################################################################################
 #                            OBJECT CONVERSIONS                                #
@@ -335,3 +357,18 @@ def print_side_by_side(
             )
 
     print_divider()
+
+def print_guard():
+    """
+    Info in case model refuses to answer.
+    """
+    print(red("Model hit the safety guardrails -.-'. Defaulting to REFUSED"))
+
+
+def print_wrong_answer(input_string: str, adjusted_response: str):
+    """
+    Info in case model returns wrong answer format.
+    """
+    print(f"No answer label was found - likely due to wrong formatting.\nModel Output: {input_string}")
+    print(f'Adjusted Output: {adjusted_response}')
+    
