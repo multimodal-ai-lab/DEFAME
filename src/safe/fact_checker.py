@@ -1,105 +1,29 @@
-import dataclasses
-import re
 from typing import Sequence, Optional
 
 import numpy as np
 
-from common import shared_config, utils
-from common.modeling import Model
-from safe import config as safe_config, query_serper
-from safe.claim_extractor import ClaimExtractor
+from common.console import gray, light_blue, bold
 from common.label import Label
-from common.console import gray, light_blue, bold, red
-
-
-SUPPORTED_LABEL = Label.SUPPORTED.value
-NOT_SUPPORTED_LABEL = Label.REFUTED.value
-REFUSED_TO_ANSWER = Label.REFUSED_TO_ANSWER.value
-# TODO: implement NEI and conflicting evidence
-_STATEMENT_PLACEHOLDER = '[STATEMENT]'
-_KNOWLEDGE_PLACEHOLDER = '[KNOWLEDGE]'
-_NEXT_SEARCH_FORMAT = f"""\
-Instructions:
-1. You have been given a STATEMENT and KNOWLEDGE points.
-2. Your goal is to try to find evidence that either supports or does \
-not support the factual accuracy of the given STATEMENT.
-3. To do this, you are allowed to issue ONE Google Search query.
-4. Your query should aim to obtain new information that does not appear \
-in the KNOWLEDGE. 
-5. Format your final query by putting it in a markdown code block. \
-
-KNOWLEDGE:
-{_KNOWLEDGE_PLACEHOLDER}
-
-STATEMENT:
-{_STATEMENT_PLACEHOLDER}
-"""
-
-_NEXT_SEARCH_FORMAT_OPEN_SOURCE = f"""\
-Instructions:
-1. You have been given a STATEMENT and some KNOWLEDGE.
-2. Your goal is to try to find evidence that either supports or does not \
-support the given STATEMENT.
-3. To do this, you are allowed to issue ONE Google Search query that you think \
-will allow you to find additional useful evidence.
-4. Your query should aim to obtain new information that does NOT appear in the \
-KNOWLEDGE. This new information should be useful for determining the factual \
-accuracy of the given STATEMENT. Remember, the query should yield new, additional information that is not in KNOWLEDGE.
-5. Do NOT include any websites, do NOT use the token 'site:' and only output the pure natural query that I would use in Google Search.
-6. Format your final query by putting it in a markdown code block.
-
-KNOWLEDGE:
-{_KNOWLEDGE_PLACEHOLDER}
-
-STATEMENT:
-{_STATEMENT_PLACEHOLDER}
-"""
-_FINAL_ANSWER_FORMAT = f"""\
-Instructions:
-1. You have been given a STATEMENT and some KNOWLEDGE points.
-2. Determine whether the given STATEMENT is supported by the given KNOWLEDGE. \
-The STATEMENT does not need to be explicitly supported by the KNOWLEDGE, but \
-should be strongly implied by the KNOWLEDGE.
-3. Before showing your answer, think step-by-step and show your specific \
-reasoning. As part of your reasoning, summarize the main points of the \
-KNOWLEDGE.
-4. If the STATEMENT is supported by the KNOWLEDGE, be sure to show the \
-supporting evidence.
-5. After stating your reasoning, restate the STATEMENT and then determine your \
-final answer based on your reasoning and the STATEMENT.
-6. Your final answer should be either "{SUPPORTED_LABEL}" or \
-"{NOT_SUPPORTED_LABEL}". Wrap your final answer in square brackets.
-
-KNOWLEDGE:
-{_KNOWLEDGE_PLACEHOLDER}
-
-STATEMENT:
-{_STATEMENT_PLACEHOLDER}
-"""
-
-
-@dataclasses.dataclass()
-class GoogleSearchResult:
-    query: str
-    result: str
-
-
-@dataclasses.dataclass()
-class FinalAnswer:
-    response: str
-    answer: str
+from common.modeling import Model
+from safe.claim_extractor import ClaimExtractor
+from safe.reasoner import Reasoner
+from safe.searcher import Searcher
 
 
 class FactChecker:
-    def __init__(self, model: str | Model = "OPENAI:gpt-3.5-turbo-0125"):
+    def __init__(self,
+                 model: str | Model = "OPENAI:gpt-3.5-turbo-0125",
+                 search_tool: str = "serper",
+                 extract_claims: bool = True):
         if isinstance(model, str):
             model = Model(model)
         self.model = model
-        self.claim_extractor = ClaimExtractor(model)
 
-        self.debug = safe_config.debug_safe
-        self.max_steps = safe_config.max_steps
-        self.max_retries = safe_config.max_retries
+        self.claim_extractor = ClaimExtractor(model)
+        self.extract_claims = extract_claims
+
+        self.searcher = Searcher(search_tool, model)
+        self.reasoner = Reasoner(model)
 
     def check(self, content: str | Sequence[str], verbose: Optional[bool] = False) -> Label:
         """Fact-checks the given content by first extracting all elementary claims and then
@@ -108,7 +32,7 @@ class FactChecker:
 
         print(bold(f"Content to be fact-checked: '{light_blue(content)}'"))
 
-        claims = self.claim_extractor.extract_claims(content)
+        claims = self.claim_extractor.extract_claims(content) if self.extract_claims else [content]
 
         print(bold("Verifying the claims..."))
         veracities = []
@@ -123,7 +47,7 @@ class FactChecker:
             print(gray(justification))
             print()
 
-        overall_veracity = self.aggregate_predictions(veracities)
+        overall_veracity = aggregate_predictions(veracities)
         print(bold(f"So, the overall veracity is: {overall_veracity.value}"))
 
         return overall_veracity
@@ -135,111 +59,13 @@ class FactChecker:
 
     def verify_claim(self, claim: str, verbose: Optional[bool] = False) -> (Label, str):
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it."""
-        search_results = []
-
-        for _ in range(self.max_steps):
-            next_search, num_tries = None, 0
-
-            while not next_search and num_tries <= self.max_retries:
-                next_search = self.maybe_get_next_search(claim, search_results, verbose=verbose)
-                if verbose:
-                    print("next_search: ", next_search)
-                num_tries += 1
-
-            if next_search is None:
-                utils.maybe_print_error('Unsuccessful parsing for `next_search`')
-                break
-            else:
-                search_results.append(next_search)
-
-        search_dicts = {
-            'google_searches': [dataclasses.asdict(s) for s in search_results]
-        }
-        final_answer, num_tries = None, 0
-
-        while not final_answer and num_tries <= self.max_retries:
-            num_tries += 1
-            final_answer = self.maybe_get_final_answer(
-                claim, searches=search_results
-            )
-
-        if final_answer is None:
-            utils.maybe_print_error('Unsuccessful parsing for `final_answer`')
-
-        predicted_label = Label(final_answer.answer)
-
-        return predicted_label, final_answer.response
-
-    def call_search(self,
-                    search_query: str,
-                    search_type: str = safe_config.search_type,
-                    num_searches: int = safe_config.num_searches,
-                    serper_api_key: str = shared_config.serper_api_key,
-                    search_postamble: str = '',  # ex: 'site:https://en.wikipedia.org'
-                    ) -> str:
-        """Call Google Search to get the search result."""
-        search_query += f' {search_postamble}' if search_postamble else ''
-
-        if search_type == 'serper':
-            serper_searcher = query_serper.SerperAPI(serper_api_key, k=num_searches)
-            return serper_searcher.run(search_query, k=num_searches)
-        else:
-            raise ValueError(f'Unsupported search type: {search_type}')
-
-    def maybe_get_next_search(self,
-                              claim: str,
-                              past_searches: list[GoogleSearchResult],
-                              verbose: Optional[bool] = False,
-                              ) -> GoogleSearchResult | None:
-        """Get the next query from the model."""
-        knowledge = '\n'.join([s.result for s in past_searches])
-        knowledge = 'N/A' if not knowledge else knowledge
-        if self.model.open_source:
-            full_prompt = _NEXT_SEARCH_FORMAT_OPEN_SOURCE.replace(_STATEMENT_PLACEHOLDER, claim)
-        else:
-            full_prompt = _NEXT_SEARCH_FORMAT.replace(_STATEMENT_PLACEHOLDER, claim)
-        full_prompt = full_prompt.replace(_KNOWLEDGE_PLACEHOLDER, knowledge)
-        full_prompt = utils.strip_string(full_prompt)
-        model_response = self.model.generate(full_prompt, do_debug=self.debug).replace('"', '')
-        if model_response.startswith("I cannot"):
-            if verbose: 
-                utils.print_guard()
-            model_response = claim
-        query = utils.extract_first_code_block(model_response, ignore_language=True)
-        if not query:
-            query = utils.post_process_query(model_response, model=self.model)
-
-        return GoogleSearchResult(query=query, result=self.call_search(query))
-
-    def maybe_get_final_answer(self,
-                               claim: str,
-                               searches: list[GoogleSearchResult],
-                               ) -> FinalAnswer | None:
-        """Get the final answer from the model."""
-        knowledge = '\n'.join([search.result for search in searches])
-        full_prompt = _FINAL_ANSWER_FORMAT.replace(
-            _STATEMENT_PLACEHOLDER, claim
-        )
-        full_prompt = full_prompt.replace(_KNOWLEDGE_PLACEHOLDER, knowledge)
-        full_prompt = utils.strip_string(full_prompt)
-        model_response = self.model.generate(full_prompt, do_debug=self.debug)
-        if model_response.startswith("I cannot"):
-            utils.print_guard()
-            answer = 'Refused'
-            return FinalAnswer(response=model_response, answer=answer)
-        labels = [SUPPORTED_LABEL, NOT_SUPPORTED_LABEL, REFUSED_TO_ANSWER]
-        answer = utils.extract_first_square_brackets(model_response)
-        answer = re.sub(r'[^\w\s]', '', answer).strip()
-        
-        if model_response and answer in labels:
-            return FinalAnswer(response=model_response, answer=answer)
-        else: 
-            # Adjust the model response
-            select = f"Respond with one word! From {labels}, select the most fitting for the following string:\n"
-            adjusted_response = self.model.generate(select + model_response)
-            utils.print_wrong_answer(model_response, adjusted_response)
-            if adjusted_response not in labels:
-                print(red("Error in generating answer.\nmodel_response: {adjusted_response}\nDefaulting to REFUSED"))
-                return FinalAnswer(response=model_response, answer='Refused')
-            else:
-                return FinalAnswer(response=model_response, answer=adjusted_response)
+        # TODO: Enable the model to dynamically choose the tool to use
+        # TODO: Enable interleaved reasoning and evidence retrieval
+        search_results = self.searcher.search(claim, verbose)
+        verdict, justification = self.reasoner.reason(claim, evidence=search_results)
+        return verdict, justification
+    
+    def aggregate_predictions(veracities: Sequence[Label]) -> Label:
+    overall_supported = np.all(np.array(veracities) == Label.SUPPORTED)
+    overall_veracity = Label.SUPPORTED if overall_supported else Label.REFUTED
+    return overall_veracity

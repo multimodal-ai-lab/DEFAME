@@ -205,9 +205,7 @@ RESPONSE:
 
 
 class ClaimExtractor:
-    def __init__(self, model: str | Model = "OPENAI:gpt-3.5-turbo-0125"):
-        if isinstance(model, str):
-            model = Model(model)
+    def __init__(self, model: Model):
         self.model = model
         self.atomic_fact_generator = AtomicFactGenerator(
             api_key='', gpt3_cache_file='', other_lm=self.model

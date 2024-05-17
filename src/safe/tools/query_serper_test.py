@@ -25,7 +25,7 @@ from unittest import mock
 from absl.testing import absltest
 
 # pylint: disable=g-bad-import-order
-from safe import query_serper
+from safe.tools import query_serper
 
 # pylint: enable=g-bad-import-order
 
