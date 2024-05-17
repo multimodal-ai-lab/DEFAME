@@ -25,7 +25,7 @@ class Searcher:
         self.model = model
 
         self.serper_searcher = SerperAPI(serper_api_key, k=num_searches)
-        #self.wiki_searcher = WikiDumpAPI()
+        self.wiki_searcher = WikiDumpAPI()
 
         self.max_steps = max_steps
         self.max_retries = max_retries
@@ -52,27 +52,40 @@ class Searcher:
         return search_results
 
     def _maybe_get_next_search(self,
-                              claim: str,
-                              past_searches: list[SearchResult],
-                              verbose: Optional[bool] = False,
-                              ) -> SearchResult | None:
+                               claim: str,
+                               past_searches: list[SearchResult],
+                               verbose: Optional[bool] = False,
+                               ) -> SearchResult | None:
         """Get the next query from the model."""
         knowledge = '\n'.join([s.result for s in past_searches])
         knowledge = 'N/A' if not knowledge else knowledge
-        search_prompt = SearchPrompt(claim, knowledge,
+        past_queries = '\n'.join([s.query for s in past_searches])
+        past_queries = 'N/A' if not past_queries else past_queries
+        search_prompt = SearchPrompt(claim, knowledge, past_queries,
                                      search_engine=self.search_engine,
                                      open_source=self.model.open_source)
         model_response = self.model.generate(str(search_prompt), do_debug=self.debug).replace('"', '')
         if model_response.startswith("I cannot"):
-            if verbose: 
+            if verbose:
                 utils.print_guard()
             model_response = claim
         query = utils.extract_first_code_block(model_response, ignore_language=True)
         if not query:
-            query = utils.post_process_query(model_response, model=self.model)
+            query = self.post_process_query(model_response)
 
         return SearchResult(query=query, result=self._call_api(query))
 
+    def post_process_query(self, model_response: str) -> str:
+        """
+        Processes the model response, ensures correct formatting, and adjusts the response if needed.
+        """
+        # Check if there is no query in the model response
+        print("No query was found in output - likely due to wrong formatting.\nModel Output: {model_response}")
+        # Adjust the model response
+        adjustment_instruct = "Extract a simple sentence that I can use for a Google Search Query from this string:\n"
+        adjusted_model_response = self.model.generate(adjustment_instruct + model_response)
+        print(f'Extracted Query: {adjusted_model_response}')
+        return adjusted_model_response
 
     def _call_api(self, search_query: str) -> str:
         """Call the respective search API to get the search result."""

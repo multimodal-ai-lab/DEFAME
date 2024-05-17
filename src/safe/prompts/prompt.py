@@ -2,7 +2,6 @@ from abc import ABC
 
 from common.label import Label
 from common.utils import strip_string
-from safe.prompts.common import STATEMENT_PLACEHOLDER, KNOWLEDGE_PLACEHOLDER
 
 
 class Prompt(ABC):
@@ -15,7 +14,7 @@ class Prompt(ABC):
     def finalize_prompt(self) -> str:
         """Turns a template prompt into a ready-to-send prompt string."""
         template = self.assemble_prompt()
-        text = self.insert_variables(template)
+        text = self.insert_into_placeholders(template)
         return strip_string(text)
 
     def assemble_prompt(self) -> str:
@@ -23,9 +22,11 @@ class Prompt(ABC):
         containing placeholders to be replaced."""
         raise NotImplementedError()
 
-    def insert_variables(self, text: str) -> str:
-        for placeholder, keyword in self.placeholder_targets.items():
-            text = text.replace(placeholder, keyword)
+    def insert_into_placeholders(self, text: str) -> str:
+        """Replaces all specified placeholders in placeholder_targets with the
+        respective target content."""
+        for placeholder, target in self.placeholder_targets.items():
+            text = text.replace(placeholder, target)
         return text
 
     def __str__(self):
@@ -33,9 +34,11 @@ class Prompt(ABC):
 
 
 class SearchPrompt(Prompt):
-    def __init__(self, claim: str, knowledge: str, search_engine: str = "google", open_source: bool = False):
-        self.placeholder_targets[STATEMENT_PLACEHOLDER] = claim
-        self.placeholder_targets[KNOWLEDGE_PLACEHOLDER] = knowledge
+    def __init__(self, claim: str, knowledge: str, past_queries: str,
+                 search_engine: str = "google", open_source: bool = False):
+        self.placeholder_targets["[STATEMENT]"] = claim
+        self.placeholder_targets["[KNOWLEDGE]"] = knowledge
+        self.placeholder_targets["[PAST_QUERIES]"] = past_queries
         self.open_source = open_source
         assert search_engine in ["google", "wiki"]
         self.search_engine = search_engine
@@ -62,8 +65,8 @@ class ReasonPrompt(Prompt):
     }
 
     def __init__(self, claim: str, knowledge: str):
-        self.placeholder_targets[STATEMENT_PLACEHOLDER] = claim
-        self.placeholder_targets[KNOWLEDGE_PLACEHOLDER] = knowledge
+        self.placeholder_targets["[STATEMENT]"] = claim
+        self.placeholder_targets["[KNOWLEDGE]"] = knowledge
         super().__init__()
 
     def assemble_prompt(self) -> str:

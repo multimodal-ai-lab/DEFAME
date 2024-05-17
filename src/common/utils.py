@@ -4,12 +4,12 @@ import copy
 import io
 import json
 import os
-import shutil
 import random
 import re
+import shutil
 import string
 import types
-from typing import Any, Optional
+from typing import Any
 
 from common.console import green, red
 
@@ -61,7 +61,7 @@ def strip_string(s: str) -> str:
 
 def extract_first_square_brackets(
         input_string: str,
-        ) -> str:
+) -> str:
     """Extracts the contents of the FIRST string between square brackets."""
     raw_result = re.findall(r'\[.*?\]', input_string, flags=re.DOTALL)
 
@@ -69,8 +69,8 @@ def extract_first_square_brackets(
         return raw_result[0][1:-1]
     else:
         return ''
-    
-    
+
+
 def ensure_triple_ticks(input_string: str) -> str:
     """
     Ensures that if a string starts with triple backticks, it also ends with them.
@@ -103,20 +103,6 @@ def extract_first_code_block(
     match = pattern.search(input_string)
     return strip_string(match.group(1)) if match else ''
 
-def post_process_query(
-        model_response: str, 
-        model: Any
-        ) -> None:
-    """
-    Processes the model response, ensures correct formatting, and adjusts the response if needed.
-    """
-    # Check if there is no query in the model response
-    print("No query was found in output - likely due to wrong formatting.\nModel Output: {model_response}")
-    # Adjust the model response
-    adjustment_instruct = "Extract a simple sentence that I can use for a Google Search Query from this string:\n"
-    adjusted_model_response = model.generate(adjustment_instruct + model_response)
-    print(f'Extracted Query: {adjusted_model_response}')
-    return adjusted_model_response
 
 ################################################################################
 #                            OBJECT CONVERSIONS                                #
@@ -358,6 +344,7 @@ def print_side_by_side(
 
     print_divider()
 
+
 def print_guard():
     """
     Info in case model refuses to answer.
@@ -371,4 +358,3 @@ def print_wrong_answer(input_string: str, adjusted_response: str):
     """
     print(f"No answer label was found - likely due to wrong formatting.\nModel Output: {input_string}")
     print(f'Adjusted Output: {adjusted_response}')
-    

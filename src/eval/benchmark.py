@@ -3,6 +3,7 @@ import orjsonl
 from typing import Sequence
 from pathlib import Path
 from abc import ABC
+from common.shared_config import path_to_data
 
 from common.label import Label
 
@@ -38,7 +39,7 @@ class AVeriTeC(Benchmark):
 
     def __init__(self, variant="dev"):
         super().__init__("averitec")
-        self.file_path = Path(f"/pfss/mlde/workspaces/mlde_wsp_Rohrbach/data/raw/AVeriTeC/{variant}.json")
+        self.file_path = Path(path_to_data + f"AVeriTeC/{variant}.json")
 
         # Load the data
         with open(self.file_path, 'r') as f:
@@ -56,7 +57,7 @@ class FEVER(Benchmark):
 
     def __init__(self, variant="dev"):
         super().__init__("averitec")
-        self.file_path = Path(f"/pfss/mlde/workspaces/mlde_wsp_Rohrbach/data/raw/FEVER/{variant}.jsonl")
+        self.file_path = Path(path_to_data + f"FEVER/{variant}.jsonl")
 
         # Load the data
         data = orjsonl.load(self.file_path)

@@ -1,15 +1,18 @@
+import os.path
 import sqlite3
 import re
 from typing import Sequence
-
-
-WIKI_DATABASE_PATH = "C:/Users/mark/Desktop/FEVER/wiki-database/fever0.db"
+from common.shared_config import path_to_data
 
 
 class WikiDumpAPI:
     """Class for querying the local SQLite database from the FEVER challenge."""
     def __init__(self):
-        db = sqlite3.connect(WIKI_DATABASE_PATH, uri=True)
+        database_path = path_to_data + "FEVER/wiki-database/fever0.db"
+        if not os.path.exists(database_path):
+            print("Warning: No FEVER database found. Continuing without database.")
+            return
+        db = sqlite3.connect(path_to_data + "FEVER/wiki-database/fever0.db", uri=True)
         self.cur = db.cursor()
 
     def search(self, phrase: str) -> str:
