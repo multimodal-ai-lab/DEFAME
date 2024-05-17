@@ -5,10 +5,12 @@ from common import utils
 from common.label import Label
 from common.modeling import Model
 from safe.config import debug_safe, max_steps, max_retries
-from safe.prompts.common import STATEMENT_PLACEHOLDER, KNOWLEDGE_PLACEHOLDER
-from safe.prompts.reasoning import FINAL_ANSWER_FORMAT
 from safe.searcher import SearchResult
+<<<<<<< HEAD
 from common.console import red
+=======
+from safe.prompts.prompt import ReasonPrompt
+>>>>>>> 35fc809fbf42b15babbd3660739db7c870236943
 
 
 @dataclasses.dataclass()
@@ -49,10 +51,8 @@ class Reasoner:
                                ) -> FinalAnswer | None:
         """Get the final answer from the model."""
         knowledge = '\n'.join([search.result for search in evidence])
-        full_prompt = FINAL_ANSWER_FORMAT.replace(STATEMENT_PLACEHOLDER, claim)
-        full_prompt = full_prompt.replace(KNOWLEDGE_PLACEHOLDER, knowledge)
-        full_prompt = utils.strip_string(full_prompt)
-        model_response = self.model.generate(full_prompt, do_debug=self.debug)
+        reason_prompt = ReasonPrompt(claim, knowledge)
+        model_response = self.model.generate(str(reason_prompt), do_debug=self.debug)
         if model_response.startswith("I cannot"):
             utils.print_guard()
             answer = 'Refused'
