@@ -6,6 +6,7 @@ langfun==0.0.2.dev20240202
 nltk==3.8.1
 numpy==1.26.4
 openai==0.27.2
+orjsonl==3.10.3
 pyglove==0.4.5.dev20240202
 rank_bm25==0.2.2
 Requests==2.31.0

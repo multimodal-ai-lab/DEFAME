@@ -25,7 +25,7 @@ class Searcher:
         self.model = model
 
         self.serper_searcher = SerperAPI(serper_api_key, k=num_searches)
-        self.wiki_searcher = WikiDumpAPI()
+        #self.wiki_searcher = WikiDumpAPI()
 
         self.max_steps = max_steps
         self.max_retries = max_retries
@@ -51,7 +51,7 @@ class Searcher:
 
         return search_results
 
-        def _maybe_get_next_search(self,
+    def _maybe_get_next_search(self,
                               claim: str,
                               past_searches: list[SearchResult],
                               verbose: Optional[bool] = False,
@@ -69,7 +69,7 @@ class Searcher:
         if not query:
             query = utils.post_process_query(model_response, model=self.model)
 
-        return GoogleSearchResult(query=query, result=self.call_search(query))
+        return SearchResult(query=query, result=self._call_api(query))
 
 
     def _call_api(self, search_query: str) -> str:

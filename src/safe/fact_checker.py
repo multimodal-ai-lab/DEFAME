@@ -52,11 +52,6 @@ class FactChecker:
 
         return overall_veracity
 
-    def aggregate_predictions(self, veracities: Sequence[Label]) -> Label:
-        overall_supported = np.all(np.array(veracities) == Label.SUPPORTED)
-        overall_veracity = Label.SUPPORTED if overall_supported else Label.REFUTED
-        return overall_veracity
-
     def verify_claim(self, claim: str, verbose: Optional[bool] = False) -> (Label, str):
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it."""
         # TODO: Enable the model to dynamically choose the tool to use
@@ -65,7 +60,7 @@ class FactChecker:
         verdict, justification = self.reasoner.reason(claim, evidence=search_results)
         return verdict, justification
     
-    def aggregate_predictions(veracities: Sequence[Label]) -> Label:
-    overall_supported = np.all(np.array(veracities) == Label.SUPPORTED)
-    overall_veracity = Label.SUPPORTED if overall_supported else Label.REFUTED
-    return overall_veracity
+def aggregate_predictions(veracities: Sequence[Label]) -> Label:
+        overall_supported = np.all(np.array(veracities) == Label.SUPPORTED)
+        overall_veracity = Label.SUPPORTED if overall_supported else Label.REFUTED
+        return overall_veracity

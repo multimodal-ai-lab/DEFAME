@@ -6,11 +6,8 @@ from common.label import Label
 from common.modeling import Model
 from safe.config import debug_safe, max_steps, max_retries
 from safe.searcher import SearchResult
-<<<<<<< HEAD
 from common.console import red
-=======
 from safe.prompts.prompt import ReasonPrompt
->>>>>>> 35fc809fbf42b15babbd3660739db7c870236943
 
 
 @dataclasses.dataclass()
@@ -65,10 +62,10 @@ class Reasoner:
             return FinalAnswer(response=model_response, answer=answer)
         else: 
             # Adjust the model response
-            select = f"Respond with one word! From {labels}, select the most fitting for the following string:\n"
+            select = f"Respond with one word! From {valid_labels}, select the most fitting for the following string:\n"
             adjusted_response = self.model.generate(select + model_response)
             utils.print_wrong_answer(model_response, adjusted_response)
-            if adjusted_response not in labels:
+            if adjusted_response not in valid_labels:
                 print(red("Error in generating answer.\nmodel_response: {adjusted_response}\nDefaulting to REFUSED"))
                 return FinalAnswer(response=model_response, answer='Refused')
             else:
