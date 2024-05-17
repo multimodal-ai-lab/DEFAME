@@ -9,6 +9,7 @@ model = "OPENAI:gpt-3.5-turbo-0125"
 search_tool = "wiki"  # "serper" or "wiki"
 benchmark = FEVER("dev")
 n = 5
+extract_claims = False
 
 
 assert n <= len(benchmark)
@@ -16,7 +17,7 @@ assert n <= len(benchmark)
 print(f"Loaded {benchmark.name} containing {len(benchmark)} instances.")
 print(f"Evaluating on {n} samples.")
 
-fc = FactChecker(model=model, search_tool=search_tool)
+fc = FactChecker(model=model, search_tool=search_tool, extract_claims=extract_claims)
 
 # For each single instance in the benchmark, predict its veracity
 predictions = []

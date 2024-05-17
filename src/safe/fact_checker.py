@@ -95,11 +95,13 @@ class FinalAnswer:
 class FactChecker:
     def __init__(self,
                  model: str | Model = "OPENAI:gpt-3.5-turbo-0125",
-                 search_tool: str = "serper"):
+                 search_tool: str = "serper",
+                 extract_claims: bool = True):
         if isinstance(model, str):
             model = Model(model)
         self.model = model
         self.claim_extractor = ClaimExtractor(model)
+        self.extract_claims = extract_claims
 
         # Tools
         assert search_tool in ["serper", "wiki"]
@@ -118,7 +120,7 @@ class FactChecker:
 
         print(bold(f"Content to be fact-checked: '{light_blue(content)}'"))
 
-        claims = self.claim_extractor.extract_claims(content)
+        claims = self.claim_extractor.extract_claims(content) if self.extract_claims else [content]
 
         print(bold("Verifying the claims..."))
         veracities = []
