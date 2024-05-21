@@ -101,3 +101,17 @@ def handle_prompt(
 
     # The function continues processing with either the formatted or original prompt
     return formatted_prompt
+
+def prepare_interpretation(content: str) -> str:
+    """
+    Prepares a prompt for a Large Language Model to interpret an image and context jointly
+    to extract the claim made by the post.
+    """
+    system_prompt = (
+        "You are an AI assistant. Your task is to interpret the combination of an image "
+        "and the accompanying text to extract the claim made by the post as accurately as possible. "
+        "Analyze both the visual and textual information to understand the claim. "
+    )
+    
+    prompt = f"USER: <image>\n{system_prompt} The textual part is: '{content}'\nASSISTANT:"
+    return prompt

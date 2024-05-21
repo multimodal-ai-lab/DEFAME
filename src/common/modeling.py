@@ -18,9 +18,9 @@ import logging
 import os
 import threading
 import time
-from concurrent import futures
-import transformers
 import torch
+from concurrent import futures
+from transformers import BitsAndBytesConfig, pipeline
 from typing import Any, Annotated, Optional
 
 import anthropic
@@ -185,14 +185,12 @@ class Model:
         self.show_responses = show_responses
         self.show_prompts = show_prompts
         self.open_source = False
-        self.model = self.load(model_name, self.temperature, self.max_tokens)
+        self.model = self.load(model_name)
 
-    def load(
-            self, model_name: str, temperature: float, max_tokens: int
-    ) -> lf.LanguageModel:
+    def load(self, model_name: str) -> lf.LanguageModel:
         """Loads a language model from string representation."""
         sampling = lf.LMSamplingOptions(
-            temperature=temperature, max_tokens=max_tokens
+            temperature=self.temperature, max_tokens=self.max_tokens
         )
 
         if model_name.lower().startswith('openai:'):
@@ -219,7 +217,7 @@ class Model:
         elif model_name.lower().startswith('huggingface:'):
             self.open_source = True
             model_name = model_name[12:]
-            return transformers.pipeline(
+            return pipeline(
                 'text-generation', 
                 max_length=self.max_tokens,
                 temperature=self.temperature,
@@ -306,6 +304,65 @@ class Model:
             'show_prompts': self.show_prompts,
         }
         print(utils.to_readable_json(settings))
+
+
+class MultimodalModel(Model):
+    """Class for storing any multimodal language model."""
+
+    def __init__(
+            self,
+            model_name: str,
+            temperature: Optional[float] = None,
+            max_tokens: Optional[int] = 2000,
+            top_k: Optional[int] = 50,
+            repetition_penalty: Optional[float] = 1.2,
+            show_responses: bool = False,
+            show_prompts: bool = False,
+    ) -> None:
+        """Initializes a multimodal model."""
+        super().__init__(model_name, temperature, max_tokens, top_k, repetition_penalty, show_responses, show_prompts)
+
+    def load(self, model_name: str):
+        """Loads a multimodal model from string representation."""
+        if model_name.lower().startswith('huggingface:'):
+            model_name = model_name[12:]
+            quantization_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.float16
+            )
+            return pipeline("image-to-text", model=model_name, model_kwargs={"quantization_config": quantization_config})
+        else:
+            raise ValueError(f'ERROR: Unsupported model type: {model_name}.')
+
+    def generate(
+            self,
+            image: torch.Tensor,
+            prompt: str,
+            do_debug: bool = False,
+            temperature: Optional[float] = None,
+            max_tokens: Optional[int] = None,
+            top_k: int = 50,
+            repetition_penalty: float = 1.2,
+    ) -> str:
+        max_tokens = max_tokens or self.max_tokens
+        response = self.model(
+            image,
+            prompt=prompt,
+            generate_kwargs={
+                "max_new_tokens": max_tokens,
+                "temperature": temperature or self.temperature,
+                "top_k": top_k,
+                "repetition_penalty": repetition_penalty
+            }
+        )[0]["generated_text"][len(prompt)-5:] #because of <image>
+
+        if do_debug:
+            if self.show_prompts:
+                print(f"Prompt: {prompt}")
+            if self.show_responses:
+                print(f"Response: {response}")
+
+        return response
 
 
 class FakeModel(Model):
