@@ -1,10 +1,7 @@
 import dataclasses
-<<<<<<< HEAD
 from typing import Optional, Sequence, List
-=======
-from typing import Optional, Sequence
 import re
->>>>>>> 3b0cd46f8decb5c6faffa5236491aa300adf723e
+
 
 from common import utils
 from common.modeling import Model
