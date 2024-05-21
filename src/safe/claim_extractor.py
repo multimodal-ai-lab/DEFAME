@@ -56,7 +56,6 @@ class ClaimExtractor:
     def is_check_worthy(self, atomic_fact: str, context: str) -> bool:
         """Identifies whether the given atomic fact is check-worthy."""
         # TODO: adjust the check-worthiness check
-        return True
 
         filter_prompt = FilterCheckWorthyPrompt(atomic_fact, context)
 

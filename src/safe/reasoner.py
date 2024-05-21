@@ -45,10 +45,10 @@ class Reasoner:
 
     def maybe_get_final_answer(self,
                                claim: str,
-                               evidence: list[SearchResult],
+                               evidence: Sequence[SearchResult],
                                ) -> FinalAnswer | None:
         """Get the final answer from the model."""
-        knowledge = '\n'.join([search.result for search in evidence])
+        knowledge = '\n'.join([search.result for search in evidence if search.result is not None])
         reason_prompt = ReasonPrompt(claim, knowledge)
         model_response = self.model.generate(str(reason_prompt), do_debug=self.debug)
         if model_response.startswith("I cannot"):

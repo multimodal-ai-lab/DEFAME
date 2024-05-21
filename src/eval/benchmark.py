@@ -16,7 +16,7 @@ class Benchmark(ABC):
     def __init__(self, name: str):
         self.name = name
 
-    def get_labels(self):
+    def get_labels(self) -> list[str]:
         labels = []
         for instance in self:
             labels.append(instance["label"])

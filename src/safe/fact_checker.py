@@ -1,7 +1,6 @@
 from typing import Sequence, Optional
 import numpy as np
 import torch
-import requests
 from PIL import Image
 
 from common.console import gray, light_blue, bold
@@ -12,8 +11,6 @@ from common.shared_config import path_to_data
 from safe.claim_extractor import ClaimExtractor
 from safe.reasoner import Reasoner
 from safe.searcher import Searcher
-
-
 
 
 class FactChecker:
@@ -36,11 +33,10 @@ class FactChecker:
         self.searcher = Searcher(search_engine, model)
         self.reasoner = Reasoner(model)
 
-
     def check(
-            self, 
-            content: str | Sequence[str], 
-            image: Optional[torch.Tensor] = None, 
+            self,
+            content: str | Sequence[str],
+            image: Optional[torch.Tensor] = None,
             verbose: Optional[bool] = False
     ) -> Label:
         """
@@ -57,7 +53,6 @@ class FactChecker:
             content = self.multimodal_model.generate(image=image, prompt=prompt)
             print(bold(light_blue(f"{content}")))
 
-        
         print(bold(f"Content to be fact-checked:\n'{light_blue(content)}'"))
 
         claims = self.claim_extractor.extract_claims(content) if self.extract_claims else [content]
@@ -82,19 +77,21 @@ class FactChecker:
 
     def verify_claim(self, claim: str, verbose: Optional[bool] = False) -> (Label, str):
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it."""
-        # TODO: Enable the model to dynamically choose the tool to use
-        # TODO: Enable interleaved reasoning and evidence retrieval
+        # TODO: Enable the model to dynamically choose the tool to use while doing
+        # interleaved reasoning and evidence retrieval
         search_results = self.searcher.search(claim, verbose)
         verdict, justification = self.reasoner.reason(claim, evidence=search_results)
         return verdict, justification
 
 
 def aggregate_predictions(veracities: Sequence[Label]) -> Label:
-        overall_supported = np.all(np.array(veracities) == Label.SUPPORTED)
-        overall_veracity = Label.SUPPORTED if overall_supported else Label.REFUTED
-        return overall_veracity
-
-
+    veracities = np.array(veracities)
+    if np.all(veracities == Label.SUPPORTED):
+        return Label.SUPPORTED
+    elif np.any(veracities == Label.NEI):
+        return Label.NEI
+    else:
+        return Label.REFUTED
 
 
 def main():
@@ -117,6 +114,7 @@ def main():
     prompt = "The red area has a smaller population than the US prison population."
     prediction = fc.check(prompt, image)
     print(f"Generated Prediction: {prediction}")
+
 
 if __name__ == "__main__":
     main()

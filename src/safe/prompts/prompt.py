@@ -4,8 +4,8 @@ from common.label import Label
 from common.utils import strip_string
 
 
-SYMBOL = 'Foo'
-NOT_SYMBOL = 'Not Foo'
+SYMBOL = 'Check-worthy'
+NOT_SYMBOL = 'Unimportant'
 
 
 class Prompt(ABC):
@@ -62,6 +62,7 @@ class SearchPrompt(Prompt):
 class ReasonPrompt(Prompt):
     # TODO: Add ICL
     # TODO: Add label choice
+    # TODO: Add 'contradicting' label
     placeholder_targets = {
         "[LABEL_SUPPORTED]": Label.SUPPORTED.value,
         "[LABEL_NEI]": Label.NEI.value,
@@ -88,8 +89,6 @@ class DecontextualizePrompt(Prompt):
 
 
 class FilterCheckWorthyPrompt(Prompt):
-    # TODO: Rework the entire prompt
-
     placeholder_targets = {
         "[SYMBOL]": SYMBOL,
         "[NOT_SYMBOL]": NOT_SYMBOL,
@@ -102,6 +101,16 @@ class FilterCheckWorthyPrompt(Prompt):
 
     def assemble_prompt(self) -> str:
         return read_md_file("safe/prompts/filter_check_worthy.md")
+
+
+class SummarizePrompt(Prompt):
+    def __init__(self, query: str, search_result: str):
+        self.placeholder_targets["[QUERY]"] = query
+        self.placeholder_targets["[SEARCH_RESULT]"] = search_result[:50000]  # Cut to avoid hitting the context window limit
+        super().__init__()
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("safe/prompts/summarize.md")
 
 
 def read_md_file(file_path: str) -> str:

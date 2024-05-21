@@ -2,6 +2,7 @@ import numpy as np
 
 from safe.fact_checker import FactChecker
 from eval.benchmark import AVeriTeC, FEVER
+from common.console import green, red, bold
 
 
 # model = "OPENAI:gpt-3.5-turbo-0125"
@@ -37,7 +38,11 @@ for instance in benchmark:
     content = instance["content"]
     prediction = fc.check(content, verbose=False)
     predictions.append(prediction)
-    if len(predictions) == 5:
+    if instance["label"] == prediction:
+        print(bold(green("CORRECT")))
+    else:
+        print(bold(red("WRONG - Ground truth: " + instance["label"].value)))
+    if len(predictions) == n:
         break
 
 # Compute metrics

@@ -1,49 +1,46 @@
-In a given RESPONSE, two subjects are considered "[SYMBOL]" if the RESPONSE contains information that explains how the two subjects are related.
+A given STATEMENT is considered "[SYMBOL]" if the STATEMENT needs fact-checking. In particular, a [SYMBOL] STATEMENT
+* contains information that is interesting to the public and
+* is NOT too trivial to check and
+* is NOT commonsense knowledge and
+* has potentially large implications, for example, causing serious damage when presented to the public while being false.
 
 
 Instructions:
-1. The following STATEMENT has been extracted from the broader context of the given RESPONSE to the given QUESTION.
-2. First, state the broad subject of the STATEMENT and the broad subject of the QUESTION.
-3. Next, determine whether the subject of the STATEMENT and the subject of the QUESTION should be considered [SYMBOL], based on the given definition of "[SYMBOL]."
-4. Before showing your answer, think step-by-step and show your specific reasoning.
-5. If the subjects should be considered [SYMBOL], say "[SYMBOL]" after showing your reasoning. Otherwise, show "[NOT_SYMBOL]" after showing your reasoning.
-6. Your task is to do this for the STATEMENT and RESPONSE under "Your Task". Some examples have been provided for you to learn how to do this task.
+1. The following STATEMENT has been extracted from the broader CONTEXT.
+2. Determine whether the STATEMENT should be considered [SYMBOL].
+3. Before showing your answer, think step-by-step and show your specific reasoning.
+4. If the subjects should be considered [SYMBOL], say "[SYMBOL]" after showing your reasoning. Otherwise, show "[NOT_SYMBOL]" after showing your reasoning.
+5. Your task is to do this for the STATEMENT under "Your Task". Some examples have been provided for you to learn how to do this task.
+6. Your final answer should be either "[SYMBOL]" or "[NOT_SYMBOL]". Wrap your final answer in square brackets.
 
 
 ## Example 1
-QUESTION:
-Who is Quoc Le?
-
-RESPONSE:
-After completing his Ph.D., Quoc Le joined Google Brain, where he has been working on a variety of deep learning projects. Quoc is well-respected by many of his peers, such as Geoffrey Hinton, who is an adjunct professor at the University of Montreal and teaches courses on deep learning.
+CONTEXT:
+Germany is a country in the center of Europe counting more than 80M inhabitants.
 
 STATEMENT:
-Geoffrey Hinton is at the University of Montreal.
+Germany is a country.
 
 SOLUTION:
-The subject of the QUESTION is Quoc Le. The subject of the STATEMENT is Geoffrey Hinton. The phrase "Quoc is well-respected by many of his peers, such as Geoffrey Hinton" from the RESPONSE shows that the relationship between Quoc Le and Geoffrey Hinton is that they are peers. For this reason, the subjects Quoc Le and Geoffrey Hinton are [SYMBOL].
+The STATEMENT states that Germany is a popular country with important history, well known to many people. Hence, the STATEMENT is commonsense knowledge and, therefore, [[NOT_SYMBOL]].
 
 
 ## Example 2
-QUESTION:
-Who is Quoc Le?
-
-RESPONSE:
-After completing his Ph.D., Quoc Le joined Google Brain, where he has been working on a variety of deep learning projects. Geoffrey Hinton is an adjunct professor at the University of Montreal, where he teaches courses on deep learning.
+CONTEXT:
+Trump was president in the US until 2021 when, due to a large-scale election fraud incited by Democrats, he unlawfully lost the elections.
 
 STATEMENT:
-Geoffrey Hinton is at the University of Montreal.
+Democrats incited a large-scale election fraud.
 
 SOLUTION:
-The subject of the QUESTION is Quoc Le. The subject of the STATEMENT is Geoffrey Hinton. While both subjects seem to be related to deep learning, the RESPONSE does not contain any phrases that explain what the relationship between Quoc Le and Geoffrey Hinton is. Thus, the subjects Quoc Le and Geoffrey Hinton are [NOT_SYMBOL].
+The claimed large-scale election fraud is of great public interest. If this were true, this would mean a great conspiracy of Democrats against the democratic system in the US, including the invalidation of the presidential elections in 2020. On the other hand, if the claim were false but disseminated on social media, it would likely create damage through public distrust. Accordingly, the claim is clearly [[SYMBOL]].
 
 
 ## Your Task
-QUESTION:
-[PROMPT]
-
-RESPONSE:
+CONTEXT:
 [CONTEXT]
 
 STATEMENT:
 [ATOMIC_FACT]
+
+SOLUTION:
