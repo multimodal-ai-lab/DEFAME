@@ -61,6 +61,10 @@ class FactChecker:
 
 
 def aggregate_predictions(veracities: Sequence[Label]) -> Label:
-        overall_supported = np.all(np.array(veracities) == Label.SUPPORTED)
-        overall_veracity = Label.SUPPORTED if overall_supported else Label.REFUTED
-        return overall_veracity
+    veracities = np.array(veracities)
+    if np.all(veracities == Label.SUPPORTED):
+        return Label.SUPPORTED
+    elif np.any(veracities == Label.NEI):
+        return Label.NEI
+    else:
+        return Label.REFUTED
