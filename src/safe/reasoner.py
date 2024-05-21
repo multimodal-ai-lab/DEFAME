@@ -39,7 +39,7 @@ class Reasoner:
         if final_answer is None:
             utils.maybe_print_error('Unsuccessful parsing for `final_answer`')
 
-        predicted_label = Label(final_answer.answer)
+        predicted_label = Label(final_answer.answer.lower())
 
         return predicted_label, final_answer.response
 
@@ -53,7 +53,7 @@ class Reasoner:
         model_response = self.model.generate(str(reason_prompt), do_debug=self.debug)
         if model_response.startswith("I cannot"):
             utils.print_guard()
-            answer = 'Refused'
+            answer = 'refused'
             return FinalAnswer(response=model_response, answer=answer)
         answer = utils.extract_first_square_brackets(model_response)
         answer = re.sub(r'[^\w\s]', '', answer).strip()
@@ -67,8 +67,8 @@ class Reasoner:
             adjusted_response = self.model.generate(select + model_response)
             utils.print_wrong_answer(model_response, adjusted_response)
             if adjusted_response.lower() not in valid_labels:
-                print(red(f"Error in generating answer. Defaulting to 'Refused'\n"))
-                return FinalAnswer(response=model_response, answer='Refused')
+                print(red(f"Error in generating answer. Defaulting to '{Label.REFUSED_TO_ANSWER}'\n"))
+                return FinalAnswer(response=model_response, answer=Label.REFUSED_TO_ANSWER)
             else:
                 return FinalAnswer(response=model_response, answer=adjusted_response)
 

@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Optional, Sequence
+from typing import Optional, Sequence, List
 
 from common import utils
 from common.modeling import Model
@@ -31,7 +31,7 @@ class Searcher:
         self.max_retries = max_retries
         self.debug = debug_safe
 
-    def search(self, claim, verbose: bool = False) -> Sequence[SearchResult]:
+    def search(self, claim,limit_search=True, verbose: bool = False) -> Sequence[SearchResult]:
         search_results = []
 
         for _ in range(self.max_steps):
@@ -48,6 +48,11 @@ class Searcher:
                 break
             else:
                 search_results.append(next_search)
+
+            if limit_search and self.sufficient_knowledge(claim, search_results):
+                if verbose:
+                    print("LLM decided that the current knowledge is sufficient.")
+                break
 
         return search_results
 
@@ -68,7 +73,7 @@ class Searcher:
 
         # Get and validate the model's response
         model_response = self.model.generate(str(search_prompt), do_debug=self.debug).replace('"', '')
-        if model_response.startswith("I cannot"):
+        if model_response.startswith("I cannot") or model_response.startswith("I'm sorry"):
             if verbose:
                 utils.print_guard()
             model_response = claim
@@ -101,3 +106,28 @@ class Searcher:
                 return self.serper_searcher.run(search_query)
             case 'wiki':
                 return self.wiki_searcher.search(search_query)
+            
+    def sufficient_knowledge(
+            self,
+            claim: str, 
+            past_searches: List[SearchResult]
+        ) -> bool:
+        """
+        This function uses an LLM to evaluate the sufficiency of search_results.
+        """
+        knowledge = '\n'.join([s.result for s in past_searches if s.result is not None])
+        knowledge = 'N/A' if not knowledge else knowledge
+
+        instruction = ("Given the following information, determine if it is enough to conclusively decide "
+                       "whether the claim is true or false with high certainty. If the information is sufficient, "
+                       "respond 'sufficient'; otherwise, respond 'insufficient'. Respond with only one word.")
+        input = f"{instruction}\n\nInformation:\n{knowledge}"
+        model_decision = self.model.generate(input)
+        if model_decision.lower() == "sufficient":
+            print("Sufficient Knowledge:")
+            print(knowledge)
+            print("For Claim: ")
+            print(claim)
+            return True
+        else:
+            return False

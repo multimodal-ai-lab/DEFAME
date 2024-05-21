@@ -19,7 +19,7 @@ from safe.searcher import Searcher
 class FactChecker:
     def __init__(self,
                  model: str | Model = "OPENAI:gpt-3.5-turbo-0125",
-                 multimodal_model: Optional[str] | Optional[Model] = "huggingface:llava-hf/llava-1.5-7b-hf",
+                 multimodal_model: Optional[str] | Optional[Model] = None,
                  search_engine: str = "google",
                  extract_claims: bool = True):
         if isinstance(model, str):
@@ -50,6 +50,8 @@ class FactChecker:
         """
 
         if image:
+            if not self.multimodal_model:
+                raise AssertionError("please specify which multimodal model to use.")
             print(bold(f"Interpreting Multimodal Content:\n"))
             prompt = modeling_utils.prepare_interpretation(content)
             content = self.multimodal_model.generate(image=image, prompt=prompt)

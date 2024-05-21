@@ -326,6 +326,8 @@ class MultimodalModel(Model):
         """Loads a multimodal model from string representation."""
         if model_name.lower().startswith('huggingface:'):
             model_name = model_name[12:]
+            if model_name != "llava-hf/llava-1.5-7b-hf":
+                print("Warning: Model output is cut according to Llava 1.5 standard input format < output[len(prompt)-5:] >.")
             quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=torch.float16
@@ -354,7 +356,7 @@ class MultimodalModel(Model):
                 "top_k": top_k,
                 "repetition_penalty": repetition_penalty
             }
-        )[0]["generated_text"][len(prompt)-5:] #because of <image>
+        )[0]["generated_text"][len(prompt)-5:] # Because of <image> in the Llava template. Might need adjustment for other LLMs.
 
         if do_debug:
             if self.show_prompts:
