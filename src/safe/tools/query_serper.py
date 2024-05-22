@@ -127,10 +127,21 @@ class SerperAPI:
         if result_key in results:
             for result in results[result_key][:self.k]:
                 if 'snippet' in result:
-                    snippets.append(result['snippet'])
+                    snippets.append(f'{result["title"]}: {result["snippet"]}.')
 
-                for attribute, value in result.get('attributes', {}).items():
-                    snippets.append(f'{attribute}: {value}.')
+                #for attribute, value in result.get('attributes', {}).items():
+                #    if result.get('attributes', {}).items():
+                    # TODO: Analyze when this is called. Delete this loop potentially. It seems to add some additional information to the result.
+                    # Seems unnecessary.
+                #        print("\n\n___________DEBUG____________\n\n")
+                #        print("f'{attribute}: {value}.'")
+                #        print(f'{attribute}: {value}.')
+                        
+                #    snippets.append(f'{attribute}: {value}.')
+                #    print("__________________")
+                #    print(snippets)
+                #    print(result)
+                #    print("\n\n_______END_DEBUG________\n\n")
 
         if not snippets:
             return [NO_RESULT_MSG]
@@ -138,4 +149,4 @@ class SerperAPI:
         return snippets
 
     def _parse_results(self, results: dict[Any, Any]) -> str:
-        return ' '.join(self._parse_snippets(results))
+        return '\n'.join(self._parse_snippets(results))

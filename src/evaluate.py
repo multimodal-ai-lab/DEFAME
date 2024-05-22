@@ -8,7 +8,7 @@ from common.console import green, red, bold
 # model = "OPENAI:gpt-3.5-turbo-0125"
 model = "huggingface:meta-llama/Meta-Llama-3-70B-Instruct"
 multimodal_model = "huggingface:llava-hf/llava-1.5-7b-hf"
-search_engine = "google"  # "google" or "wiki"
+search_engine = "google"  # "google" or "wiki" or "duckduck"
 benchmark = AVeriTeC("dev")
 n = 5
 extract_claims = False
@@ -36,7 +36,7 @@ fc = FactChecker(model=model, multimodal_model=multimodal_model, search_engine=s
 predictions = []
 for instance in benchmark:
     content = instance["content"]
-    prediction = fc.check(content, verbose=False)
+    prediction = fc.check(content, verbose=True)
     predictions.append(prediction)
     if instance["label"] == prediction:
         print(bold(green("CORRECT")))

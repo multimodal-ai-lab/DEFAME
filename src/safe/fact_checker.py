@@ -17,7 +17,7 @@ class FactChecker:
     def __init__(self,
                  model: str | Model = "OPENAI:gpt-3.5-turbo-0125",
                  multimodal_model: Optional[str] | Optional[Model] = None,
-                 search_engine: str = "google",
+                 search_engine: str = "duckduck",
                  extract_claims: bool = True):
         if isinstance(model, str):
             model = Model(model)
@@ -37,7 +37,8 @@ class FactChecker:
             self,
             content: str | Sequence[str],
             image: Optional[torch.Tensor] = None,
-            verbose: Optional[bool] = False
+            verbose: Optional[bool] = False,
+            limit_search: Optional[bool] = True,
     ) -> Label:
         """
         Fact-checks the given content by first extracting all elementary claims and then
@@ -61,7 +62,7 @@ class FactChecker:
         veracities = []
         justifications = []
         for claim in claims:
-            veracity, justification = self.verify_claim(claim, verbose=verbose)
+            veracity, justification = self.verify_claim(claim, verbose=verbose, limit_search=limit_search)
             veracities.append(veracity)
             justifications.append(justification)
 
@@ -75,11 +76,16 @@ class FactChecker:
 
         return overall_veracity
 
-    def verify_claim(self, claim: str, verbose: Optional[bool] = False) -> (Label, str):
+    def verify_claim(
+            self, 
+            claim: str, 
+            verbose: Optional[bool] = False, 
+            limit_search: Optional[bool] = False
+    ) -> (Label, str):
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it."""
         # TODO: Enable the model to dynamically choose the tool to use while doing
         # interleaved reasoning and evidence retrieval
-        search_results = self.searcher.search(claim, verbose)
+        search_results = self.searcher.search(claim, verbose=verbose, limit_search=limit_search)
         verdict, justification = self.reasoner.reason(claim, evidence=search_results)
         return verdict, justification
 

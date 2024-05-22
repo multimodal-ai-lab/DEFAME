@@ -2,13 +2,13 @@ import dataclasses
 from typing import Optional, Sequence, List
 import re
 
-
 from common import utils
 from common.modeling import Model
 from common.shared_config import serper_api_key
 from safe.config import num_searches, debug_safe, max_steps, max_retries
 from safe.prompts.prompt import SearchPrompt, SummarizePrompt
 from safe.tools.query_serper import SerperAPI
+from safe.tools.duckduckgo import DuckDuckGo
 from safe.tools.wiki_dump import WikiDumpAPI
 
 
@@ -25,18 +25,19 @@ class Searcher:
     """Searches the specified resource (Google, Wikipedia, ...) for evidence."""
 
     def __init__(self, search_engine: str, model: Model):
-        assert search_engine in ["google", "wiki"]
+        assert search_engine in ["google", "wiki", "duckduck"]
         self.search_engine = search_engine
         self.model = model
 
         self.serper_searcher = SerperAPI(serper_api_key, k=num_searches)
         self.wiki_searcher = WikiDumpAPI()
+        self.duckduck_searcher = DuckDuckGo(max_results=num_searches)
 
         self.max_steps = max_steps
         self.max_retries = max_retries
         self.debug = debug_safe
 
-    def search(self, claim,limit_search=True, verbose: bool = False) -> Sequence[SearchResult]:
+    def search(self, claim, limit_search=True, verbose: bool = False) -> Sequence[SearchResult]:
         search_results = []
 
         for _ in range(self.max_steps):
@@ -52,17 +53,14 @@ class Searcher:
             else:
                 search_results.append(next_search)
 
-            if limit_search and self.sufficient_knowledge(claim, search_results):
-                if verbose:
-                    print("LLM decided that the current knowledge is sufficient.")
+            if limit_search and self.sufficient_knowledge(claim, search_results, verbose=verbose):
                 break
-
         return search_results
 
     def _maybe_get_next_search(self,
                                claim: str,
-                               past_searches: list[SearchResult],
-                               verbose: Optional[bool] = False,
+                               past_searches: List[SearchResult],
+                               verbose: bool = False,
                                ) -> SearchResult | None:
         """Get the next query from the model, use the query to search for evidence and return it."""
         # Construct the prompt tasking the model to produce a search query
@@ -89,7 +87,6 @@ class Searcher:
         # Avoid casting the same, previously used query again
         if query in past_queries:
             return
-
         result = self._call_api(query)
 
         # Avoid duplicate results
@@ -101,15 +98,18 @@ class Searcher:
             print("Summarizing result:", result)
             summarize_prompt = SummarizePrompt(query, result)
             result = self.model.generate(str(summarize_prompt), do_debug=self.debug)
-
+        
         search_result = SearchResult(query=query, result=result)
-
         if verbose:
             print("Found", search_result)
 
         return search_result
 
-    def post_process_query(self, model_response: str, verbose: bool = False) -> str:
+    def post_process_query(
+            self, 
+            model_response: str, 
+            verbose: bool = False
+            ) -> str:
         """
         Processes the model response to extract the query. Ensures correct formatting
         and adjusts the response if needed.
@@ -140,11 +140,14 @@ class Searcher:
                 return self.serper_searcher.run(search_query)
             case 'wiki':
                 return self.wiki_searcher.search(search_query)
+            case 'duckduck':
+                return self.duckduck_searcher.run(search_query)
             
     def sufficient_knowledge(
             self,
             claim: str, 
-            past_searches: List[SearchResult]
+            past_searches: List[SearchResult],
+            verbose: bool = False,
         ) -> bool:
         """
         This function uses an LLM to evaluate the sufficiency of search_results.
@@ -158,10 +161,8 @@ class Searcher:
         input = f"{instruction}\n\nInformation:\n{knowledge}"
         model_decision = self.model.generate(input)
         if model_decision.lower() == "sufficient":
-            print("Sufficient Knowledge:")
-            print(knowledge)
-            print("For Claim: ")
-            print(claim)
+            if verbose:
+                print(f"Sufficient knowledge:\n{knowledge}\nFor claim:\n{claim}")
             return True
         else:
             return False
