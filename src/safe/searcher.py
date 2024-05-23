@@ -1,6 +1,7 @@
 import dataclasses
-from typing import Optional, Sequence, List
+from typing import Optional, Sequence, List, Any
 import re
+from logging import Logger
 
 from common import utils
 from common.modeling import Model
@@ -10,6 +11,7 @@ from safe.prompts.prompt import SearchPrompt, SummarizePrompt
 from safe.tools.query_serper import SerperAPI
 from safe.tools.duckduckgo import DuckDuckGo
 from safe.tools.wiki_dump import WikiDumpAPI
+from eval.logging import print_log
 
 
 @dataclasses.dataclass()
@@ -37,23 +39,31 @@ class Searcher:
         self.max_retries = max_retries
         self.debug = debug_safe
 
-    def search(self, claim, limit_search=True, verbose: bool = False) -> Sequence[SearchResult]:
+    def search(
+            self, 
+            claim, 
+            limit_search=True, 
+            verbose: bool = False,
+            logger: Optional[Logger] = None,
+    ) -> Sequence[SearchResult]:
+        
         search_results = []
-
         for _ in range(self.max_steps):
             next_search, num_tries = None, 0
 
             while not next_search and num_tries <= self.max_retries:
-                next_search = self._maybe_get_next_search(claim, search_results, verbose=verbose)
+                next_search = self._maybe_get_next_search(claim, search_results, verbose=verbose, logger=logger)
                 num_tries += 1
 
             if next_search is None:
                 utils.maybe_print_error('Unsuccessful parsing for `next_search`')
+                if logger:
+                    print_log(logger,'Unsuccessful parsing for `next_search`')
                 break
             else:
                 search_results.append(next_search)
 
-            if limit_search and self.sufficient_knowledge(claim, search_results, verbose=verbose):
+            if limit_search and self.sufficient_knowledge(claim, search_results, verbose=verbose, logger=logger):
                 break
         return search_results
 
@@ -61,7 +71,8 @@ class Searcher:
                                claim: str,
                                past_searches: List[SearchResult],
                                verbose: bool = False,
-                               ) -> SearchResult | None:
+                               logger: Optional[Logger] = None,
+    ) -> SearchResult | None:
         """Get the next query from the model, use the query to search for evidence and return it."""
         # Construct the prompt tasking the model to produce a search query
         past_results = [s.result for s in past_searches if s.result is not None]
@@ -79,53 +90,65 @@ class Searcher:
         if model_response.startswith("I cannot") or model_response.startswith("I'm sorry"):
             if verbose:
                 utils.print_guard()
-            model_response = claim
+            if logger:
+                print_log(logger, f"Model hit the guardrails with prompt:\n {search_prompt}")
+            model_response = '[' + claim + ']'
         query = utils.extract_first_code_block(model_response, ignore_language=True)
         if not query:
-            query = self.post_process_query(model_response)
+            query = self.post_process_query(model_response, verbose=verbose, logger=logger)
 
         # Avoid casting the same, previously used query again
         if query in past_queries:
             return
+    
         result = self._call_api(query)
+        if logger:
+            print_log(logger, f'Query: {query}')
+            print_log(logger, f'Result: {result}')
 
         # Avoid duplicate results
+        #TODO the following two lines seem superfluous as the likelihood 
+        # of getting (exact) duplicate results is low for these long strings?
         if result in past_results:
             result = None  # But keep query to avoid future duplicates
 
         # If result is too long, summarize it (to avoid hitting the context length limit)
         if result is not None and len(result) > 512:
-            print("Summarizing result:", result)
+            if verbose:
+                print("Summarizing result:", result)
+            if logger:
+                print_log(logger, f"Summarizing result: {result}")
             summarize_prompt = SummarizePrompt(query, result)
             result = self.model.generate(str(summarize_prompt), do_debug=self.debug)
         
         search_result = SearchResult(query=query, result=result)
         if verbose:
             print("Found", search_result)
+        if logger:
+            print_log(logger, f'Found: {search_result}')
+
 
         return search_result
 
     def post_process_query(
             self, 
             model_response: str, 
-            verbose: bool = False
-            ) -> str:
+            verbose: bool = False,
+            logger: Optional[Logger] = None,
+    ) -> str:
         """
         Processes the model response to extract the query. Ensures correct formatting
         and adjusts the response if needed.
         """
 
-        if verbose and model_response.startswith("I cannot"):
-            utils.print_guard()
-
-        query = utils.extract_first_code_block(model_response, ignore_language=True)
-
         # If query extraction was unsuccessful, use the LLM to extract the query from the response
-        if not query:
-            if verbose:
-                print(f"No query was found in output - likely due to wrong formatting.\nModel Output: {model_response}")
-            instruction = "Extract a simple sentence that I can use for a Google Search query from this string:\n"
-            query = self.model.generate(instruction + model_response)
+        if verbose:
+            print(f"No query was found in output - likely due to wrong formatting.\nModel Output: {model_response}")
+        if logger:
+            print_log(logger, f"No query was found in output - likely due to wrong formatting. Model Output: {model_response}")
+        
+        instruction = "Extract a simple sentence that I can use for a Google Search query from this string:\n"
+        query = self.model.generate(instruction + model_response)
 
         # Remove unwanted newlines
         query = query.replace('\n', '')
@@ -148,6 +171,7 @@ class Searcher:
             claim: str, 
             past_searches: List[SearchResult],
             verbose: bool = False,
+            logger: Optional[Logger] = None,
         ) -> bool:
         """
         This function uses an LLM to evaluate the sufficiency of search_results.
@@ -163,6 +187,9 @@ class Searcher:
         if model_decision.lower() == "sufficient":
             if verbose:
                 print(f"Sufficient knowledge:\n{knowledge}\nFor claim:\n{claim}")
+            if logger:
+                print_log(logger, f"Sufficient knowledge: {knowledge}")
+                print_log(logger, f"For claim: {claim}")
             return True
         else:
             return False

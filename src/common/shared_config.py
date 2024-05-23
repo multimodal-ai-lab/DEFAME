@@ -47,6 +47,7 @@ model_options = {
     'llama3_70b_instruct': 'huggingface:meta-llama/Meta-Llama-3-70B-Instruct',
     'mixtral-8x7B-Instruct-v0.1': 'huggingface:mistralai/Mixtral-8x7B-Instruct-v0.1',
 }
+model_abbr = {v: k for k, v in model_options.items()}
 model_string = {
     'gpt_4_turbo': 'gpt4turbo',
     'gpt_4': 'gpt4',
@@ -60,7 +61,13 @@ model_string = {
     'claude_instant': 'claudeinstant',
     'llama3_8B_instruct': 'llama3_8B_instruct',
 }
+search_engine_options = {
+    'google',
+    'wiki',
+    'duckduck'
+}   
 task_options = {}
 root_dir = '/'.join(os.path.abspath(__file__).split('/')[:-2])
-path_to_data = 'datasets/'
+path_to_data = '/pfss/mlde/workspaces/mlde_wsp_Rohrbach/data/raw/'
 path_to_result = 'results/'
+

@@ -38,6 +38,7 @@ class AVeriTeC(Benchmark):
     }
 
     def __init__(self, variant="dev"):
+        self.name = f"AVeri_{variant}"
         super().__init__("averitec")
         self.file_path = Path(path_to_data + f"AVeriTeC/{variant}.json")
 
@@ -56,6 +57,7 @@ class FEVER(Benchmark):
     }
 
     def __init__(self, variant="dev"):
+        self.name = f"FEV_{variant}"
         super().__init__("averitec")
         self.file_path = Path(path_to_data + f"FEVER/{variant}.jsonl")
 

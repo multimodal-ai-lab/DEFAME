@@ -129,19 +129,11 @@ class SerperAPI:
                 if 'snippet' in result:
                     snippets.append(f'{result["title"]}: {result["snippet"]}.')
 
+# TODO: The following Code block was part of the prior repo.
+# It seems to add some additional information to the result.
+# Seems unnecessary.
                 #for attribute, value in result.get('attributes', {}).items():
                 #    if result.get('attributes', {}).items():
-                    # TODO: Analyze when this is called. Delete this loop potentially. It seems to add some additional information to the result.
-                    # Seems unnecessary.
-                #        print("\n\n___________DEBUG____________\n\n")
-                #        print("f'{attribute}: {value}.'")
-                #        print(f'{attribute}: {value}.')
-                        
-                #    snippets.append(f'{attribute}: {value}.')
-                #    print("__________________")
-                #    print(snippets)
-                #    print(result)
-                #    print("\n\n_______END_DEBUG________\n\n")
 
         if not snippets:
             return [NO_RESULT_MSG]
