@@ -55,6 +55,11 @@ class Reasoner:
         """Get the final answer from the model."""
         knowledge = '\n'.join([search.result for search in evidence if search.result is not None])
         reason_prompt = ReasonPrompt(claim, knowledge)
+        #####################################################################
+        if logger:
+             print_log(logger, "KNOWLEDGE")
+             print_log(logger, reason_prompt)
+        ############################## Delete that Soon #####################
         model_response = self.model.generate(str(reason_prompt), do_debug=self.debug)
         if model_response.startswith("I cannot") or model_response.startswith("I'm sorry"):
             utils.print_guard()

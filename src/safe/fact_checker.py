@@ -64,7 +64,7 @@ class FactChecker:
         if verbose:
             print(logger, bold(f"Content to be fact-checked:\n'{light_blue(content)}'"))
         if logger:
-            print_log(logger, f"Content to be fact-checked:\n'{light_blue(content)}'")
+            print_log(logger, f"Content to be fact-checked:\n'{content}'")
 
         claims = self.claim_extractor.extract_claims(content, verbose=verbose, logger=logger) if self.extract_claims else [content]
 
@@ -84,7 +84,7 @@ class FactChecker:
                 print(bold(f"The claim '{light_blue(claim)}' is {veracity.value}."))
                 print(gray(f'{justification}\n'))
             if logger:
-                print_log(logger, f"The claim '{light_blue(claim)}' is {veracity.value}.")
+                print_log(logger, f"The claim '{claim}' is {veracity.value}.")
                 print_log(logger, f'{justification}')
         overall_veracity = aggregate_predictions(veracities)
         if verbose:

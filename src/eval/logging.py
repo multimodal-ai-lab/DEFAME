@@ -16,7 +16,7 @@ class JsonFormatter(logging.Formatter):
 
 # Function to setup logging
 def setup_logging(dataset_abbr, model_abbr):
-    log_date = datetime.now().strftime("%Y%m%d%H%M")
+    log_date = datetime.now().strftime("%Y%m%d-%H%M")
 
     # Define log file paths
     config_log_path = f'log/config_{log_date}_{dataset_abbr}_{model_abbr}.json'

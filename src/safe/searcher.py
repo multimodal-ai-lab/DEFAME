@@ -39,6 +39,7 @@ class Searcher:
         self.max_retries = max_retries
         self.debug = debug_safe
 
+# TODO: rank the websites according to their credibility like MUSE
     def search(
             self, 
             claim, 
@@ -55,10 +56,10 @@ class Searcher:
                 next_search = self._maybe_get_next_search(claim, search_results, verbose=verbose, logger=logger)
                 num_tries += 1
 
-            if next_search is None:
-                utils.maybe_print_error('Unsuccessful parsing for `next_search`')
+            if next_search is None or not next_search.result:
+                utils.maybe_print_error(f'Unsuccessful parsing for `next_search` try {num_tries}. Try again...')
                 if logger:
-                    print_log(logger,'Unsuccessful parsing for `next_search`')
+                    print_log(logger,f'Unsuccessful parsing for `next_search` try {num_tries}. Try again...')
                 break
             else:
                 search_results.append(next_search)
@@ -102,6 +103,7 @@ class Searcher:
             return
     
         result = self._call_api(query)
+
         if logger:
             print_log(logger, f'Query: {query}')
             print_log(logger, f'Result: {result}')
@@ -126,7 +128,6 @@ class Searcher:
             print("Found", search_result)
         if logger:
             print_log(logger, f'Found: {search_result}')
-
 
         return search_result
 
@@ -181,7 +182,8 @@ class Searcher:
 
         instruction = ("Given the following INFORMATION, determine if it is enough to conclusively decide "
                        "whether the CLAIM is true or false with high certainty. If the INFORMATION is sufficient, "
-                       "respond 'sufficient'. Otherwise, respond 'insufficient'. If you are in doubt, respond 'insufficient'."
+                       "respond 'sufficient'. Otherwise, respond 'insufficient'. "
+                       "If you are in doubt or need more information, respond 'insufficient'. "
                        "Respond with only one word.")
         input = f"{instruction}\INFORMATION:\n{knowledge}\CLAIM:{claim}"
         model_decision = self.model.generate(input)

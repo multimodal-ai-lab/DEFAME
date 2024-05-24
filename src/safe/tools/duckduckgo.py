@@ -2,11 +2,14 @@ import time
 from typing import List, Dict, Any
 from duckduckgo_search import DDGS
 from common.console import red, bold
+import logging
+
+logging.getLogger('duckduckgo_search').setLevel(logging.WARNING)
 
 class DuckDuckGo:
     """Class for querying the DuckDuckGo API."""
 
-    def __init__(self, max_results: int = 5, max_retries: int = 5, backoff_factor: float = 1.0):
+    def __init__(self, max_results: int = 5, max_retries: int = 2, backoff_factor: float = 60.0):
         self.max_results = max_results
         self.max_retries = max_retries
         self.backoff_factor = backoff_factor
@@ -27,7 +30,7 @@ class DuckDuckGo:
                 print(bold(red(f"Attempt {attempt} failed: {e}. Retrying in {wait_time} seconds...")))
                 time.sleep(wait_time)
         print(bold(red("All attempts to reach DuckDuckGo have failed. Please try again later.")))
-        return self._parse_results(results)
+        return ''
 
     def _parse_results(self, results: List[Dict[str, str]]) -> str:
         """Parse results from DuckDuckGo search and return structured dictionary."""
