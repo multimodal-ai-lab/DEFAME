@@ -66,7 +66,7 @@ class FactChecker:
         if logger:
             print_log(logger, f"Content to be fact-checked:\n'{light_blue(content)}'")
 
-        claims = self.claim_extractor.extract_claims(content) if self.extract_claims else [content]
+        claims = self.claim_extractor.extract_claims(content, verbose=verbose, logger=logger) if self.extract_claims else [content]
 
         if verbose:
             print(bold("Verifying the claims..."))

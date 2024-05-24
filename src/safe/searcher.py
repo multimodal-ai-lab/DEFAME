@@ -175,7 +175,7 @@ class Searcher:
         ) -> bool:
         """
         This function uses an LLM to evaluate the sufficiency of search_results.
-        """
+        """ 
         knowledge = '\n'.join([s.result for s in past_searches if s.result is not None])
         knowledge = 'N/A' if not knowledge else knowledge
 

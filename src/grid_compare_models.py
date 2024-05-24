@@ -8,20 +8,6 @@ from common.console import green, red, bold
 from eval.logging import setup_logging, log_model_config, log_testing_result, print_log
 from common.shared_config import model_abbr
 
-#TODO The following comments should be inserted in the README.md
-# For multimodal usage turn image into a tensor by either:
-# 1) pulling it from link: 
-#    image_url = "https://llava-vl.github.io/static/images/view.jpg"
-#    image = Image.open(requests.get(image_url, stream=True).raw)
-#   or
-# 2) pulling it from path
-#    image_path = path_to_data + "MAFC_test/image_claims/00000.png"
-#    image = Image.open(image_path)
-#
-# Hand the tensor as second argument to Factchecker.check 
-
-# For each single instance in the benchmark, predict its veracity
-
 def evaluate(
         model, 
         multimodal_model, 
@@ -125,5 +111,6 @@ combinations = product(
     hyperparameters['extract_claims']
 )
 
-for combination in combinations:
-    evaluate(*combination)
+if __name__ == "__main__":
+    for combination in combinations:
+        evaluate(*combination)
