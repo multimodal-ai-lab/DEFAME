@@ -113,7 +113,7 @@ class Searcher:
             result = None  # But keep query to avoid future duplicates
 
         # If result is too long, summarize it (to avoid hitting the context length limit)
-        if result is not None and len(result) > 512:
+        if result is not None and len(result) > 728:
             if verbose:
                 print("Summarizing result:", result)
             if logger:
@@ -179,10 +179,11 @@ class Searcher:
         knowledge = '\n'.join([s.result for s in past_searches if s.result is not None])
         knowledge = 'N/A' if not knowledge else knowledge
 
-        instruction = ("Given the following information, determine if it is enough to conclusively decide "
-                       "whether the claim is true or false with high certainty. If the information is sufficient, "
-                       "respond 'sufficient'; otherwise, respond 'insufficient'. Respond with only one word.")
-        input = f"{instruction}\n\nInformation:\n{knowledge}"
+        instruction = ("Given the following INFORMATION, determine if it is enough to conclusively decide "
+                       "whether the CLAIM is true or false with high certainty. If the INFORMATION is sufficient, "
+                       "respond 'sufficient'. Otherwise, respond 'insufficient'. If you are in doubt, respond 'insufficient'."
+                       "Respond with only one word.")
+        input = f"{instruction}\INFORMATION:\n{knowledge}\CLAIM:{claim}"
         model_decision = self.model.generate(input)
         if model_decision.lower() == "sufficient":
             if verbose:

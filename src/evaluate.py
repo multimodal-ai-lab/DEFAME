@@ -8,9 +8,9 @@ from eval.logging import setup_logging, log_model_config, log_testing_result, pr
 from common.shared_config import model_abbr
 
 
-model = "huggingface:meta-llama/Meta-Llama-3-70B-Instruct" #"OPENAI:gpt-3.5-turbo-0125" check shared_config for all available models
+model = "huggingface:meta-llama/Meta-Llama-3-70B-Instruct" #"OPENAI:gpt-3.5-turbo-0125" | check shared_config for all available models
 multimodal_model = "huggingface:llava-hf/llava-1.5-7b-hf"
-search_engine = "duckduck"  # "google" or "wiki" check shared_config.py for all available search_engines
+search_engine = "duckduck"  #"duckduck" or "google" or "wiki" | check shared_config.py for all available search_engines
 benchmark = AVeriTeC("dev")
 n = 5
 extract_claims = False

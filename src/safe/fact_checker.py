@@ -59,19 +59,19 @@ class FactChecker:
                 print(bold(f"Interpreting Multimodal Content:\n"))
                 print(bold(light_blue(f"{content}")))
             if logger:
-                print_log(logger, bold(f"Interpreting Multimodal Content:"))
-                print_log(logger, bold(light_blue(f"{content}")))
+                print_log(logger, f"Interpreting Multimodal Content:")
+                print_log(logger, f"{content}")
         if verbose:
             print(logger, bold(f"Content to be fact-checked:\n'{light_blue(content)}'"))
         if logger:
-            print_log(logger, bold(f"Content to be fact-checked:\n'{light_blue(content)}'"))
+            print_log(logger, f"Content to be fact-checked:\n'{light_blue(content)}'")
 
         claims = self.claim_extractor.extract_claims(content) if self.extract_claims else [content]
 
         if verbose:
             print(bold("Verifying the claims..."))
         if logger:
-            print_log(logger, bold("Verifying the claims..."))
+            print_log(logger, "Verifying the claims...")
         veracities = []
         justifications = []
         for claim in claims:
@@ -84,13 +84,13 @@ class FactChecker:
                 print(bold(f"The claim '{light_blue(claim)}' is {veracity.value}."))
                 print(gray(f'{justification}\n'))
             if logger:
-                print_log(logger, bold(f"The claim '{light_blue(claim)}' is {veracity.value}."))
-                print_log(logger, gray(f'{justification}'))
+                print_log(logger, f"The claim '{light_blue(claim)}' is {veracity.value}.")
+                print_log(logger, f'{justification}')
         overall_veracity = aggregate_predictions(veracities)
         if verbose:
             print(bold(f"So, the overall veracity is: {overall_veracity.value}"))
         if logger:
-            print_log(logger, bold(f"So, the overall veracity is: {overall_veracity.value}"))
+            print_log(logger, f"So, the overall veracity is: {overall_veracity.value}")
         return overall_veracity
 
     def verify_claim(
@@ -104,7 +104,7 @@ class FactChecker:
         # TODO: Enable the model to dynamically choose the tool to use while doing
         # interleaved reasoning and evidence retrieval
         search_results = self.searcher.search(claim, verbose=verbose, limit_search=limit_search, logger=logger)
-        verdict, justification = self.reasoner.reason(claim, evidence=search_results)
+        verdict, justification = self.reasoner.reason(claim, evidence=search_results, logger=logger)
         return verdict, justification
 
 
