@@ -1,9 +1,10 @@
 import numpy as np
 import os
 import time
+import logging
 from safe.fact_checker import FactChecker
 from eval.benchmark import AVeriTeC, FEVER
-from common.console import green, red, bold
+from common.console import green, red, bold, gray
 from eval.logging import setup_logging, log_model_config, log_testing_result, print_log
 from common.shared_config import model_abbr
 
@@ -20,6 +21,9 @@ from common.shared_config import model_abbr
 # Hand the tensor as second argument to Factchecker.check 
 
 # For each single instance in the benchmark, predict its veracity
+
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+
 def evaluate(
         model, 
         multimodal_model, 
@@ -50,7 +54,9 @@ def evaluate(
         })
         start_time = time.time()
     ################################################################################
-
+    print(bold(gray(f"\n\nLLM: {model}, MLLM: {multimodal_model}, Search Engine: {search_engine}, Benchmark: {benchmark}\n")))
+    if logging:
+        print_log(print_logger, f"LLM: {model}, MLLM: {multimodal_model}, Search Engine: {search_engine}, Benchmark: {benchmark}")
     fc = FactChecker(
         model=model, 
         multimodal_model=multimodal_model, 
