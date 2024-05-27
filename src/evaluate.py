@@ -18,7 +18,8 @@ assert n <= len(benchmark)
 print(f"Loaded {benchmark.name} containing {len(benchmark)} instances.")
 print(f"Evaluating on {n} samples.")
 
-fc = FactChecker(model=model, search_engine=search_engine, extract_claims=extract_claims)
+fc = FactChecker(model=model, search_engine=search_engine,
+                 extract_claims=extract_claims, multimodal_model=None)
 
 # For each single instance in the benchmark, predict its veracity
 predictions = []
