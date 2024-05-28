@@ -111,10 +111,10 @@ def aggregate_predictions(veracities: Sequence[Label]) -> Label:
     veracities = np.array(veracities)
     if np.all(veracities == Label.SUPPORTED):
         return Label.SUPPORTED
-    elif np.any(veracities == Label.NEI):
-        return Label.NEI
-    else:
+    elif np.any(veracities == Label.REFUTED):
         return Label.REFUTED
+    else:
+        return Label.NEI
 
 
 def main():
