@@ -58,7 +58,7 @@ def evaluate(
     summary = f"\n\nLLM: {model}, " \
               f"MLLM: {multimodal_model}, " \
               f"Search Engine: {search_engine}, " \
-              f"Benchmark: {benchmark}\n"
+              f"Benchmark: {benchmark.name}\n"
 
     print(bold(gray(summary)))
 
@@ -94,6 +94,7 @@ def evaluate(
                 print_log(print_logger, "CORRECT")
             else:
                 print_log(print_logger, "WRONG - Ground truth: " + instance["label"].value)
+            print_log(print_logger,"")
 
         predictions.append(prediction)
         if prediction_is_correct:
@@ -132,7 +133,7 @@ if __name__ == "__main__":
     extract_claims = False
     assert n_samples <= len(benchmark)
     verbose = False
-    logging = True
+    logg = True
 
     print(f"Loaded {benchmark.name} containing {len(benchmark)} instances.")
     print(f"Evaluating on {n_samples} samples.")
@@ -144,5 +145,5 @@ if __name__ == "__main__":
              n=n_samples,
              extract_claims=extract_claims,
              verbose=verbose,
-             logging=logging
+             logging=logg
              )
