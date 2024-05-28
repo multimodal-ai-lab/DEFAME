@@ -82,7 +82,6 @@ def evaluate(
                 logger.log("CORRECT")
             else:
                 logger.log("WRONG - Ground truth: " + instance["label"].value)
-            print_log(print_logger,"")
 
         if prediction_is_correct:
             print(bold(green("CORRECT")))

@@ -9,6 +9,7 @@ from common.label import Label
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('openai').setLevel(logging.ERROR)
+logging.getLogger('duckduckgo_search').setLevel(logging.WARNING)
 
 
 class EvaluationLogger:

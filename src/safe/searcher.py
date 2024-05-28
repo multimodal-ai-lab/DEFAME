@@ -1,17 +1,17 @@
 import dataclasses
-from typing import Optional, Sequence, List
 import re
-from eval.logging import EvaluationLogger
+from typing import Optional, Sequence, List
 
 from common import utils
+from common.console import yellow, gray
 from common.modeling import Model
 from common.shared_config import serper_api_key
+from eval.logging import EvaluationLogger
 from safe.config import num_searches, debug_safe, max_steps, max_retries
 from safe.prompts.prompt import SearchPrompt, SummarizePrompt
-from safe.tools.query_serper import SerperAPI
 from safe.tools.duckduckgo import DuckDuckGo
+from safe.tools.query_serper import SerperAPI
 from safe.tools.wiki_dump import WikiDumpAPI
-from common.console import yellow, gray
 
 
 @dataclasses.dataclass()
@@ -41,20 +41,21 @@ class Searcher:
 
     # TODO: rank the websites according to their credibility like MUSE
     def search(
-            self, 
+            self,
             claim: str,
             limit_search: bool = True,
             summarize: bool = True,
             verbose: bool = False,
             logger: Optional[EvaluationLogger] = None,
     ) -> Sequence[SearchResult]:
-        
+
         search_results = []
         for _ in range(self.max_steps):
             next_search, num_tries = None, 0
 
             while not next_search and num_tries <= self.max_retries:
-                next_search = self._maybe_get_next_search(claim, search_results, summarize=summarize, verbose=verbose, logger=logger)
+                next_search = self._maybe_get_next_search(claim, search_results, summarize=summarize, verbose=verbose,
+                                                          logger=logger)
                 num_tries += 1
 
             if next_search is None or not next_search.result:
@@ -74,7 +75,7 @@ class Searcher:
                                summarize: bool = True,
                                verbose: bool = False,
                                logger: Optional[EvaluationLogger] = None,
-    ) -> SearchResult | None:
+                               ) -> SearchResult | None:
         """Get the next query from the model, use the query to search for evidence and return it."""
         # Construct the prompt tasking the model to produce a search query
         past_results = [s.result for s in past_searches if s.result is not None]
@@ -102,13 +103,13 @@ class Searcher:
         # Avoid casting the same, previously used query again
         if query in past_queries:
             if logger:
-                print_log(logger, f"Duplicate query. OLD: {query}")
+                logger.log(f"Duplicate query. OLD: {query}")
             mixer = f"This is the CLAIM: '{claim}'. You have tried this QUERY: '{query}' but the search result was \
                 irrelevant to the claim. Change the QUERY to extract important knowledge about the CLAIM. Answer only with the new query: "
             query = self.model.generate(mixer)
             if logger:
-                print_log(logger, f"Duplicate query. NEW: {query}")
-    
+                logger.log(f"Duplicate query. NEW: {query}")
+
         result = self._call_api(query, verbose=verbose, logger=logger)
 
         if logger is not None:
@@ -132,7 +133,7 @@ class Searcher:
             if verbose:
                 print("Summarized result:", result)
             if logger:
-                print_log(logger, f"Summarized result: {result}")
+                logger.log(f"Summarized result: {result}")
 
         search_result = SearchResult(query=query, result=result)
         if verbose:
@@ -143,8 +144,8 @@ class Searcher:
         return search_result
 
     def post_process_query(
-            self, 
-            model_response: str, 
+            self,
+            model_response: str,
             verbose: bool = False,
             logger: Optional[EvaluationLogger] = None,
     ) -> str:
@@ -158,7 +159,7 @@ class Searcher:
             print(f"No query was found in output - likely due to wrong formatting.\nModel Output: {model_response}")
         if logger is not None:
             logger.log(f"No query was found in output - likely due to wrong formatting. Model Output: {model_response}")
-        
+
         instruction = "Extract a simple sentence that I can use for a Google Search query from this string:\n"
         query = self.model.generate(instruction + model_response)
 
@@ -168,7 +169,7 @@ class Searcher:
 
         return query
 
-    def _call_api(self, search_query: str, verbose: bool = False, logger: Optional[Logger] = None,) -> str:
+    def _call_api(self, search_query: str, verbose: bool = False, logger: Optional[EvaluationLogger] = None, ) -> str:
         """Call the respective search API to get the search result."""
         match self.search_engine:
             case 'google':
@@ -183,16 +184,17 @@ class Searcher:
                 if verbose:
                     print(yellow(f"Searching DuckDuckGo with query: {search_query}"))
                 return self.duckduck_searcher.run(search_query, logger=logger)
+
     def sufficient_knowledge(
             self,
-            claim: str, 
+            claim: str,
             past_searches: List[SearchResult],
             verbose: bool = False,
             logger: Optional[EvaluationLogger] = None,
-        ) -> bool:
+    ) -> bool:
         """
         This function uses an LLM to evaluate the sufficiency of search_results.
-        """ 
+        """
         knowledge = '\n'.join([s.result for s in past_searches if s.result is not None])
         knowledge = 'N/A' if not knowledge else knowledge
 

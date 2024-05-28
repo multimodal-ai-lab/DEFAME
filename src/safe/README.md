@@ -90,7 +90,7 @@ Here's an example function header of what you would need to implement.
 
 ```python
 def my_search_function(search_query: str) -> str:
-  # Implement this function.
+    pass  # Implement this function.
 ```
 
 Then simply call this function in `rate_atomic_facts.call_search()`.

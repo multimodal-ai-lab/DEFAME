@@ -3,13 +3,13 @@ import re
 from typing import Sequence, Optional
 
 from common import utils
+from common.console import red
 from common.label import Label
 from common.modeling import Model
-from safe.config import debug_safe, max_steps, max_retries
-from safe.searcher import SearchResult
-from common.console import red
-from safe.prompts.prompt import ReasonPrompt
 from eval.logging import EvaluationLogger
+from safe.config import debug_safe, max_steps, max_retries
+from safe.prompts.prompt import ReasonPrompt
+from safe.searcher import SearchResult
 
 
 @dataclasses.dataclass()
@@ -54,7 +54,7 @@ class Reasoner:
                                evidence: Sequence[SearchResult],
                                verbose: bool = False,
                                logger: Optional[EvaluationLogger] = None,
-    ) -> FinalAnswer | None:
+                               ) -> FinalAnswer | None:
         """Get the final answer from the model."""
         knowledge = '\n'.join([search.result for search in evidence if search.result is not None])
         reason_prompt = ReasonPrompt(claim, knowledge)
@@ -71,15 +71,15 @@ class Reasoner:
         valid_labels = [label.value.lower() for label in Label]
         if model_response and answer.lower() in valid_labels:
             return FinalAnswer(response=model_response, answer=answer)
-        else: 
+        else:
             # Adjust the model response
             select = f"Respond with one word! From {valid_labels}, select the most fitting for the following string:\n"
             adjusted_response = self.model.generate(select + model_response).lower()
             if verbose:
-                 utils.print_wrong_answer(model_response, adjusted_response)
+                utils.print_wrong_answer(model_response, adjusted_response)
             if logger:
-                 print_log(logger, f"No answer label was found - likely due to wrong formatting.Model Output: {model_response}")
-                 print_log(logger, f"Adjusted Output: {adjusted_response}")
+                logger.log(f"No answer label was found - likely due to wrong formatting.Model Output: {model_response}")
+                logger.log(f"Adjusted Output: {adjusted_response}")
             if adjusted_response not in valid_labels:
                 print(red(f"Error in generating answer. Defaulting to '{Label.REFUSED_TO_ANSWER}'\n"))
                 if logger is not None:
@@ -87,4 +87,3 @@ class Reasoner:
                 return FinalAnswer(response=model_response, answer=Label.REFUSED_TO_ANSWER.value)
             else:
                 return FinalAnswer(response=model_response, answer=adjusted_response)
-

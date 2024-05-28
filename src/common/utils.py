@@ -141,8 +141,8 @@ def open_file_wrapped(filepath: str, **kwargs) -> Any:
     return open(filepath, **kwargs)
 
 
-def file_exists_wrapped(filepath: str, **kwargs) -> bool:
-    return os.path.exists(filepath, **kwargs)
+def file_exists_wrapped(filepath: str) -> bool:
+    return os.path.exists(filepath)
 
 
 def make_directory_wrapped(filepath: str, **kwargs) -> None:
@@ -150,8 +150,8 @@ def make_directory_wrapped(filepath: str, **kwargs) -> None:
     os.makedirs(folder_name, exist_ok=True, **kwargs)
 
 
-def listdir_wrapped(filepath: str, **kwargs) -> list[str]:
-    return os.listdir(filepath, **kwargs)
+def listdir_wrapped(filepath: str) -> list[str]:
+    return os.listdir(filepath)
 
 
 def read_json(filepath: str) -> dict[Any, Any]:

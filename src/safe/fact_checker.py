@@ -105,7 +105,7 @@ class FactChecker:
         # TODO: Enable the model to dynamically choose the tool to use while doing
         # interleaved reasoning and evidence retrieval
         if logger:
-            print_log(logger, f"Verifying Claim: {claim}")
+            logger.log(f"Verifying Claim: {claim}")
         search_results = self.searcher.search(claim, summarize=summarize, verbose=verbose, limit_search=limit_search, logger=logger)
         verdict, justification = self.reasoner.reason(claim, evidence=search_results, logger=logger)
         return verdict, justification

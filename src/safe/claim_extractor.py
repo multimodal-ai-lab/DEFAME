@@ -1,11 +1,12 @@
-from common import utils
-from common.modeling import Model
-from safe import config as safe_config
-from third_party.factscore.atomic_facts import AtomicFactGenerator
-from common.console import light_blue
-from safe.prompts.prompt import FilterCheckWorthyPrompt, DecontextualizePrompt, SYMBOL, NOT_SYMBOL
-from eval.logging import EvaluationLogger
 from typing import Optional
+
+from common import utils
+from common.console import light_blue
+from common.modeling import Model
+from eval.logging import EvaluationLogger
+from safe import config as safe_config
+from safe.prompts.prompt import FilterCheckWorthyPrompt, DecontextualizePrompt, SYMBOL, NOT_SYMBOL
+from third_party.factscore.atomic_facts import AtomicFactGenerator
 
 
 class ClaimExtractor:
@@ -17,7 +18,7 @@ class ClaimExtractor:
         self.max_retries = safe_config.max_retries
         self.do_debug = safe_config.debug_safe
 
-    def extract_claims(self, content, verbose=False, logger: Optional[EvaluationLogger] = None,):
+    def extract_claims(self, content, verbose=False, logger: Optional[EvaluationLogger] = None, ):
         if verbose:
             print("Decomposing...")
         if logger is not None:
@@ -50,7 +51,7 @@ class ClaimExtractor:
             if logger is not None:
                 logger.log(f"'{claim}'")
 
-        return claims #indirectly dropping duplicates because type: set()
+        return claims  # indirectly dropping duplicates because type: set()
 
     def decompose(self, content: str):
         """Splits up the content into atomic facts."""
