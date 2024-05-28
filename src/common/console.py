@@ -16,6 +16,10 @@ def green(text: str):
     return fg.green + text + fg.rs
 
 
+def yellow(text: str):
+    return fg.li_yellow + text + fg.rs
+
+
 def red(text: str):
     return fg.red + text + fg.rs
 

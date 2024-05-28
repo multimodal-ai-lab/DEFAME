@@ -1,14 +1,16 @@
-import numpy as np
+import logging
 import os
 import time
-import logging
-from safe.fact_checker import FactChecker
-from eval.benchmark import AVeriTeC, FEVER
-from common.console import green, red, bold, gray
-from eval.logging import setup_logging, log_model_config, log_testing_result, print_log
-from common.shared_config import model_abbr
 
-#TODO The following comments should be inserted in the README.md
+import numpy as np
+
+from common.console import green, red, bold, gray
+from common.shared_config import model_abbr
+from eval.benchmark import FEVER, AVeriTeC
+from eval.logging import setup_logging, log_model_config, log_testing_result, print_log
+from safe.fact_checker import FactChecker
+
+# TODO The following comments should be inserted in the README.md
 # For multimodal usage turn image into a tensor by either:
 # 1) pulling it from link:
 #    image_url = "https://llava-vl.github.io/static/images/view.jpg"
@@ -24,24 +26,23 @@ from common.shared_config import model_abbr
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 
+
 def evaluate(
         model,
         multimodal_model,
         search_engine,
         benchmark,
-        n = None,
-        extract_claims = True,
-        verbose = False,
-        logging = True
+        n=None,
+        extract_claims=True,
+        verbose=False,
+        logging=True
 ) -> float:
-    ################################################################################
-    #                                   LOGGING
     if logging:
+        # Setup logger
         os.makedirs('log', exist_ok=True)
         dataset_abbr = benchmark.name
         model_ab = model_abbr[model]
 
-        # Setup logging
         config_logger, testing_logger, print_logger = setup_logging(dataset_abbr, model_ab)
 
         log_model_config(config_logger, {
@@ -53,39 +54,49 @@ def evaluate(
             "Full Dataset": True if n == len(benchmark) else f'{n} samples'
         })
         start_time = time.time()
-    ################################################################################
-    print(bold(gray(f"\n\nLLM: {model}, MLLM: {multimodal_model}, Search Engine: {search_engine}, Benchmark: {benchmark}\n")))
+
+    summary = f"\n\nLLM: {model}, " \
+              f"MLLM: {multimodal_model}, " \
+              f"Search Engine: {search_engine}, " \
+              f"Benchmark: {benchmark}\n"
+
+    print(bold(gray(summary)))
+
     if logging:
-        print_log(print_logger, f"LLM: {model}, MLLM: {multimodal_model}, Search Engine: {search_engine}, Benchmark: {benchmark}")
+        print_log(print_logger, summary)
+
     fc = FactChecker(
         model=model,
         multimodal_model=multimodal_model,
         search_engine=search_engine,
         extract_claims=extract_claims,
     )
-    predictions = []
+
     if not n:
         n = len(benchmark)
+
+    predictions = []
     for i, instance in enumerate(benchmark):
         content = instance["content"]
+
+        prediction = fc.check(content, verbose=verbose, logger=print_logger if logging else None)
+        prediction_is_correct = instance["label"] == prediction
+
         if logging:
-            prediction = fc.check(content, verbose=verbose, logger=print_logger)
             log_message = {
-            "sample_index": i + 1,
-            "target": instance["label"].value,
-            "predicted": prediction.value,
-            "correct": instance["label"] == prediction
+                "sample_index": i + 1,
+                "target": instance["label"].value,
+                "predicted": prediction.value,
+                "correct": prediction_is_correct
             }
             log_testing_result(testing_logger, log_message)
-            if instance["label"] == prediction:
+            if prediction_is_correct:
                 print_log(print_logger, "CORRECT")
             else:
                 print_log(print_logger, "WRONG - Ground truth: " + instance["label"].value)
-        else:
-            prediction = fc.check(content, verbose=verbose)
 
         predictions.append(prediction)
-        if instance["label"] == prediction:
+        if prediction_is_correct:
             print(bold(green("CORRECT")))
         else:
             print(bold(red("WRONG - Ground truth: " + instance["label"].value)))
@@ -97,20 +108,19 @@ def evaluate(
     ground_truth = benchmark.get_labels()[:n]
     correct_predictions = np.array(predictions) == np.array(ground_truth)
     accuracy = np.sum(correct_predictions) / n
-    print(f"Accuracy: {accuracy*100:.1f} %\n\n")
+    print(f"Accuracy: {accuracy * 100:.1f} %\n\n")
 
-    ################################################################################
-    #                                   LOGGING
     if logging:
         end_time = time.time()
         log_testing_result(testing_logger, {
-            "Accuracy": f"{accuracy*100:.1f} %",
+            "Accuracy": f"{accuracy * 100:.1f} %",
             "Correct Predictions": correct_predictions.tolist(),
             "Incorrect Predictions": (n - correct_predictions.sum()).tolist(),
             "Duration of Run": f'{end_time - start_time} seconds'
         })
-    ################################################################################
+
     return accuracy
+
 
 if __name__ == "__main__":
 
@@ -135,4 +145,4 @@ if __name__ == "__main__":
              extract_claims=extract_claims,
              verbose=verbose,
              logging=logging
-    )
+             )

@@ -60,11 +60,8 @@ class WikiDumpAPI:
         with open(self.body_knn_path, "wb") as f:
             pickle.dump(self.body_embeddings, f)
 
-    def search(self, phrase: str) -> str:
-        print(f"Searching Wiki dump with query: {phrase}")
-        result = self._search_exact_title(phrase)
-        if len(result) == 0:
-            result = self.search_semantically(phrase)
+    def search(self, phrase: str, n_results: int = 10) -> str:
+        result = self.search_semantically(phrase, n_results)
         return postprocess(result)
 
     def _search_exact_title(self, phrase: str) -> Sequence:
@@ -77,28 +74,34 @@ class WikiDumpAPI:
 
         return self._run_sql_query(stmt, phrase)
 
-    def search_semantically(self, phrase: str) -> Sequence:
+    def search_semantically(self, phrase: str, n_results: int = 10) -> Sequence:
         """Performs a vector search on the text embeddings."""
         phrase_embedding = self.model.encode(phrase, show_progress_bar=False).reshape(1, -1)
+        indices = self.get_nearest_neighbors_title_and_body(phrase_embedding, n_results)
+        results = [self.retrieve(i) for i in indices]
+        return results
 
-        distances_title, indices_title = self.title_embeddings.kneighbors(phrase_embedding)
-        distances_body, indices_body = self.body_embeddings.kneighbors(phrase_embedding)
+    def get_nearest_neighbors_title_and_body(self, phrase_embedding, n_results: int = 10) -> Sequence[int]:
+        """Returns the indices of the embeddings that are closest to the given phrase embedding for both,
+        the titles and the bodies."""
+        n_neighbors = n_results // 2
+        distances_title, indices_title = self.title_embeddings.kneighbors(phrase_embedding, n_neighbors)
+        distances_body, indices_body = self.body_embeddings.kneighbors(phrase_embedding, n_neighbors)
 
         distances = np.hstack([distances_title, distances_body]).flatten()
         indices = np.hstack([indices_title, indices_body]).flatten()
 
         order_sorted = np.argsort(distances)
+        return indices[order_sorted]
 
-        results = []
-        for i in indices[order_sorted]:
-            # Retrieve the sample
-            stmt = f"""
-                SELECT title
-                FROM articles
-                WHERE ROWID = {i + 1};
-                """
-            results.append(self._run_sql_query(stmt)[0])
-        return results
+    def retrieve(self, idx: int):
+        """Retrieves the corresponding title and body text for the given index."""
+        stmt = f"""
+                        SELECT title, body
+                        FROM articles
+                        WHERE ROWID = {idx + 1};
+                        """
+        return self._run_sql_query(stmt)[0]
 
     def _run_sql_query(self, stmt, *args):
         self.cur.execute(stmt, args)
@@ -113,6 +116,7 @@ def preprocess(phrase: str) -> str:
 
 
 def postprocess(result: Sequence) -> str:
+    """Keeps only the body text of the articles and concatenates them to a single string."""
     converted = ""
     if len(result) > 0:
         for row in result:
