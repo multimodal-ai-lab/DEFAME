@@ -33,7 +33,7 @@ class ClaimExtractor:
             print("Decontextualizing...")
         if logger is not None:
             logger.log("Decontextualizing...")
-        atomic_facts_decontextualized = [self.decontextualize(atomic_fact, content) for atomic_fact in atomic_facts]
+        atomic_facts_decontextualized = {self.decontextualize(atomic_fact, content) for atomic_fact in atomic_facts}
         for atomic_fact in atomic_facts_decontextualized:
             if verbose:
                 print(light_blue(f"'{atomic_fact}'"))
@@ -43,14 +43,14 @@ class ClaimExtractor:
             print("Filtering for check-worthy claims...")
         if logger is not None:
             logger.log("Filtering for check-worthy claims...")
-        claims = [claim for claim in atomic_facts_decontextualized if self.is_check_worthy(claim, content)]
+        claims = {claim for claim in atomic_facts_decontextualized if self.is_check_worthy(claim, content)}
         for claim in claims:
             if verbose:
                 print(light_blue(f"'{claim}'"))
             if logger is not None:
                 logger.log(f"'{claim}'")
 
-        return claims
+        return claims #indirectly dropping duplicates because type: set()
 
     def decompose(self, content: str):
         """Splits up the content into atomic facts."""

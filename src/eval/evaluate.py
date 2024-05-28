@@ -51,7 +51,7 @@ def evaluate(
     summary = f"LLM: {model}, " \
               f"MLLM: {multimodal_model}, " \
               f"Search Engine: {search_engine}, " \
-              f"Benchmark: {benchmark}\n"
+              f"Benchmark: {benchmark.name}\n"
 
     print(bold(gray(summary)))
 
@@ -82,6 +82,7 @@ def evaluate(
                 logger.log("CORRECT")
             else:
                 logger.log("WRONG - Ground truth: " + instance["label"].value)
+            print_log(print_logger,"")
 
         if prediction_is_correct:
             print(bold(green("CORRECT")))

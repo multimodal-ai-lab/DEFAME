@@ -41,6 +41,7 @@ class FactChecker:
             image: Optional[torch.Tensor] = None,
             verbose: Optional[bool] = False,
             limit_search: Optional[bool] = True,
+            summarize: Optional[bool] = True,
             logger: Optional[EvaluationLogger] = None,
     ) -> Label:
         """
@@ -74,7 +75,7 @@ class FactChecker:
         veracities = []
         justifications = []
         for claim in claims:
-            veracity, justification = self.verify_claim(claim, verbose=verbose, limit_search=limit_search, logger=logger)
+            veracity, justification = self.verify_claim(claim, summarize=summarize, verbose=verbose, limit_search=limit_search, logger=logger)
             veracities.append(veracity)
             justifications.append(justification)
 
@@ -96,13 +97,16 @@ class FactChecker:
             self, 
             claim: str, 
             verbose: Optional[bool] = False, 
+            summarize = True,
             limit_search: Optional[bool] = False,
             logger: Optional[EvaluationLogger] = None,
     ) -> (Label, str):
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it."""
         # TODO: Enable the model to dynamically choose the tool to use while doing
         # interleaved reasoning and evidence retrieval
-        search_results = self.searcher.search(claim, verbose=verbose, limit_search=limit_search, logger=logger)
+        if logger:
+            print_log(logger, f"Verifying Claim: {claim}")
+        search_results = self.searcher.search(claim, summarize=summarize, verbose=verbose, limit_search=limit_search, logger=logger)
         verdict, justification = self.reasoner.reason(claim, evidence=search_results, logger=logger)
         return verdict, justification
 
