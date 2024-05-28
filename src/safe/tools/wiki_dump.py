@@ -82,8 +82,8 @@ class WikiDumpAPI:
         return results
 
     def get_nearest_neighbors_title_and_body(self, phrase_embedding, n_results: int = 10) -> Sequence[int]:
-        """Returns the indices of the embeddings that are closest to the given phrase embedding for both,
-        the titles and the bodies."""
+        """Returns the (deduplicated) indices of the embeddings that are closest to
+        the given phrase embedding for both, the titles and the bodies."""
         n_neighbors = n_results // 2
         distances_title, indices_title = self.title_embeddings.kneighbors(phrase_embedding, n_neighbors)
         distances_body, indices_body = self.body_embeddings.kneighbors(phrase_embedding, n_neighbors)
@@ -92,15 +92,15 @@ class WikiDumpAPI:
         indices = np.hstack([indices_title, indices_body]).flatten()
 
         order_sorted = np.argsort(distances)
-        return indices[order_sorted]
+        return np.unique(indices[order_sorted])
 
     def retrieve(self, idx: int):
         """Retrieves the corresponding title and body text for the given index."""
         stmt = f"""
-                        SELECT title, body
-                        FROM articles
-                        WHERE ROWID = {idx + 1};
-                        """
+            SELECT title, body
+            FROM articles
+            WHERE ROWID = {idx + 1};
+            """
         return self._run_sql_query(stmt)[0]
 
     def _run_sql_query(self, stmt, *args):
@@ -120,8 +120,45 @@ def postprocess(result: Sequence) -> str:
     converted = ""
     if len(result) > 0:
         for row in result:
-            converted += f" {row[1]}"
+            converted += f"{process_title(row[0])}\n{process_body(row[1])}\n"
     return converted
+
+
+def process_title(title: str) -> str:
+    title = title.replace("_", " ")
+    return process_body(title)
+
+
+def process_body(body: str) -> str:
+    replacement_dict = {
+        "-LRB-": "(",
+        "-RRB-": ")",
+        "-LSB-": "[",
+        "-RSB-": "]",
+        " ,": ",",
+        " .": ".",
+        " :": ":",
+        " ;": ";",
+        "  ": " ",
+        "`` ": "\"",
+        " ''": "\"",
+        " '": "'",
+    }
+    replaced = replace(body, replacement_dict)
+    replacement_dict = {
+        "( ": "(",
+        " )": ")",
+        "[ ": "[",
+        " }": "]",
+        "  ": " ",
+    }
+    return replace(replaced, replacement_dict)
+
+
+def replace(text: str, replacements: dict):
+    rep = dict((re.escape(k), v) for k, v in replacements.items())
+    pattern = re.compile("|".join(rep.keys()))
+    return pattern.sub(lambda m: rep[re.escape(m.group(0))], text)
 
 
 def df_embedding_to_np_embedding(df: pd.DataFrame) -> np.array:
