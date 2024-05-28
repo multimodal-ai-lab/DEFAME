@@ -6,7 +6,6 @@ import numpy as np
 
 from common.console import green, red, bold, gray
 from common.shared_config import model_abbr
-from eval.benchmark import FEVER, AVeriTeC
 from eval.logging import setup_logging, log_model_config, log_testing_result, print_log
 from safe.fact_checker import FactChecker
 
@@ -21,8 +20,6 @@ from safe.fact_checker import FactChecker
 #    image = Image.open(image_path)
 #
 # Hand the tensor as second argument to Factchecker.check
-
-# For each single instance in the benchmark, predict its veracity
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 
@@ -120,29 +117,3 @@ def evaluate(
         })
 
     return accuracy
-
-
-if __name__ == "__main__":
-
-    model = "huggingface:meta-llama/Meta-Llama-3-70B-Instruct" #"OPENAI:gpt-3.5-turbo-0125" | check shared_config for all available models
-    multimodal_model = "huggingface:llava-hf/llava-1.5-7b-hf"
-    search_engine = "duckduck"  #"duckduck" or "google" or "wiki" | check shared_config.py for all available search_engines
-    benchmark = AVeriTeC("dev")
-    n_samples = 5
-    extract_claims = False
-    assert n_samples <= len(benchmark)
-    verbose = False
-    logging = True
-
-    print(f"Loaded {benchmark.name} containing {len(benchmark)} instances.")
-    print(f"Evaluating on {n_samples} samples.")
-
-    evaluate(model=model,
-             multimodal_model=multimodal_model,
-             search_engine=search_engine,
-             benchmark=benchmark,
-             n=n_samples,
-             extract_claims=extract_claims,
-             verbose=verbose,
-             logging=logging
-             )

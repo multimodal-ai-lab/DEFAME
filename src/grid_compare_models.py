@@ -1,13 +1,6 @@
-import numpy as np
-import os
-import time
 from itertools import product
-from safe.fact_checker import FactChecker
-from eval.benchmark import AVeriTeC, FEVER
-from common.console import green, red, bold
-from eval.logging import setup_logging, log_model_config, log_testing_result, print_log
-from common.shared_config import model_abbr
-from evaluate import evaluate
+from eval.benchmark import AVeriTeC
+from eval.evaluate import evaluate
 
 
 hyperparameters = {'model': ["huggingface:meta-llama/Meta-Llama-3-70B-Instruct"],
