@@ -58,9 +58,11 @@ class Searcher:
                 num_tries += 1
 
             if next_search is None or not next_search.result:
-                utils.maybe_print_error(f'Unsuccessful parsing for `next_search` try {num_tries}. Try again...')
+                if verbose:
+                    utils.maybe_print_error(f'Unsuccessful parsing for `next_search` try #{num_tries}. Likely wrong search. Try again...')
                 if logger:
-                    print_log(logger,f'Unsuccessful parsing for `next_search` try {num_tries}. Try again...')
+                    print_log(logger, f'Unsuccessful parsing for `next_search` try #{num_tries}. Likely wrong search. Try again...')
+                    print_log(logger, f'next_search: {next_search}')
             else:
                 search_results.append(next_search)
 
@@ -103,7 +105,7 @@ class Searcher:
         if query in past_queries:
             return
     
-        result = self._call_api(query)
+        result = self._call_api(query, verbose=verbose, logger=logger)
 
         if logger:
             print_log(logger, f'Query: {query}')
@@ -158,7 +160,7 @@ class Searcher:
 
         return query
 
-    def _call_api(self, search_query: str, logger: Optional[Logger] = None) -> str:
+    def _call_api(self, search_query: str,verbose: bool = False, logger: Optional[Logger] = None) -> str:
         """Call the respective search API to get the search result."""
         match self.search_engine:
             case 'google':
@@ -166,7 +168,7 @@ class Searcher:
             case 'wiki':
                 return self.wiki_searcher.search(search_query)
             case 'duckduck':
-                return self.duckduck_searcher.run(search_query, logger=logger)
+                return self.duckduck_searcher.run(search_query, verbose=verbose, logger=logger)
             
     def sufficient_knowledge(
             self,

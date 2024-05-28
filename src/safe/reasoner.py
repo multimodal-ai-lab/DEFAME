@@ -50,6 +50,7 @@ class Reasoner:
     def maybe_get_final_answer(self,
                                claim: str,
                                evidence: Sequence[SearchResult],
+                               verbose: bool = False,
                                logger: Optional[Logger] = None,
     ) -> FinalAnswer | None:
         """Get the final answer from the model."""
@@ -71,9 +72,13 @@ class Reasoner:
         else: 
             # Adjust the model response
             select = f"Respond with one word! From {valid_labels}, select the most fitting for the following string:\n"
-            adjusted_response = self.model.generate(select + model_response)
-            utils.print_wrong_answer(model_response, adjusted_response)
-            if adjusted_response.lower() not in valid_labels:
+            adjusted_response = self.model.generate(select + model_response).lower()
+            if verbose:
+                 utils.print_wrong_answer(model_response, adjusted_response)
+            if logger:
+                 print_log(logger, f"No answer label was found - likely due to wrong formatting.Model Output: {model_response}")
+                 print_log(logger, f"Adjusted Output: {adjusted_response}")
+            if adjusted_response not in valid_labels:
                 print(red(f"Error in generating answer. Defaulting to '{Label.REFUSED_TO_ANSWER}'\n"))
                 if logger:
                     print_log(logger, f"Error in generating answer. Defaulting to '{Label.REFUSED_TO_ANSWER}'")

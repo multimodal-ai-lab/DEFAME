@@ -55,9 +55,9 @@ def evaluate(
         })
         start_time = time.time()
     ################################################################################
-    print(bold(gray(f"\n\nLLM: {model}, MLLM: {multimodal_model}, Search Engine: {search_engine}, Benchmark: {benchmark}\n")))
+    print(bold(gray(f"\n\nLLM: {model}, MLLM: {multimodal_model}, Search Engine: {search_engine}, Benchmark: {benchmark.name}\n")))
     if logging:
-        print_log(print_logger, f"LLM: {model}, MLLM: {multimodal_model}, Search Engine: {search_engine}, Benchmark: {benchmark}")
+        print_log(print_logger, f"LLM: {model}, MLLM: {multimodal_model}, Search Engine: {search_engine}, Benchmark: {benchmark.name}")
     fc = FactChecker(
         model=model, 
         multimodal_model=multimodal_model, 
@@ -79,9 +79,10 @@ def evaluate(
             }
             log_testing_result(testing_logger, log_message)
             if instance["label"] == prediction:
-                print_log(print_logger, "CORRECT")
+                print_log(print_logger, "CORRECT\n\n")
             else:
                 print_log(print_logger, "WRONG - Ground truth: " + instance["label"].value)
+                print_log(print_logger, "")
         else:
             prediction = fc.check(content, verbose=verbose)
 
@@ -89,7 +90,7 @@ def evaluate(
         if instance["label"] == prediction:
             print(bold(green("CORRECT")))
         else:
-            print(bold(red("WRONG - Ground truth: " + instance["label"].value)))
+            print(bold(red("WRONG - Predicted: " + prediction + "| Ground truth: " + instance["label"].value)))
 
         if len(predictions) == n:
             break

@@ -11,15 +11,22 @@ logging.getLogger('duckduckgo_search').setLevel(logging.WARNING)
 class DuckDuckGo:
     """Class for querying the DuckDuckGo API."""
 
-    def __init__(self, max_results: int = 5, max_retries: int = 2, backoff_factor: float = 60.0):
+    def __init__(self, max_results: int = 5, max_retries: int = 10, backoff_factor: float = 60.0):
         self.max_results = max_results
         self.max_retries = max_retries
         self.backoff_factor = backoff_factor
 
-    def run(self, query: str, logger: Optional[Logger] = None) -> Dict[str, Any]:
+    def run(self, query: str, verbose: bool = False, logger: Optional[Logger] = None) -> Dict[str, Any]:
         """Run a search query and return structured results."""
         attempt = 0
         while attempt < self.max_retries:
+            if attempt > 3:
+                wait_time = self.backoff_factor * (attempt)
+                if verbose:
+                    print(bold(red(f"Sleeping {wait_time} seconds.")))
+                if logger:
+                    print_log(logger, f"Sleeping {wait_time} seconds.")
+                time.sleep(wait_time)
             try:
                 results = DDGS().text(query, max_results=self.max_results)
                 if not results:
@@ -29,11 +36,15 @@ class DuckDuckGo:
             except Exception as e:
                 attempt += 1
                 query += '?'
-                print(bold(red(f"Attempt {attempt} failed: {e}. Retrying with modified query...")))
+                if verbose:
+                    print(bold(red(f"Attempt {attempt} failed: {e}. Retrying with modified query...")))
                 if logger:
                     print_log(logger, f"Attempt {attempt} failed: {e}. Retrying with modified query: {query}")
-                
-        print(bold(red("All attempts to reach DuckDuckGo have failed. Please try again later.")))
+        if verbose:
+            print(bold(red("All attempts to reach DuckDuckGo have failed. Please try again later.")))
+        if logger:
+            print_log(logger, f"All attempts to reach DuckDuckGo have failed.")        
+        
         return ''
 
     def _parse_results(self, results: List[Dict[str, str]]) -> str:
