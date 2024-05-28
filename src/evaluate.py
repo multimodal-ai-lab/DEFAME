@@ -31,6 +31,7 @@ def evaluate(
         benchmark, 
         n = None,
         extract_claims = True, 
+        summarize = True,
         verbose = False, 
         logging = True
 ) -> float:
@@ -69,7 +70,7 @@ def evaluate(
     for i, instance in enumerate(benchmark):
         content = instance["content"]
         if logging:
-            prediction = fc.check(content, verbose=verbose, logger=print_logger)
+            prediction = fc.check(content, summarize=summarize, verbose=verbose, logger=print_logger)
             log_message = {
             "sample_index": i + 1,
             "target": instance["label"].value,
@@ -120,6 +121,7 @@ if __name__ == "__main__":
     benchmark = AVeriTeC("dev")
     n_samples = 5
     extract_claims = False
+    summarize = True
     assert n_samples <= len(benchmark)
     verbose = False
     logging = True
@@ -133,6 +135,7 @@ if __name__ == "__main__":
              benchmark=benchmark,
              n=n_samples,
              extract_claims=extract_claims,
+             summarize=summarize,
              verbose=verbose,
              logging=logging
     )

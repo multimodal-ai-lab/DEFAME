@@ -43,7 +43,8 @@ class Searcher:
     def search(
             self, 
             claim, 
-            limit_search=True, 
+            limit_search=True,
+            summarize=True,
             verbose: bool = False,
             logger: Optional[Logger] = None,
     ) -> Sequence[SearchResult]:
@@ -53,14 +54,13 @@ class Searcher:
             next_search, num_tries = None, 0
 
             while not next_search and num_tries <= self.max_retries:
-                next_search = self._maybe_get_next_search(claim, search_results, verbose=verbose, logger=logger)
+                next_search = self._maybe_get_next_search(claim, search_results, summarize=summarize, verbose=verbose, logger=logger)
                 num_tries += 1
 
             if next_search is None or not next_search.result:
                 utils.maybe_print_error(f'Unsuccessful parsing for `next_search` try {num_tries}. Try again...')
                 if logger:
                     print_log(logger,f'Unsuccessful parsing for `next_search` try {num_tries}. Try again...')
-                break
             else:
                 search_results.append(next_search)
 
@@ -71,6 +71,7 @@ class Searcher:
     def _maybe_get_next_search(self,
                                claim: str,
                                past_searches: List[SearchResult],
+                               summarize: bool = True,
                                verbose: bool = False,
                                logger: Optional[Logger] = None,
     ) -> SearchResult | None:
@@ -93,7 +94,7 @@ class Searcher:
                 utils.print_guard()
             if logger:
                 print_log(logger, f"Model hit the guardrails with prompt:\n {search_prompt}")
-            model_response = '[' + claim + ']'
+            model_response = '```' + claim + '```'
         query = utils.extract_first_code_block(model_response, ignore_language=True)
         if not query:
             query = self.post_process_query(model_response, verbose=verbose, logger=logger)
@@ -115,13 +116,13 @@ class Searcher:
             result = None  # But keep query to avoid future duplicates
 
         # If result is too long, summarize it (to avoid hitting the context length limit)
-        if result is not None and len(result) > 728:
-            if verbose:
-                print("Summarizing result:", result)
-            if logger:
-                print_log(logger, f"Summarizing result: {result}")
+        if summarize and result is not None and len(result) > 728:
             summarize_prompt = SummarizePrompt(query, result)
             result = self.model.generate(str(summarize_prompt), do_debug=self.debug)
+            if verbose:
+                print("Summarized result:", result)
+            if logger:
+                print_log(logger, f"Summarized result: {result}")
         
         search_result = SearchResult(query=query, result=result)
         if verbose:
@@ -157,7 +158,7 @@ class Searcher:
 
         return query
 
-    def _call_api(self, search_query: str) -> str:
+    def _call_api(self, search_query: str, logger: Optional[Logger] = None) -> str:
         """Call the respective search API to get the search result."""
         match self.search_engine:
             case 'google':
@@ -165,7 +166,7 @@ class Searcher:
             case 'wiki':
                 return self.wiki_searcher.search(search_query)
             case 'duckduck':
-                return self.duckduck_searcher.run(search_query)
+                return self.duckduck_searcher.run(search_query, logger=logger)
             
     def sufficient_knowledge(
             self,

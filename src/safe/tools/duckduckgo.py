@@ -1,8 +1,10 @@
 import time
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from duckduckgo_search import DDGS
-from common.console import red, bold
 import logging
+from logging import Logger
+from common.console import red, bold
+from eval.logging import print_log
 
 logging.getLogger('duckduckgo_search').setLevel(logging.WARNING)
 
@@ -14,7 +16,7 @@ class DuckDuckGo:
         self.max_retries = max_retries
         self.backoff_factor = backoff_factor
 
-    def run(self, query: str) -> Dict[str, Any]:
+    def run(self, query: str, logger: Optional[Logger] = None) -> Dict[str, Any]:
         """Run a search query and return structured results."""
         attempt = 0
         while attempt < self.max_retries:
@@ -26,9 +28,11 @@ class DuckDuckGo:
                 return self._parse_results(results)
             except Exception as e:
                 attempt += 1
-                wait_time = self.backoff_factor * (2 ** (attempt - 1))
-                print(bold(red(f"Attempt {attempt} failed: {e}. Retrying in {wait_time} seconds...")))
-                time.sleep(wait_time)
+                query += '?'
+                print(bold(red(f"Attempt {attempt} failed: {e}. Retrying with modified query...")))
+                if logger:
+                    print_log(logger, f"Attempt {attempt} failed: {e}. Retrying with modified query: {query}")
+                
         print(bold(red("All attempts to reach DuckDuckGo have failed. Please try again later.")))
         return ''
 
