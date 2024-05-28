@@ -1,7 +1,7 @@
 import dataclasses
-from typing import Optional, Sequence, List, Any
+from typing import Optional, Sequence, List
 import re
-from logging import Logger
+from eval.logging import EvaluationLogger
 
 from common import utils
 from common.modeling import Model
@@ -11,8 +11,7 @@ from safe.prompts.prompt import SearchPrompt, SummarizePrompt
 from safe.tools.query_serper import SerperAPI
 from safe.tools.duckduckgo import DuckDuckGo
 from safe.tools.wiki_dump import WikiDumpAPI
-from eval.logging import print_log
-from common.console import yellow
+from common.console import yellow, gray
 
 
 @dataclasses.dataclass()
@@ -40,13 +39,13 @@ class Searcher:
         self.max_retries = max_retries
         self.debug = debug_safe
 
-# TODO: rank the websites according to their credibility like MUSE
+    # TODO: rank the websites according to their credibility like MUSE
     def search(
             self, 
             claim, 
             limit_search=True, 
             verbose: bool = False,
-            logger: Optional[Logger] = None,
+            logger: Optional[EvaluationLogger] = None,
     ) -> Sequence[SearchResult]:
         
         search_results = []
@@ -59,8 +58,8 @@ class Searcher:
 
             if next_search is None or not next_search.result:
                 utils.maybe_print_error(f'Unsuccessful parsing for `next_search` try {num_tries}. Try again...')
-                if logger:
-                    print_log(logger,f'Unsuccessful parsing for `next_search` try {num_tries}. Try again...')
+                if logger is not None:
+                    logger.log(f'Unsuccessful parsing for `next_search` try {num_tries}. Try again...')
                 break
             else:
                 search_results.append(next_search)
@@ -73,7 +72,7 @@ class Searcher:
                                claim: str,
                                past_searches: List[SearchResult],
                                verbose: bool = False,
-                               logger: Optional[Logger] = None,
+                               logger: Optional[EvaluationLogger] = None,
     ) -> SearchResult | None:
         """Get the next query from the model, use the query to search for evidence and return it."""
         # Construct the prompt tasking the model to produce a search query
@@ -92,8 +91,8 @@ class Searcher:
         if model_response.startswith("I cannot") or model_response.startswith("I'm sorry"):
             if verbose:
                 utils.print_guard()
-            if logger:
-                print_log(logger, f"Model hit the guardrails with prompt:\n {search_prompt}")
+            if logger is not None:
+                logger.log(f"Model hit the guardrails with prompt:\n {search_prompt}")
             model_response = '[' + claim + ']'
         query = utils.extract_first_code_block(model_response, ignore_language=True)
         if not query:
@@ -105,9 +104,9 @@ class Searcher:
     
         result = self._call_api(query, verbose=verbose)
 
-        if logger:
-            print_log(logger, f'Query: {query}')
-            print_log(logger, f'Result: {result}')
+        if logger is not None:
+            logger.log(f'Query: {query}')
+            logger.log(f'Result: {result}')
 
         # Avoid duplicate results
         # TODO: Re-implement to check the source link (URL) instead of the full text
@@ -117,17 +116,18 @@ class Searcher:
         # If result is too long, summarize it (to avoid hitting the context length limit)
         if result is not None and len(result) > 728:
             if verbose:
-                print("Summarizing result:", result)
-            if logger:
-                print_log(logger, f"Summarizing result: {result}")
+                print("Got result:", gray(result))
+                print("Summarizing...")
+            if logger is not None:
+                logger.log(f"Got result: {result}")
             summarize_prompt = SummarizePrompt(query, result)
             result = self.model.generate(str(summarize_prompt), do_debug=self.debug)
         
         search_result = SearchResult(query=query, result=result)
         if verbose:
             print("Found", search_result)
-        if logger:
-            print_log(logger, f'Found: {search_result}')
+        if logger is not None:
+            logger.log(f'Found: {search_result}')
 
         return search_result
 
@@ -135,7 +135,7 @@ class Searcher:
             self, 
             model_response: str, 
             verbose: bool = False,
-            logger: Optional[Logger] = None,
+            logger: Optional[EvaluationLogger] = None,
     ) -> str:
         """
         Processes the model response to extract the query. Ensures correct formatting
@@ -145,8 +145,8 @@ class Searcher:
         # If query extraction was unsuccessful, use the LLM to extract the query from the response
         if verbose:
             print(f"No query was found in output - likely due to wrong formatting.\nModel Output: {model_response}")
-        if logger:
-            print_log(logger, f"No query was found in output - likely due to wrong formatting. Model Output: {model_response}")
+        if logger is not None:
+            logger.log(f"No query was found in output - likely due to wrong formatting. Model Output: {model_response}")
         
         instruction = "Extract a simple sentence that I can use for a Google Search query from this string:\n"
         query = self.model.generate(instruction + model_response)
@@ -171,14 +171,14 @@ class Searcher:
             case 'duckduck':
                 if verbose:
                     print(yellow(f"Searching DuckDuckGo with query: {search_query}"))
-                return self.duckduck_searcher.run(search_query)  # TODO: Process the dict output to str
-            
+                return self.duckduck_searcher.run(search_query)
+
     def sufficient_knowledge(
             self,
             claim: str, 
             past_searches: List[SearchResult],
             verbose: bool = False,
-            logger: Optional[Logger] = None,
+            logger: Optional[EvaluationLogger] = None,
         ) -> bool:
         """
         This function uses an LLM to evaluate the sufficiency of search_results.
@@ -196,9 +196,9 @@ class Searcher:
         if model_decision.lower() == "sufficient":
             if verbose:
                 print(f"Sufficient knowledge:\n{knowledge}\nFor claim:\n{claim}")
-            if logger:
-                print_log(logger, f"Sufficient knowledge: {knowledge}")
-                print_log(logger, f"For claim: {claim}")
+            if logger is not None:
+                logger.log(f"Sufficient knowledge: {knowledge}")
+                logger.log(f"For claim: {claim}")
             return True
         else:
             return False

@@ -14,7 +14,7 @@ class DuckDuckGo:
         self.max_retries = max_retries
         self.backoff_factor = backoff_factor
 
-    def run(self, query: str) -> Dict[str, Any]:
+    def run(self, query: str) -> str:
         """Run a search query and return structured results."""
         attempt = 0
         while attempt < self.max_retries:

@@ -38,8 +38,7 @@ class AVeriTeC(Benchmark):
     }
 
     def __init__(self, variant="dev"):
-        self.name = f"AVeri_{variant}"
-        super().__init__("averitec")
+        super().__init__(f"averitec_{variant}")
         self.file_path = Path(path_to_data + f"AVeriTeC/{variant}.json")
 
         # Load the data
@@ -57,8 +56,7 @@ class FEVER(Benchmark):
     }
 
     def __init__(self, variant="dev"):
-        self.name = f"FEV_{variant}"
-        super().__init__("averitec")
+        super().__init__(f"fever_{variant}")
         self.file_path = Path(path_to_data + f"FEVER/{variant}.jsonl")
 
         # Load the data
@@ -67,3 +65,9 @@ class FEVER(Benchmark):
         self.data = [{"content": d["claim"],
                       "label": self.data_labels_to_model_labels[d["label"].lower()]}
                      for d in data]
+
+
+def load_benchmark(name: str, **kwargs):
+    match name:
+        case "fever": return FEVER(**kwargs)
+        case "averitec": return AVeriTeC(**kwargs)

@@ -5,7 +5,7 @@ from sty import fg
 
 
 def gray(text: str):
-    return fg.grey + text + fg.rs
+    return fg.da_grey + text + fg.rs
 
 
 def light_blue(text: str):

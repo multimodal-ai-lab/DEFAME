@@ -4,8 +4,7 @@ from safe import config as safe_config
 from third_party.factscore.atomic_facts import AtomicFactGenerator
 from common.console import light_blue
 from safe.prompts.prompt import FilterCheckWorthyPrompt, DecontextualizePrompt, SYMBOL, NOT_SYMBOL
-from eval.logging import print_log
-from logging import Logger
+from eval.logging import EvaluationLogger
 from typing import Optional
 
 
@@ -18,38 +17,38 @@ class ClaimExtractor:
         self.max_retries = safe_config.max_retries
         self.do_debug = safe_config.debug_safe
 
-    def extract_claims(self, content, verbose=False, logger: Optional[Logger] = None,):
+    def extract_claims(self, content, verbose=False, logger: Optional[EvaluationLogger] = None,):
         if verbose:
             print("Decomposing...")
-        if logger:
-            print_log(logger, "Decomposing...")
+        if logger is not None:
+            logger.log("Decomposing...")
         atomic_facts = self.decompose(content)
         for atomic_fact in atomic_facts:
             if verbose:
                 print(light_blue(f"'{atomic_fact}'"))
-            if logger:
-                print_log(logger, f"'{atomic_fact}'")
+            if logger is not None:
+                logger.log(f"'{atomic_fact}'")
 
         if verbose:
             print("Decontextualizing...")
-        if logger:
-            print_log(logger, "Decontextualizing...")
+        if logger is not None:
+            logger.log("Decontextualizing...")
         atomic_facts_decontextualized = [self.decontextualize(atomic_fact, content) for atomic_fact in atomic_facts]
         for atomic_fact in atomic_facts_decontextualized:
             if verbose:
                 print(light_blue(f"'{atomic_fact}'"))
-            if logger:
-                print_log(logger, f"'{atomic_fact}'")
+            if logger is not None:
+                logger.log(f"'{atomic_fact}'")
         if verbose:
             print("Filtering for check-worthy claims...")
-        if logger:
-            print_log(logger, "Filtering for check-worthy claims...")
+        if logger is not None:
+            logger.log("Filtering for check-worthy claims...")
         claims = [claim for claim in atomic_facts_decontextualized if self.is_check_worthy(claim, content)]
         for claim in claims:
             if verbose:
                 print(light_blue(f"'{claim}'"))
-            if logger:
-                print_log(logger, f"'{claim}'")
+            if logger is not None:
+                logger.log(f"'{claim}'")
 
         return claims
 

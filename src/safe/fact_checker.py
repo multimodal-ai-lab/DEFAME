@@ -1,8 +1,7 @@
-from typing import Sequence, Optional, Any
+from typing import Sequence, Optional
 import numpy as np
 import torch
 from PIL import Image
-from logging import Logger
 
 from common.console import gray, light_blue, bold
 from common.label import Label
@@ -12,7 +11,7 @@ from common.shared_config import path_to_data
 from safe.claim_extractor import ClaimExtractor
 from safe.reasoner import Reasoner
 from safe.searcher import Searcher
-from eval.logging import print_log
+from eval.logging import EvaluationLogger
 
 
 class FactChecker:
@@ -42,7 +41,7 @@ class FactChecker:
             image: Optional[torch.Tensor] = None,
             verbose: Optional[bool] = False,
             limit_search: Optional[bool] = True,
-            logger: Optional[Logger] = None,
+            logger: Optional[EvaluationLogger] = None,
     ) -> Label:
         """
         Fact-checks the given content by first extracting all elementary claims and then
@@ -58,20 +57,20 @@ class FactChecker:
             if verbose:
                 print(bold(f"Interpreting Multimodal Content:\n"))
                 print(bold(light_blue(f"{content}")))
-            if logger:
-                print_log(logger, f"Interpreting Multimodal Content:")
-                print_log(logger, f"{content}")
+            if logger is not None:
+                logger.log(f"Interpreting Multimodal Content: {content}")
+
         if verbose:
-            print(logger, bold(f"Content to be fact-checked:\n'{light_blue(content)}'"))
-        if logger:
-            print_log(logger, f"Content to be fact-checked:\n'{content}'")
+            print(bold(f"Content to be fact-checked:\n'{light_blue(content)}'"))
+        if logger is not None:
+            logger.log(f"Content to be fact-checked:\n'{content}'")
 
         claims = self.claim_extractor.extract_claims(content, verbose=verbose, logger=logger) if self.extract_claims else [content]
 
         if verbose:
             print(bold("Verifying the claims..."))
-        if logger:
-            print_log(logger, "Verifying the claims...")
+        if logger is not None:
+            logger.log("Verifying the claims...")
         veracities = []
         justifications = []
         for claim in claims:
@@ -83,14 +82,14 @@ class FactChecker:
             if verbose:
                 print(bold(f"The claim '{light_blue(claim)}' is {veracity.value}."))
                 print(gray(f'{justification}\n'))
-            if logger:
-                print_log(logger, f"The claim '{claim}' is {veracity.value}.")
-                print_log(logger, f'{justification}')
+            if logger is not None:
+                logger.log(f"The claim '{claim}' is {veracity.value}.")
+                logger.log(f'{justification}')
         overall_veracity = aggregate_predictions(veracities)
         if verbose:
             print(bold(f"So, the overall veracity is: {overall_veracity.value}"))
-        if logger:
-            print_log(logger, f"So, the overall veracity is: {overall_veracity.value}")
+        if logger is not None:
+            logger.log(f"So, the overall veracity is: {overall_veracity.value}")
         return overall_veracity
 
     def verify_claim(
@@ -98,7 +97,7 @@ class FactChecker:
             claim: str, 
             verbose: Optional[bool] = False, 
             limit_search: Optional[bool] = False,
-            logger: Optional[Logger] = None,
+            logger: Optional[EvaluationLogger] = None,
     ) -> (Label, str):
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it."""
         # TODO: Enable the model to dynamically choose the tool to use while doing

@@ -1,7 +1,6 @@
 import dataclasses
 import re
 from typing import Sequence, Optional
-from logging import Logger
 
 from common import utils
 from common.label import Label
@@ -10,7 +9,7 @@ from safe.config import debug_safe, max_steps, max_retries
 from safe.searcher import SearchResult
 from common.console import red
 from safe.prompts.prompt import ReasonPrompt
-from eval.logging import print_log
+from eval.logging import EvaluationLogger
 
 
 @dataclasses.dataclass()
@@ -29,7 +28,10 @@ class Reasoner:
         self.max_steps = max_steps
         self.max_retries = max_retries
 
-    def reason(self, claim: str, evidence: Sequence[SearchResult], logger: Optional[Logger] = None) -> (Label, str):
+    def reason(self,
+               claim: str,
+               evidence: Sequence[SearchResult],
+               logger: Optional[EvaluationLogger] = None) -> (Label, str):
         """Takes the claim and the gathered evidence, determines the
         claim's veracity through reasoning and returns the verdict with
         the reasoning as justification."""
@@ -40,8 +42,8 @@ class Reasoner:
 
         if final_answer is None:
             utils.maybe_print_error('Unsuccessful parsing for `final_answer`')
-            if logger:
-                    print_log(logger,'Unsuccessful parsing for `final_answer`')
+            if logger is not None:
+                logger.log('Unsuccessful parsing for `final_answer`')
 
         predicted_label = Label(final_answer.answer.lower())
 
@@ -50,7 +52,7 @@ class Reasoner:
     def maybe_get_final_answer(self,
                                claim: str,
                                evidence: Sequence[SearchResult],
-                               logger: Optional[Logger] = None,
+                               logger: Optional[EvaluationLogger] = None,
     ) -> FinalAnswer | None:
         """Get the final answer from the model."""
         knowledge = '\n'.join([search.result for search in evidence if search.result is not None])
@@ -58,8 +60,8 @@ class Reasoner:
         model_response = self.model.generate(str(reason_prompt), do_debug=self.debug)
         if model_response.startswith("I cannot") or model_response.startswith("I'm sorry"):
             utils.print_guard()
-            if logger:
-                    print_log(logger, 'f"Hit the guard rail with prompt: {claim}"')
+            if logger is not None:
+                logger.log('f"Hit the guard rail with prompt: {claim}"')
             answer = 'refused'
             return FinalAnswer(response=model_response, answer=answer)
         answer = utils.extract_first_square_brackets(model_response)
@@ -75,9 +77,9 @@ class Reasoner:
             utils.print_wrong_answer(model_response, adjusted_response)
             if adjusted_response.lower() not in valid_labels:
                 print(red(f"Error in generating answer. Defaulting to '{Label.REFUSED_TO_ANSWER}'\n"))
-                if logger:
-                    print_log(logger, f"Error in generating answer. Defaulting to '{Label.REFUSED_TO_ANSWER}'")
-                return FinalAnswer(response=model_response, answer=Label.REFUSED_TO_ANSWER)
+                if logger is not None:
+                    logger.log(f"Error in generating answer. Defaulting to '{Label.REFUSED_TO_ANSWER}'")
+                return FinalAnswer(response=model_response, answer=Label.REFUSED_TO_ANSWER.value)
             else:
                 return FinalAnswer(response=model_response, answer=adjusted_response)
 

@@ -1,71 +1,54 @@
 import json
+import csv
 import logging
+import os.path
 from datetime import datetime
 from logging import handlers
+from common.shared_config import path_to_result
+from common.label import Label
+
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('openai').setLevel(logging.ERROR)
 
 
-# Custom JSON formatter
-class JsonFormatter(logging.Formatter):
-    def format(self, record):
-        record_dict = {
-            'time': self.formatTime(record, self.datefmt),
-            'level': record.levelname,
-            'name': record.name,
-            'message': record.getMessage(),
-        }
-        return json.dumps(record_dict)
+class EvaluationLogger:
+    """Used to permanently save any information related to an evaluation run."""
 
+    def __init__(self, dataset_abbr, model_abbr):
+        """Initializes the three loggers used for evaluation."""
+        log_date = datetime.now().strftime("%Y-%m-%d_%H-%M")
 
-# Function to setup logging
-def setup_logging(dataset_abbr, model_abbr):
-    log_date = datetime.now().strftime("%Y%m%d-%H%M")
+        # Determine the target dir
+        self.target_dir = path_to_result + f'{log_date}_{dataset_abbr}_{model_abbr}/'
+        os.makedirs(self.target_dir, exist_ok=True)
 
-    # Define log file paths
-    config_log_path = f'log/config_{log_date}_{dataset_abbr}_{model_abbr}.json'
-    testing_log_path = f'log/testing_{log_date}_{dataset_abbr}_{model_abbr}.json'
-    print_log_path = f'log/print_{log_date}_{dataset_abbr}_{model_abbr}.json'
+        # Define file paths
+        self.config_path = self.target_dir + 'config.json'
+        self.print_path = self.target_dir + 'print.txt'
+        self.predictions_path = self.target_dir + 'predictions.csv'
+        self.results_path = self.target_dir + 'results.json'
 
-    logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG)
 
-    # Create specific loggers
-    config_logger = logging.getLogger('config')
-    testing_logger = logging.getLogger('testing')
-    print_logger = logging.getLogger('print')
+        self.print_logger = logging.getLogger('print')
+        print_handler = handlers.RotatingFileHandler(self.print_path, maxBytes=10 * 1024 * 1024,
+                                                     backupCount=5)  # Larger size for print log
+        self.print_logger.addHandler(print_handler)
+        self.print_logger.propagate = False  # Disable propagation to avoid duplicate logs
 
-    # Create handlers for each logger
-    config_handler = handlers.RotatingFileHandler(config_log_path, maxBytes=1024 * 1024, backupCount=5)
-    testing_handler = handlers.RotatingFileHandler(testing_log_path, maxBytes=1024 * 1024, backupCount=5)
-    print_handler = handlers.RotatingFileHandler(print_log_path, maxBytes=10 * 1024 * 1024,
-                                                 backupCount=5)  # Larger size for print log
+        self.results_csv = csv.writer(open(self.predictions_path, "w"))
+        self.results_csv.writerow(("sample_index", "target", "predicted", "correct"))
 
-    # Create JSON formatters
-    json_formatter = JsonFormatter()
+    def save_config(self, config: dict):
+        with open(self.config_path, "w") as f:
+            json.dump(config, f)
 
-    # Attach handlers to loggers and set their formatters
-    config_handler.setFormatter(json_formatter)
-    testing_handler.setFormatter(json_formatter)
-    print_handler.setFormatter(json_formatter)
+    def log(self, text: str):
+        self.print_logger.info(text)
 
-    config_logger.addHandler(config_handler)
-    testing_logger.addHandler(testing_handler)
-    print_logger.addHandler(print_handler)
+    def save_next_prediction(self, sample_index: int, target: Label, predicted: Label):
+        self.results_csv.writerow((sample_index, target, predicted, target == predicted))
 
-    # Disable propagation to avoid duplicate logs
-    config_logger.propagate = False
-    testing_logger.propagate = False
-    print_logger.propagate = False
-
-    return config_logger, testing_logger, print_logger
-
-
-# Example usage of the loggers
-def log_model_config(config_logger, config):
-    config_logger.info(f"Model configuration: {json.dumps(config)}")
-
-
-def log_testing_result(testing_logger, result):
-    testing_logger.info(f"Testing result: {json.dumps(result)}")
-
-
-def print_log(print_logger, message):
-    print_logger.info(message)
+    def save_aggregated_results(self, aggregated_results: dict):
+        with open(self.results_path, "w") as f:
+            json.dump(aggregated_results, f)
