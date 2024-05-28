@@ -28,15 +28,14 @@ logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 
 def evaluate(
-        model, 
-        multimodal_model, 
-        search_engine, 
-        benchmark, 
-        n = None,
-        extract_claims = True, 
-        summarize = True,
-        verbose = False, 
-        logging = True
+        model,
+        multimodal_model,
+        search_engine,
+        benchmark,
+        n=None,
+        extract_claims=True,
+        verbose=False,
+        logging=True
 ) -> float:
     if logging:
         # Setup logger
@@ -95,15 +94,12 @@ def evaluate(
                 print_log(print_logger, "CORRECT")
             else:
                 print_log(print_logger, "WRONG - Ground truth: " + instance["label"].value)
-            print_log(print_logger, "")
-        else:
-            prediction = fc.check(content, verbose=verbose)
 
         predictions.append(prediction)
         if prediction_is_correct:
             print(bold(green("CORRECT")))
         else:
-            print(bold(red("WRONG - Predicted: " + prediction + "| Ground truth: " + instance["label"].value)))
+            print(bold(red("WRONG - Ground truth: " + instance["label"].value)))
 
         if len(predictions) == n:
             break
@@ -134,7 +130,6 @@ if __name__ == "__main__":
     benchmark = AVeriTeC("dev")
     n_samples = 5
     extract_claims = False
-    summarize = True
     assert n_samples <= len(benchmark)
     verbose = False
     logging = True
@@ -148,6 +143,6 @@ if __name__ == "__main__":
              benchmark=benchmark,
              n=n_samples,
              extract_claims=extract_claims,
-             summarize=summarize,
              verbose=verbose,
+             logging=logging
              )
