@@ -236,10 +236,10 @@ class Model:
             self,
             prompt: str,
             do_debug: bool = False,
-            temperature: Optional[float] = None,
+            temperature: Optional[float] = 0.2,
             max_tokens: Optional[int] = None,
             max_attempts: int = 1000,
-            top_k=50,
+            top_p=0.9,
             timeout: int = 60,
             retry_interval: int = 10,
     ) -> str:
@@ -253,7 +253,7 @@ class Model:
 
         if self.open_source:
             # Handling needs to be done case by case. Default uses meta-llama formatting.
-            prompt = modeling_utils.handle_prompt(self, prompt)
+            prompt = self.handle_prompt(prompt)
             terminators = [
             self.model.tokenizer.eos_token_id,
             self.model.tokenizer.convert_tokens_to_ids("<|eot_id|>")
@@ -264,8 +264,9 @@ class Model:
                 eos_token_id=terminators,
                 pad_token_id=terminators[0],
                 do_sample=True,
-                temperature=0.6,
-                top_p=0.9,)
+                temperature=gen_temp,
+                top_p=top_p,
+            )
             response = output[0]['generated_text'][len(prompt):]
         else:
             with modeling_utils.get_lf_context(gen_temp, max_tokens):
@@ -294,6 +295,37 @@ class Model:
                     print(cyan(response))
 
         return response
+
+    def handle_prompt(
+        self, 
+        original_prompt: str, 
+        system_prompt: str = "Make sure to follow the instructions. Keep the output to the minimum."
+) ->     str:
+        """
+        Processes the prompt using the model's tokenizer with a specific template,
+        and continues execution even if an error occurs during formatting.
+        """
+        original_prompt =  modeling_utils.prepare_prompt(original_prompt, system_prompt, self.model_name)
+        try:
+            # Attempt to apply the chat template formatting
+            formatted_prompt = self.model.tokenizer.apply_chat_template(
+                original_prompt,
+                tokenize=False,
+                add_generation_prompt=True
+            )
+        except Exception as e:
+            # Log the error and continue with the original prompt
+            error_message = (
+                f"An error occurred while formatting the prompt: {str(e)}. "
+                f"Please check the model's documentation on Hugging Face for the correct prompt formatting: "
+                f"https://huggingface.co/{self.model.model_name[12:]}"
+            )
+            print(error_message)
+            # Use the original prompt if the formatting fails
+            formatted_prompt = original_prompt
+
+        # The function continues processing with either the formatted or original prompt
+        return formatted_prompt
 
     def print_config(self) -> None:
         settings = {
@@ -326,6 +358,8 @@ class MultimodalModel(Model):
         """Loads a multimodal model from string representation."""
         if model_name.lower().startswith('huggingface:'):
             model_name = model_name[12:]
+            if model_name != "llava-hf/llava-1.5-7b-hf":
+                print("Warning: Model output is cut according to Llava 1.5 standard input format < output[len(prompt)-5:] >.")
             quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=torch.float16
@@ -354,7 +388,7 @@ class MultimodalModel(Model):
                 "top_k": top_k,
                 "repetition_penalty": repetition_penalty
             }
-        )[0]["generated_text"][len(prompt)-5:] #because of <image>
+        )[0]["generated_text"][len(prompt)-5:] # Because of <image> in the Llava template. Might need adjustment for other LLMs.
 
         if do_debug:
             if self.show_prompts:

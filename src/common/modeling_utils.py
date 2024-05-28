@@ -55,8 +55,8 @@ def get_lf_context(
 
 def prepare_prompt(
     prompt: str,
-    sys_prompt: Optional[str] = "Make sure to exactly follow the instructions. Do not introduce the answer. Keep the output to the minimum.",
-    model_name: Optional[str] = None
+    sys_prompt: str,
+    model_name: str,
 ) -> list:
     """
     Formats the prompt to fit into a structured conversation template taken from https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct on 15.05.2024. 
@@ -67,40 +67,7 @@ def prepare_prompt(
         if "meta" in model_name:
             messages.append({"role": "system", "content": sys_prompt})
     messages.append({"role": "user", "content": prompt})
-    # The 'assistant' role could also be added here if needed for further processing,
-    # or if the model expects to generate the next part of the conversation from this point.
     return messages
-
-def handle_prompt(
-    model: Any, 
-    original_prompt: str, 
-    system_prompt: Optional[str] = "Make sure to follow the instructions. Do not repeat the input and keep the output to the minimum."
-) -> str:
-    """
-    Processes the prompt using the model's tokenizer with a specific template,
-    and continues execution even if an error occurs during formatting.
-    """
-    original_prompt =  prepare_prompt(original_prompt, system_prompt, model.model_name)
-    try:
-        # Attempt to apply the chat template formatting
-        formatted_prompt = model.model.tokenizer.apply_chat_template(
-            original_prompt,
-            tokenize=False,
-            add_generation_prompt=True
-        )
-    except Exception as e:
-        # Log the error and continue with the original prompt
-        error_message = (
-            f"An error occurred while formatting the prompt: {str(e)}. "
-            f"Please check the model's documentation on Hugging Face for the correct prompt formatting: "
-            f"https://huggingface.co/{model.model_name[12:]}"
-        )
-        print(error_message)
-        # Use the original prompt if the formatting fails
-        formatted_prompt = original_prompt
-
-    # The function continues processing with either the formatted or original prompt
-    return formatted_prompt
 
 def prepare_interpretation(content: str) -> str:
     """

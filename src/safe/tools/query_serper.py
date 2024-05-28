@@ -127,10 +127,13 @@ class SerperAPI:
         if result_key in results:
             for result in results[result_key][:self.k]:
                 if 'snippet' in result:
-                    snippets.append(result['snippet'])
+                    snippets.append(f'{result["title"]}: {result["snippet"]}.')
 
-                for attribute, value in result.get('attributes', {}).items():
-                    snippets.append(f'{attribute}: {value}.')
+# TODO: The following Code block was part of the prior repo.
+# It seems to add some additional information to the result.
+# Seems unnecessary.
+                #for attribute, value in result.get('attributes', {}).items():
+                #    if result.get('attributes', {}).items():
 
         if not snippets:
             return [NO_RESULT_MSG]
@@ -138,4 +141,4 @@ class SerperAPI:
         return snippets
 
     def _parse_results(self, results: dict[Any, Any]) -> str:
-        return ' '.join(self._parse_snippets(results))
+        return '\n'.join(self._parse_snippets(results))

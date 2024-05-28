@@ -2,8 +2,8 @@ from enum import Enum
 
 
 class Label(Enum):
-    SUPPORTED = "Supported"
-    NEI = "Not enough information"
-    REFUTED = "Refuted"
-    CONFLICTING = "Conflicting evidence"
-    REFUSED_TO_ANSWER = "Refused"
+    SUPPORTED = "supported"
+    NEI = "not enough information"
+    REFUTED = "refuted"
+    CONFLICTING = "conflicting evidence"
+    REFUSED_TO_ANSWER = "refused"

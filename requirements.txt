@@ -3,11 +3,12 @@ transformers>=4.40.2
 sentence-transformers
 langfun==0.0.2.dev20240202
 openai==0.27.2
-pillow>=10.0.0
+pillow==9.5.0
 absl_py>=2.0.0
 accelerate==0.25.0
 anthropic==0.25.8
 bitsandbytes==0.41.3
+duckduckgo_search==6.1.0
 nltk==3.8.1
 orjsonl==1.0.0
 pyglove==0.4.5.dev20240202

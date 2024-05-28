@@ -1,43 +1,32 @@
 import numpy as np
-
-from safe.fact_checker import FactChecker
-from eval.benchmark import AVeriTeC
-from common.console import green, bold
+import os
 import time
+from itertools import product
+from safe.fact_checker import FactChecker
+from eval.benchmark import AVeriTeC, FEVER
+from common.console import green, red, bold
+from eval.logging import setup_logging, log_model_config, log_testing_result, print_log
+from common.shared_config import model_abbr
+from evaluate import evaluate
 
-n = 5
 
-models = ["huggingface:meta-llama/Meta-Llama-3-70B-Instruct",
-          "OPENAI:gpt-3.5-turbo-0125",
-          "huggingface:meta-llama/Meta-Llama-3-8B-Instruct",
-          "huggingface:mistralai/Mixtral-8x7B-Instruct-v0.1",]
+hyperparameters = {'model': ["huggingface:meta-llama/Meta-Llama-3-70B-Instruct"],
+                   'multimodal_model': ["huggingface:llava-hf/llava-1.5-7b-hf"],
+                   'search_engine': ["duckduck", "google"],
+                   'benchmark' : [AVeriTeC("dev")],
+                   'n': [None],
+                   'extract_claims': [True, False],
+}
 
-benchmark = AVeriTeC("dev")
-assert n <= len(benchmark)
+combinations = product(
+    hyperparameters['model'],
+    hyperparameters['multimodal_model'],
+    hyperparameters['search_engine'],
+    hyperparameters['benchmark'],
+    hyperparameters['n'],
+    hyperparameters['extract_claims']
+)
 
-print(f"Loaded {benchmark.name} containing {len(benchmark)} instances.")
-print(f"Evaluating on {n} samples.")
-
-for model in models:
-    print(bold(f"\n\nModel: {green(model)}\n\n"))
-    start_time = time.time()
-    fc = FactChecker(model=model)
-
-    # For each single instance in the benchmark, predict its veracity
-    predictions = []
-    for instance in benchmark:
-        content = instance["content"]
-        prediction = fc.check(content, verbose=False)
-        predictions.append(prediction)
-        if len(predictions) == 5:
-            break
-
-    # Compute metrics
-    ground_truth = benchmark.get_labels()[:n]
-    correct_predictions = np.array(predictions) == np.array(ground_truth)
-    accuracy = np.sum(correct_predictions) / n
-    end_time = time.time()
-    print(bold(f"\n\nModel: {green(model)}\n"))
-    print(f"Execution time: {end_time - start_time} seconds")
-    print(f"Accuracy: {accuracy*100:.1f} %")
-    print("\n\n\nNEXT MODEL\n\n\n")
+if __name__ == "__main__":
+    for combination in combinations:
+        evaluate(*combination)

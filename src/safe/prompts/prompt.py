@@ -38,13 +38,16 @@ class Prompt(ABC):
 
 
 class SearchPrompt(Prompt):
+
+    #TODO Keep in mind that  the current Search Prompt does not use the [PAST_QUERIES] placeholder.
+
     def __init__(self, claim: str, knowledge: str, past_queries: str,
                  search_engine: str = "google", open_source: bool = False):
         self.placeholder_targets["[STATEMENT]"] = claim
         self.placeholder_targets["[KNOWLEDGE]"] = knowledge
         self.placeholder_targets["[PAST_QUERIES]"] = past_queries
         self.open_source = open_source
-        assert search_engine in ["google", "wiki"]
+        assert search_engine in ["google", "wiki", 'duckduck']
         self.search_engine = search_engine
         super().__init__()
 
@@ -57,6 +60,8 @@ class SearchPrompt(Prompt):
                     return read_md_file("safe/prompts/search_google.md")
             case "wiki":
                 return read_md_file("safe/prompts/search_wiki_dump.md")
+            case "duckduck":
+                return read_md_file("safe/prompts/search_google_open_source.md")
 
 
 class ReasonPrompt(Prompt):
@@ -94,13 +99,18 @@ class FilterCheckWorthyPrompt(Prompt):
         "[NOT_SYMBOL]": NOT_SYMBOL,
     }
 
-    def __init__(self, atomic_fact: str, context: str):
+    def __init__(self, atomic_fact: str, context: str, filter: str = "default"):
+        assert(filter in ["default", "custom"])
+        self.filter = filter
         self.placeholder_targets["[ATOMIC_FACT]"] = atomic_fact
         self.placeholder_targets["[CONTEXT]"] = context
         super().__init__()
 
     def assemble_prompt(self) -> str:
-        return read_md_file("safe/prompts/filter_check_worthy.md")
+        if self.filter == 'custom':
+            return read_md_file("safe/prompts/custom_checkworthy.md")
+        else:
+            return read_md_file("safe/prompts/default_checkworthy.md")
 
 
 class SummarizePrompt(Prompt):
