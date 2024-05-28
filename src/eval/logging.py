@@ -1,7 +1,8 @@
-import logging
 import json
-from logging import handlers
+import logging
 from datetime import datetime
+from logging import handlers
+
 
 # Custom JSON formatter
 class JsonFormatter(logging.Formatter):
@@ -13,6 +14,7 @@ class JsonFormatter(logging.Formatter):
             'message': record.getMessage(),
         }
         return json.dumps(record_dict)
+
 
 # Function to setup logging
 def setup_logging(dataset_abbr, model_abbr):
@@ -31,9 +33,10 @@ def setup_logging(dataset_abbr, model_abbr):
     print_logger = logging.getLogger('print')
 
     # Create handlers for each logger
-    config_handler = handlers.RotatingFileHandler(config_log_path, maxBytes=1024*1024, backupCount=5)
-    testing_handler = handlers.RotatingFileHandler(testing_log_path, maxBytes=1024*1024, backupCount=5)
-    print_handler = handlers.RotatingFileHandler(print_log_path, maxBytes=10*1024*1024, backupCount=5)  # Larger size for print log
+    config_handler = handlers.RotatingFileHandler(config_log_path, maxBytes=1024 * 1024, backupCount=5)
+    testing_handler = handlers.RotatingFileHandler(testing_log_path, maxBytes=1024 * 1024, backupCount=5)
+    print_handler = handlers.RotatingFileHandler(print_log_path, maxBytes=10 * 1024 * 1024,
+                                                 backupCount=5)  # Larger size for print log
 
     # Create JSON formatters
     json_formatter = JsonFormatter()
@@ -54,12 +57,15 @@ def setup_logging(dataset_abbr, model_abbr):
 
     return config_logger, testing_logger, print_logger
 
+
 # Example usage of the loggers
 def log_model_config(config_logger, config):
     config_logger.info(f"Model configuration: {json.dumps(config)}")
 
+
 def log_testing_result(testing_logger, result):
     testing_logger.info(f"Testing result: {json.dumps(result)}")
+
 
 def print_log(print_logger, message):
     print_logger.info(message)

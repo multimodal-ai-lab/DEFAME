@@ -8,10 +8,10 @@ content = "Switzerland is the winner of ESC 2024."
 
 # content = ("Trump was president in the US until 2021 when, "
 #            "due to a large-scale election fraud incited by "
-#            "Democrats, he was unlawfully relieved from presidency.")
+#            "Democrats, he unlawfully lost the elections.")
 
 model = "OPENAI:gpt-3.5-turbo-0125"
 model = Model("huggingface:meta-llama/Meta-Llama-3-8B-Instruct")
 
-fc = FactChecker(model=model)
+fc = FactChecker(model=model, search_engine="google")
 fc.check(content)

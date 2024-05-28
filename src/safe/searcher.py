@@ -12,6 +12,7 @@ from safe.tools.query_serper import SerperAPI
 from safe.tools.duckduckgo import DuckDuckGo
 from safe.tools.wiki_dump import WikiDumpAPI
 from eval.logging import print_log
+from common.console import yellow
 
 
 @dataclasses.dataclass()
@@ -112,8 +113,7 @@ class Searcher:
             print_log(logger, f'Result: {result}')
 
         # Avoid duplicate results
-        #TODO the following two lines seem superfluous as the likelihood 
-        # of getting (exact) duplicate results is low for these long strings?
+        # TODO: Re-implement to check the source link (URL) instead of the full text
         if result in past_results:
             result = None  # But keep query to avoid future duplicates
 
@@ -160,15 +160,21 @@ class Searcher:
 
         return query
 
-    def _call_api(self, search_query: str,verbose: bool = False, logger: Optional[Logger] = None) -> str:
+    def _call_api(self, search_query: str, verbose: bool = False, logger: Optional[Logger] = None) -> str:
         """Call the respective search API to get the search result."""
         match self.search_engine:
             case 'google':
+                if verbose:
+                    print(yellow(f"Searching Google with query: {search_query}"))
                 return self.serper_searcher.run(search_query)
             case 'wiki':
+                if verbose:
+                    print(yellow(f"Searching Wiki dump with query: {search_query}"))
                 return self.wiki_searcher.search(search_query)
             case 'duckduck':
-                return self.duckduck_searcher.run(search_query, verbose=verbose, logger=logger)
+                if verbose:
+                    print(yellow(f"Searching DuckDuckGo with query: {search_query}"))
+                return self.duckduck_searcher.run(search_query, verbose=verbose, logger=logger)  # TODO: Process the dict output to str
             
     def sufficient_knowledge(
             self,
