@@ -11,6 +11,7 @@ from common.shared_config import path_to_result
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('openai').setLevel(logging.ERROR)
 logging.getLogger('duckduckgo_search').setLevel(logging.WARNING)
+logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 
 class EvaluationLogger:
@@ -50,7 +51,7 @@ class EvaluationLogger:
         self.print_logger.info(text)
 
     def save_next_prediction(self, sample_index: int, target: Label, predicted: Label):
-        self.results_csv.writerow((sample_index, target, predicted, target == predicted))
+        self.results_csv.writerow((sample_index, target.name, predicted.name, target == predicted))
 
     def save_aggregated_results(self, aggregated_results: dict):
         with open(self.results_path, "w") as f:

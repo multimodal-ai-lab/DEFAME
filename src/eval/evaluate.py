@@ -1,5 +1,6 @@
 import time
 import json
+import csv
 
 import numpy as np
 
@@ -118,19 +119,20 @@ def evaluate(
 
 def load_results(path: str):
     ground_truth = []
-    predicted = []
-    for result in next_result(path):
-        ground_truth.append(Label(result["target"]))
-        predicted.append(Label(result["predicted"]))
-    return ground_truth, predicted
+    predictions = []
+    for _, target, predicted, _ in next_result(path):
+        ground_truth.append(Label[target])
+        predictions.append(Label[predicted])
+    return ground_truth, predictions
 
 
 def next_result(path: str):
-    # TODO: Update to csv
     with open(path) as f:
-        for line in f:
-            yield json.loads(line)
+        reader = csv.reader(f)
+        next(reader)  # skip header line
+        for row in reader:
+            yield row
 
 
-gt, preds = load_results("/pfss/mlde/workspaces/mlde_wsp_Rohrbach/users/mr74vahu/MAFC/out/2024-05-28_15-13_fever_dev_gpt_35_turbo/testing.jsonl")
+gt, preds = load_results("/pfss/mlde/workspaces/mlde_wsp_Rohrbach/users/mr74vahu/MAFC/out/2024-05-29_09-53_fever_dev_gpt_35_turbo/predictions.csv")
 plot_confusion_matrix(gt, preds, [Label.SUPPORTED, Label.NEI, Label.REFUTED])
