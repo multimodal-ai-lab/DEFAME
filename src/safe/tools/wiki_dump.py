@@ -7,11 +7,11 @@ from typing import Sequence
 
 import numpy as np
 import pandas as pd
-from sentence_transformers import SentenceTransformer
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
-from common.shared_config import path_to_data
+from common.shared_config import path_to_data, embedding_model
+from common.embedding import EmbeddingModel
 
 
 class WikiDumpAPI:
@@ -27,8 +27,8 @@ class WikiDumpAPI:
             return
         self.db = sqlite3.connect(self.db_file_path, uri=True)
         self.cur = self.db.cursor()
-        self.model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
         self._load_embeddings()
+        self.embedding_model = EmbeddingModel(embedding_model)
 
     def _load_embeddings(self):
         if os.path.exists(self.title_knn_path) and os.path.exists(self.body_knn_path):
@@ -48,9 +48,11 @@ class WikiDumpAPI:
         stmt = "SELECT ROWID, title_embedding, body_embedding FROM articles ORDER BY ROWID"
         embeddings = pd.read_sql_query(stmt, self.db)
         print("Reading title embeddings...")
-        title_embeddings = df_embedding_to_np_embedding(embeddings["title_embedding"])
+        title_embeddings = df_embedding_to_np_embedding(embeddings["title_embedding"],
+                                                        self.embedding_model.dimension)
         print("Reading body embeddings...")
-        body_embeddings = df_embedding_to_np_embedding(embeddings["body_embedding"])
+        self.embedding = df_embedding_to_np_embedding(embeddings["body_embedding"], self.embedding_model.dimension)
+        body_embeddings = self.embedding
         print("Setting up nearest neighbor learners...")
         self.title_embeddings = NearestNeighbors(n_neighbors=10).fit(title_embeddings)
         self.body_embeddings = NearestNeighbors(n_neighbors=10).fit(body_embeddings)
@@ -76,7 +78,7 @@ class WikiDumpAPI:
 
     def search_semantically(self, phrase: str, n_results: int = 10) -> Sequence:
         """Performs a vector search on the text embeddings."""
-        phrase_embedding = self.model.encode(phrase, show_progress_bar=False).reshape(1, -1)
+        phrase_embedding = self.embedding_model.embed(phrase).reshape(1, -1)
         indices = self.get_nearest_neighbors_title_and_body(phrase_embedding, n_results)
         results = [self.retrieve(i) for i in indices]
         return results
@@ -161,8 +163,8 @@ def replace(text: str, replacements: dict):
     return pattern.sub(lambda m: rep[re.escape(m.group(0))], text)
 
 
-def df_embedding_to_np_embedding(df: pd.DataFrame) -> np.array:
-    embeddings = np.zeros(shape=(len(df), 384), dtype="float32")
+def df_embedding_to_np_embedding(df: pd.DataFrame, dimension: int) -> np.array:
+    embeddings = np.zeros(shape=(len(df), dimension), dtype="float32")
     for i, embedding in enumerate(tqdm(df)):
-        embeddings[i] = struct.unpack("384f", embedding)
+        embeddings[i] = struct.unpack(f"{dimension}f", embedding)
     return embeddings

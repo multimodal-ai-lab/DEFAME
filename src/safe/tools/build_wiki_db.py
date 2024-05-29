@@ -14,11 +14,16 @@ import sqlite3
 from multiprocessing import Pool as ProcessPool
 
 import unicodedata
-from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
+
+from common.embedding import EmbeddingModel
+from common.shared_config import embedding_model
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("Build db")
+
+embedding_model = EmbeddingModel(embedding_model)
 
 
 def get_contents(filename):
@@ -45,13 +50,6 @@ def store_contents(data_path: str, save_dir: str, num_workers: int = 4):
         save_dir: Path to output sqlite db.
         num_workers: Number of parallel processes to use when reading docs.
     """
-
-    model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-
-    def embed(text):
-        embedded = model.encode(text, show_progress_bar=False)
-        embedded_bytes = [e.tobytes() for e in embedded]
-        return embedded_bytes
 
     logger.info('Reading into database...')
 
@@ -83,8 +81,8 @@ def store_contents(data_path: str, save_dir: str, num_workers: int = 4):
             count += len(pairs)
             titles = [pair[0] for pair in pairs]
             bodies = [pair[1] for pair in pairs]
-            title_embeddings = embed(titles)
-            body_embeddings = embed(bodies)
+            title_embeddings = embedding_model.embed_many(titles)
+            body_embeddings = embedding_model.embed_many(bodies)
             rows = zip(titles, bodies, title_embeddings, body_embeddings)
             cur.executemany("INSERT INTO articles VALUES (?,?,?,?)", rows)
             pbar.update()

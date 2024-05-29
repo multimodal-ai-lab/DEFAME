@@ -71,3 +71,4 @@ root_dir = '/'.join(os.path.abspath(__file__).split('/')[:-2])
 path_to_data = '/pfss/mlde/workspaces/mlde_wsp_Rohrbach/data/raw/'
 path_to_result = 'results/'
 
+embedding_model = 'Alibaba-NLP/gte-base-en-v1.5'
