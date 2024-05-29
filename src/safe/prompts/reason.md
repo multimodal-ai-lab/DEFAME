@@ -5,7 +5,9 @@ Instructions:
 4. Before showing your answer, think step-by-step and show your specific reasoning. As part of your reasoning, summarize the main points of the KNOWLEDGE. 
 5. If the STATEMENT is supported by the KNOWLEDGE, be sure to show the supporting evidence. Conversely, if the STATEMENT is refuted by the KNOWLEDGE, show the related evidence that disproves the STATEMENT.
 6. After stating your reasoning, restate the STATEMENT and then determine your final answer based on your reasoning and the STATEMENT.
-7. According to your reasoning, your final answer should be either "[LABEL_SUPPORTED]", "[LABEL_NEI]", or "[LABEL_REFUTED]". Wrap your final answer in square brackets.
+
+Answer Options:
+[LABEL_OPTIONS]
 
 KNOWLEDGE:
 [KNOWLEDGE]

@@ -13,6 +13,7 @@ from eval.logger import EvaluationLogger
 from safe.claim_extractor import ClaimExtractor
 from safe.reasoner import Reasoner
 from safe.searcher import Searcher
+from eval.benchmark import Benchmark, Default
 
 
 class FactChecker:
@@ -22,7 +23,8 @@ class FactChecker:
                  search_engine: str = "duckduck",
                  extract_claims: bool = True,
                  logger: EvaluationLogger = None,
-                 ):
+                 benchmark: Benchmark = Default()
+    ):
         if isinstance(model, str):
             model = Model(model)
         self.model = model
@@ -38,7 +40,7 @@ class FactChecker:
         self.extract_claims = extract_claims
 
         self.searcher = Searcher(search_engine, model, logger)
-        self.reasoner = Reasoner(model, logger)
+        self.reasoner = Reasoner(model, logger, benchmark)
 
         self.logger = logger
 
@@ -104,6 +106,8 @@ def aggregate_predictions(veracities: Sequence[Label]) -> Label:
         return Label.SUPPORTED
     elif np.any(veracities == Label.REFUTED):
         return Label.REFUTED
+    elif np.any(veracities == Label.CONFLICTING):
+        return Label.CONFLICTING
     else:
         return Label.NEI
 

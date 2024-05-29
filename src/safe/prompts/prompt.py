@@ -2,7 +2,7 @@ from abc import ABC
 
 from common.label import Label
 from common.utils import strip_string
-
+from eval.benchmark import Benchmark
 
 SYMBOL = 'Check-worthy'
 NOT_SYMBOL = 'Unimportant'
@@ -68,20 +68,22 @@ class ReasonPrompt(Prompt):
     # TODO: Add ICL
     # TODO: Add label choice
     # TODO: Add 'contradicting' label
-    placeholder_targets = {
-        "[LABEL_SUPPORTED]": Label.SUPPORTED.value,
-        "[LABEL_NEI]": Label.NEI.value,
-        "[LABEL_REFUTED]": Label.REFUTED.value,
-    }
+    def __init__(self, claim: str, knowledge: str, benchmark: Benchmark):
+        classes = benchmark.get_classes()
+        label_options_string = (
+            'According to your reasoning, your final answer should be either '
+            + ', '.join(f'"{cls.value}"' for cls in classes[:-1])
+            + f', or "{classes[-1].value}". Wrap your final answer in square brackets.'
+        )
 
-    def __init__(self, claim: str, knowledge: str):
+        # Add the LABEL_OPTIONS entry to the placeholder_targets dictionary
+        self.placeholder_targets["[LABEL_OPTIONS]"] = label_options_string
         self.placeholder_targets["[STATEMENT]"] = claim
         self.placeholder_targets["[KNOWLEDGE]"] = knowledge
         super().__init__()
 
     def assemble_prompt(self) -> str:
         return read_md_file("safe/prompts/reason.md")
-
 
 class DecontextualizePrompt(Prompt):
     def __init__(self, atomic_fact: str, context: str):

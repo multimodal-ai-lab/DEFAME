@@ -169,7 +169,7 @@ class Model:
     def __init__(
             self,
             model_name: str,
-            temperature: float = 0.5,
+            temperature: float = 0,
             max_tokens: int = 2048,
             top_k: int = 50,
             repetition_penalty: float = 1.2,

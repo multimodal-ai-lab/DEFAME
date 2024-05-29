@@ -62,7 +62,8 @@ def evaluate(
         multimodal_model=multimodal_model,
         search_engine=search_engine,
         extract_claims=extract_claims,
-        logger=logger
+        logger=logger,
+        benchmark=benchmark,
     )
 
     if not n:

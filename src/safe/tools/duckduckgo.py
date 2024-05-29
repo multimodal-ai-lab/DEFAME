@@ -33,7 +33,7 @@ class DuckDuckGo:
                 if not results:
                     self.logger.log(bold(red("DuckDuckGo is having issues. Run duckduckgo.py "
                                              "and check https://duckduckgo.com/ for more information.")))
-                    return ''
+                    return 'FALLBACK_SERPER'
                 return self._parse_results(results)
             except Exception as e:
                 attempt += 1
