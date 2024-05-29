@@ -1,4 +1,4 @@
-from huggingface_hub import Repository, scan_cache_dir
+from huggingface_hub import scan_cache_dir
 
 def manage_hf_models():
     """

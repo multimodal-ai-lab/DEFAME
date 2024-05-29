@@ -1,7 +1,10 @@
 import numpy as np
-from sty import fg
+from sty import fg, Style, RgbFg
+import re
 
 """Colors and formatting for console text"""
+
+fg.orange = Style(RgbFg(255, 150, 50))
 
 
 def gray(text: str):
@@ -30,6 +33,10 @@ def magenta(text: str):
 
 def cyan(text: str):
     return fg.cyan + text + fg.rs
+
+
+def orange(text: str):
+    return fg.orange + text + fg.rs
 
 
 def bold(text):  # boldface
@@ -71,3 +78,7 @@ def sec2hhmmss(s):
     m = s // 60
     h = m // 60
     return "%d:%02d:%02d h" % (h, m % 60, s % 60)
+
+
+def remove_string_formatters(text: str) -> str:
+    return re.sub(r"\033\[[0-9]*m", "", text)

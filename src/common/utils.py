@@ -11,7 +11,7 @@ import string
 import types
 from typing import Any
 
-from common.console import green, red
+from common.console import green, orange, red
 
 
 ################################################################################
@@ -345,16 +345,4 @@ def print_side_by_side(
     print_divider()
 
 
-def print_guard():
-    """
-    Info in case model refuses to answer.
-    """
-    print(red("Model hit the safety guardrails -.-'. Defaulting to REFUSED"))
-
-
-def print_wrong_answer(input_string: str, adjusted_response: str):
-    """
-    Info in case model returns wrong answer format.
-    """
-    print(f"No answer label was found - likely due to wrong formatting.\nModel Output: {input_string}")
-    print(f'Adjusted Output: {adjusted_response}')
+RAILGUARD_WARNING = orange("Model hit the safety guardrails -.-'. Defaulting to REFUSED")

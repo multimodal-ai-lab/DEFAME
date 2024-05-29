@@ -1,5 +1,4 @@
 import time
-import json
 import csv
 
 import numpy as np
@@ -34,40 +33,37 @@ def evaluate(
         multimodal_model: str = None,
         n: int = None,
         extract_claims: bool = True,
-        verbose: bool = False,
-        logging: bool = True
+        verbose: bool = False
 ) -> float:
     benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
-    logger = EvaluationLogger(benchmark.name, model_abbr[model]) if logging else None
 
-    if logging:
-        config = {
-            "LLM": model,
-            "MLLM": multimodal_model,
-            "Search Engine": search_engine,
-            "Benchmark": benchmark.name,
-            "Extract Claims": extract_claims,
-            "Full Dataset": True if n == len(benchmark) else f'{n} samples'
-        }
-        logger.save_config(config)
-        start_time = time.time()
+    config = {
+        "LLM": model,
+        "MLLM": multimodal_model,
+        "Search Engine": search_engine,
+        "Benchmark": benchmark.name,
+        "Extract Claims": extract_claims,
+        "Full Dataset": True if n == len(benchmark) else f'{n} samples'
+    }
+
+    logger = EvaluationLogger(benchmark.name, model_abbr[model])
+    logger.save_config(config)
+    start_time = time.time()
 
     summary = f"LLM: {model}, " \
               f"MLLM: {multimodal_model}, " \
               f"Search Engine: {search_engine}, " \
               f"Benchmark: {benchmark.name}\n"
 
-    print(bold(gray(summary)))
-
-    if logging:
-        logger.log(summary)
+    logger.log(bold(gray(summary)))
 
     fc = FactChecker(
         model=model,
         multimodal_model=multimodal_model,
         search_engine=search_engine,
         extract_claims=extract_claims,
-        benchmark=benchmark,
+        logger=logger,
+        classes=benchmark.get_classes(),
     )
 
     if not n:
@@ -78,20 +74,14 @@ def evaluate(
         print(f"\nEvaluating on claim {i + 1} of {n}:")
         content = instance["content"]
 
-        prediction = fc.check(content, verbose=verbose, logger=logger)
+        prediction = fc.check(content)
         prediction_is_correct = instance["label"] == prediction
 
-        if logging:
-            logger.save_next_prediction(sample_index=i + 1, target=instance["label"], predicted=prediction)
-            if prediction_is_correct:
-                logger.log("CORRECT")
-            else:
-                logger.log("WRONG - Ground truth: " + instance["label"].value)
-
+        logger.save_next_prediction(sample_index=i + 1, target=instance["label"], predicted=prediction)
         if prediction_is_correct:
-            print(bold(green("CORRECT")))
+            logger.log(bold(green("CORRECT")))
         else:
-            print(bold(red("WRONG - Ground truth: " + instance["label"].value)))
+            logger.log(bold(red("WRONG - Ground truth: " + instance["label"].value)))
 
         predictions.append(prediction)
         if len(predictions) == n:
@@ -99,7 +89,7 @@ def evaluate(
 
     # Compute metrics
     ground_truth = benchmark.get_labels()[:n]
-    correct_predictions = np.array(predictions) == np.array(ground_truth)
+    correct_predictions = np.asarray(np.array(predictions) == np.array(ground_truth))
     accuracy = np.sum(correct_predictions) / n
     print(f"Accuracy: {accuracy * 100:.1f} %\n\n")
 
@@ -109,15 +99,14 @@ def evaluate(
                           benchmark_name=benchmark.name,
                           save_path=logger.target_dir + "confusion.pdf")
 
-    if logging:
-        end_time = time.time()
-        results = {
-            "Accuracy": f"{accuracy * 100:.1f} %",
-            "Correct Predictions": correct_predictions.tolist(),
-            "Incorrect Predictions": (n - correct_predictions.sum()).tolist(),
-            "Duration of Run": f'{end_time - start_time} seconds'
-        }
-        logger.save_aggregated_results(results)
+    end_time = time.time()
+    results = {
+        "Accuracy": f"{accuracy * 100:.1f} %",
+        "Correct Predictions": correct_predictions.tolist(),
+        "Incorrect Predictions": (n - correct_predictions.sum()).tolist(),
+        "Duration of Run": f'{end_time - start_time} seconds'
+    }
+    logger.save_aggregated_results(results)
 
     return accuracy
 

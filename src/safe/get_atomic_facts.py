@@ -13,7 +13,6 @@
 # limitations under the License.
 """Splits a response into atomic facts."""
 
-import itertools
 from typing import Any
 
 # pylint: disable=g-bad-import-order

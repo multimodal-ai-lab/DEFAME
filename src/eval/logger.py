@@ -7,6 +7,7 @@ from logging.handlers import RotatingFileHandler
 
 from common.label import Label
 from common.shared_config import path_to_result
+from common.console import remove_string_formatters
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('openai').setLevel(logging.ERROR)
@@ -17,12 +18,17 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 class EvaluationLogger:
     """Used to permanently save any information related to an evaluation run."""
 
-    def __init__(self, dataset_abbr, model_abbr):
+    def __init__(self, dataset_abbr: str = None, model_abbr: str = None, verbose: bool = True):
         """Initializes the three loggers used for evaluation."""
         log_date = datetime.now().strftime("%Y-%m-%d_%H-%M")
 
         # Determine the target dir
-        self.target_dir = path_to_result + f'{log_date}_{dataset_abbr}_{model_abbr}/'
+        self.target_dir = path_to_result + log_date
+        if dataset_abbr:
+            self.target_dir += f'_{dataset_abbr}'
+        if model_abbr:
+            self.target_dir += f'_{model_abbr}'
+        self.target_dir += '/'
         os.makedirs(self.target_dir, exist_ok=True)
 
         # Define file paths
@@ -43,12 +49,16 @@ class EvaluationLogger:
         self.results_csv = csv.writer(open(self.predictions_path, "w"))
         self.results_csv.writerow(("sample_index", "target", "predicted", "correct"))
 
+        self.verbose = verbose
+
     def save_config(self, config: dict):
         with open(self.config_path, "w") as f:
             json.dump(config, f)
 
     def log(self, text: str):
-        self.print_logger.info(text)
+        if self.verbose:
+            print(text)
+        self.print_logger.info(remove_string_formatters(text))
 
     def save_next_prediction(self, sample_index: int, target: Label, predicted: Label):
         self.results_csv.writerow((sample_index, target.name, predicted.name, target == predicted))
@@ -56,3 +66,5 @@ class EvaluationLogger:
     def save_aggregated_results(self, aggregated_results: dict):
         with open(self.results_path, "w") as f:
             json.dump(aggregated_results, f)
+
+

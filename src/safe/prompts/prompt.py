@@ -1,8 +1,8 @@
 from abc import ABC
+from typing import Sequence
 
 from common.label import Label
 from common.utils import strip_string
-from eval.benchmark import Benchmark
 
 SYMBOL = 'Check-worthy'
 NOT_SYMBOL = 'Unimportant'
@@ -39,7 +39,7 @@ class Prompt(ABC):
 
 class SearchPrompt(Prompt):
 
-    #TODO Keep in mind that  the current Search Prompt does not use the [PAST_QUERIES] placeholder.
+    # TODO Keep in mind that  the current Search Prompt does not use the [PAST_QUERIES] placeholder.
 
     def __init__(self, claim: str, knowledge: str, past_queries: str,
                  search_engine: str = "google", open_source: bool = False):
@@ -67,12 +67,11 @@ class SearchPrompt(Prompt):
 class ReasonPrompt(Prompt):
     # TODO: Add ICL
     # TODO: Add label choice
-    def __init__(self, claim: str, knowledge: str, benchmark: Benchmark):
-        classes = benchmark.get_classes()
+    def __init__(self, claim: str, knowledge: str, classes: Sequence[Label]):
         label_options_string = (
-            'According to your reasoning, your final answer should be either '
-            + ', '.join(f'"{cls.value}"' for cls in classes[:-1])
-            + f', or "{classes[-1].value}". Wrap your final answer in square brackets.'
+                'According to your reasoning, your final answer should be either '
+                + ', '.join(f'"{cls.value}"' for cls in classes[:-1])
+                + f', or "{classes[-1].value}". Wrap your final answer in square brackets.'
         )
 
         # Add the LABEL_OPTIONS entry to the placeholder_targets dictionary
@@ -83,6 +82,7 @@ class ReasonPrompt(Prompt):
 
     def assemble_prompt(self) -> str:
         return read_md_file("safe/prompts/reason.md")
+
 
 class DecontextualizePrompt(Prompt):
     def __init__(self, atomic_fact: str, context: str):
@@ -101,7 +101,7 @@ class FilterCheckWorthyPrompt(Prompt):
     }
 
     def __init__(self, atomic_fact: str, context: str, filter: str = "default"):
-        assert(filter in ["default", "custom"])
+        assert (filter in ["default", "custom"])
         self.filter = filter
         self.placeholder_targets["[ATOMIC_FACT]"] = atomic_fact
         self.placeholder_targets["[CONTEXT]"] = context
@@ -117,7 +117,8 @@ class FilterCheckWorthyPrompt(Prompt):
 class SummarizePrompt(Prompt):
     def __init__(self, query: str, search_result: str):
         self.placeholder_targets["[QUERY]"] = query
-        self.placeholder_targets["[SEARCH_RESULT]"] = search_result[:50000]  # Cut to avoid hitting the context window limit
+        self.placeholder_targets["[SEARCH_RESULT]"] = search_result[
+                                                      :50000]  # Cut to avoid hitting the context window limit
         super().__init__()
 
     def assemble_prompt(self) -> str:

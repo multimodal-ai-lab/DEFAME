@@ -9,5 +9,4 @@ evaluate(
     n=None,
     extract_claims=False,
     verbose=True,
-    logging=True
 )
