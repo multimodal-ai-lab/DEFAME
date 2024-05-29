@@ -63,7 +63,7 @@ def evaluate(
         search_engine=search_engine,
         extract_claims=extract_claims,
         logger=logger,
-        benchmark=benchmark,
+        classes=benchmark.get_classes(),
     )
 
     if not n:

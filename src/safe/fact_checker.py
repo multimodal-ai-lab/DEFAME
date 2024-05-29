@@ -13,7 +13,6 @@ from eval.logger import EvaluationLogger
 from safe.claim_extractor import ClaimExtractor
 from safe.reasoner import Reasoner
 from safe.searcher import Searcher
-from eval.benchmark import Benchmark, Default
 
 
 class FactChecker:
@@ -23,8 +22,8 @@ class FactChecker:
                  search_engine: str = "duckduck",
                  extract_claims: bool = True,
                  logger: EvaluationLogger = None,
-                 benchmark: Benchmark = Default()
-    ):
+                 classes: Sequence[Label] = None,
+                 ):
         if isinstance(model, str):
             model = Model(model)
         self.model = model
@@ -39,8 +38,11 @@ class FactChecker:
         self.claim_extractor = ClaimExtractor(model, logger)
         self.extract_claims = extract_claims
 
+        if classes is None:
+            classes = [Label.SUPPORTED, Label.NEI, Label.REFUTED]
+
         self.searcher = Searcher(search_engine, model, logger)
-        self.reasoner = Reasoner(model, logger, benchmark)
+        self.reasoner = Reasoner(model, logger, classes)
 
         self.logger = logger
 

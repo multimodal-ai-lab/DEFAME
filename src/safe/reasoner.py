@@ -10,7 +10,6 @@ from eval.logger import EvaluationLogger
 from safe.config import debug_safe, max_steps, max_retries
 from safe.prompts.prompt import ReasonPrompt
 from safe.searcher import SearchResult
-from eval.benchmark import Benchmark
 
 
 @dataclasses.dataclass()
@@ -22,9 +21,9 @@ class FinalAnswer:
 class Reasoner:
     """Determines the truthfulness of a claim given a collection of evidence."""
 
-    def __init__(self, model: Model, logger: EvaluationLogger, benchmark: Benchmark):
+    def __init__(self, model: Model, logger: EvaluationLogger, classes: Sequence[Label]):
         self.model = model
-        self.benchmark = benchmark
+        self.classes = classes
         self.debug = debug_safe
         self.max_steps = max_steps
         self.max_retries = max_retries
@@ -56,7 +55,7 @@ class Reasoner:
                                ) -> FinalAnswer | None:
         """Get the final answer from the model."""
         knowledge = '\n'.join([search.result for search in evidence if search.result is not None])
-        reason_prompt = ReasonPrompt(claim, knowledge, self.benchmark)
+        reason_prompt = ReasonPrompt(claim, knowledge, self.classes)
         model_response = self.model.generate(str(reason_prompt), do_debug=self.debug)
         if model_response.startswith("I cannot") or model_response.startswith("I'm sorry"):
             self.logger.log(utils.RAILGUARD_WARNING)
