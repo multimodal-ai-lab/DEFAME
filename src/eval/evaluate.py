@@ -1,8 +1,11 @@
 import time
+import json
 
 import numpy as np
 
 from common.console import green, red, bold, gray
+from common.label import Label
+from common.plot import plot_confusion_matrix
 from common.shared_config import model_abbr
 from eval.benchmark import load_benchmark
 from eval.logger import EvaluationLogger
@@ -98,6 +101,8 @@ def evaluate(
     accuracy = np.sum(correct_predictions) / n
     print(f"Accuracy: {accuracy * 100:.1f} %\n\n")
 
+    plot_confusion_matrix(predictions, ground_truth, benchmark.get_classes())
+
     if logging:
         end_time = time.time()
         results = {
@@ -109,3 +114,23 @@ def evaluate(
         logger.save_aggregated_results(results)
 
     return accuracy
+
+
+def load_results(path: str):
+    ground_truth = []
+    predicted = []
+    for result in next_result(path):
+        ground_truth.append(Label(result["target"]))
+        predicted.append(Label(result["predicted"]))
+    return ground_truth, predicted
+
+
+def next_result(path: str):
+    # TODO: Update to csv
+    with open(path) as f:
+        for line in f:
+            yield json.loads(line)
+
+
+gt, preds = load_results("/pfss/mlde/workspaces/mlde_wsp_Rohrbach/users/mr74vahu/MAFC/out/2024-05-28_15-13_fever_dev_gpt_35_turbo/testing.jsonl")
+plot_confusion_matrix(gt, preds, [Label.SUPPORTED, Label.NEI, Label.REFUTED])
