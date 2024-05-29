@@ -109,9 +109,8 @@ class Searcher:
             query = self.model.generate(mixer)
             if logger:
                 logger.log(f"Duplicate query. NEW: {query}")
-
+        query = query.replace('"','')
         result = self._call_api(query, verbose=verbose, logger=logger)
-
         if logger is not None:
             logger.log(f'Query: {query}')
             logger.log(f'Result: {result}')
@@ -126,10 +125,11 @@ class Searcher:
             if verbose:
                 print("Got result:", gray(result))
                 print("Summarizing...")
-            if logger is not None:
-                logger.log(f"Got result: {result}")
+
             summarize_prompt = SummarizePrompt(query, result)
             result = self.model.generate(str(summarize_prompt), do_debug=self.debug)
+            if result == 'None':
+                query = "Bad Query: " + query
             if verbose:
                 print("Summarized result:", result)
             if logger:
@@ -183,7 +183,13 @@ class Searcher:
             case 'duckduck':
                 if verbose:
                     print(yellow(f"Searching DuckDuckGo with query: {search_query}"))
-                return self.duckduck_searcher.run(search_query, logger=logger)
+                response = self.duckduck_searcher.run(search_query, logger=logger)
+                if response == "FALLBACK_SERPER":
+                    print("Resorted to Google Search as DuckDuckGo failed...")
+                    return self.serper_searcher.run(search_query)
+                else:
+                    return response
+
 
     def sufficient_knowledge(
             self,

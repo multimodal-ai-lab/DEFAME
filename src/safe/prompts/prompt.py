@@ -67,7 +67,6 @@ class SearchPrompt(Prompt):
 class ReasonPrompt(Prompt):
     # TODO: Add ICL
     # TODO: Add label choice
-    # TODO: Add 'contradicting' label
     def __init__(self, claim: str, knowledge: str, benchmark: Benchmark):
         classes = benchmark.get_classes()
         label_options_string = (
