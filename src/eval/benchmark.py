@@ -9,7 +9,7 @@ from common.label import Label
 
 
 class Benchmark(ABC, Iterable):
-    data: Sequence[dict]  # Each element is of the form {"content", "label"}
+    data: Sequence[dict]  # Each element is of the form {"content": ..., "label": ...}
     label_mapping: dict[str, Label]
     file_path: Path
 
@@ -17,10 +17,15 @@ class Benchmark(ABC, Iterable):
         self.name = name
 
     def get_labels(self) -> list[Label]:
+        """Returns the ground truth labels of this dataset as a list."""
         labels = []
         for instance in self:
             labels.append(instance["label"])
         return labels
+
+    def get_classes(self) -> list[Label]:
+        """Returns a list of distinct labels representing the classes occurring in this dataset."""
+        return list(self.label_mapping.values())
 
     def __len__(self):
         return len(self.data)
@@ -28,11 +33,9 @@ class Benchmark(ABC, Iterable):
     def __getitem__(self, idx):
         return self.data[idx]
 
-    def get_classes(self):
-        return list(self.label_mapping.values())
-    
-    def __iter__(self) -> Iterator[dict]:
-        pass
+    def __iter__(self):
+        for instance in self.data:
+            yield instance
 
 
 class AVeriTeC(Benchmark):
