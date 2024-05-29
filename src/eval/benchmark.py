@@ -33,6 +33,10 @@ class Benchmark(ABC, Iterable):
     def __getitem__(self, idx):
         return self.data[idx]
 
+    def __iter__(self):
+        for instance in self.data:
+            yield instance
+
 
 class AVeriTeC(Benchmark):
     label_mapping = {
