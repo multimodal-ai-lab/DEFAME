@@ -1,5 +1,5 @@
 import time
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 from duckduckgo_search import DDGS
 
@@ -10,40 +10,36 @@ from eval.logger import EvaluationLogger
 class DuckDuckGo:
     """Class for querying the DuckDuckGo API."""
 
-    def __init__(self, max_results: int = 5, max_retries: int = 10, backoff_factor: float = 60.0):
+    def __init__(self,
+                 max_results: int = 5,
+                 max_retries: int = 10,
+                 backoff_factor: float = 60.0,
+                 logger: EvaluationLogger = None):
         self.max_results = max_results
         self.max_retries = max_retries
         self.backoff_factor = backoff_factor
+        self.logger = EvaluationLogger() if logger is None else logger
 
-    def run(self, query: str, verbose: bool = False, logger: Optional[EvaluationLogger] = None) -> str:
+    def run(self, query: str) -> str:
         """Run a search query and return structured results."""
         attempt = 0
         while attempt < self.max_retries:
             if attempt > 3:
                 wait_time = self.backoff_factor * (attempt)
-                if verbose:
-                    print(bold(red(f"Sleeping {wait_time} seconds.")))
-                if logger:
-                    logger.log(f"Sleeping {wait_time} seconds.")
+                self.logger.log(bold(red(f"Sleeping {wait_time} seconds.")))
                 time.sleep(wait_time)
             try:
                 results = DDGS().text(query, max_results=self.max_results)
                 if not results:
-                    print(bold(
-                        red("DuckDuckGo is having issues. Run the duckduckgo.py and check https://duckduckgo.com/ for more information.")))
+                    self.logger.log(bold(red("DuckDuckGo is having issues. Run duckduckgo.py "
+                                             "and check https://duckduckgo.com/ for more information.")))
                     return ''
                 return self._parse_results(results)
             except Exception as e:
                 attempt += 1
                 query += '?'
-                if verbose:
-                    print(bold(red(f"Attempt {attempt} failed: {e}. Retrying with modified query...")))
-                if logger:
-                    logger.log(f"Attempt {attempt} failed: {e}. Retrying with modified query: {query}")
-        if verbose:
-            print(bold(red("All attempts to reach DuckDuckGo have failed. Please try again later.")))
-        if logger:
-            logger.log(f"All attempts to reach DuckDuckGo have failed.")
+                self.logger.log((bold(red(f"Attempt {attempt} failed: {e}. Retrying with modified query..."))))
+        self.logger.log(bold(red("All attempts to reach DuckDuckGo have failed. Please try again later.")))
 
         return ''
 

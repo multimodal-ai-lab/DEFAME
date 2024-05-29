@@ -1,5 +1,3 @@
-from typing import Optional
-
 from common import utils
 from common.console import light_blue
 from common.modeling import Model
@@ -10,48 +8,32 @@ from third_party.factscore.atomic_facts import AtomicFactGenerator
 
 
 class ClaimExtractor:
-    def __init__(self, model: Model):
+    def __init__(self, model: Model, logger: EvaluationLogger = None):
         self.model = model
         self.atomic_fact_generator = AtomicFactGenerator(
             api_key='', gpt3_cache_file='', other_lm=self.model
         )
         self.max_retries = safe_config.max_retries
         self.do_debug = safe_config.debug_safe
+        self.logger = logger
 
-    def extract_claims(self, content, verbose=False, logger: Optional[EvaluationLogger] = None, ):
-        if verbose:
-            print("Decomposing...")
-        if logger is not None:
-            logger.log("Decomposing...")
+    def extract_claims(self, content: str) -> list[str]:
+        self.logger.log("Decomposing...")
         atomic_facts = self.decompose(content)
         for atomic_fact in atomic_facts:
-            if verbose:
-                print(light_blue(f"'{atomic_fact}'"))
-            if logger is not None:
-                logger.log(f"'{atomic_fact}'")
+            self.logger.log(light_blue(f"'{atomic_fact}'"))
 
-        if verbose:
-            print("Decontextualizing...")
-        if logger is not None:
-            logger.log("Decontextualizing...")
+        self.logger.log("Decontextualizing...")
         atomic_facts_decontextualized = {self.decontextualize(atomic_fact, content) for atomic_fact in atomic_facts}
         for atomic_fact in atomic_facts_decontextualized:
-            if verbose:
-                print(light_blue(f"'{atomic_fact}'"))
-            if logger is not None:
-                logger.log(f"'{atomic_fact}'")
-        if verbose:
-            print("Filtering for check-worthy claims...")
-        if logger is not None:
-            logger.log("Filtering for check-worthy claims...")
+            self.logger.log(light_blue(f"'{atomic_fact}'"))
+
+        self.logger.log("Filtering for unique, check-worthy claims...")
         claims = {claim for claim in atomic_facts_decontextualized if self.is_check_worthy(claim, content)}
         for claim in claims:
-            if verbose:
-                print(light_blue(f"'{claim}'"))
-            if logger is not None:
-                logger.log(f"'{claim}'")
+            self.logger.log(light_blue(f"'{claim}'"))
 
-        return claims  # indirectly dropping duplicates because type: set()
+        return list(claims)
 
     def decompose(self, content: str):
         """Splits up the content into atomic facts."""
