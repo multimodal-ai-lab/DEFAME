@@ -1,6 +1,6 @@
 import json
 import orjsonl
-from typing import Sequence, Iterable
+from typing import Sequence, Iterable, Iterator
 from pathlib import Path
 from abc import ABC
 from common.shared_config import path_to_data
@@ -30,6 +30,9 @@ class Benchmark(ABC, Iterable):
 
     def get_classes(self):
         return list(self.label_mapping.values())
+    
+    def __iter__(self) -> Iterator[dict]:
+        pass
 
 
 class AVeriTeC(Benchmark):
@@ -50,6 +53,9 @@ class AVeriTeC(Benchmark):
 
         self.data = [{"content": d["claim"], "label": self.label_mapping[d["label"]]} for d in data]
 
+    def __iter__(self) -> Iterator[dict]:
+        return iter(self.data)
+
 
 class FEVER(Benchmark):
     label_mapping = {
@@ -68,9 +74,28 @@ class FEVER(Benchmark):
         self.data = [{"content": d["claim"],
                       "label": self.label_mapping[d["label"].lower()]}
                      for d in data]
+        
+    def __iter__(self) -> Iterator[dict]:
+        return iter(self.data)
+
+class Default(Benchmark):
+    label_mapping = {
+        "Supported": Label.SUPPORTED,
+        "Not Enough Evidence": Label.NEI,
+        "Refuted": Label.REFUTED,
+    }
+
+    def __init__(self, variant="dev"):
+        super().__init__(f"default")
+        self.data = []  # Initialize with an empty list or load data as needed
+
+    def __iter__(self) -> Iterator[dict]:
+        return iter(self.data)
+
 
 
 def load_benchmark(name: str, **kwargs) -> Benchmark:
     match name:
         case "fever": return FEVER(**kwargs)
         case "averitec": return AVeriTeC(**kwargs)
+        case "default": return Default(**kwargs)
