@@ -3,7 +3,7 @@ from typing import Optional
 from common import utils
 from common.console import light_blue
 from common.modeling import Model
-from eval.logging import EvaluationLogger
+from eval.logger import EvaluationLogger
 from safe import config as safe_config
 from safe.prompts.prompt import FilterCheckWorthyPrompt, DecontextualizePrompt, SYMBOL, NOT_SYMBOL
 from third_party.factscore.atomic_facts import AtomicFactGenerator

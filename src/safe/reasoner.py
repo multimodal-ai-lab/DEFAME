@@ -6,7 +6,7 @@ from common import utils
 from common.console import red
 from common.label import Label
 from common.modeling import Model
-from eval.logging import EvaluationLogger
+from eval.logger import EvaluationLogger
 from safe.config import debug_safe, max_steps, max_retries
 from safe.prompts.prompt import ReasonPrompt
 from safe.searcher import SearchResult

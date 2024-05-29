@@ -11,7 +11,7 @@ from common.shared_config import path_to_data
 from safe.claim_extractor import ClaimExtractor
 from safe.reasoner import Reasoner
 from safe.searcher import Searcher
-from eval.logging import EvaluationLogger
+from eval.logger import EvaluationLogger
 
 
 class FactChecker:

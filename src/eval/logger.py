@@ -1,11 +1,12 @@
-import json
 import csv
+import json
 import logging
 import os.path
 from datetime import datetime
-from logging import handlers
-from common.shared_config import path_to_result
+from logging.handlers import RotatingFileHandler
+
 from common.label import Label
+from common.shared_config import path_to_result
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('openai').setLevel(logging.ERROR)
@@ -32,8 +33,9 @@ class EvaluationLogger:
         logging.basicConfig(level=logging.DEBUG)
 
         self.print_logger = logging.getLogger('print')
-        print_handler = handlers.RotatingFileHandler(self.print_path, maxBytes=10 * 1024 * 1024,
-                                                     backupCount=5)  # Larger size for print log
+        print_handler = RotatingFileHandler(self.print_path,
+                                            maxBytes=10 * 1024 * 1024,
+                                            backupCount=5)
         self.print_logger.addHandler(print_handler)
         self.print_logger.propagate = False  # Disable propagation to avoid duplicate logs
 

@@ -4,7 +4,7 @@ from typing import List, Dict, Optional
 from duckduckgo_search import DDGS
 
 from common.console import red, bold
-from eval.logging import EvaluationLogger
+from eval.logger import EvaluationLogger
 
 
 class DuckDuckGo:

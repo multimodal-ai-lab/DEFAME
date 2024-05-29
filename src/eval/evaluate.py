@@ -5,7 +5,7 @@ import numpy as np
 from common.console import green, red, bold, gray
 from common.shared_config import model_abbr
 from eval.benchmark import load_benchmark
-from eval.logging import EvaluationLogger
+from eval.logger import EvaluationLogger
 from safe.fact_checker import FactChecker
 
 

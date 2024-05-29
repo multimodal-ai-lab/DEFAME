@@ -6,7 +6,7 @@ from common import utils
 from common.console import yellow, gray
 from common.modeling import Model
 from common.shared_config import serper_api_key
-from eval.logging import EvaluationLogger
+from eval.logger import EvaluationLogger
 from safe.config import num_searches, debug_safe, max_steps, max_retries
 from safe.prompts.prompt import SearchPrompt, SummarizePrompt
 from safe.tools.duckduckgo import DuckDuckGo
