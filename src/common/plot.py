@@ -9,7 +9,9 @@ from common.label import Label
 
 def plot_confusion_matrix(predictions: Sequence[Label],
                           ground_truth: Sequence[Label],
-                          classes: Sequence[Label]):
+                          classes: Sequence[Label],
+                          benchmark_name: str,
+                          save_path: str = None):
     class_conversion = {c: v for v, c in enumerate(classes)}
 
     # Construct confusion matrix
@@ -36,8 +38,10 @@ def plot_confusion_matrix(predictions: Sequence[Label],
     annotate_heatmap(hm, valfmt="{x:.0f}")
     plt.xlabel("Predicted label")
     plt.ylabel("True label")
-    plt.title("FEVER Dev Confusion Matrix")
+    plt.title(f"{benchmark_name} Confusion Matrix")
     fig.tight_layout()
+    if save_path:
+        plt.savefig(save_path)
     plt.show()
 
 

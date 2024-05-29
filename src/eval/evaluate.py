@@ -102,7 +102,11 @@ def evaluate(
     accuracy = np.sum(correct_predictions) / n
     print(f"Accuracy: {accuracy * 100:.1f} %\n\n")
 
-    plot_confusion_matrix(predictions, ground_truth, benchmark.get_classes())
+    plot_confusion_matrix(predictions,
+                          ground_truth,
+                          benchmark.get_classes(),
+                          benchmark_name=benchmark.name,
+                          save_path=logger.target_dir + "confusion.pdf")
 
     if logging:
         end_time = time.time()
@@ -132,7 +136,3 @@ def next_result(path: str):
         next(reader)  # skip header line
         for row in reader:
             yield row
-
-
-gt, preds = load_results("/pfss/mlde/workspaces/mlde_wsp_Rohrbach/users/mr74vahu/MAFC/out/2024-05-29_09-53_fever_dev_gpt_35_turbo/predictions.csv")
-plot_confusion_matrix(gt, preds, [Label.SUPPORTED, Label.NEI, Label.REFUTED])
