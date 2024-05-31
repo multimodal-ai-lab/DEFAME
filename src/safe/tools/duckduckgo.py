@@ -19,6 +19,7 @@ class DuckDuckGo:
         self.max_retries = max_retries
         self.backoff_factor = backoff_factor
         self.logger = EvaluationLogger() if logger is None else logger
+        self.total_searches = 0
 
     def run(self, query: str) -> str:
         """Run a search query and return structured results."""
@@ -29,6 +30,7 @@ class DuckDuckGo:
                 self.logger.log(bold(red(f"Sleeping {wait_time} seconds.")))
                 time.sleep(wait_time)
             try:
+                self.total_searches += 1
                 results = DDGS().text(query, max_results=self.max_results)
                 if not results:
                     self.logger.log(bold(red("DuckDuckGo is having issues. Run duckduckgo.py "

@@ -18,7 +18,7 @@ class SerperAPI:
             serper_api_key: str,
             gl: str = 'us',
             hl: str = 'en',
-            k: int = 1,
+            k: int = 5, #number of search results
             tbs: Optional[str] = None,
             search_type: Literal['news', 'search', 'places', 'images'] = 'search',
     ):
@@ -28,6 +28,7 @@ class SerperAPI:
         self.k = k
         self.tbs = tbs
         self.search_type = search_type
+        self.total_searches = 0
         self.result_key_for_type = {
             'news': 'news',
             'places': 'places',
@@ -70,6 +71,7 @@ class SerperAPI:
 
         while not response and num_fails < max_retries:
             try:
+                self.total_searches += 1
                 response = requests.post(
                     f'{_SERPER_URL}/{search_type}', headers=headers, params=params
                 )
@@ -89,9 +91,10 @@ class SerperAPI:
         search_results = response.json()
         return search_results
 
-    def _parse_snippets(self, results: dict[Any, Any]) -> list[str]:
+    def _parse_snippets(self, results: dict[Any, Any]) -> dict:
         """Parse results."""
         snippets = []
+        response = dict()
 
         if results.get('answerBox'):
             answer_box = results.get('answerBox', {})
@@ -126,18 +129,22 @@ class SerperAPI:
         if result_key in results:
             for result in results[result_key][:self.k]:
                 if 'snippet' in result:
+                    #TODO insert credibility assessment function like MUSE
+                    #if credibility(result["link"]):
                     snippets.append(f'{result["title"]}: {result["snippet"]}.')
+                    #else:
+                    #    continue
 
-# TODO: The following Code block was part of the prior repo.
-# It seems to add some additional information to the result.
-# Seems unnecessary.
-                #for attribute, value in result.get('attributes', {}).items():
-                #    if result.get('attributes', {}).items():
+                for attribute, value in result.get('attributes', {}).items():
+                    snippets.append(f'{attribute}: {value}.')
 
         if not snippets:
             return [NO_RESULT_MSG]
 
         return snippets
+        
+# TODO: function was only adapted for search_type "search"
+        return filtered_response 
 
     def _parse_results(self, results: dict[Any, Any]) -> str:
         return '\n'.join(self._parse_snippets(results))

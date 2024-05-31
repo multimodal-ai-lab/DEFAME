@@ -29,6 +29,7 @@ class WikiDumpAPI:
         self.cur = self.db.cursor()
         self.model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
         self._load_embeddings()
+        self.total_searches = 0
 
     def _load_embeddings(self):
         if os.path.exists(self.title_knn_path) and os.path.exists(self.body_knn_path):
@@ -61,6 +62,7 @@ class WikiDumpAPI:
             pickle.dump(self.body_embeddings, f)
 
     def search(self, phrase: str, n_results: int = 10) -> str:
+        self.total_searches += 1
         result = self.search_semantically(phrase, n_results)
         return postprocess(result)
 
