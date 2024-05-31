@@ -3,9 +3,12 @@ import pickle
 import re
 import sqlite3
 import struct
+import json
 from typing import Sequence
+from multiprocessing import Pool as ProcessPool
 
 import numpy as np
+import unicodedata
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
@@ -15,19 +18,18 @@ from common.embedding import EmbeddingModel
 
 
 class WikiDumpAPI:
+    """Class for querying the local SQLite database from the FEVER challenge."""
     db_file_path = path_to_data + "FEVER/wiki.db"
     title_knn_path = path_to_data + "FEVER/title_knn.pckl"
     body_knn_path = path_to_data + "FEVER/body_knn.pckl"
 
-    """Class for querying the local SQLite database from the FEVER challenge."""
-
     def __init__(self):
+        self.embedding_model = EmbeddingModel(embedding_model)
         if not os.path.exists(self.db_file_path):
             print("Warning: No FEVER database found. Continuing without database.")
             return
         self.db = sqlite3.connect(self.db_file_path, uri=True)
         self.cur = self.db.cursor()
-        self.embedding_model = EmbeddingModel(embedding_model)
         self._load_embeddings()
 
     def _load_embeddings(self):
@@ -113,11 +115,48 @@ class WikiDumpAPI:
         rows = self.cur.fetchall()
         return rows
 
+    def build_db(self, from_path: str, num_workers: int = 4):
+        """Creates the SQLite database."""
 
-def preprocess(phrase: str) -> str:
-    """Preprocess phrase to remove special characters"""
-    phrase = re.sub(r'[^a-zA-Z0-9]', " ", phrase)
-    return phrase
+        print("Fetching resource files...")
+
+        files = [f for f in iter_files(from_path)]
+
+        print("Building database...")
+
+        if os.path.isfile(self.db_file_path):
+            raise RuntimeError(f"{self.db_file_path} already exists! Not overwriting.")
+
+        os.makedirs(os.path.dirname(self.db_file_path), exist_ok=True)
+        db = sqlite3.connect(self.db_file_path)
+        cur = db.cursor()
+        stmt = """
+        CREATE TABLE articles(
+            title TEXT PRIMARY KEY,
+            body TEXT,
+            title_embedding BLOB,
+            body_embedding BLOB
+        );
+        """
+        cur.execute(stmt)
+
+        workers = ProcessPool(num_workers)
+        count = 0
+        with tqdm(total=len(files)) as pbar:
+            for pairs in tqdm(workers.imap_unordered(get_contents, files)):
+                count += len(pairs)
+                titles = [process_title(pair[0]) for pair in pairs]
+                bodies = [process_body(pair[1]) for pair in pairs]
+                title_embeddings = embedding_model.embed_many(titles, to_bytes=True, batch_size=len(pairs) // 8)
+                body_embeddings = embedding_model.embed_many(bodies, to_bytes=True, batch_size=len(pairs) // 8)
+                rows = zip(titles, bodies, title_embeddings, body_embeddings)
+                cur.executemany("INSERT INTO articles VALUES (?,?,?,?)", rows)
+                pbar.update()
+
+        print(f"Done reading {count} articles.")
+        print("Committing...")
+        db.commit()
+        db.close()
 
 
 def postprocess(result: Sequence) -> str:
@@ -171,3 +210,35 @@ def df_embedding_to_np_embedding(df: pd.DataFrame, dimension: int) -> np.array:
     for i, embedding in enumerate(tqdm(df)):
         embeddings[i] = struct.unpack(f"{dimension}f", embedding)
     return embeddings
+
+
+def get_contents(filename):
+    """Parse the contents of a file. Each line is a JSON encoded document."""
+    documents = []
+    with open(filename) as f:
+        for line in f:
+            # Parse document
+            doc = json.loads(line)
+            # Skip if it is empty or None
+            if not doc:
+                continue
+            # Add the document
+            documents.append((normalize(doc['id']), doc['text']))
+    return documents
+
+
+def normalize(text):
+    """Resolve different type of unicode encodings."""
+    return unicodedata.normalize('NFD', text)
+
+
+def iter_files(path):
+    """Walk through all files located under a root path."""
+    if os.path.isfile(path):
+        yield path
+    elif os.path.isdir(path):
+        for dirpath, _, filenames in os.walk(path):
+            for f in filenames:
+                yield os.path.join(dirpath, f)
+    else:
+        raise RuntimeError('Path %s is invalid' % path)
