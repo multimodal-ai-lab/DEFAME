@@ -1,5 +1,7 @@
 import time
 import csv
+import yaml
+import inspect
 
 import numpy as np
 
@@ -29,33 +31,22 @@ def evaluate(
         model: str,
         search_engine: str,
         benchmark_name: str,
+        model_kwargs: dict = None,
         benchmark_kwargs: dict = None,
         multimodal_model: str = None,
-        n: int = None,
+        n_samples: int = None,
         extract_claims: bool = True,
         verbose: bool = False
 ) -> float:
     benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
 
-    config = {
-        "LLM": model,
-        "MLLM": multimodal_model,
-        "Search Engine": search_engine,
-        "Benchmark": benchmark.name,
-        "Extract Claims": extract_claims,
-        "Full Dataset": True if n == len(benchmark) else f'{n} samples'
-    }
-
     logger = EvaluationLogger(benchmark.name, model_abbr[model])
-    logger.save_config(config)
+
+    # Save hyperparams based on the signature of evaluate()
+    signature = inspect.signature(evaluate)
+    logger.save_config(signature, locals())
+
     start_time = time.time()
-
-    summary = f"LLM: {model}, " \
-              f"MLLM: {multimodal_model}, " \
-              f"Search Engine: {search_engine}, " \
-              f"Benchmark: {benchmark.name}\n"
-
-    logger.log(bold(gray(summary)))
 
     fc = FactChecker(
         model=model,
@@ -66,12 +57,12 @@ def evaluate(
         classes=benchmark.get_classes(),
     )
 
-    if not n:
-        n = len(benchmark)
+    if not n_samples:
+        n_samples = len(benchmark)
 
     predictions = []
     for i, instance in enumerate(benchmark):
-        print(f"\nEvaluating on claim {i + 1} of {n}:")
+        print(f"\nEvaluating on claim {i + 1} of {n_samples}:")
         content = instance["content"]
 
         prediction = fc.check(content)
@@ -84,13 +75,13 @@ def evaluate(
             logger.log(bold(red("WRONG - Ground truth: " + instance["label"].value)))
 
         predictions.append(prediction)
-        if len(predictions) == n:
+        if len(predictions) == n_samples:
             break
 
     # Compute metrics
-    ground_truth = benchmark.get_labels()[:n]
+    ground_truth = benchmark.get_labels()[:n_samples]
     correct_predictions = np.asarray(np.array(predictions) == np.array(ground_truth))
-    accuracy = np.sum(correct_predictions) / n
+    accuracy = np.sum(correct_predictions) / n_samples
     print(f"Accuracy: {accuracy * 100:.1f} %\n\n")
 
     plot_confusion_matrix(predictions,
@@ -103,7 +94,7 @@ def evaluate(
     results = {
         "Accuracy": f"{accuracy * 100:.1f} %",
         "Correct Predictions": correct_predictions.tolist(),
-        "Incorrect Predictions": (n - correct_predictions.sum()).tolist(),
+        "Incorrect Predictions": (n_samples - correct_predictions.sum()).tolist(),
         "Duration of Run": f'{end_time - start_time} seconds'
     }
     logger.save_aggregated_results(results)

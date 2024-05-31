@@ -1,5 +1,6 @@
 import csv
 import json
+import yaml
 import logging
 import os.path
 from datetime import datetime
@@ -7,7 +8,7 @@ from logging.handlers import RotatingFileHandler
 
 from common.label import Label
 from common.shared_config import path_to_result
-from common.console import remove_string_formatters
+from common.console import remove_string_formatters, bold
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('openai').setLevel(logging.ERROR)
@@ -32,7 +33,7 @@ class EvaluationLogger:
         os.makedirs(self.target_dir, exist_ok=True)
 
         # Define file paths
-        self.config_path = self.target_dir + 'config.json'
+        self.config_path = self.target_dir + 'config.yaml'
         self.print_path = self.target_dir + 'print.txt'
         self.predictions_path = self.target_dir + 'predictions.csv'
         self.results_path = self.target_dir + 'results.json'
@@ -51,9 +52,16 @@ class EvaluationLogger:
 
         self.verbose = verbose
 
-    def save_config(self, config: dict):
+    def save_config(self, signature, local_scope, print_summary=True):
+        hyperparams = {}
+        for param in signature.parameters:
+            hyperparams[param] = local_scope[param]
         with open(self.config_path, "w") as f:
-            json.dump(config, f)
+            yaml.dump(hyperparams, f)
+        if print_summary:
+            print("Configuration summary:")
+            for k, v in hyperparams.items():
+                print(f"\t{bold(str(k))}: {v}")
 
     def log(self, text: str):
         if self.verbose:
