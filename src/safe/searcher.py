@@ -105,7 +105,7 @@ class Searcher:
 
         result = self._call_api(query)
 
-        self.logger.log(f"Query: {query}\nResult: {result}")
+        self.logger.log(f"Got result: " + gray(result))
 
         # Avoid duplicate results
         # TODO: Re-implement to check the source link (URL) instead of the full text
@@ -114,10 +114,10 @@ class Searcher:
 
         # If result is too long, summarize it (to avoid hitting the context length limit)
         if summarize and result is not None and len(result) > 728:
-            self.logger.log("Got result: " + gray(result) + "Summarizing...")
+            self.logger.log("Summarizing...")
             summarize_prompt = SummarizePrompt(query, result)
             result = self.model.generate(str(summarize_prompt), do_debug=self.debug)
-            self.logger.log(f"Summarized result: {result}")
+            self.logger.log(f"Summarized result: " + gray(result))
 
         search_result = SearchResult(query=query, result=result)
         self.logger.log(f"Found: {search_result}")
