@@ -27,8 +27,8 @@ class WikiDumpAPI:
             return
         self.db = sqlite3.connect(self.db_file_path, uri=True)
         self.cur = self.db.cursor()
-        self._load_embeddings()
         self.embedding_model = EmbeddingModel(embedding_model)
+        self._load_embeddings()
 
     def _load_embeddings(self):
         if os.path.exists(self.title_knn_path) and os.path.exists(self.body_knn_path):
@@ -90,11 +90,14 @@ class WikiDumpAPI:
         distances_title, indices_title = self.title_embeddings.kneighbors(phrase_embedding, n_neighbors)
         distances_body, indices_body = self.body_embeddings.kneighbors(phrase_embedding, n_neighbors)
 
-        distances = np.hstack([distances_title, distances_body]).flatten()
-        indices = np.hstack([indices_title, indices_body]).flatten()
+        indices = np.asarray([indices_title, indices_body]).flatten()
+        distances = np.asarray([distances_title, distances_body]).flatten()
 
-        order_sorted = np.argsort(distances)
-        return np.unique(indices[order_sorted])
+        df = pd.DataFrame(data=dict(indices=indices, distances=distances))
+        df.drop_duplicates(subset="indices", keep="first", inplace=True)
+        df.sort_values(by="distances", inplace=True)
+
+        return df["indices"].tolist()
 
     def retrieve(self, idx: int):
         """Retrieves the corresponding title and body text for the given index."""
@@ -126,12 +129,12 @@ def postprocess(result: Sequence) -> str:
     return converted
 
 
-def process_title(title: str) -> str:
+def process_title(title: str) -> str:  # Do not change! It will change the embeddings
     title = title.replace("_", " ")
     return process_body(title)
 
 
-def process_body(body: str) -> str:
+def process_body(body: str) -> str:  # Do not change! It will change the embeddings
     replacement_dict = {
         "-LRB-": "(",
         "-RRB-": ")",
