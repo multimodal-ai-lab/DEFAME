@@ -75,13 +75,13 @@ class KnowledgeBase:
         """Returns the (deduplicated) indices of the embeddings that are closest to
         the given phrase embedding."""
         distances, indices = self.embeddings.kneighbors(phrase_embedding, n_results)
-        return indices
+        return indices[0]
 
     def retrieve(self, idx: int):
         """Retrieves the corresponding title and body text for the given index."""
         stmt = f"""
-            SELECT title, body
-            FROM articles
+            SELECT text
+            FROM websites
             WHERE ROWID = {idx + 1};
             """
         return self._run_sql_query(stmt)[0]
@@ -139,10 +139,6 @@ class KnowledgeBase:
         processor.join()
         inserter.join()
 
-        print(f"Done building DB.")
-        print("Committing...")
-        self.db.commit()
-
     def _read(self, files):
         for file in files:
             self.read_queue.put(get_contents(file))
@@ -165,26 +161,30 @@ class KnowledgeBase:
         # Threads need to re-initialize any SQLite object
         db = sqlite3.connect(self.db_file_path, uri=True)
         cur = db.cursor()
-        pbar = tqdm(total=500_000)  # up to 1K URLs per claim, 500 claims
+        pbar = tqdm(total=506_640, smoothing=0.1)  # size already known
         while (data := self.insert_queue.get()) != "done":
             cur.execute("INSERT INTO websites VALUES (?,?,?,?,?,?)", data)
             pbar.update()
         pbar.close()
+        print(f"Done building DB.")
+        print("Committing...", end="")
+        db.commit()
+        print(" done!")
 
 
 def postprocess(result: Sequence) -> str:
-    """Keeps only the body text of the articles and concatenates them to a single string."""
-    converted = ""
-    if len(result) > 0:
-        for row in result:
-            converted += f"{row[0]}\n{row[1]}\n"
-    return converted
+    """Concatenates the results to a single string."""
+    concatenated = "\n".join([r[0] for r in result])
+    return concatenated
 
 
 def df_embedding_to_np_embedding(df: pd.DataFrame, dimension: int) -> np.array:
     embeddings = np.zeros(shape=(len(df), dimension), dtype="float32")
     for i, embedding in enumerate(tqdm(df)):
-        embeddings[i] = struct.unpack(f"{dimension}f", embedding)
+        if embedding is not None:
+            embeddings[i] = struct.unpack(f"{dimension}f", embedding)
+        else:
+            embeddings[i] = 1000  # Set the invalid "embeddings" far away
     return embeddings
 
 
