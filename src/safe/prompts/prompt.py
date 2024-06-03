@@ -3,6 +3,7 @@ from typing import Sequence
 
 from common.label import Label
 from common.utils import strip_string
+from common.shared_config import search_engine_options
 
 SYMBOL = 'Check-worthy'
 NOT_SYMBOL = 'Unimportant'
@@ -47,7 +48,7 @@ class SearchPrompt(Prompt):
         self.placeholder_targets["[KNOWLEDGE]"] = knowledge
         self.placeholder_targets["[PAST_QUERIES]"] = past_queries
         self.open_source = open_source
-        assert search_engine in ["google", "wiki", 'duckduck']
+        assert search_engine in search_engine_options
         self.search_engine = search_engine
         super().__init__()
 
@@ -62,6 +63,8 @@ class SearchPrompt(Prompt):
                 return read_md_file("safe/prompts/search_wiki_dump.md")
             case "duckduck":
                 return read_md_file("safe/prompts/search_google_open_source.md")
+            case _:
+                return read_md_file("safe/prompts/search_default.md")
 
 
 class ReasonPrompt(Prompt):

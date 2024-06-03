@@ -225,7 +225,8 @@ class Model:
                 model=model_name,
                 repetition_penalty=self.repetition_penalty,
                 model_kwargs={"torch_dtype": torch.bfloat16},
-                device_map="auto"
+                device_map="auto",
+                token=shared_config.huggingface_user_access_token,
                 )
         elif 'unittest' == model_name.lower():
             return lf.llms.Echo()

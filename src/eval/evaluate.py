@@ -1,9 +1,6 @@
 import time
 import csv
-import yaml
 import inspect
-
-import numpy as np
 
 from common.console import green, red, bold, gray
 from common.label import Label

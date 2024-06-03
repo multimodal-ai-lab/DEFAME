@@ -12,6 +12,7 @@ from safe.prompts.prompt import SearchPrompt, SummarizePrompt
 from safe.tools.duckduckgo import DuckDuckGo
 from safe.tools.query_serper import SerperAPI
 from safe.tools.wiki_dump import WikiDumpAPI
+from safe.tools.knowledge_base import KnowledgeBase
 
 
 @dataclasses.dataclass()
@@ -29,7 +30,7 @@ class Searcher:
     def __init__(self, search_engine: str,
                  model: Model,
                  logger: EvaluationLogger = None):
-        assert search_engine in ["google", "wiki", "duckduck"]
+        assert search_engine in ["google", "wiki", "duckduck", "averitec_kb"]
         self.search_engine = search_engine
         self.model = model
 
@@ -37,12 +38,14 @@ class Searcher:
 
         self.serper_searcher = SerperAPI(serper_api_key, k=num_searches)
         self.wiki_searcher = WikiDumpAPI() if search_engine == "wiki" else None
+        self.kb_searcher = KnowledgeBase() if search_engine == "averitec_kb" else None
         self.duckduck_searcher = DuckDuckGo(max_results=num_searches, logger=self.logger)
 
         self.searchers = {
             "Serper": self.serper_searcher,
             "Wiki": self.wiki_searcher,
-            "DuckDuck": self.duckduck_searcher
+            "DuckDuck": self.duckduck_searcher,
+            "AVeriTeC KB": self.kb_searcher,
         }
 
         self.max_steps = max_steps
@@ -170,6 +173,9 @@ class Searcher:
                     return self.serper_searcher.run(search_query)
                 else:
                     return response
+            case 'averitec_kb':
+                self.logger.log(yellow(f"Searching AVeriTeC knowledge base with query: {search_query}"))
+                return self.kb_searcher.search(search_query)
 
     def sufficient_knowledge(
             self,
