@@ -40,12 +40,11 @@ def evaluate(
 ) -> float:
     benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
 
-    logger = EvaluationLogger(benchmark.name, model_abbr[model])
+    logger = EvaluationLogger(benchmark.name, model_abbr[model], verbose=verbose)
 
     # Save hyperparams based on the signature of evaluate()
     signature = inspect.signature(evaluate)
     logger.save_config(signature, locals())
-
     start_time = time.time()
 
     fc = FactChecker(
@@ -72,7 +71,7 @@ def evaluate(
         if prediction_is_correct:
             logger.log(bold(green("CORRECT")))
         else:
-            logger.log(bold(red("WRONG - Ground truth: " + instance["label"].value)))
+            logger.log(bold(red("WRONG - Ground truth: " + instance["label"].value +"\n\n")))
 
         predictions.append(prediction)
         if len(predictions) == n_samples:
@@ -83,6 +82,7 @@ def evaluate(
     correct_predictions = np.asarray(np.array(predictions) == np.array(ground_truth))
     accuracy = np.sum(correct_predictions) / n_samples
     print(f"Accuracy: {accuracy * 100:.1f} %\n\n")
+    total_searches = {name: searcher.total_searches  for name, searcher in fc.searcher.searchers.items() if searcher}
 
     plot_confusion_matrix(predictions,
                           ground_truth,
@@ -92,10 +92,12 @@ def evaluate(
 
     end_time = time.time()
     results = {
+        "Total Predictions: ":  n,
         "Accuracy": f"{accuracy * 100:.1f} %",
         "Correct Predictions": correct_predictions.tolist(),
         "Incorrect Predictions": (n_samples - correct_predictions.sum()).tolist(),
-        "Duration of Run": f'{end_time - start_time} seconds'
+        "Duration of Run": f'{end_time - start_time} seconds',
+        "Total Searches": ", ".join(f'{searcher}: {n_searches}' for searcher, n_searches in total_searches.items())
     }
     logger.save_aggregated_results(results)
 

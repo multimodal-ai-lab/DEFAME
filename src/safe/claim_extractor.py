@@ -30,6 +30,7 @@ class ClaimExtractor:
 
         self.logger.log("Filtering for unique, check-worthy claims...")
         claims = {claim for claim in atomic_facts_decontextualized if self.is_check_worthy(claim, content)}
+    
         for claim in claims:
             self.logger.log(light_blue(f"'{claim}'"))
 
@@ -57,7 +58,8 @@ class ClaimExtractor:
 
     def is_check_worthy(self, atomic_fact: str, context: str) -> bool:
         """Identifies whether the given atomic fact is check-worthy."""
-        # TODO: adjust the check-worthiness check
+        # TODO: adjust the check-worthiness check & analyze the filter behavior...
+        # also make sure multiple claims are not almost the same.
 
         filter_prompt = FilterCheckWorthyPrompt(atomic_fact, context)
 

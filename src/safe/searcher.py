@@ -36,8 +36,13 @@ class Searcher:
         self.logger = EvaluationLogger() if logger is None else logger
 
         self.serper_searcher = SerperAPI(serper_api_key, k=num_searches)
-        self.wiki_searcher = WikiDumpAPI()
+        self.wiki_searcher = WikiDumpAPI() if search_engine=="wiki" else None
         self.duckduck_searcher = DuckDuckGo(max_results=num_searches, logger=self.logger)
+
+        self.searchers = {"Serper": self.serper_searcher,
+                          "Wiki": self.wiki_searcher,
+                          "DuckDuck": self.duckduck_searcher
+        }
 
         self.max_steps = max_steps
         self.max_retries = max_retries
@@ -96,13 +101,13 @@ class Searcher:
             query = self.post_process_query(model_response)
 
         # Avoid casting the same, previously used query again
-        if query in past_queries:
+        while query in past_queries:
             self.logger.log(f"Duplicate query. OLD: {query}")
             mixer = f"This is the CLAIM: '{claim}'. You have tried this QUERY: '{query}' but the search result was \
                 irrelevant to the claim. Change the QUERY to extract important knowledge about the CLAIM. Answer only with the new query: "
             query = self.model.generate(mixer)
             self.logger.log(f"Duplicate query. NEW: {query}")
-
+        query = query.replace('"','')
         result = self._call_api(query)
 
         self.logger.log(f"Got result: " + gray(result))
@@ -117,10 +122,11 @@ class Searcher:
             self.logger.log("Summarizing...")
             summarize_prompt = SummarizePrompt(query, result)
             result = self.model.generate(str(summarize_prompt), do_debug=self.debug)
+            if 'None' in result:
+                query = "Bad Query: " + query
             self.logger.log(f"Summarized result: " + gray(result))
 
         search_result = SearchResult(query=query, result=result)
-        self.logger.log(f"Found: {search_result}")
 
         return search_result
 
@@ -157,7 +163,12 @@ class Searcher:
                 return self.wiki_searcher.search(search_query)
             case 'duckduck':
                 self.logger.log(yellow(f"Searching DuckDuckGo with query: {search_query}"))
-                return self.duckduck_searcher.run(search_query)
+                response = self.duckduck_searcher.run(search_query)
+                if response == "FALLBACK_SERPER":
+                    self.logger.log(yellow(f"Resorted to Google Search as DuckDuckGo failed..."))
+                    return self.serper_searcher.run(search_query)
+                else:
+                    return response
 
     def sufficient_knowledge(
             self,

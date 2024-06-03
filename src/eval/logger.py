@@ -65,8 +65,8 @@ class EvaluationLogger:
 
     def log(self, text: str):
         if self.verbose:
-            print(text)
-        self.print_logger.info(remove_string_formatters(text))
+            print("--> " +text)
+        self.print_logger.info("--> " + remove_string_formatters(text))
 
     def save_next_prediction(self, sample_index: int, target: Label, predicted: Label):
         self.results_csv.writerow((sample_index, target.name, predicted.name, target == predicted))
