@@ -35,9 +35,13 @@ def evaluate(
         benchmark_kwargs: dict = None,
         multimodal_model: str = None,
         n_samples: int = None,
+        sample_ids: list[int] = None,
+        random_sampling: bool = False,
         extract_claims: bool = True,
-        verbose: bool = False
+        verbose: bool = False,
 ) -> float:
+    assert n_samples is None or sample_ids is None
+
     benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
 
     logger = EvaluationLogger(benchmark.name, model_abbr[model], verbose=verbose)
@@ -57,12 +61,17 @@ def evaluate(
     )
 
     if not n_samples:
-        n_samples = len(benchmark)
+        n_samples = len(benchmark) if not sample_ids else len(sample_ids)
+
+    if random_sampling:
+        benchmark.shuffle()
+
+    samples_to_evaluate = [benchmark.get_by_id(i) for i in sample_ids] if sample_ids else benchmark
 
     # Run the evaluation for each instance individually
     predictions = []
-    for i, instance in enumerate(benchmark):
-        print(f"\nEvaluating on claim {i + 1} of {n_samples}:")
+    for i, instance in enumerate(samples_to_evaluate):
+        print(f"\nEvaluating on claim {i + 1} of {n_samples} (#{instance['id']}):")
         content = instance["content"]
 
         prediction = fc.check(content)

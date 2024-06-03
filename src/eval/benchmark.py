@@ -1,7 +1,8 @@
 import json
 from abc import ABC
 from pathlib import Path
-from typing import Sequence, Iterable, Iterator
+from typing import MutableSequence, Iterable, Iterator
+import random
 
 import orjsonl
 
@@ -10,7 +11,7 @@ from common.shared_config import path_to_data
 
 
 class Benchmark(ABC, Iterable):
-    data: Sequence[dict]  # Each element is of the form {"content": ..., "label": ...}
+    data: MutableSequence[dict]  # Each element is of the form {"id": ..., "content": ..., "label": ...}
     label_mapping: dict[str, Label]
     file_path: Path
 
@@ -27,6 +28,17 @@ class Benchmark(ABC, Iterable):
     def get_classes(self) -> list[Label]:
         """Returns a list of distinct labels representing the classes occurring in this dataset."""
         return list(self.label_mapping.values())
+
+    def shuffle(self):
+        """Reorders the samples randomly."""
+        random.shuffle(self.data)
+
+    def get_by_id(self, claim_id: int):
+        """Returns the instance with the given ID (different from the instance's index)."""
+        for instance in self:
+            if instance["id"] == claim_id:
+                return instance
+        raise ValueError(f"No instance with ID {claim_id} was found.")
 
     def __len__(self):
         return len(self.data)
@@ -55,7 +67,10 @@ class AVeriTeC(Benchmark):
         with open(self.file_path, 'r') as f:
             data = json.load(f)
 
-        self.data = [{"content": d["claim"], "label": self.label_mapping[d["label"]]} for d in data]
+        self.data = [{"id": i,
+                      "content": d["claim"],
+                      "label": self.label_mapping[d["label"]]}
+                     for i, d in enumerate(data)]
 
     def __iter__(self) -> Iterator[dict]:
         return iter(self.data)
@@ -75,9 +90,10 @@ class FEVER(Benchmark):
         # Load the data
         data = orjsonl.load(self.file_path)
 
-        self.data = [{"content": d["claim"],
+        self.data = [{"id": i,
+                      "content": d["claim"],
                       "label": self.label_mapping[d["label"].lower()]}
-                     for d in data]
+                     for i, d in enumerate(data)]
 
     def __iter__(self) -> Iterator[dict]:
         return iter(self.data)

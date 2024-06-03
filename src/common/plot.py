@@ -11,7 +11,7 @@ def plot_confusion_matrix(predictions: Sequence[Label],
                           ground_truth: Sequence[Label],
                           classes: Sequence[Label],
                           benchmark_name: str,
-                          save_path: str = None):
+                          save_dir: str = None):
     class_conversion = {c: v for v, c in enumerate(classes)}
 
     # Construct confusion matrix
@@ -40,8 +40,9 @@ def plot_confusion_matrix(predictions: Sequence[Label],
     plt.ylabel("True label")
     plt.title(f"{benchmark_name} Confusion Matrix")
     fig.tight_layout()
-    if save_path:
-        plt.savefig(save_path)
+    if save_dir:
+        plt.savefig(save_dir + "confusion.pdf")
+        plt.savefig(save_dir + "confusion.png")
     plt.show()
 
 
