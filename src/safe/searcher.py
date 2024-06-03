@@ -2,10 +2,10 @@ import dataclasses
 import re
 from typing import Sequence, List
 
-from common.utils import RAILGUARD_WARNING, extract_first_code_block
 from common.console import yellow, gray, orange
 from common.modeling import Model
 from common.shared_config import serper_api_key
+from common.utils import RAILGUARD_WARNING, extract_first_code_block
 from eval.logger import EvaluationLogger
 from safe.config import num_searches, debug_safe, max_steps, max_retries
 from safe.prompts.prompt import SearchPrompt, SummarizePrompt
@@ -36,12 +36,13 @@ class Searcher:
         self.logger = EvaluationLogger() if logger is None else logger
 
         self.serper_searcher = SerperAPI(serper_api_key, k=num_searches)
-        self.wiki_searcher = WikiDumpAPI() if search_engine=="wiki" else None
+        self.wiki_searcher = WikiDumpAPI() if search_engine == "wiki" else None
         self.duckduck_searcher = DuckDuckGo(max_results=num_searches, logger=self.logger)
 
-        self.searchers = {"Serper": self.serper_searcher,
-                          "Wiki": self.wiki_searcher,
-                          "DuckDuck": self.duckduck_searcher
+        self.searchers = {
+            "Serper": self.serper_searcher,
+            "Wiki": self.wiki_searcher,
+            "DuckDuck": self.duckduck_searcher
         }
 
         self.max_steps = max_steps
@@ -107,7 +108,7 @@ class Searcher:
                 irrelevant to the claim. Change the QUERY to extract important knowledge about the CLAIM. Answer only with the new query: "
             query = self.model.generate(mixer)
             self.logger.log(f"Duplicate query. NEW: {query}")
-        query = query.replace('"','')
+        query = query.replace('"', '')
         result = self._call_api(query)
 
         self.logger.log(f"Got result: " + gray(result))

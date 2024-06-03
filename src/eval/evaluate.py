@@ -59,6 +59,7 @@ def evaluate(
     if not n_samples:
         n_samples = len(benchmark)
 
+    # Run the evaluation for each instance individually
     predictions = []
     for i, instance in enumerate(benchmark):
         print(f"\nEvaluating on claim {i + 1} of {n_samples}:")
@@ -77,29 +78,18 @@ def evaluate(
         if len(predictions) == n_samples:
             break
 
-    # Compute metrics
+    # Compute and save evaluation results
     ground_truth = benchmark.get_labels()[:n_samples]
-    correct_predictions = np.asarray(np.array(predictions) == np.array(ground_truth))
-    accuracy = np.sum(correct_predictions) / n_samples
-    print(f"Accuracy: {accuracy * 100:.1f} %\n\n")
-    total_searches = {name: searcher.total_searches  for name, searcher in fc.searcher.searchers.items() if searcher}
-
+    search_summary = {name: searcher.total_searches for name, searcher in fc.searcher.searchers.items() if searcher}
+    end_time = time.time()
+    accuracy = logger.save_results(predictions, ground_truth,
+                                   duration=end_time - start_time,
+                                   search_summary=search_summary)
     plot_confusion_matrix(predictions,
                           ground_truth,
                           benchmark.get_classes(),
                           benchmark_name=benchmark.name,
-                          save_path=logger.target_dir + "confusion.pdf")
-
-    end_time = time.time()
-    results = {
-        "Total Predictions: ":  n,
-        "Accuracy": f"{accuracy * 100:.1f} %",
-        "Correct Predictions": correct_predictions.tolist(),
-        "Incorrect Predictions": (n_samples - correct_predictions.sum()).tolist(),
-        "Duration of Run": f'{end_time - start_time} seconds',
-        "Total Searches": ", ".join(f'{searcher}: {n_searches}' for searcher, n_searches in total_searches.items())
-    }
-    logger.save_aggregated_results(results)
+                          save_dir=logger.target_dir)
 
     return accuracy
 

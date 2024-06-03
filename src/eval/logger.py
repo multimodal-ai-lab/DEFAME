@@ -1,14 +1,17 @@
 import csv
-import json
-import yaml
 import logging
 import os.path
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
+from typing import Sequence
 
+import numpy as np
+import yaml
+
+from common.console import remove_string_formatters, bold
 from common.label import Label
 from common.shared_config import path_to_result
-from common.console import remove_string_formatters, bold
+from common.console import sec2hhmmss
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('openai').setLevel(logging.ERROR)
@@ -36,7 +39,7 @@ class EvaluationLogger:
         self.config_path = self.target_dir + 'config.yaml'
         self.print_path = self.target_dir + 'print.txt'
         self.predictions_path = self.target_dir + 'predictions.csv'
-        self.results_path = self.target_dir + 'results.json'
+        self.results_path = self.target_dir + 'results.yaml'
 
         logging.basicConfig(level=logging.DEBUG)
 
@@ -52,7 +55,7 @@ class EvaluationLogger:
 
         self.verbose = verbose
 
-    def save_config(self, signature, local_scope, print_summary=True):
+    def save_config(self, signature, local_scope, print_summary: bool = True):
         hyperparams = {}
         for param in signature.parameters:
             hyperparams[param] = local_scope[param]
@@ -60,19 +63,44 @@ class EvaluationLogger:
             yaml.dump(hyperparams, f)
         if print_summary:
             print("Configuration summary:")
-            for k, v in hyperparams.items():
-                print(f"\t{bold(str(k))}: {v}")
+            bold_print_dict(hyperparams)
 
     def log(self, text: str):
         if self.verbose:
-            print("--> " +text)
+            print("--> " + text)
         self.print_logger.info("--> " + remove_string_formatters(text))
 
     def save_next_prediction(self, sample_index: int, target: Label, predicted: Label):
         self.results_csv.writerow((sample_index, target.name, predicted.name, target == predicted))
 
-    def save_aggregated_results(self, aggregated_results: dict):
+    def save_results(self,
+                     predictions: Sequence[Label],
+                     ground_truth: Sequence[Label],
+                     duration: float,
+                     search_summary: dict,
+                     print_summary: bool = True) -> bool:
+        n_samples = len(predictions)
+        correct_predictions = np.asarray(np.array(predictions) == np.array(ground_truth))
+        n_correct_predictions = np.sum(correct_predictions)
+        n_wrong_predictions = n_samples - n_correct_predictions
+        accuracy = n_correct_predictions / n_samples
+        search_summary = ", ".join(f"{searcher}: {n_searches}" for searcher, n_searches in search_summary.items())
+        result_summary = {
+            "Total samples": len(predictions),
+            "Correct predictions": n_correct_predictions,
+            "Wrong predictions": n_wrong_predictions,
+            "Accuracy": f"{accuracy * 100:.1f} %",
+            "Run duration": sec2hhmmss(duration),
+            "Total searches": search_summary,
+        }
         with open(self.results_path, "w") as f:
-            json.dump(aggregated_results, f)
+            yaml.dump(result_summary, f)
+        if print_summary:
+            print("Results:")
+            bold_print_dict(result_summary)
+        return accuracy
 
 
+def bold_print_dict(dictionary: dict):
+    for key, value in dictionary.items():
+        print(f"\t{bold(str(key))}: {value}")
