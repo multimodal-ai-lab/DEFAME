@@ -9,7 +9,8 @@ from common.modeling import Model
 from eval.logger import EvaluationLogger
 from safe.config import debug_safe, max_steps, max_retries
 from safe.prompts.prompt import ReasonPrompt
-from safe.searcher import SearchResult
+from safe.tools.search.search_api import SearchResult
+from safe.searcher import extract_knowledge
 
 
 @dataclasses.dataclass()
@@ -32,7 +33,7 @@ class Reasoner:
 
     def reason(self,
                claim: str,
-               evidence: Sequence[SearchResult]
+               evidence: list[SearchResult]
     ) -> (Label, str):
         """Takes the claim and the gathered evidence, determines the
         claim's veracity through reasoning and returns the verdict with
@@ -51,12 +52,16 @@ class Reasoner:
 
     def maybe_get_final_answer(self,
                                claim: str,
-                               evidence: Sequence[SearchResult],
+                               evidence: list[SearchResult],
                                ) -> FinalAnswer | None:
         """Get the final answer from the model."""
-        knowledge = '\n'.join([search.result for search in evidence if search.result is not None])
+        # Construct the reasoning prompt
+        knowledge = extract_knowledge(evidence)
         reason_prompt = ReasonPrompt(claim, knowledge, self.classes)
+
         model_response = self.model.generate(str(reason_prompt), do_debug=self.debug)
+
+        # Validate model response
         if model_response.startswith("I cannot") or model_response.startswith("I'm sorry"):
             self.logger.log(utils.RAILGUARD_WARNING)
             self.logger.log(orange(f"Reason prompt with claim {claim} and knowledge {knowledge}"))

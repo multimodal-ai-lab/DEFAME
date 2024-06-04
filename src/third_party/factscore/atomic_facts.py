@@ -26,6 +26,7 @@ import spacy
 from absl import app
 from nltk import tokenize
 
+import common.utils
 # pylint: disable=g-bad-import-order
 from common import modeling, utils, shared_config
 
@@ -442,7 +443,7 @@ def postprocess_atomic_facts(in_atomic_facts, para_breaks, nlp):
                         do_pass = True
                         break
 
-                    fact = fact.replace(new_ent, pre_ent)
+                    fact = common.utils.replace(new_ent, pre_ent)
                     covered_entities.add(pre_ent)
 
                 if do_pass:

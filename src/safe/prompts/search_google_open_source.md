@@ -8,7 +8,7 @@ Instructions:
 7. Format your final query by putting it in a Markdown code block.
 
 PAST_QUERIES:
-[PAST_QUERIES:]
+[PAST_QUERIES]
 
 KNOWLEDGE:
 [KNOWLEDGE]

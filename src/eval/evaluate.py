@@ -51,7 +51,7 @@ def evaluate(
     fc = FactChecker(
         model=model,
         multimodal_model=multimodal_model,
-        search_engine=search_engine,
+        search_engines=[search_engine],
         extract_claims=extract_claims,
         logger=logger,
         classes=benchmark.get_classes(),
@@ -86,7 +86,7 @@ def evaluate(
 
     # Compute and save evaluation results
     ground_truth = benchmark.get_labels()[:n_samples]
-    search_summary = {name: searcher.total_searches for name, searcher in fc.searcher.searchers.items() if searcher}
+    search_summary = {name: searcher.total_searches for name, searcher in fc.searcher.search_apis.items() if searcher}
     end_time = time.time()
     accuracy = logger.save_results(predictions, ground_truth,
                                    duration=end_time - start_time,

@@ -64,9 +64,10 @@ model_string = {
 }
 search_engine_options = {
     'google',
-    'wiki',
-    'duckduck'
-}   
+    'wiki_dump',
+    'duckduckgo',
+    'averitec_kb'
+}
 task_options = {}
 root_dir = '/'.join(os.path.abspath(__file__).split('/')[:-2])
 path_to_data = '/pfss/mlde/workspaces/mlde_wsp_Rohrbach/data/raw/'

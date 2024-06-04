@@ -23,7 +23,7 @@ class EvaluationLogger:
     """Used to permanently save any information related to an evaluation run."""
 
     def __init__(self, dataset_abbr: str = None, model_abbr: str = None, verbose: bool = True):
-        """Initializes the three loggers used for evaluation."""
+        """Initializes the files used to track evaluation."""
         log_date = datetime.now().strftime("%Y-%m-%d_%H-%M")
 
         # Determine the target dir
@@ -94,7 +94,7 @@ class EvaluationLogger:
             "Total searches": search_summary,
         }
         with open(self.results_path, "w") as f:
-            yaml.dump(result_summary, f)
+            yaml.dump(result_summary, f, sort_keys=False)
         if print_summary:
             print("Results:")
             bold_print_dict(result_summary)

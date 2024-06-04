@@ -39,8 +39,8 @@ class Prompt(ABC):
 
 
 class SearchPrompt(Prompt):
-
-    # TODO Keep in mind that  the current Search Prompt does not use the [PAST_QUERIES] placeholder.
+    # TODO Keep in mind that the current Search Prompt does not use the [PAST_QUERIES] placeholder.
+    # TODO: Rework search prompt to also consider previous searching reasoning
 
     def __init__(self, claim: str, knowledge: str, past_queries: str,
                  search_engine: str = "google", open_source: bool = False):
