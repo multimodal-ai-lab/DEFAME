@@ -161,9 +161,9 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
     texts = []
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
-            kw.update(color=textcolors[int(im.norm(data[i, j]) > threshold)])
-            if data[i, j] != np.nan:
-                text = im.axes.text(j, i, valfmt(data[i, j], None), **kw)
+            if not np.ma.is_masked(data[i, j]):
+                kw.update(color=textcolors[int(im.norm(data[i, j]) > threshold)])
+                text = im.axes.text(j, i, valfmt(data[i, j]), **kw)
                 texts.append(text)
 
     return texts
