@@ -52,7 +52,7 @@ class Searcher:
 
     def find_evidence(
             self,
-            claim: str
+            claim: str,
     ) -> list[SearchResult]:
         """Main method of the Searcher class implementing the searching strategy.
         Takes a claim, produces proper search queries to find sufficient evidence that helps to
@@ -165,6 +165,7 @@ class Searcher:
     ) -> list[SearchResult]:
         # Run the search
         results = search_engine.search(query, self.limit_per_search)
+        self.past_queries_helpful[query] = True
 
         # Postprocess results
         for result in results:

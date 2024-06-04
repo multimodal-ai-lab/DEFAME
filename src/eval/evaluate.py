@@ -40,6 +40,7 @@ def evaluate(
     assert n_samples is None or sample_ids is None
 
     benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
+    lookup = {value.value: key for key, value in benchmark.label_mapping.items()}
 
     logger = EvaluationLogger(benchmark.name, model_abbr[model], verbose=verbose)
 
@@ -64,14 +65,15 @@ def evaluate(
         benchmark.shuffle()
 
     samples_to_evaluate = [benchmark.get_by_id(i) for i in sample_ids] if sample_ids else benchmark
-
+    eval_log = []
     # Run the evaluation for each instance individually
     predictions = []
     for i, instance in enumerate(samples_to_evaluate):
         print(f"\nEvaluating on claim {i + 1} of {n_samples} (#{instance['id']}):")
         content = instance["content"]
 
-        prediction = fc.check(content)
+        evidence_log, prediction = fc.check(content)
+        eval_log.append({"claim": content, "evidence": evidence_log["evidence"], "pred_label": lookup[prediction.value]})
         prediction_is_correct = instance["label"] == prediction
 
         logger.save_next_prediction(sample_index=i + 1, target=instance["label"], predicted=prediction)
@@ -97,7 +99,7 @@ def evaluate(
                           benchmark_name=benchmark.name,
                           save_dir=logger.target_dir)
 
-    return accuracy
+    return accuracy, eval_log, benchmark
 
 
 def load_results(path: str):

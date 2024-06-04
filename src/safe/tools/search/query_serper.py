@@ -38,7 +38,7 @@ class SerperAPI(RemoteSearchAPI):
             'search': 'organic',
         }
 
-    def search(self, query: str, limit: int, **kwargs: Any) -> list[SearchResult]:
+    def _call_api(self, query: str, limit: int, **kwargs: Any) -> list[SearchResult]:
         """Run query through GoogleSearch and parse result."""
         assert self.serper_api_key, 'Missing serper_api_key.'
         results = self._call_serper_api(

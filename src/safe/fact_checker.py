@@ -74,8 +74,9 @@ class FactChecker:
         self.logger.log(bold("Verifying the claims..."))
         veracities = []
         justifications = []
+        evidence_log = dict()
         for claim in claims:
-            veracity, justification = self.verify_claim(claim)
+            veracity, justification = self.verify_claim(claim, evidence_log)
             veracities.append(veracity)
             justifications.append(justification)
 
@@ -85,13 +86,14 @@ class FactChecker:
         overall_veracity = aggregate_predictions(veracities)
 
         self.logger.log(bold(f"So, the overall veracity is: {overall_veracity.value}"))
-        return overall_veracity
+        return evidence_log, overall_veracity
 
-    def verify_claim(self, claim: str) -> (Label, str):
+    def verify_claim(self, claim: str, evidence_log: dict) -> (Label, str):
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it."""
         # TODO: Enable the model to dynamically choose the tool to use while doing
         #       interleaved reasoning and evidence retrieval
         search_results = self.searcher.find_evidence(claim)
+        evidence_log["evidence"] = [{"question": search.query, "answer": search.summary} for search in search_results]
         verdict, justification = self.reasoner.reason(claim, evidence=search_results)
         return verdict, justification
 

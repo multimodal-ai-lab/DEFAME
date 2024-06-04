@@ -273,7 +273,7 @@ class Model:
             with modeling_utils.get_lf_context(gen_temp, max_tokens):
                 while not response and num_attempts < max_attempts:
                     with futures.ThreadPoolExecutor() as executor:
-                        future = executor.submit(lf.LangFunc(prompt, lm=self.model))
+                        future = executor.submit(lf.LangFunc(prompt, lm=self.model, temperature=gen_temp))
 
                         try:
                             response = future.result(timeout=timeout).text

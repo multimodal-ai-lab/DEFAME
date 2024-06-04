@@ -26,11 +26,11 @@ class SearchResult:
 
     def is_useful(self) -> Optional[bool]:
         """Returns true if the summary contains helpful information,
-        e.g., does not simply contain None."""
+        e.g., does not contain NONE."""
         if self.summary is None:
             return None
         else:
-            return len(self.summary) > 7
+            return "NONE" not in self.summary
 
 
 class SearchAPI(ABC):

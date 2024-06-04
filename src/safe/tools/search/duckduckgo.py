@@ -11,7 +11,7 @@ from safe.tools.search.remote_search_api import RemoteSearchAPI
 
 class DuckDuckGo(RemoteSearchAPI):
     """Class for querying the DuckDuckGo API."""
-    name = "duckduck"
+    name = "duckduckgo"
 
     def __init__(self,
                  max_retries: int = 10,
@@ -22,7 +22,7 @@ class DuckDuckGo(RemoteSearchAPI):
         self.backoff_factor = backoff_factor
         self.total_searches = 0
 
-    def search(self, query: str, limit: int) -> list[SearchResult]:
+    def _call_api(self, query: str, limit: int) -> list[SearchResult]:
         """Run a search query and return structured results."""
         attempt = 0
         while attempt < self.max_retries:
