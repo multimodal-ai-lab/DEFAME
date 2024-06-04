@@ -346,3 +346,11 @@ def print_side_by_side(
 
 
 RAILGUARD_WARNING = orange("Model hit the safety guardrails -.-'. Defaulting to REFUSED")
+
+
+def replace(text: str, replacements: dict):
+    """Replaces in text all occurrences of keys of the replacements
+    dictionary with the corresponding value."""
+    rep = dict((re.escape(k), v) for k, v in replacements.items())
+    pattern = re.compile("|".join(rep.keys()))
+    return pattern.sub(lambda m: rep[re.escape(m.group(0))], text)

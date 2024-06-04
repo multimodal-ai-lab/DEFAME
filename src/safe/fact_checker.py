@@ -19,8 +19,10 @@ class FactChecker:
     def __init__(self,
                  model: str | Model = "OPENAI:gpt-3.5-turbo-0125",
                  multimodal_model: Optional[str] | Optional[Model] = None,
-                 search_engine: str = "duckduck",
+                 search_engines: list[str] = None,
                  extract_claims: bool = True,
+                 summarize_search_results: bool = True,
+                 max_searches_per_claim: int = 5,
                  logger: EvaluationLogger = None,
                  classes: Sequence[Label] = None,
                  ):
@@ -32,8 +34,7 @@ class FactChecker:
             multimodal_model = MultimodalModel(multimodal_model)
         self.multimodal_model = multimodal_model
 
-        if logger is None:
-            logger = EvaluationLogger()
+        self.logger = logger or EvaluationLogger()
 
         self.claim_extractor = ClaimExtractor(model, logger)
         self.extract_claims = extract_claims
@@ -41,17 +42,16 @@ class FactChecker:
         if classes is None:
             classes = [Label.SUPPORTED, Label.NEI, Label.REFUTED]
 
-        self.searcher = Searcher(search_engine, model, logger)
-        self.reasoner = Reasoner(model, logger, classes)
+        search_engines = search_engines or ["duckduck"]
 
-        self.logger = logger
+        self.searcher = Searcher(search_engines, model, self.logger,
+                                 summarize_search_results, max_searches_per_claim)
+        self.reasoner = Reasoner(model, self.logger, classes)
 
     def check(
             self,
             content: str | Sequence[str],
             image: Optional[torch.Tensor] = None,
-            limit_search: Optional[bool] = True,
-            summarize: Optional[bool] = True,
     ) -> Label:
         """
         Fact-checks the given content by first extracting all elementary claims and then
@@ -75,7 +75,7 @@ class FactChecker:
         veracities = []
         justifications = []
         for claim in claims:
-            veracity, justification = self.verify_claim(claim, summarize=summarize, limit_search=limit_search)
+            veracity, justification = self.verify_claim(claim)
             veracities.append(veracity)
             justifications.append(justification)
 
@@ -87,17 +87,11 @@ class FactChecker:
         self.logger.log(bold(f"So, the overall veracity is: {overall_veracity.value}"))
         return overall_veracity
 
-    def verify_claim(
-            self,
-            claim: str,
-            summarize: bool = True,
-            limit_search: Optional[bool] = False,
-    ) -> (Label, str):
+    def verify_claim(self, claim: str) -> (Label, str):
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it."""
         # TODO: Enable the model to dynamically choose the tool to use while doing
-        # interleaved reasoning and evidence retrieval
-        self.logger.log(f"Verifying Claim: {claim}")
-        search_results = self.searcher.search(claim, summarize=summarize, limit_search=limit_search)
+        #       interleaved reasoning and evidence retrieval
+        search_results = self.searcher.find_evidence(claim)
         verdict, justification = self.reasoner.reason(claim, evidence=search_results)
         return verdict, justification
 

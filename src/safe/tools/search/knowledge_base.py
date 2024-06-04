@@ -2,43 +2,44 @@ import json
 import os.path
 import pickle
 import sqlite3
-import struct
-from threading import Thread
 from queue import Queue
-from typing import Sequence
+from threading import Thread
 
-import numpy as np
 import pandas as pd
-import unicodedata
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
-from common.embedding import EmbeddingModel
-from common.shared_config import path_to_data, embedding_model
+from common.shared_config import path_to_data
+from safe.tools.search.semantic_search_db import SemanticSearchDB, df_embedding_to_np_embedding
 
 
-class KnowledgeBase:
+class KnowledgeBase(SemanticSearchDB):
     """The AVeriTeC knowledge base consisting of a selection of webpages."""
-    db_file_path = path_to_data + "AVeriTeC/knowledge_base.db"
+    name = 'averitec_kb'
+
     embedding_knn_path = path_to_data + "AVeriTeC/embedding_knn.pckl"
 
     def __init__(self):
-        if not os.path.exists(self.db_file_path):
-            print("Warning: No AVeriTeC database found. Continuing with empty database.")
-        os.makedirs(os.path.dirname(self.db_file_path), exist_ok=True)
-        self.db = sqlite3.connect(self.db_file_path, uri=True)
-        self.cur = self.db.cursor()
-        self.embedding_model = None
-        if os.path.exists(self.embedding_knn_path):
-            self._restore_knn_learners()
+        super().__init__(db_file_path=path_to_data + "AVeriTeC/knowledge_base.db")
+        self._load_embeddings()
 
-    def _restore_knn_learners(self):
-        print("Restoring existing kNN learners... ", end="")
-        with open(self.embedding_knn_path, "rb") as f:
-            self.embeddings = pickle.load(f)
+    def _is_empty(self) -> bool:
+        stmt = """SELECT * FROM websites LIMIT 1;"""
+        rows = self._run_sql_query(stmt)
+        return len(rows) == 0
+
+    def _load_embeddings(self):
+        if os.path.exists(self.embedding_knn_path):
+            self._restore_knn()
+        elif not self.is_empty():
+            self._build_knn()
+
+    def _restore_knn(self):
+        print("Restoring existing kNN learner... ", end="")
+        self.embeddings = self._restore_knn_from(self.embedding_knn_path)
         print("done.")
 
-    def build_knn_learners(self):
+    def _build_knn(self):
         self._setup_embedding_model()
         stmt = "SELECT ROWID, text_embedding FROM websites ORDER BY ROWID"
         embeddings = pd.read_sql_query(stmt, self.db)
@@ -46,58 +47,22 @@ class KnowledgeBase:
         embeddings = df_embedding_to_np_embedding(embeddings["text_embedding"], self.embedding_model.dimension)
         print("Setting up nearest neighbor learners...")
         self.embeddings = NearestNeighbors(n_neighbors=10).fit(embeddings)
-        print("Saving learners...")
+        print("Saving kNN learner...")
         with open(self.embedding_knn_path, "wb") as f:
             pickle.dump(self.embeddings, f)
 
-    def search(self, phrase: str, n_results: int = 10) -> str:
-        result = self.search_semantically(phrase, n_results)
-        return postprocess(result)
-
-    def _search_exact_title(self, phrase: str) -> Sequence:
-        stmt = """
-            SELECT *
-            FROM articles
-            WHERE title = ?
-            LIMIT 1;
-            """
-
-        return self._run_sql_query(stmt, phrase)
-
-    def search_semantically(self, phrase: str, n_results: int = 10) -> Sequence:
+    def _search_semantically(self, query_embedding, limit: int) -> list[int]:
         """Performs a vector search on the text embeddings."""
-        phrase_embedding = self._embed(phrase).reshape(1, -1)
-        indices = self.get_nearest_neighbors_title_and_body(phrase_embedding, n_results)
-        results = [self.retrieve(i) for i in indices]
-        return results
-
-    def get_nearest_neighbors_title_and_body(self, phrase_embedding, n_results: int = 10) -> Sequence[int]:
-        """Returns the (deduplicated) indices of the embeddings that are closest to
-        the given phrase embedding."""
-        distances, indices = self.embeddings.kneighbors(phrase_embedding, n_results)
+        distances, indices = self.embeddings.kneighbors(query_embedding, limit)
         return indices[0]
 
-    def retrieve(self, idx: int):
-        """Retrieves the corresponding title and body text for the given index."""
+    def retrieve(self, idx: int) -> (str, str):
         stmt = f"""
-            SELECT text
+            SELECT url, text
             FROM websites
             WHERE ROWID = {idx + 1};
             """
         return self._run_sql_query(stmt)[0]
-
-    def _run_sql_query(self, stmt, *args):
-        self.cur.execute(stmt, args)
-        rows = self.cur.fetchall()
-        return rows
-
-    def _embed(self, *args, **kwargs):
-        if self.embedding_model is None:
-            self._setup_embedding_model()
-        return self.embedding_model.embed(*args, **kwargs)
-
-    def _setup_embedding_model(self):
-        self.embedding_model = EmbeddingModel(embedding_model)
 
     def _init_db(self):
         stmt = """
@@ -172,22 +137,6 @@ class KnowledgeBase:
         print(" done!")
 
 
-def postprocess(result: Sequence) -> str:
-    """Concatenates the results to a single string."""
-    concatenated = "\n".join([r[0] for r in result])
-    return concatenated
-
-
-def df_embedding_to_np_embedding(df: pd.DataFrame, dimension: int) -> np.array:
-    embeddings = np.zeros(shape=(len(df), dimension), dtype="float32")
-    for i, embedding in enumerate(tqdm(df)):
-        if embedding is not None:
-            embeddings[i] = struct.unpack(f"{dimension}f", embedding)
-        else:
-            embeddings[i] = 1000  # Set the invalid "embeddings" far away
-    return embeddings
-
-
 def get_contents(filename):
     """Parse the contents of a file. Each line is a JSON encoded document."""
     websites = []
@@ -201,11 +150,6 @@ def get_contents(filename):
             # Add the document
             websites.append(doc)
     return websites
-
-
-def normalize(text):
-    """Resolve different type of unicode encodings."""
-    return unicodedata.normalize('NFD', text)
 
 
 def iter_files(path):

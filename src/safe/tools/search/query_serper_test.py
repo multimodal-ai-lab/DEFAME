@@ -25,7 +25,7 @@ from unittest import mock
 from absl.testing import absltest
 
 # pylint: disable=g-bad-import-order
-from safe.tools import query_serper
+from safe.tools.search import query_serper
 
 # pylint: enable=g-bad-import-order
 
@@ -112,7 +112,6 @@ _TEST_GOOGLE_SEARCH_RESULT = {
 _TEST_RESPONSE = 'The answer is 2.'
 
 _TEST_SERPER_API = query_serper.SerperAPI(
-    serper_api_key=_TEST_SERPER_API_KEY,
     gl=_TEST_GL,
     hl=_TEST_HL,
     k=_TEST_K,
@@ -125,7 +124,6 @@ class QuerySerperTest(absltest.TestCase):
 
     def test_init_base(self) -> None:
         serper_api = query_serper.SerperAPI(
-            serper_api_key=_TEST_SERPER_API_KEY,
             gl=_TEST_GL,
             hl=_TEST_HL,
             k=_TEST_K,
@@ -175,7 +173,7 @@ class QuerySerperTest(absltest.TestCase):
         response = mock.Mock()
         response.json.return_value = _TEST_GOOGLE_SEARCH_RESULT
         mock_post.return_value = response
-        actual_output = test_serper_api._google_serper_api_results(
+        actual_output = test_serper_api._call_serper_api(
             search_term=_TEST_QUERY,
             gl=test_serper_api.gl,
             hl=test_serper_api.hl,
