@@ -87,8 +87,8 @@ class EvaluationLogger:
         search_summary = ", ".join(f"{searcher}: {n_searches}" for searcher, n_searches in search_summary.items())
         result_summary = {
             "Total samples": len(predictions),
-            "Correct predictions": n_correct_predictions,
-            "Wrong predictions": n_wrong_predictions,
+            "Correct predictions": int(n_correct_predictions),
+            "Wrong predictions": int(n_wrong_predictions),
             "Accuracy": f"{accuracy * 100:.1f} %",
             "Run duration": sec2hhmmss(duration),
             "Total searches": search_summary,
