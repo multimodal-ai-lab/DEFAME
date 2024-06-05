@@ -11,6 +11,7 @@ from safe.config import debug_safe, max_steps, max_retries
 from safe.prompts.prompt import ReasonPrompt
 from safe.tools.search.search_api import SearchResult
 from safe.searcher import extract_knowledge
+from common.document import FCDoc
 
 
 @dataclasses.dataclass()
@@ -19,7 +20,7 @@ class FinalAnswer:
     answer: str
 
 
-class Reasoner:
+class Judge:
     """Determines the truthfulness of a claim given a collection of evidence."""
 
     def __init__(self, model: Model, logger: EvaluationLogger, classes: Sequence[Label]):
@@ -30,6 +31,9 @@ class Reasoner:
         self.max_retries = max_retries
 
         self.logger = logger
+
+    def judge(self, doc: FCDoc) -> Label:
+        pass
 
     def reason(self,
                claim: str,

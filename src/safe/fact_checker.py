@@ -11,8 +11,12 @@ from common.modeling import Model, MultimodalModel
 from common.shared_config import path_to_data
 from eval.logger import EvaluationLogger
 from safe.claim_extractor import ClaimExtractor
-from safe.reasoner import Reasoner
+from safe.judge import Judge
 from safe.searcher import Searcher
+from common.document import FCDoc
+from safe.planner import Planner
+from safe.actor import Actor
+from safe.doc_summarizer import DocSummarizer
 
 
 class FactChecker:
@@ -44,9 +48,12 @@ class FactChecker:
 
         search_engines = search_engines or ["duckduck"]
 
+        self.planner = Planner(model, self.logger)
+        self.actor = Actor()
         self.searcher = Searcher(search_engines, model, self.logger,
                                  summarize_search_results, max_searches_per_claim)
-        self.reasoner = Reasoner(model, self.logger, classes)
+        self.judge = Judge(model, self.logger, classes)
+        self.doc_summarizer = DocSummarizer(model, self.logger)
 
     def check(
             self,
@@ -88,14 +95,17 @@ class FactChecker:
         self.logger.log(bold(f"So, the overall veracity is: {overall_veracity.value}"))
         return evidence_log, overall_veracity
 
-    def verify_claim(self, claim: str, evidence_log: dict) -> (Label, str):
+    def verify_claim(self, claim: str) -> FCDoc:
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it."""
-        # TODO: Enable the model to dynamically choose the tool to use while doing
-        #       interleaved reasoning and evidence retrieval
-        search_results = self.searcher.find_evidence(claim)
-        evidence_log["evidence"] = [{"question": search.query, "answer": search.summary} for search in search_results]
-        verdict, justification = self.reasoner.reason(claim, evidence=search_results)
-        return verdict, justification
+        doc = FCDoc(claim)
+        while (label := self.judge.judge(doc)) == Label.NEI:
+            actions, reasoning = self.planner.plan_next_actions(doc)
+            doc.add(reasoning)
+            results = self.actor.perform(actions)
+            doc.add(results)
+        doc.verdict = label
+        doc.justification = self.doc_summarizer.summarize(doc)
+        return doc
 
 
 def aggregate_predictions(veracities: Sequence[Label]) -> Label:
