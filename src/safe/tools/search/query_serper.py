@@ -126,7 +126,12 @@ class SerperAPI(RemoteSearchAPI):
         result_key = self.result_key_for_type[self.search_type]
         if result_key in response:
             for i, result in enumerate(response[result_key]):
-                text = f"{result['title']}: {result['snippet']}"
+                if "snippet" not in result:
+                    text = "NONE"
+                elif "title" not in result:
+                    text = f"{result['snippet']}"
+                else:
+                    text = f"{result['title']}: {result['snippet']}"
                 url = result["link"]
                 results.append(SearchResult(url, text, query, i))
 
