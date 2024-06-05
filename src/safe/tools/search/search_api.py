@@ -1,10 +1,10 @@
-from dataclasses import dataclass
-from abc import ABC
+from dataclasses import dataclass, asdict
+from abc import ABC, abstractmethod
+from typing import Optional, List
+from datetime import datetime
 
 from eval.logger import EvaluationLogger
 from common.console import yellow
-from typing import Optional
-
 
 @dataclass
 class SearchResult:
@@ -13,6 +13,7 @@ class SearchResult:
     query: str
     rank: int
     summary: str = None
+    date: str = datetime.now().strftime("%Y-%m-%d")
 
     def __str__(self):
         """Human-friendly string representation in Markdown format.
@@ -52,6 +53,7 @@ class SearchAPI(ABC):
         """Runs the API by submitting the query and obtaining a list of search results."""
         self._before_search(query)
         return self._call_api(query, limit)
-
+    
+    @abstractmethod
     def _call_api(self, query: str, limit: int) -> list[SearchResult]:
         raise NotImplementedError()
