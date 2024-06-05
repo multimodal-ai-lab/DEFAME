@@ -60,7 +60,7 @@ class Searcher:
 
         # Start with a first ad-hoc search by simply using the original claim as the search query
         first_precedence_search_engine = list(self.search_apis.values())[0]
-        search_results = self._submit_query_and_process_results(claim, first_precedence_search_engine)
+        search_results = self._submit_query_and_process_results(claim, first_precedence_search_engine, claim)
 
         # As long as the information is insufficient for a conclusive veracity prediction,
         # continue gathering more information
@@ -84,7 +84,7 @@ class Searcher:
         # Try the search engines according to their precedence
         for search_engine in list(self.search_apis.values()):
             query = self._generate_query(claim, search_engine.name, past_results)
-            results = self._submit_query_and_process_results(query, search_engine, past_results)
+            results = self._submit_query_and_process_results(query, search_engine, claim, past_results)
 
             # Register the used query and save its usefulness
             self.past_queries_helpful[query] = np.any([result.is_useful() for result in results])
@@ -117,7 +117,8 @@ class Searcher:
             query = self._extract_query(model_response)
             if query in past_queries:
                 self.logger.log(orange("Duplicate query proposed. Trying again..."))
-                past_queries_str += f"\n{query}"  # Change the prompt to enable different answer for deterministic model
+                # Change the prompt to enable different answer for deterministic model
+                past_queries_str += f"\nBad query: {query}"
 
         return query
 
@@ -161,6 +162,7 @@ class Searcher:
             self,
             query: str,
             search_engine: SearchAPI,
+            claim: str,
             past_results: list[SearchResult] = None
     ) -> list[SearchResult]:
         # Run the search
@@ -171,42 +173,40 @@ class Searcher:
         for result in results:
             result.text = postprocess_result(result.text)
 
-        # Print and log results summary
-        result_summary = f"Got {len(results)} result(s):\n"
-        for result in results:
-            result_str = result.text if len(result.text) < 10_000 else result.text[:10_000] + " [...]"
-            result_summary += "\n" + gray(result_str)
-        self.logger.log(result_summary)
+        # Remove already known results
+        if past_results:
+            results = [r for r in results if r not in past_results]
 
-        # No results found with all search engines for the given query
+        self.logger.log(f"Got {len(results)} new result(s).")
+
+        # No results found
         if len(results) == 0:
             return []
 
-        # Remove already known results
-        if past_results:
-            for result in results:
-                if result in past_results:
-                    results.remove(result)
-
-        # Truncate results that are too long (exceed the LLM context length limit)
+        # Truncate and summarize results
         for result in results:
-            num_result_tokens = len(result.text) // 3  # 1 token has approx. 3 to 4 chars
-            if num_result_tokens > self.model.max_tokens:
-                self.logger.log(orange(f"INFO: Truncating search result due to excessive length "
-                                       f"({num2text(num_result_tokens)} tokens), exceeding maximum LLM "
-                                       f"context length of {num2text(self.model.max_tokens)} chars."))
-                # Cut the result text, maintaining a little buffer for the summary prompt
-                result.text = result.text[:self.model.max_tokens * 3 * 0.9]
-
-        # Summarize the results to a compact text containing the necessary infos
-        if self.summarize:
-            self.logger.log("Summarizing...")
-            for result in results:
-                summarize_prompt = SummarizePrompt(query, result.text)
-                result.summary = self.model.generate(str(summarize_prompt), do_debug=self.debug)
-                self.logger.log(f"Summarized result: " + gray(result.summary))
+            result_str = result.text if len(result.text) < 10_000 else result.text[:10_000] + " [...]"
+            self.logger.log(gray(result_str))
+            self._maybe_truncate_result(result)
+            if self.summarize:
+                self._summarize_result(result, claim)
 
         return results
+
+    def _maybe_truncate_result(self, result: SearchResult):
+        """Truncates the result's text if it's too long (exceeds the LLM context length limit)."""
+        num_result_tokens = len(result.text) // 3  # 1 token has approx. 3 to 4 chars
+        if num_result_tokens > self.model.max_tokens:
+            self.logger.log(orange(f"INFO: Truncating search result due to excessive length "
+                                   f"({num2text(num_result_tokens)} tokens), exceeding maximum LLM "
+                                   f"context length of {num2text(self.model.max_tokens)} chars."))
+            # Cut the result text, maintaining a little buffer for the summary prompt
+            result.text = result.text[:self.model.max_tokens * 3 * 0.9]
+
+    def _summarize_result(self, result: SearchResult, claim: str):
+        summarize_prompt = SummarizePrompt(claim, result.query, result.text)
+        result.summary = self.model.generate(str(summarize_prompt), do_debug=self.debug)
+        self.logger.log(f"Summarized result: " + gray(result.summary))
 
     def sufficient_knowledge(
             self,
