@@ -32,7 +32,8 @@ class Searcher:
     # TODO: Rank the websites according to their credibility, like MUSE
     search_apis: dict[str, SearchAPI]
 
-    def __init__(self, search_engines: list[str],
+    def __init__(self, 
+                 search_engines: list[str],
                  model: Model,
                  logger: EvaluationLogger = None,
                  summarize: bool = True,
@@ -118,6 +119,7 @@ class Searcher:
             if query in past_queries:
                 self.logger.log(orange("Duplicate query proposed. Trying again..."))
                 past_queries_str += f"\n{query}"  # Change the prompt to enable different answer for deterministic model
+                break
 
         return query
 
@@ -196,7 +198,7 @@ class Searcher:
                                        f"({num2text(num_result_tokens)} tokens), exceeding maximum LLM "
                                        f"context length of {num2text(self.model.max_tokens)} chars."))
                 # Cut the result text, maintaining a little buffer for the summary prompt
-                result.text = result.text[:self.model.max_tokens * 3 * 0.9]
+                result.text = result.text[:int(self.model.max_tokens * 3 * 0.9)]
 
         # Summarize the results to a compact text containing the necessary infos
         if self.summarize:
