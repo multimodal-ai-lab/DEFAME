@@ -118,10 +118,10 @@ class FilterCheckWorthyPrompt(Prompt):
 
 
 class SummarizePrompt(Prompt):
-    def __init__(self, query: str, search_result: str):
+    def __init__(self, claim: str, query: str, search_result: str):
+        self.placeholder_targets["[STATEMENT]"] = claim
         self.placeholder_targets["[QUERY]"] = query
-        self.placeholder_targets["[SEARCH_RESULT]"] = search_result[
-                                                      :50000]  # Cut to avoid hitting the context window limit
+        self.placeholder_targets["[SEARCH_RESULT]"] = search_result
         super().__init__()
 
     def assemble_prompt(self) -> str:
