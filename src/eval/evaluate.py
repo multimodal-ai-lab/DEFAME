@@ -90,8 +90,11 @@ def evaluate(
     ground_truth = benchmark.get_labels()[:n_samples]
     search_summary = {name: searcher.total_searches for name, searcher in fc.searcher.search_apis.items() if searcher}
     end_time = time.time()
+    total_llm_calls = fc.model.total_calls
+    #total_mllm_calls = fc.multimodal_model.total_calls
     accuracy = logger.save_results(predictions, ground_truth,
                                    duration=end_time - start_time,
+                                   total_llm_calls = total_llm_calls,
                                    search_summary=search_summary)
     plot_confusion_matrix(predictions,
                           ground_truth,
