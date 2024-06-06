@@ -9,9 +9,11 @@ from common.modeling import Model
 from eval.logger import EvaluationLogger
 from safe.config import debug_safe, max_steps, max_retries
 from safe.prompts.prompt import ReasonPrompt
-from safe.tools.search.search_api import SearchResult
+from common.results import SearchResult
 from safe.searcher import extract_knowledge
 from common.document import FCDoc
+from safe.prompts.prompt import JudgePrompt
+from common.utils import is_railguard_hit
 
 
 @dataclasses.dataclass()
@@ -23,17 +25,57 @@ class FinalAnswer:
 class Judge:
     """Determines the truthfulness of a claim given a collection of evidence."""
 
-    def __init__(self, model: Model, logger: EvaluationLogger, classes: Sequence[Label]):
+    def __init__(self, model: Model, logger: EvaluationLogger, classes: list[Label]):
         self.model = model
         self.classes = classes
         self.debug = debug_safe
         self.max_steps = max_steps
         self.max_retries = max_retries
+        self.latest_reasoning = None
 
         self.logger = logger
 
     def judge(self, doc: FCDoc) -> Label:
-        pass
+        judge_prompt = JudgePrompt(doc, self.classes)
+        n_retries = 0
+        while (verdict := self._generate_verdict(str(judge_prompt))) == Label.REFUSED_TO_ANSWER:
+            n_retries += 1
+            if n_retries > self.max_retries:
+                break
+        return verdict
+
+    def _generate_verdict(self, prompt: str) -> Label:
+        # Generate an answer
+        response = self.model.generate(prompt, do_debug=self.debug)
+        self.latest_reasoning = response
+
+        # Validate model response
+        if is_railguard_hit(response):
+            self.logger.log(utils.RAILGUARD_WARNING)
+            self.logger.log(orange("PROMPT:\n" + prompt))
+            return Label.REFUSED_TO_ANSWER
+
+        # Extract the verdict
+        return self._extract_verdict(response)
+
+    def _extract_verdict(self, response: str) -> Label:
+        """Extract label from response"""
+        answer = utils.extract_first_square_brackets(response)
+        answer = re.sub(r'[^\w\s]', '', answer).strip().lower()
+
+        if not answer:
+            # No valid response given, therefore returning refused label
+            return Label.REFUSED_TO_ANSWER
+
+        try:
+            verdict = Label(answer)
+        except ValueError:
+            verdict = Label.REFUSED_TO_ANSWER
+
+        return verdict
+
+    def get_latest_reasoning(self) -> str:
+        return self.latest_reasoning
 
     def reason(self,
                claim: str,
@@ -66,7 +108,7 @@ class Judge:
         model_response = self.model.generate(str(reason_prompt), do_debug=self.debug)
 
         # Validate model response
-        if model_response.startswith("I cannot") or model_response.startswith("I'm sorry"):
+        if is_railguard_hit(model_response):
             self.logger.log(utils.RAILGUARD_WARNING)
             self.logger.log(orange(f"Reason prompt with claim {claim} and knowledge {knowledge}"))
             answer = 'refused'

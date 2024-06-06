@@ -5,7 +5,7 @@ from duckduckgo_search import DDGS
 
 from common.console import red, bold
 
-from safe.tools.search.search_api import SearchResult
+from common.results import SearchResult
 from safe.tools.search.remote_search_api import RemoteSearchAPI
 
 

@@ -1,9 +1,10 @@
 from abc import ABC
 from typing import Sequence
 
-from common.label import Label
+from common.label import Label, LABEL_DEFINITIONS
 from common.utils import strip_string
 from common.shared_config import search_engine_options
+from common.document import FCDoc
 
 SYMBOL = 'Check-worthy'
 NOT_SYMBOL = 'Unimportant'
@@ -69,7 +70,6 @@ class SearchPrompt(Prompt):
 
 class ReasonPrompt(Prompt):
     # TODO: Add ICL
-    # TODO: Add label choice
     def __init__(self, claim: str, knowledge: str, classes: Sequence[Label]):
         label_options_string = (
                 'According to your reasoning, your final answer should be either '
@@ -85,6 +85,18 @@ class ReasonPrompt(Prompt):
 
     def assemble_prompt(self) -> str:
         return read_md_file("safe/prompts/reason.md")
+
+
+class JudgePrompt(Prompt):
+    # TODO: Add ICL
+    def __init__(self, doc: FCDoc, classes: list[Label]):
+        class_str = '\n'.join([f"{cls.value}: {LABEL_DEFINITIONS[cls]}" for cls in classes])
+        self.placeholder_targets["[DOC]"] = str(doc)
+        self.placeholder_targets["[CLASSES]"] = class_str
+        super().__init__()
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("safe/prompts/judge.md")
 
 
 class DecontextualizePrompt(Prompt):
@@ -126,6 +138,35 @@ class SummarizePrompt(Prompt):
 
     def assemble_prompt(self) -> str:
         return read_md_file("safe/prompts/summarize.md")
+
+
+class SummarizeResultPrompt(Prompt):
+    def __init__(self, search_result: str, doc: FCDoc):
+        self.placeholder_targets["[SEARCH_RESULT]"] = search_result
+        self.placeholder_targets["[DOC]"] = str(doc)
+        super().__init__()
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("safe/prompts/summarize_result.md")
+
+
+class SummarizeDocPrompt(Prompt):
+    def __init__(self, doc: FCDoc):
+        self.placeholder_targets["[DOC]"] = str(doc)
+        super().__init__()
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("safe/prompts/summarize_doc.md")
+
+
+class PlanPrompt(Prompt):
+    def __init__(self, doc: FCDoc):
+        # TODO: Enable custom valid action set
+        self.placeholder_targets["[DOC]"] = str(doc)
+        super().__init__()
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("safe/prompts/plan.md")
 
 
 def read_md_file(file_path: str) -> str:

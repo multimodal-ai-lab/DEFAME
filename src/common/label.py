@@ -7,3 +7,16 @@ class Label(Enum):
     REFUTED = "refuted"
     CONFLICTING = "conflicting evidence"
     REFUSED_TO_ANSWER = "refused"
+
+
+LABEL_DEFINITIONS = {
+    Label.SUPPORTED: "The knowledge from the fact-check supports or at least strongly implies the CLAIM. "
+                     "Mere plausibility is not enough for this decision.",
+    Label.NEI: "The fact-check does not contain sufficient information to come to a conclusion. For example, "
+               "there is substantial lack of evidence. In this case, state which information exactly "
+               "is missing. In particular, if no RESULTS or sources are available, pick this decision.",
+    Label.REFUTED: "The knowledge from the fact-check clearly refutes the CLAIM. The mere absence or lack of "
+                   "supporting evidence is not enough reason for being refuted (argument from ignorance).",
+    Label.CONFLICTING: "The knowledge from the fact-check contains conflicting evidence from multiple "
+                       "RELIABLE sources.",
+}

@@ -93,15 +93,33 @@ def extract_first_code_block(
         input_string: str,
         ignore_language: bool = False,
 ) -> str:
-    """Extracts the query from the generated response."""
-    input_string = ensure_triple_ticks(input_string)
+    """Extracts the contents of the first Markdown code block (enclosed with ``` ```)
+     appearing in the given string. If no code block is found, returns ''."""
+    matches = find_code_blocks(input_string, ignore_language)
+    return strip_string(matches[0]) if matches else ''
+
+
+def extract_last_code_block(
+        input_string: str,
+        ignore_language: bool = False,
+) -> str:
+    """Extracts the contents of the last Markdown code block (enclosed with ``` ```)
+     appearing in the given string. If no code block is found, returns ''."""
+    matches = find_code_blocks(input_string, ignore_language)
+    return strip_string(matches[-1]) if matches else ''
+
+
+def find_code_blocks(
+        input_string: str,
+        ignore_language: bool = False,
+):
+    # input_string = ensure_triple_ticks(input_string)
     if ignore_language:
         pattern = re.compile(r'```(?:\w+\n)?(.*?)```', re.DOTALL)
     else:
         pattern = re.compile(r'```(.*?)```', re.DOTALL)
-
-    match = pattern.search(input_string)
-    return strip_string(match.group(1)) if match else ''
+    matches = pattern.findall(input_string)
+    return matches
 
 
 ################################################################################
@@ -346,6 +364,10 @@ def print_side_by_side(
 
 
 RAILGUARD_WARNING = orange("Model hit the safety guardrails -.-'. Defaulting to REFUSED")
+
+
+def is_railguard_hit(response: str) -> bool:
+    return response.startswith("I cannot") or response.startswith("I'm sorry")
 
 
 def replace(text: str, replacements: dict):

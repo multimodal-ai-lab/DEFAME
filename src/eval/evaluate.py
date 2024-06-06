@@ -72,8 +72,9 @@ def evaluate(
         print(f"\nEvaluating on claim {i + 1} of {n_samples} (#{instance['id']}):")
         content = instance["content"]
 
-        evidence_log, prediction = fc.check(content)
-        eval_log.append({"claim": content, "evidence": evidence_log["evidence"], "pred_label": lookup[prediction.value]})
+        prediction = fc.check(content)
+        # TODO: extract evidence from docs
+        eval_log.append({"claim": content, "evidence": "", "pred_label": lookup[prediction.value]})
         prediction_is_correct = instance["label"] == prediction
 
         logger.save_next_prediction(sample_index=i + 1, target=instance["label"], predicted=prediction)

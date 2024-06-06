@@ -12,11 +12,11 @@ from common.shared_config import path_to_data
 from eval.logger import EvaluationLogger
 from safe.claim_extractor import ClaimExtractor
 from safe.judge import Judge
-from safe.searcher import Searcher
 from common.document import FCDoc
 from safe.planner import Planner
 from safe.actor import Actor
 from safe.doc_summarizer import DocSummarizer
+from safe.result_summarizer import ResultSummarizer
 
 
 class FactChecker:
@@ -46,14 +46,11 @@ class FactChecker:
         if classes is None:
             classes = [Label.SUPPORTED, Label.NEI, Label.REFUTED]
 
-        search_engines = search_engines or ["duckduck"]
-
-        self.planner = Planner(model, self.logger)
-        self.actor = Actor()
-        self.searcher = Searcher(search_engines, model, self.logger,
-                                 summarize_search_results, max_searches_per_claim)
-        self.judge = Judge(model, self.logger, classes)
-        self.doc_summarizer = DocSummarizer(model, self.logger)
+        self.planner = Planner(self.model, self.logger)
+        self.actor = Actor(self.model, search_engines, max_searches_per_claim)
+        self.judge = Judge(self.model, self.logger, classes)
+        self.doc_summarizer = DocSummarizer(self.model, self.logger)
+        self.result_summarizer = ResultSummarizer(self.model, self.logger)
 
     def check(
             self,
@@ -79,30 +76,35 @@ class FactChecker:
         claims = self.claim_extractor.extract_claims(content) if self.extract_claims else [content]
 
         self.logger.log(bold("Verifying the claims..."))
-        veracities = []
-        justifications = []
-        evidence_log = dict()
+        docs = []
         for claim in claims:
-            veracity, justification = self.verify_claim(claim, evidence_log)
-            veracities.append(veracity)
-            justifications.append(justification)
+            doc = self.verify_claim(claim)
+            docs.append(doc)
+            self.logger.log(bold(f"The claim '{light_blue(claim)}' is {doc.verdict.value}."))
+            self.logger.log(f'Justification: {gray(doc.justification)}\n')
 
-        for claim, veracity, justification in zip(claims, veracities, justifications):
-            self.logger.log(bold(f"The claim '{light_blue(claim)}' is {veracity.value}."))
-            self.logger.log(gray(f'{justification}\n'))
-        overall_veracity = aggregate_predictions(veracities)
+        overall_veracity = aggregate_predictions([doc.verdict for doc in docs])
 
         self.logger.log(bold(f"So, the overall veracity is: {overall_veracity.value}"))
-        return evidence_log, overall_veracity
+        return overall_veracity
 
     def verify_claim(self, claim: str) -> FCDoc:
-        """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it."""
+        """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it.
+        This is the core of the fact-checking implementation. Here, the fact-checking
+        document is constructed incrementally."""
         doc = FCDoc(claim)
-        while (label := self.judge.judge(doc)) == Label.NEI:
+        label = Label.NEI
+        while label == Label.NEI:
             actions, reasoning = self.planner.plan_next_actions(doc)
-            doc.add(reasoning)
+            doc.add_reasoning(reasoning)
+            doc.add_actions(actions)
+            if not actions:
+                break  # The planner wasn't able to determine further useful actions, giving up
             results = self.actor.perform(actions)
-            doc.add(results)
+            results = self.result_summarizer.summarize(results, doc)
+            doc.add_results(results)
+            label = self.judge.judge(doc)
+        doc.add_reasoning(self.judge.get_latest_reasoning())
         doc.verdict = label
         doc.justification = self.doc_summarizer.summarize(doc)
         return doc

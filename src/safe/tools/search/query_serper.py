@@ -6,7 +6,7 @@ from typing import Any, Optional, Literal
 
 import requests
 
-from safe.tools.search.search_api import SearchResult
+from common.results import SearchResult
 from safe.tools.search.remote_search_api import RemoteSearchAPI
 from common.shared_config import serper_api_key
 

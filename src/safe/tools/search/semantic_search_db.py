@@ -12,7 +12,7 @@ from tqdm import tqdm
 from common.embedding import EmbeddingModel
 from common.shared_config import embedding_model
 from safe.tools.search.local_search_api import LocalSearchAPI
-from safe.tools.search.search_api import SearchResult
+from common.results import SearchResult
 
 
 class SemanticSearchDB(LocalSearchAPI):

@@ -1,6 +1,7 @@
 from common.modeling import Model
 from common.document import FCDoc
 from eval.logger import EvaluationLogger
+from safe.prompts.prompt import SummarizeDocPrompt
 
 
 class DocSummarizer:
@@ -11,4 +12,6 @@ class DocSummarizer:
         self.logger = logger
 
     def summarize(self, doc: FCDoc) -> str:
-        raise NotImplementedError()
+        summarize_doc_prompt = SummarizeDocPrompt(doc)
+        summary = self.model.generate(str(summarize_doc_prompt))
+        return summary

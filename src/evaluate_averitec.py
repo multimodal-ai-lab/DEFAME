@@ -7,7 +7,7 @@ accuracy, evidence_log, benchmark = evaluate(
     model="OPENAI:gpt-3.5-turbo-0125",
     benchmark_name="averitec",
     benchmark_kwargs=dict(variant="dev"),
-    search_engine="duckduckgo",
+    search_engine="google",
     extract_claims=False,
     verbose=True,
     n_samples=None

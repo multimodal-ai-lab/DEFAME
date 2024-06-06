@@ -13,7 +13,7 @@ from safe.tools.search.duckduckgo import DuckDuckGo
 from safe.tools.search.knowledge_base import KnowledgeBase
 from safe.tools.search.query_serper import SerperAPI
 from safe.tools.search.search_api import SearchAPI
-from safe.tools.search.search_api import SearchResult
+from common.results import SearchResult
 from safe.tools.search.wiki_dump import WikiDumpAPI
 
 SEARCH_APIS = {
@@ -49,6 +49,15 @@ class Searcher:
         self.debug = debug_safe
 
         self.past_queries_helpful: dict[str, bool] = {}
+
+    def search(self, query: str) -> list[SearchResult]:
+        """Searches for evidence using the search APIs according to their precedence."""
+        for search_engine in list(self.search_apis.values()):
+            results = self._submit_query_and_process_results(query, search_engine, None, None)
+
+            # If there is at least one result, we were successful
+            if len(results) > 0:
+                return results
 
     def find_evidence(
             self,
@@ -177,7 +186,7 @@ class Searcher:
         if past_results:
             results = [r for r in results if r not in past_results]
 
-        self.logger.log(f"Got {len(results)} new result(s).")
+        self.logger.log(f"Got {len(results)} result(s).")
 
         # No results found
         if len(results) == 0:
@@ -185,8 +194,8 @@ class Searcher:
 
         # Truncate and summarize results
         for result in results:
-            result_str = result.text if len(result.text) < 10_000 else result.text[:10_000] + " [...]"
-            self.logger.log(gray(result_str))
+            # result_str = result.text if len(result.text) < 10_000 else result.text[:10_000] + " [...]"
+            # self.logger.log(gray(result_str))
             self._maybe_truncate_result(result)
             if self.summarize:
                 self._summarize_result(result, claim)
