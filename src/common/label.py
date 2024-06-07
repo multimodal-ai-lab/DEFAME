@@ -6,7 +6,7 @@ class Label(Enum):
     NEI = "not enough information"
     REFUTED = "refuted"
     CONFLICTING = "conflicting evidence"
-    REFUSED_TO_ANSWER = "refused"
+    REFUSED_TO_ANSWER = "error: refused to answer"
 
 
 LABEL_DEFINITIONS = {
@@ -18,5 +18,6 @@ LABEL_DEFINITIONS = {
     Label.REFUTED: "The knowledge from the fact-check clearly refutes the CLAIM. The mere absence or lack of "
                    "supporting evidence is not enough reason for being refuted (argument from ignorance).",
     Label.CONFLICTING: "The knowledge from the fact-check contains conflicting evidence from multiple "
-                       "RELIABLE sources.",
+                       "RELIABLE sources. Even trying to resolve the conflicting sources through additional "
+                       "investigation was not successful.",
 }

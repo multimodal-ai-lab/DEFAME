@@ -3,6 +3,7 @@ import pickle
 import sqlite3
 import struct
 from typing import Sequence
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -59,20 +60,21 @@ class SemanticSearchDB(LocalSearchAPI):
         of the search results."""
         raise NotImplementedError()
 
-    def retrieve(self, idx: int) -> (str, str):
-        """Selects the row with specified index from the DB and returns the URL and the text
-        of the selected row."""
+    def retrieve(self, idx: int) -> (str, str, datetime):
+        """Selects the row with specified index from the DB and returns the URL, the text
+        and the date of the selected row's source."""
         raise NotImplementedError()
 
     def _indices_to_search_results(self, indices: list[int], query: str) -> list[SearchResult]:
         results = []
         for i, index in enumerate(indices):
-            url, text = self.retrieve(index)
+            url, text, date = self.retrieve(index)
             result = SearchResult(
                 url=url,
                 text=text,
                 query=query,
                 rank=i,
+                date=date
             )
             results.append(result)
         return results

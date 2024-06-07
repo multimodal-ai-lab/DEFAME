@@ -3,6 +3,7 @@ import os.path
 import pickle
 import sqlite3
 from multiprocessing import Pool as ProcessPool
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -77,7 +78,7 @@ class WikiDumpAPI(SemanticSearchDB):
         rows = self._run_sql_query(stmt)
         return len(rows) == 0
 
-    def retrieve(self, idx: int) -> (str, str):
+    def retrieve(self, idx: int) -> (str, str, datetime):
         stmt = f"""
             SELECT title, body
             FROM articles
@@ -86,7 +87,7 @@ class WikiDumpAPI(SemanticSearchDB):
         title, body = self._run_sql_query(stmt)[0]
         url = title
         text = f"{title}\n{body}"
-        return url, text
+        return url, text, None
 
     def build_db(self, from_path: str, num_workers: int = 4):
         """Creates the SQLite database."""

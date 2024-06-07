@@ -5,6 +5,8 @@ from common.label import Label, LABEL_DEFINITIONS
 from common.utils import strip_string
 from common.shared_config import search_engine_options
 from common.document import FCDoc
+from common.action import Action
+from common.results import SearchResult
 
 SYMBOL = 'Check-worthy'
 NOT_SYMBOL = 'Unimportant'
@@ -141,9 +143,11 @@ class SummarizePrompt(Prompt):
 
 
 class SummarizeResultPrompt(Prompt):
-    def __init__(self, search_result: str, doc: FCDoc):
-        self.placeholder_targets["[SEARCH_RESULT]"] = search_result
-        self.placeholder_targets["[DOC]"] = str(doc)
+    def __init__(self, search_result: SearchResult, doc: FCDoc):
+        search_result_str = f"From {search_result.source}:\n{search_result.text}"
+        self.placeholder_targets["[SEARCH_RESULT]"] = search_result_str
+        context_str = f'CLAIM: "{doc.claim}"\n\nREASONING:\n' + "\n".join(doc.get_all_reasoning())
+        self.placeholder_targets["[DOC]"] = context_str
         super().__init__()
 
     def assemble_prompt(self) -> str:
@@ -160,9 +164,13 @@ class SummarizeDocPrompt(Prompt):
 
 
 class PlanPrompt(Prompt):
-    def __init__(self, doc: FCDoc):
-        # TODO: Enable custom valid action set
+    def __init__(self, doc: FCDoc, valid_actions: list[type[Action]]):
+        valid_action_str = "\n\n".join([f"`{a.name}`\n"
+                                        f"Description: {a.description}\n"
+                                        f"How to use: {a.how_to}\n"
+                                        f"Format: {a.format}" for a in valid_actions])
         self.placeholder_targets["[DOC]"] = str(doc)
+        self.placeholder_targets["[VALID_ACTIONS]"] = valid_action_str
         super().__init__()
 
     def assemble_prompt(self) -> str:

@@ -1,8 +1,8 @@
-import time
 import csv
 import inspect
+import time
 
-from common.console import green, red, bold, gray
+from common.console import green, red, bold
 from common.label import Label
 from common.plot import plot_confusion_matrix
 from common.shared_config import model_abbr
@@ -35,6 +35,7 @@ def evaluate(
         sample_ids: list[int] = None,
         random_sampling: bool = False,
         extract_claims: bool = True,
+        max_iterations: int = 3,
         verbose: bool = False,
 ) -> float:
     assert n_samples is None or sample_ids is None
@@ -54,6 +55,7 @@ def evaluate(
         multimodal_model=multimodal_model,
         search_engines=[search_engine],
         extract_claims=extract_claims,
+        max_iterations=max_iterations,
         logger=logger,
         classes=benchmark.get_classes(),
     )
@@ -72,16 +74,19 @@ def evaluate(
         print(f"\nEvaluating on claim {i + 1} of {n_samples} (#{instance['id']}):")
         content = instance["content"]
 
-        prediction = fc.check(content)
+        doc = fc.check(content)
+
+        prediction = doc.verdict
         # TODO: extract evidence from docs
-        eval_log.append({"claim": content, "evidence": "", "pred_label": lookup[prediction.value]})
+        eval_log.append({"claim": content, "evidence": "", "pred_label": prediction.name})
         prediction_is_correct = instance["label"] == prediction
 
         logger.save_next_prediction(sample_index=i + 1, target=instance["label"], predicted=prediction)
+        logger.save_fc_doc(doc, instance['id'])
         if prediction_is_correct:
-            logger.log(bold(green("CORRECT")))
+            logger.log(bold(green("CORRECT\n")))
         else:
-            logger.log(bold(red("WRONG - Ground truth: " + instance["label"].value +"\n\n")))
+            logger.log(bold(red("WRONG - Ground truth: " + instance["label"].value + "\n")))
 
         predictions.append(prediction)
         if len(predictions) == n_samples:
@@ -89,7 +94,8 @@ def evaluate(
 
     # Compute and save evaluation results
     ground_truth = benchmark.get_labels()[:n_samples]
-    search_summary = {name: searcher.total_searches for name, searcher in fc.searcher.search_apis.items() if searcher}
+    search_summary = {name: searcher.total_searches for name, searcher in fc.actor.searcher.search_apis.items() if
+                      searcher}
     end_time = time.time()
     accuracy = logger.save_results(predictions, ground_truth,
                                    duration=end_time - start_time,

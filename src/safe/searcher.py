@@ -29,7 +29,7 @@ class Searcher:
     a list of specified search engines. The list defines the precedence of the search
     engines meaning that if search_engine[0] did not yield any results, search_engine[1]
     will be tried next."""
-    # TODO: Rank the websites according to their credibility, like MUSE
+    # TODO: Rank or annotate the websites according to their credibility, like MUSE
     search_apis: dict[str, SearchAPI]
 
     def __init__(self, search_engines: list[str],
@@ -49,15 +49,33 @@ class Searcher:
         self.debug = debug_safe
 
         self.past_queries_helpful: dict[str, bool] = {}
+        # Cut the result text, maintaining a little buffer for the summary prompt
+        self.max_result_len = int(self.model.max_tokens * 3 * 0.9)
+        self.past_search_results = set()
 
     def search(self, query: str) -> list[SearchResult]:
         """Searches for evidence using the search APIs according to their precedence."""
         for search_engine in list(self.search_apis.values()):
             results = self._submit_query_and_process_results(query, search_engine, None, None)
+            results = self._remove_known_search_results(results)
 
             # If there is at least one result, we were successful
             if len(results) > 0:
+                self._add_known_search_results(results)
                 return results
+        return []
+
+    def _remove_known_search_results(self, results: list[SearchResult]) -> list[SearchResult]:
+        """Removes already known search results"""
+        return [r for r in results if r not in self.past_search_results]
+
+    def _add_known_search_results(self, results: list[SearchResult]):
+        """Adds the provided list of results to the set of known results."""
+        self.past_search_results |= set(results)
+
+    def reset(self):
+        """Removes all known search results."""
+        self.past_search_results = set()
 
     def find_evidence(
             self,
@@ -205,12 +223,11 @@ class Searcher:
     def _maybe_truncate_result(self, result: SearchResult):
         """Truncates the result's text if it's too long (exceeds the LLM context length limit)."""
         num_result_tokens = len(result.text) // 3  # 1 token has approx. 3 to 4 chars
-        if num_result_tokens > self.model.max_tokens:
-            self.logger.log(orange(f"INFO: Truncating search result due to excessive length "
+        if num_result_tokens > self.max_result_len:
+            self.logger.log(orange(f"INFO: Truncating search result due to excess length "
                                    f"({num2text(num_result_tokens)} tokens), exceeding maximum LLM "
-                                   f"context length of {num2text(self.model.max_tokens)} chars."))
-            # Cut the result text, maintaining a little buffer for the summary prompt
-            result.text = result.text[:self.model.max_tokens * 3 * 0.9]
+                                   f"context length of {num2text(self.model.max_tokens)} tokens."))
+            result.text = result.text[:self.max_result_len]
 
     def _summarize_result(self, result: SearchResult, claim: str):
         summarize_prompt = SummarizePrompt(claim, result.query, result.text)

@@ -12,6 +12,7 @@ from common.console import remove_string_formatters, bold
 from common.label import Label
 from common.shared_config import path_to_result
 from common.console import sec2hhmmss
+from common.document import FCDoc
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('openai').setLevel(logging.ERROR)
@@ -40,6 +41,8 @@ class EvaluationLogger:
         self.print_path = self.target_dir + 'print.txt'
         self.predictions_path = self.target_dir + 'predictions.csv'
         self.results_path = self.target_dir + 'results.yaml'
+        self.fc_docs_path = self.target_dir + 'docs/'
+        os.makedirs(self.fc_docs_path, exist_ok=True)
 
         logging.basicConfig(level=logging.DEBUG)
 
@@ -50,8 +53,8 @@ class EvaluationLogger:
         self.print_logger.addHandler(print_handler)
         self.print_logger.propagate = False  # Disable propagation to avoid duplicate logs
 
-        self.results_csv = csv.writer(open(self.predictions_path, "w"))
-        self.results_csv.writerow(("sample_index", "target", "predicted", "correct"))
+        with open(self.predictions_path, "w") as f:
+            csv.writer(f).writerow(("sample_index", "target", "predicted", "correct"))
 
         self.verbose = verbose
 
@@ -71,7 +74,12 @@ class EvaluationLogger:
         self.print_logger.info("--> " + remove_string_formatters(text))
 
     def save_next_prediction(self, sample_index: int, target: Label, predicted: Label):
-        self.results_csv.writerow((sample_index, target.name, predicted.name, target == predicted))
+        with open(self.predictions_path, "w") as f:
+            csv.writer(f).writerow((sample_index, target.name, predicted.name, target == predicted))
+
+    def save_fc_doc(self, doc: FCDoc, claim_id: int):
+        with open(self.fc_docs_path + f"{claim_id}.md", "w") as f:
+            f.write(str(doc))
 
     def save_results(self,
                      predictions: Sequence[Label],

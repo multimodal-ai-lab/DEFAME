@@ -28,7 +28,10 @@ class ResultsBlock:
     results: Collection[Result]
 
     def __str__(self):
-        results_str = "\n".join([str(r) for r in self.results if r.is_useful()])
+        if len(self.results) > 0:
+            results_str = "\n".join([str(r) for r in self.results if r.is_useful()])
+        else:
+            results_str = "No new results found!"
         return f"RESULTS:\n{results_str}"
 
 
@@ -49,8 +52,13 @@ class FCDoc:
 
     def __str__(self):
         doc_str = f'CLAIM:\n"{self.claim}"'
-        protocol_str = ("\n\n" + "\n\n".join([str(block) for block in self.protocol])) if self.protocol else ""
-        return doc_str + protocol_str
+        if self.protocol:
+            doc_str += "\n\n" + "\n\n".join([str(block) for block in self.protocol])
+        if self.verdict:
+            doc_str += f"\n\nVERDICT: {self.verdict.name}"
+        if self.justification:
+            doc_str += f"\n\nJUSTIFICATION:\n{self.justification}"
+        return doc_str
 
     def add_reasoning(self, text: str):
         self.protocol.append(ReasoningBlock(text))
@@ -60,3 +68,10 @@ class FCDoc:
 
     def add_results(self, results: Collection[Result]):
         self.protocol.append(ResultsBlock(results))
+
+    def get_all_reasoning(self) -> list[str]:
+        reasoning_texts = []
+        for block in self.protocol:
+            if isinstance(block, ReasoningBlock):
+                reasoning_texts.append(block.text)
+        return reasoning_texts

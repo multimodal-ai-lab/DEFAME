@@ -17,6 +17,7 @@ from safe.planner import Planner
 from safe.actor import Actor
 from safe.doc_summarizer import DocSummarizer
 from safe.result_summarizer import ResultSummarizer
+from common.action import WebSearch, WikiLookup
 
 
 class FactChecker:
@@ -26,7 +27,8 @@ class FactChecker:
                  search_engines: list[str] = None,
                  extract_claims: bool = True,
                  summarize_search_results: bool = True,
-                 max_searches_per_claim: int = 5,
+                 max_iterations: int = 5,
+                 max_results_per_search: int = 10,
                  logger: EvaluationLogger = None,
                  classes: Sequence[Label] = None,
                  ):
@@ -46,17 +48,26 @@ class FactChecker:
         if classes is None:
             classes = [Label.SUPPORTED, Label.NEI, Label.REFUTED]
 
-        self.planner = Planner(self.model, self.logger)
-        self.actor = Actor(self.model, search_engines, max_searches_per_claim)
+        # TODO: add to parameters
+        actions = []
+        if "wiki_dump" in search_engines:
+            actions.append(WikiLookup)
+        if "google" in search_engines or "duckduckgo" in search_engines or "averitec_kb" in search_engines:
+            actions.append(WebSearch)
+
+        self.planner = Planner(actions, self.model, self.logger)
+        self.actor = Actor(self.model, search_engines, max_results_per_search, self.logger)
         self.judge = Judge(self.model, self.logger, classes)
         self.doc_summarizer = DocSummarizer(self.model, self.logger)
         self.result_summarizer = ResultSummarizer(self.model, self.logger)
+
+        self.max_iterations = max_iterations
 
     def check(
             self,
             content: str | Sequence[str],
             image: Optional[torch.Tensor] = None,
-    ) -> Label:
+    ) -> FCDoc:
         """
         Fact-checks the given content by first extracting all elementary claims and then
         verifying each claim individually. Returns the overall veracity which is true iff
@@ -81,29 +92,33 @@ class FactChecker:
             doc = self.verify_claim(claim)
             docs.append(doc)
             self.logger.log(bold(f"The claim '{light_blue(claim)}' is {doc.verdict.value}."))
-            self.logger.log(f'Justification: {gray(doc.justification)}\n')
+            self.logger.log(f'Justification: {gray(doc.justification)}')
 
         overall_veracity = aggregate_predictions([doc.verdict for doc in docs])
 
         self.logger.log(bold(f"So, the overall veracity is: {overall_veracity.value}"))
-        return overall_veracity
+        return doc  # TODO
 
     def verify_claim(self, claim: str) -> FCDoc:
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it.
         This is the core of the fact-checking implementation. Here, the fact-checking
         document is constructed incrementally."""
+        self.actor.searcher.reset()  # remove all past search results
         doc = FCDoc(claim)
         label = Label.NEI
-        while label == Label.NEI:
+        n_iterations = 0
+        while label == Label.NEI and n_iterations < self.max_iterations:
             actions, reasoning = self.planner.plan_next_actions(doc)
             doc.add_reasoning(reasoning)
             doc.add_actions(actions)
             if not actions:
                 break  # The planner wasn't able to determine further useful actions, giving up
             results = self.actor.perform(actions)
-            results = self.result_summarizer.summarize(results, doc)
-            doc.add_results(results)
+            if results:
+                results = self.result_summarizer.summarize(results, doc)
+                doc.add_results(results)
             label = self.judge.judge(doc)
+            n_iterations += 1
         doc.add_reasoning(self.judge.get_latest_reasoning())
         doc.verdict = label
         doc.justification = self.doc_summarizer.summarize(doc)

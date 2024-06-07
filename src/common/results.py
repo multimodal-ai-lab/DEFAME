@@ -1,5 +1,6 @@
 from abc import ABC
 from typing import Optional
+from datetime import datetime
 
 from common.action import Action
 
@@ -8,7 +9,8 @@ class Result(ABC):
     """Evidence found during fact-checking."""
     source: str
     text: str
-    summary: str
+    date: datetime
+    summary: str = None
     action: Action
 
     def is_useful(self) -> Optional[bool]:
@@ -24,7 +26,7 @@ class Result(ABC):
         Differentiates between direct citation (original text) and
         indirect citation (if summary is available)."""
         text = self.summary or f'"{self.text}"'
-        return f'{text} ([source]({self.source}))'
+        return f'{text} ([Source]({self.source}))'
 
     def __eq__(self, other):
         return self.source == other.source
@@ -37,10 +39,11 @@ class SearchResult(Result):
     query: str
     rank: int
 
-    def __init__(self, url: str, text: str, query: str,
+    def __init__(self, url: str, text: str, date: datetime, query: str,
                  rank: int = None, action: Action = None):
         self.source = url
         self.text = text
+        self.date = date
         self.query = query
         self.rank = rank
         self.action = action

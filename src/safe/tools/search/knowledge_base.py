@@ -4,6 +4,7 @@ import pickle
 import sqlite3
 from queue import Queue
 from threading import Thread
+from datetime import datetime
 
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
@@ -19,8 +20,8 @@ class KnowledgeBase(SemanticSearchDB):
 
     embedding_knn_path = path_to_data + "AVeriTeC/embedding_knn.pckl"
 
-    def __init__(self):
-        super().__init__(db_file_path=path_to_data + "AVeriTeC/knowledge_base.db")
+    def __init__(self, logger):
+        super().__init__(logger=logger, db_file_path=path_to_data + "AVeriTeC/knowledge_base.db")
         self._load_embeddings()
 
     def _is_empty(self) -> bool:
@@ -56,13 +57,13 @@ class KnowledgeBase(SemanticSearchDB):
         distances, indices = self.embeddings.kneighbors(query_embedding, limit)
         return indices[0]
 
-    def retrieve(self, idx: int) -> (str, str):
+    def retrieve(self, idx: int) -> (str, str, datetime):
         stmt = f"""
             SELECT url, text
             FROM websites
             WHERE ROWID = {idx + 1};
             """
-        return self._run_sql_query(stmt)[0]
+        return *self._run_sql_query(stmt)[0], None
 
     def _init_db(self):
         stmt = """

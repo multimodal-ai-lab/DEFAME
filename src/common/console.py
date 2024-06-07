@@ -81,4 +81,4 @@ def sec2hhmmss(s):
 
 
 def remove_string_formatters(text: str) -> str:
-    return re.sub(r"\033\[[0-9]*m", "", text)
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
