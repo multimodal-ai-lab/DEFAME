@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from common.label import Label
 from common.action import Action
 from common.results import Result
+from common.claim import Claim
 
 
 @dataclass
@@ -44,17 +45,17 @@ class FCDocument:
     Contains information like the claim that is being investigated, all intermediate reasoning
     and the evidence found."""
 
-    claim: str
+    claim: Claim
     record: list  # contains intermediate reasoning and evidence, organized in blocks
     verdict: Label = None
     justification: str = None
 
-    def __init__(self, claim: str):
+    def __init__(self, claim: Claim):
         self.claim = claim
         self.record = []
 
     def __str__(self):
-        doc_str = f'CLAIM:\n"{self.claim}"'
+        doc_str = f'CLAIM:\n{self.claim}'
         if self.record:
             doc_str += "\n\n" + "\n\n".join([str(block) for block in self.record])
         if self.verdict:

@@ -13,7 +13,8 @@ VALID_ACTIONS:
 
 # Example
 CLAIM:
-“The combined population of Wyoming, North Dakota and South Dakota is smaller than the total US prison population.”
+Text: “The combined population of Wyoming, North Dakota and South Dakota is smaller than the total US prison population.”
+Claim date: Aug 23, 2024
 
 REASONING:
 In order to verify this claim, we need to compare the current population count of the three states with the total number of US inmates. How many people live in Wyoming, North Dakota, and South Dakota? How many people are imprisoned in the US? To answer these questions, we need to search the web for current numbers.

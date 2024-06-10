@@ -3,6 +3,8 @@ from abc import ABC
 from pathlib import Path
 from typing import MutableSequence, Iterable, Iterator
 import random
+from datetime import datetime
+from common.claim import Claim
 
 import orjsonl
 
@@ -68,7 +70,12 @@ class AVeriTeC(Benchmark):
             data = json.load(f)
 
         self.data = [{"id": i,
-                      "content": d["claim"],
+                      "content": Claim(
+                          text=d["claim"],
+                          author=d["speaker"],
+                          date=datetime.strptime(d["claim_date"], "%d-%m-%Y"),
+                          origin=d["original_claim_url"]
+                      ),
                       "label": self.label_mapping[d["label"]]}
                      for i, d in enumerate(data)]
 
@@ -91,7 +98,7 @@ class FEVER(Benchmark):
         data = orjsonl.load(self.file_path)
 
         self.data = [{"id": i,
-                      "content": d["claim"],
+                      "content": Claim(d["claim"]),
                       "label": self.label_mapping[d["label"].lower()]}
                      for i, d in enumerate(data)]
 

@@ -47,6 +47,13 @@ def model_full_name_to_shorthand(name: str) -> str:
     return shorthand
 
 
+def model_shorthand_to_full_name(shorthand: str) -> str:
+    match = AVAILABLE_MODELS["Shorthand"] == shorthand
+    platform = AVAILABLE_MODELS["Platform"][match][0]
+    specifier = AVAILABLE_MODELS["Specifier"][match][0]
+    return f"{platform}:{specifier}"
+
+
 def get_model_context_window(name: str) -> int:
     if name not in AVAILABLE_MODELS["Shorthand"].to_list():
         name = model_full_name_to_shorthand(name)
@@ -172,12 +179,12 @@ class Model:
             show_prompts: bool = False,
     ) -> None:
         """Initializes a model."""
-        if name in AVAILABLE_MODELS["Shorthand"]:
+        if name in AVAILABLE_MODELS["Shorthand"].to_list():
             shorthand = name
-            full_name = AVAILABLE_MODELS["Shorthand"][shorthand]
+            full_name = model_shorthand_to_full_name(shorthand)
         else:
-            full_name = name
             shorthand = model_full_name_to_shorthand(name)
+            full_name = name
         self.name = shorthand
         self.temperature = temperature
         self.context_window = get_model_context_window(shorthand)

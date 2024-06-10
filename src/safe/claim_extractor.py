@@ -1,4 +1,5 @@
 from common import utils
+from common.claim import Claim
 from common.console import light_blue
 from common.modeling import Model
 from eval.logger import EvaluationLogger
@@ -17,7 +18,7 @@ class ClaimExtractor:
         self.do_debug = safe_config.debug_safe
         self.logger = logger
 
-    def extract_claims(self, content: str) -> list[str]:
+    def extract_claims(self, content: str) -> list[Claim]:
         self.logger.log("Decomposing...", important=True)
         atomic_facts = self.decompose(content)
         for atomic_fact in atomic_facts:
@@ -29,8 +30,8 @@ class ClaimExtractor:
             self.logger.log(light_blue(f"'{atomic_fact}'"))
 
         self.logger.log("Filtering for unique, check-worthy claims...")
-        claims = {claim for claim in atomic_facts_decontextualized if self.is_check_worthy(claim, content)}
-    
+        claims = {Claim(claim) for claim in atomic_facts_decontextualized if self.is_check_worthy(claim, content)}
+
         for claim in claims:
             self.logger.log(light_blue(f"'{claim}'"), important=True)
 
