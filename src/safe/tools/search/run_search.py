@@ -4,8 +4,10 @@ from safe.tools.search.wiki_dump import WikiDumpAPI
 from safe.tools.search.duckduckgo import DuckDuckGo
 
 
-search_engine = DuckDuckGo()
+search_engine = KnowledgeBase()
 
 while True:
     query = input(f"Enter a query for {search_engine.name}: ")
-    print(search_engine.search(query, 10))
+    results = search_engine.search(query, 10)
+    for result in results:
+        print(str(result))

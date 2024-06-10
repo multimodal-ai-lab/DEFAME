@@ -71,7 +71,7 @@ def evaluate(
     # Run the evaluation for each instance individually
     predictions = []
     for i, instance in enumerate(samples_to_evaluate):
-        print(f"\nEvaluating on claim {i + 1} of {n_samples} (#{instance['id']}):")
+        logger.log(f"Evaluating claim {i + 1} of {n_samples} (#{instance['id']}):")
         content = instance["content"]
 
         doc = fc.check(content)
@@ -81,7 +81,7 @@ def evaluate(
         eval_log.append({"claim": content, "evidence": "", "pred_label": prediction.name})
         prediction_is_correct = instance["label"] == prediction
 
-        logger.save_next_prediction(sample_index=i + 1, target=instance["label"], predicted=prediction)
+        logger.save_next_prediction(sample_index=instance['id'], target=instance["label"], predicted=prediction)
         logger.save_fc_doc(doc, instance['id'])
         if prediction_is_correct:
             logger.log(bold(green("CORRECT\n")))

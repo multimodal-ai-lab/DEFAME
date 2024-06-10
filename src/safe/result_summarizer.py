@@ -1,4 +1,4 @@
-from common.document import FCDoc
+from common.document import FCDocument
 from common.modeling import Model
 from common.results import Result, SearchResult
 from eval.logger import EvaluationLogger
@@ -15,7 +15,7 @@ class ResultSummarizer:
         self.model = model
         self.logger = logger
 
-    def summarize(self, results: list[Result], doc: FCDoc) -> set[Result]:
+    def summarize(self, results: list[Result], doc: FCDocument) -> set[Result]:
         """Summarizes each result in results and adds the summary to each result."""
         results = set(results)
         self.logger.log(f"Summarizing {len(results)} unique result(s)...")
@@ -23,7 +23,8 @@ class ResultSummarizer:
             if isinstance(result, SearchResult):
                 summarize_result_prompt = SummarizeResultPrompt(result, doc)
                 try:
-                    result.summary = self.model.generate(str(summarize_result_prompt))
+                    result.summary = self.model.generate(str(summarize_result_prompt),
+                                                         max_attempts=10)
                 except InvalidRequestError as e:
                     self.logger.log(orange(f"InvalidRequestError: {e} - Skipping this summary"))
                     self.logger.log(orange(f"Used prompt:\n{str(summarize_result_prompt)}"))

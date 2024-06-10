@@ -14,10 +14,14 @@ def plot_confusion_matrix(predictions: Sequence[Label],
                           save_dir: str = None):
     class_conversion = {c: v for v, c in enumerate(classes)}
 
-    # Construct confusion matrix
+    # Construct confusion matrix TODO: exclude refused
     confusion_matrix = np.zeros((len(classes), len(classes)), dtype="float")
     for i, (pred, gt) in enumerate(zip(predictions, ground_truth)):
-        confusion_matrix[class_conversion[gt], class_conversion[pred]] += 1
+        if isinstance(pred, str):
+            pred = Label[pred]
+            gt = Label[gt]
+        if pred != Label.REFUSED_TO_ANSWER:
+            confusion_matrix[class_conversion[gt], class_conversion[pred]] += 1
 
     correct = np.copy(confusion_matrix)
     wrong = np.copy(confusion_matrix)

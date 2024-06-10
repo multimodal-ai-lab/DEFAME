@@ -28,32 +28,36 @@ class ResultsBlock:
     results: Collection[Result]
 
     def __str__(self):
-        if len(self.results) > 0:
+        if self.num_useful_results > 0:
             results_str = "\n".join([str(r) for r in self.results if r.is_useful()])
         else:
-            results_str = "No new results found!"
+            results_str = "No new useful results found!"
         return f"RESULTS:\n{results_str}"
 
+    @property
+    def num_useful_results(self):
+        return len([r for r in self.results if r.is_useful()])
 
-class FCDoc:
-    """The (incrementally growing) knowledge collection of the fact-checking (FC) process.
+
+class FCDocument:
+    """An (incrementally growing) record, documenting the fact-checking (FC) process.
     Contains information like the claim that is being investigated, all intermediate reasoning
-    and the evidence found. In other words, this is a protocol-like documentation of the
-    fact-checking process."""
+    and the evidence found."""
 
     claim: str
-    protocol: list  # Contains intermediate reasoning and evidence
+    record: list  # contains intermediate reasoning and evidence, organized in blocks
     verdict: Label = None
     justification: str = None
+    error_msg: str = None
 
     def __init__(self, claim: str):
         self.claim = claim
-        self.protocol = []
+        self.record = []
 
     def __str__(self):
         doc_str = f'CLAIM:\n"{self.claim}"'
-        if self.protocol:
-            doc_str += "\n\n" + "\n\n".join([str(block) for block in self.protocol])
+        if self.record:
+            doc_str += "\n\n" + "\n\n".join([str(block) for block in self.record])
         if self.verdict:
             doc_str += f"\n\nVERDICT: {self.verdict.name}"
         if self.justification:
@@ -61,17 +65,17 @@ class FCDoc:
         return doc_str
 
     def add_reasoning(self, text: str):
-        self.protocol.append(ReasoningBlock(text))
+        self.record.append(ReasoningBlock(text))
 
     def add_actions(self, actions: list[Action]):
-        self.protocol.append(ActionsBlock(actions))
+        self.record.append(ActionsBlock(actions))
 
     def add_results(self, results: Collection[Result]):
-        self.protocol.append(ResultsBlock(results))
+        self.record.append(ResultsBlock(results))
 
     def get_all_reasoning(self) -> list[str]:
         reasoning_texts = []
-        for block in self.protocol:
+        for block in self.record:
             if isinstance(block, ReasoningBlock):
                 reasoning_texts.append(block.text)
         return reasoning_texts

@@ -1,10 +1,11 @@
 from common.action import Action, WebSearch, WikiLookup
 from common.console import orange
-from common.document import FCDoc
+from common.document import FCDocument
 from common.modeling import Model
 from common.utils import extract_last_code_block
 from eval.logger import EvaluationLogger
 from safe.prompts.prompt import PlanPrompt
+from typing import Optional
 
 
 class Planner:
@@ -17,7 +18,7 @@ class Planner:
         self.model = model
         self.logger = logger
 
-    def plan_next_actions(self, doc: FCDoc) -> (list[Action], str):
+    def plan_next_actions(self, doc: FCDocument) -> (list[Action], str):
         prompt = PlanPrompt(doc, self.valid_actions)
         answer = self.model.generate(str(prompt))
         reasoning = answer.split("NEXT_ACTIONS:")[0].strip()
@@ -30,15 +31,23 @@ class Planner:
         raw_actions = actions_str.split('\n')
         actions = []
         for raw_action in raw_actions:
+            action = self._parse_single_action(raw_action)
+            if action:
+                actions.append(action)
+        return actions
+
+    def _parse_single_action(self, raw_action: str) -> Optional[Action]:
+        try:
             action_name, arguments_str = raw_action.split(':')
             arguments = [a.strip() for a in arguments_str.split(',')]
             match action_name:
                 case "WEB_SEARCH":
-                    action = WebSearch(arguments[0])
+                    return WebSearch(arguments[0])
                 case "WIKI_LOOKUP":
-                    action = WikiLookup(arguments[0])
+                    return WikiLookup(arguments[0])
                 case _:
                     self.logger.log(orange(f"WARNING: Unrecognized action '{action_name}'"))
-                    continue
-            actions.append(action)
-        return actions
+        except Exception:
+            self.logger.log(orange(f"WARNING: Failed to parse '{raw_action}'."))
+        return None
+

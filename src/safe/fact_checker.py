@@ -12,7 +12,7 @@ from common.shared_config import path_to_data
 from eval.logger import EvaluationLogger
 from safe.claim_extractor import ClaimExtractor
 from safe.judge import Judge
-from common.document import FCDoc
+from common.document import FCDocument
 from safe.planner import Planner
 from safe.actor import Actor
 from safe.doc_summarizer import DocSummarizer
@@ -67,7 +67,7 @@ class FactChecker:
             self,
             content: str | Sequence[str],
             image: Optional[torch.Tensor] = None,
-    ) -> FCDoc:
+    ) -> FCDocument:
         """
         Fact-checks the given content by first extracting all elementary claims and then
         verifying each claim individually. Returns the overall veracity which is true iff
@@ -99,12 +99,12 @@ class FactChecker:
         self.logger.log(bold(f"So, the overall veracity is: {overall_veracity.value}"))
         return doc  # TODO
 
-    def verify_claim(self, claim: str) -> FCDoc:
+    def verify_claim(self, claim: str) -> FCDocument:
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it.
         This is the core of the fact-checking implementation. Here, the fact-checking
         document is constructed incrementally."""
         self.actor.searcher.reset()  # remove all past search results
-        doc = FCDoc(claim)
+        doc = FCDocument(claim)
         label = Label.NEI
         n_iterations = 0
         while label == Label.NEI and n_iterations < self.max_iterations:

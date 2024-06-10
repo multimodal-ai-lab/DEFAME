@@ -1,7 +1,7 @@
 from eval.evaluate import evaluate
 
 evaluate(
-    model="OPENAI:gpt-3.5-turbo-0125",
+    model="OPENAI:gpt-4o-2024-05-13",
     benchmark_name="fever",
     search_engine="wiki_dump",
     benchmark_kwargs=dict(variant="dev"),

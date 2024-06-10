@@ -11,7 +11,7 @@ from safe.config import debug_safe, max_steps, max_retries
 from safe.prompts.prompt import ReasonPrompt
 from common.results import SearchResult
 from safe.searcher import extract_knowledge
-from common.document import FCDoc
+from common.document import FCDocument
 from safe.prompts.prompt import JudgePrompt
 from common.utils import is_railguard_hit
 
@@ -35,7 +35,7 @@ class Judge:
 
         self.logger = logger
 
-    def judge(self, doc: FCDoc) -> Label:
+    def judge(self, doc: FCDocument) -> Label:
         judge_prompt = JudgePrompt(doc, self.classes)
         n_retries = 0
         while (verdict := self._generate_verdict(str(judge_prompt))) == Label.REFUSED_TO_ANSWER:
@@ -70,6 +70,11 @@ class Judge:
         try:
             verdict = Label(answer)
         except ValueError:
+            # Maybe the label is a substring of the answer
+            for c in self.classes:
+                if c.value in answer:
+                    return c
+
             verdict = Label.REFUSED_TO_ANSWER
 
         return verdict

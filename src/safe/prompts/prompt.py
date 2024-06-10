@@ -4,7 +4,7 @@ from typing import Sequence
 from common.label import Label, LABEL_DEFINITIONS
 from common.utils import strip_string
 from common.shared_config import search_engine_options
-from common.document import FCDoc
+from common.document import FCDocument
 from common.action import Action
 from common.results import SearchResult
 
@@ -91,7 +91,7 @@ class ReasonPrompt(Prompt):
 
 class JudgePrompt(Prompt):
     # TODO: Add ICL
-    def __init__(self, doc: FCDoc, classes: list[Label]):
+    def __init__(self, doc: FCDocument, classes: list[Label]):
         class_str = '\n'.join([f"{cls.value}: {LABEL_DEFINITIONS[cls]}" for cls in classes])
         self.placeholder_targets["[DOC]"] = str(doc)
         self.placeholder_targets["[CLASSES]"] = class_str
@@ -143,7 +143,7 @@ class SummarizePrompt(Prompt):
 
 
 class SummarizeResultPrompt(Prompt):
-    def __init__(self, search_result: SearchResult, doc: FCDoc):
+    def __init__(self, search_result: SearchResult, doc: FCDocument):
         search_result_str = f"From {search_result.source}:\n{search_result.text}"
         self.placeholder_targets["[SEARCH_RESULT]"] = search_result_str
         context_str = f'CLAIM: "{doc.claim}"\n\nREASONING:\n' + "\n".join(doc.get_all_reasoning())
@@ -155,7 +155,7 @@ class SummarizeResultPrompt(Prompt):
 
 
 class SummarizeDocPrompt(Prompt):
-    def __init__(self, doc: FCDoc):
+    def __init__(self, doc: FCDocument):
         self.placeholder_targets["[DOC]"] = str(doc)
         super().__init__()
 
@@ -164,7 +164,7 @@ class SummarizeDocPrompt(Prompt):
 
 
 class PlanPrompt(Prompt):
-    def __init__(self, doc: FCDoc, valid_actions: list[type[Action]]):
+    def __init__(self, doc: FCDocument, valid_actions: list[type[Action]]):
         valid_action_str = "\n\n".join([f"`{a.name}`\n"
                                         f"Description: {a.description}\n"
                                         f"How to use: {a.how_to}\n"

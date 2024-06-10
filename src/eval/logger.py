@@ -12,7 +12,7 @@ from common.console import remove_string_formatters, bold
 from common.label import Label
 from common.shared_config import path_to_result
 from common.console import sec2hhmmss
-from common.document import FCDoc
+from common.document import FCDocument
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('openai').setLevel(logging.ERROR)
@@ -74,10 +74,10 @@ class EvaluationLogger:
         self.print_logger.info("--> " + remove_string_formatters(text))
 
     def save_next_prediction(self, sample_index: int, target: Label, predicted: Label):
-        with open(self.predictions_path, "w") as f:
+        with open(self.predictions_path, "a") as f:
             csv.writer(f).writerow((sample_index, target.name, predicted.name, target == predicted))
 
-    def save_fc_doc(self, doc: FCDoc, claim_id: int):
+    def save_fc_doc(self, doc: FCDocument, claim_id: int):
         with open(self.fc_docs_path + f"{claim_id}.md", "w") as f:
             f.write(str(doc))
 
@@ -88,15 +88,17 @@ class EvaluationLogger:
                      search_summary: dict,
                      print_summary: bool = True) -> bool:
         n_samples = len(predictions)
+        n_refused = np.count_nonzero(np.array(predictions) == Label.REFUSED_TO_ANSWER)
         correct_predictions = np.asarray(np.array(predictions) == np.array(ground_truth))
         n_correct_predictions = np.sum(correct_predictions)
-        n_wrong_predictions = n_samples - n_correct_predictions
-        accuracy = n_correct_predictions / n_samples
+        n_wrong_predictions = n_samples - n_correct_predictions - n_refused
+        accuracy = n_correct_predictions / (n_samples - n_refused)
         search_summary = ", ".join(f"{searcher}: {n_searches}" for searcher, n_searches in search_summary.items())
         result_summary = {
-            "Total samples": len(predictions),
+            "Total samples": n_samples,
             "Correct predictions": int(n_correct_predictions),
             "Wrong predictions": int(n_wrong_predictions),
+            "Refused predictions": int(n_refused),
             "Accuracy": f"{accuracy * 100:.1f} %",
             "Run duration": sec2hhmmss(duration),
             "Total searches": search_summary,

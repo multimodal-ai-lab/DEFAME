@@ -5,6 +5,7 @@ import sqlite3
 from queue import Queue
 from threading import Thread
 from datetime import datetime
+from typing import Optional
 
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
@@ -20,7 +21,7 @@ class KnowledgeBase(SemanticSearchDB):
 
     embedding_knn_path = path_to_data + "AVeriTeC/embedding_knn.pckl"
 
-    def __init__(self, logger):
+    def __init__(self, logger=None):
         super().__init__(logger=logger, db_file_path=path_to_data + "AVeriTeC/knowledge_base.db")
         self._load_embeddings()
 
@@ -64,6 +65,18 @@ class KnowledgeBase(SemanticSearchDB):
             WHERE ROWID = {idx + 1};
             """
         return *self._run_sql_query(stmt)[0], None
+
+    def retrieve_by_url(self, url: str) -> Optional[str]:
+        stmt = f"""
+            SELECT text
+            FROM websites
+            WHERE url = ?;
+            """
+        result = self._run_sql_query(stmt, url)
+        if result:
+            return result[0]
+        else:
+            return None
 
     def _init_db(self):
         stmt = """
