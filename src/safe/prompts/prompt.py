@@ -92,7 +92,7 @@ class ReasonPrompt(Prompt):
 class JudgePrompt(Prompt):
     # TODO: Add ICL
     def __init__(self, doc: FCDocument, classes: list[Label]):
-        class_str = '\n'.join([f"{cls.value}: {LABEL_DEFINITIONS[cls]}" for cls in classes])
+        class_str = '\n'.join([f"`{cls.value}`: {LABEL_DEFINITIONS[cls]}" for cls in classes])
         self.placeholder_targets["[DOC]"] = str(doc)
         self.placeholder_targets["[CLASSES]"] = class_str
         super().__init__()

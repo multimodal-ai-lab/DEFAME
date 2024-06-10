@@ -5,7 +5,7 @@ import numpy as np
 
 from common.console import gray, orange, num2text
 from common.modeling import Model
-from common.utils import RAILGUARD_WARNING, extract_first_code_block
+from common.utils import GUARDRAIL_WARNING, extract_first_code_block
 from eval.logger import EvaluationLogger
 from safe.config import debug_safe, num_searches
 from safe.prompts.prompt import SearchPrompt, SummarizePrompt
@@ -154,7 +154,7 @@ class Searcher:
 
         # Check if the LLM safeguard was hit
         if model_response.startswith("I cannot") or model_response.startswith("I'm sorry"):
-            self.logger.log(RAILGUARD_WARNING)
+            self.logger.log(GUARDRAIL_WARNING)
             return None
 
         query = extract_first_code_block(model_response, ignore_language=True)

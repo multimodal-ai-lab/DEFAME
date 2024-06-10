@@ -122,7 +122,8 @@ class FactChecker:
             n_iterations += 1
         doc.add_reasoning(self.judge.get_latest_reasoning())
         doc.verdict = label
-        doc.justification = self.doc_summarizer.summarize(doc)
+        if label != Label.REFUSED_TO_ANSWER:
+            doc.justification = self.doc_summarizer.summarize(doc)
         return doc
 
 

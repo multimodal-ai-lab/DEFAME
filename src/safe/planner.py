@@ -21,7 +21,7 @@ class Planner:
     def plan_next_actions(self, doc: FCDocument) -> (list[Action], str):
         prompt = PlanPrompt(doc, self.valid_actions)
         answer = self.model.generate(str(prompt))
-        reasoning = answer.split("NEXT_ACTIONS:")[0].strip()
+        reasoning = _process_answer(answer)
         return self._extract_actions(answer), reasoning
 
     def _extract_actions(self, answer: str) -> list[Action]:
@@ -51,3 +51,7 @@ class Planner:
             self.logger.log(orange(f"WARNING: Failed to parse '{raw_action}'."))
         return None
 
+
+def _process_answer(answer: str) -> str:
+    reasoning = answer.split("NEXT_ACTIONS:")[0].strip()
+    return reasoning.replace("REASONING:", "").strip()

@@ -13,7 +13,7 @@ from common.results import SearchResult
 from safe.searcher import extract_knowledge
 from common.document import FCDocument
 from safe.prompts.prompt import JudgePrompt
-from common.utils import is_railguard_hit
+from common.utils import is_guardrail_hit
 
 
 @dataclasses.dataclass()
@@ -50,8 +50,8 @@ class Judge:
         self.latest_reasoning = response
 
         # Validate model response
-        if is_railguard_hit(response):
-            self.logger.log(utils.RAILGUARD_WARNING)
+        if is_guardrail_hit(response):
+            self.logger.log(utils.GUARDRAIL_WARNING)
             self.logger.log(orange("PROMPT:\n" + prompt))
             return Label.REFUSED_TO_ANSWER
 
@@ -60,7 +60,7 @@ class Judge:
 
     def _extract_verdict(self, response: str) -> Label:
         """Extract label from response"""
-        answer = utils.extract_first_square_brackets(response)
+        answer = utils.extract_last_code_span(response)
         answer = re.sub(r'[^\w\s]', '', answer).strip().lower()
 
         if not answer:
@@ -113,8 +113,8 @@ class Judge:
         model_response = self.model.generate(str(reason_prompt), do_debug=self.debug)
 
         # Validate model response
-        if is_railguard_hit(model_response):
-            self.logger.log(utils.RAILGUARD_WARNING)
+        if is_guardrail_hit(model_response):
+            self.logger.log(utils.GUARDRAIL_WARNING)
             self.logger.log(orange(f"Reason prompt with claim {claim} and knowledge {knowledge}"))
             answer = 'refused'
             return FinalAnswer(response=model_response, answer=answer)

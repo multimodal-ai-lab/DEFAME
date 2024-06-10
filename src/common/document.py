@@ -48,7 +48,6 @@ class FCDocument:
     record: list  # contains intermediate reasoning and evidence, organized in blocks
     verdict: Label = None
     justification: str = None
-    error_msg: str = None
 
     def __init__(self, claim: str):
         self.claim = claim
