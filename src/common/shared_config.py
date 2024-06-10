@@ -32,38 +32,6 @@ anthropic_api_key = ''
 serper_api_key = ''
 huggingface_user_access_token = ''
 random_seed = 1
-model_options = {
-    'gpt_4o': 'OPENAI:gpt-4o-2024-05-13',
-    'gpt_4_turbo': 'OPENAI:gpt-4-0125-preview',
-    'gpt_4': 'OPENAI:gpt-4-0613',
-    'gpt_4_32k': 'OPENAI:gpt-4-32k-0613',
-    'gpt_35_turbo': 'OPENAI:gpt-3.5-turbo-0125',
-    'gpt_35_turbo_16k': 'OPENAI:gpt-3.5-turbo-16k-0613',
-    'claude_3_opus': 'ANTHROPIC:claude-3-opus-20240229',
-    'claude_3_sonnet': 'ANTHROPIC:claude-3-sonnet-20240229',
-    'claude_3_haiku': 'ANTHROPIC:claude-3-haiku-20240307',
-    'claude_21': 'ANTHROPIC:claude-2.1',
-    'claude_20': 'ANTHROPIC:claude-2.0',
-    'claude_instant': 'ANTHROPIC:claude-instant-1.2',
-    'llama3_8b_instruct': 'huggingface:meta-llama/Meta-Llama-3-8B-Instruct',
-    'llama3_70b_instruct': 'huggingface:meta-llama/Meta-Llama-3-70B-Instruct',
-    'mixtral-8x7B-Instruct-v0.1': 'huggingface:mistralai/Mixtral-8x7B-Instruct-v0.1',
-}
-model_abbr = {v: k for k, v in model_options.items()}
-model_string = {
-    'gpt_4o': 'gpt4o',
-    'gpt_4_turbo': 'gpt4turbo',
-    'gpt_4': 'gpt4',
-    'gpt_4_32k': 'gpt432k',
-    'gpt_35_turbo': 'gpt35turbo',
-    'gpt_35_turbo_16k': 'gpt35turbo16k',
-    'claude_3_opus': 'claude3opus',
-    'claude_3_sonnet': 'claude3sonnet',
-    'claude_21': 'claude21',
-    'claude_20': 'claude20',
-    'claude_instant': 'claudeinstant',
-    'llama3_8B_instruct': 'llama3_8B_instruct',
-}
 search_engine_options = {
     'google',
     'wiki_dump',

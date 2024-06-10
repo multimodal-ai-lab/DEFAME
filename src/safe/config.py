@@ -54,9 +54,3 @@ num_searches = 3
 max_steps = 5
 max_retries = 10
 debug_safe = False
-
-################################################################################
-#                         FORCED SETTINGS, DO NOT EDIT
-# model: str = overridden by full model name.
-################################################################################
-model = shared_config.model_options[model_short]

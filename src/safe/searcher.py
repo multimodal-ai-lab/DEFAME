@@ -50,7 +50,7 @@ class Searcher:
 
         self.past_queries_helpful: dict[str, bool] = {}
         # Cut the result text, maintaining a little buffer for the summary prompt
-        self.max_result_len = int(self.model.max_tokens * 3 * 0.9)
+        self.max_result_len = int(self.model.max_prompt_len * 3 * 0.9)
         self.past_search_results = set()
 
     def search(self, query: str) -> list[SearchResult]:
@@ -225,8 +225,8 @@ class Searcher:
         num_result_tokens = len(result.text) // 3  # 1 token has approx. 3 to 4 chars
         if num_result_tokens > self.max_result_len:
             self.logger.log(orange(f"INFO: Truncating search result due to excess length "
-                                   f"({num2text(num_result_tokens)} tokens), exceeding maximum LLM "
-                                   f"context length of {num2text(self.model.max_tokens)} tokens."))
+                                   f"({num2text(num_result_tokens)} tokens), (potentially) exceeding maximum LLM "
+                                   f"context window length of {num2text(self.model.context_window)} tokens."))
             result.text = result.text[:self.max_result_len]
 
     def _summarize_result(self, result: SearchResult, claim: str):

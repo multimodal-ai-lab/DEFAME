@@ -31,7 +31,7 @@ class FactChecker:
                  max_results_per_search: int = 10,
                  logger: EvaluationLogger = None,
                  classes: Sequence[Label] = None,
-                 verbose: bool = False,
+                 verbose: bool = True,
                  ):
         if isinstance(model, str):
             model = Model(model)
@@ -132,6 +132,8 @@ def aggregate_predictions(veracities: Sequence[Label]) -> Label:
         return Label.SUPPORTED
     elif np.any(veracities == Label.REFUTED):
         return Label.REFUTED
+    elif np.any(veracities == Label.REFUSED_TO_ANSWER):
+        return Label.REFUSED_TO_ANSWER
     elif np.any(veracities == Label.CONFLICTING):
         return Label.CONFLICTING
     else:

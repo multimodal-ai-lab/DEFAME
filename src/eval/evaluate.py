@@ -5,7 +5,7 @@ import time
 from common.console import green, red, bold
 from common.label import Label
 from common.plot import plot_confusion_matrix
-from common.shared_config import model_abbr
+from common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS
 from eval.benchmark import load_benchmark
 from eval.logger import EvaluationLogger
 from safe.fact_checker import FactChecker
@@ -43,7 +43,8 @@ def evaluate(
     benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
     lookup = {value.value: key for key, value in benchmark.label_mapping.items()}
 
-    logger = EvaluationLogger(benchmark.name, model_abbr[model], verbose=verbose)
+    model = model_full_name_to_shorthand(model) if model not in AVAILABLE_MODELS["Shorthand"] else model
+    logger = EvaluationLogger(benchmark.name, model, verbose=verbose)
 
     # Save hyperparams based on the signature of evaluate()
     signature = inspect.signature(evaluate)
