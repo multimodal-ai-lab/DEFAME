@@ -25,12 +25,13 @@ class FactChecker:
                  model: str | Model = "OPENAI:gpt-3.5-turbo-0125",
                  multimodal_model: Optional[str] | Optional[Model] = None,
                  search_engines: list[str] = None,
-                 extract_claims: bool = True,
+                 extract_claims: bool = False,
                  summarize_search_results: bool = True,
                  max_iterations: int = 5,
                  max_results_per_search: int = 10,
                  logger: EvaluationLogger = None,
                  classes: Sequence[Label] = None,
+                 verbose: bool = False,
                  ):
         if isinstance(model, str):
             model = Model(model)
@@ -40,9 +41,9 @@ class FactChecker:
             multimodal_model = MultimodalModel(multimodal_model)
         self.multimodal_model = multimodal_model
 
-        self.logger = logger or EvaluationLogger()
+        self.logger = logger or EvaluationLogger(verbose=verbose)
 
-        self.claim_extractor = ClaimExtractor(model, logger)
+        self.claim_extractor = ClaimExtractor(model, self.logger)
         self.extract_claims = extract_claims
 
         if classes is None:
@@ -82,17 +83,17 @@ class FactChecker:
             self.logger.log(bold(f"Interpreting Multimodal Content:\n"))
             self.logger.log(bold(light_blue(f"{content}")))
 
-        self.logger.log(bold(f"Content to be fact-checked:\n'{light_blue(content)}'"))
+        self.logger.log(bold(f"Content to be fact-checked:\n'{light_blue(content)}'"), important=True)
 
         claims = self.claim_extractor.extract_claims(content) if self.extract_claims else [content]
 
-        self.logger.log(bold("Verifying the claims..."))
+        self.logger.log(bold("Verifying the claims..."), important=True)
         docs = []
         for claim in claims:
             doc = self.verify_claim(claim)
             docs.append(doc)
-            self.logger.log(bold(f"The claim '{light_blue(claim)}' is {doc.verdict.value}."))
-            self.logger.log(f'Justification: {gray(doc.justification)}')
+            self.logger.log(bold(f"The claim '{light_blue(claim)}' is {doc.verdict.value}."), important=True)
+            self.logger.log(f'Justification: {gray(doc.justification)}', important=True)
 
         overall_veracity = aggregate_predictions([doc.verdict for doc in docs])
 

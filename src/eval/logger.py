@@ -53,8 +53,8 @@ class EvaluationLogger:
         self.print_logger.addHandler(print_handler)
         self.print_logger.propagate = False  # Disable propagation to avoid duplicate logs
 
-        with open(self.predictions_path, "w") as f:
-            csv.writer(f).writerow(("sample_index", "target", "predicted", "correct"))
+        if dataset_abbr:
+            self._init_predictions_csv()
 
         self.verbose = verbose
 
@@ -68,8 +68,12 @@ class EvaluationLogger:
             print("Configuration summary:")
             bold_print_dict(hyperparams)
 
-    def log(self, text: str):
-        if self.verbose:
+    def _init_predictions_csv(self):
+        with open(self.predictions_path, "w") as f:
+            csv.writer(f).writerow(("sample_index", "target", "predicted", "correct"))
+
+    def log(self, text: str, important: bool = False):
+        if self.verbose or important:
             print("--> " + text)
         self.print_logger.info("--> " + remove_string_formatters(text))
 

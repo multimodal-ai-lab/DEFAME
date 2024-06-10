@@ -18,7 +18,7 @@ class ClaimExtractor:
         self.logger = logger
 
     def extract_claims(self, content: str) -> list[str]:
-        self.logger.log("Decomposing...")
+        self.logger.log("Decomposing...", important=True)
         atomic_facts = self.decompose(content)
         for atomic_fact in atomic_facts:
             self.logger.log(light_blue(f"'{atomic_fact}'"))
@@ -32,7 +32,7 @@ class ClaimExtractor:
         claims = {claim for claim in atomic_facts_decontextualized if self.is_check_worthy(claim, content)}
     
         for claim in claims:
-            self.logger.log(light_blue(f"'{claim}'"))
+            self.logger.log(light_blue(f"'{claim}'"), important=True)
 
         return list(claims)
 
