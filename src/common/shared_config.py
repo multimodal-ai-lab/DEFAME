@@ -33,6 +33,7 @@ serper_api_key = ''
 huggingface_user_access_token = ''
 random_seed = 1
 model_options = {
+    'gpt_4o': 'OPENAI:gpt-4o-2024-05-13',
     'gpt_4_turbo': 'OPENAI:gpt-4-0125-preview',
     'gpt_4': 'OPENAI:gpt-4-0613',
     'gpt_4_32k': 'OPENAI:gpt-4-32k-0613',
@@ -50,6 +51,7 @@ model_options = {
 }
 model_abbr = {v: k for k, v in model_options.items()}
 model_string = {
+    'gpt_4o': 'gpt4o',
     'gpt_4_turbo': 'gpt4turbo',
     'gpt_4': 'gpt4',
     'gpt_4_32k': 'gpt432k',
