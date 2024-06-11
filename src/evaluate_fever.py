@@ -1,12 +1,11 @@
 from eval.evaluate import evaluate
 
 evaluate(
-    model="OPENAI:gpt-3.5-turbo-0125",
+    model="OPENAI:gpt-4o-2024-05-13",
     multimodal_model=None,
-    search_engine="wiki",
+    search_engine="wiki_dump",
     benchmark_name="fever",
     benchmark_kwargs=dict(variant="dev"),
-    n=None,
     extract_claims=False,
     verbose=True,
 )

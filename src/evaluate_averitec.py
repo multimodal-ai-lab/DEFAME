@@ -4,10 +4,10 @@ from eval.evaluate import evaluate
 from eval.averitec_score import AVeriTeCEvaluator, print_with_space
 
 accuracy, evidence_log, benchmark = evaluate(
-    model="OPENAI:gpt-3.5-turbo-0125",
+    model="OPENAI:gpt-4o-2024-05-13",
     benchmark_name="averitec",
     benchmark_kwargs=dict(variant="dev"),
-    search_engine="duckduckgo",
+    search_engine="averitec_kb",
     extract_claims=False,
     verbose=True,
     n_samples=None

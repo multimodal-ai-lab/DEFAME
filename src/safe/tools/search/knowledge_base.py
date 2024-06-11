@@ -19,8 +19,8 @@ class KnowledgeBase(SemanticSearchDB):
 
     embedding_knn_path = path_to_data + "AVeriTeC/embedding_knn.pckl"
 
-    def __init__(self):
-        super().__init__(db_file_path=path_to_data + "AVeriTeC/knowledge_base.db")
+    def __init__(self, logger):
+        super().__init__(logger=logger, db_file_path=path_to_data + "AVeriTeC/knowledge_base.db")
         self._load_embeddings()
 
     def _is_empty(self) -> bool:

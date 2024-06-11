@@ -201,7 +201,7 @@ class Searcher:
                                    f"({num2text(num_result_tokens)} tokens), exceeding maximum LLM "
                                    f"context length of {num2text(self.model.max_tokens)} chars."))
             # Cut the result text, maintaining a little buffer for the summary prompt
-            result.text = result.text[:self.model.max_tokens * 3 * 0.9]
+            result.text = result.text[:int(self.model.max_tokens * 3 * 0.9)]
 
     def _summarize_result(self, result: SearchResult, claim: str):
         summarize_prompt = SummarizePrompt(claim, result.query, result.text)

@@ -54,10 +54,10 @@ class Usage(pg.Object):
     completion_tokens: int
 
 
-class LMSamplingResult(lf.LMSamplingResult):
-    """LMSamplingResult with usage information."""
-
-    usage: Usage | None = None
+# class LMSamplingResult(lf.LMSamplingResult):
+#     """LMSamplingResult with usage information."""
+#
+#     usage: Usage | None = None
 
 
 @lf.use_init_args(['model'])
@@ -117,7 +117,7 @@ class AnthropicModel(lf.LanguageModel):
 
         return args
 
-    def _sample(self, prompts: list[lf.Message]) -> list[LMSamplingResult]:
+    def _sample(self, prompts: list[lf.Message]) -> list:
         assert self._api_initialized
         return self._complete_batch(prompts)
 
@@ -129,8 +129,8 @@ class AnthropicModel(lf.LanguageModel):
 
     def _complete_batch(
             self, prompts: list[lf.Message]
-    ) -> list[LMSamplingResult]:
-        def _anthropic_chat_completion(prompt: lf.Message) -> LMSamplingResult:
+    ) -> list:
+        def _anthropic_chat_completion(prompt: lf.Message):
             content = prompt.text
             client = anthropic.Anthropic(api_key=self.api_key)
             response = client.messages.create(
@@ -139,13 +139,7 @@ class AnthropicModel(lf.LanguageModel):
             )
             model_response = response.content[0].text
             samples = [lf.LMSample(model_response, score=0.0)]
-            return LMSamplingResult(
-                samples=samples,
-                usage=Usage(
-                    prompt_tokens=response.usage.input_tokens,
-                    completion_tokens=response.usage.output_tokens,
-                ),
-            )
+            raise NotImplementedError()
 
         self._set_logging()
         return lf.concurrent_execute(
