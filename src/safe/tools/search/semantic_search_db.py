@@ -21,14 +21,14 @@ class SemanticSearchDB(LocalSearchAPI):
         super().__init__(**kwargs)
         self.is_free = True
         self.db_file_path = db_file_path
-        self.embedding_model = None
+        self.embedding_model: EmbeddingModel = None
         if not os.path.exists(self.db_file_path):
             print(f"Warning: No {self.name} database found at '{self.db_file_path}'. Creating new one.")
         os.makedirs(os.path.dirname(self.db_file_path), exist_ok=True)
         self.db = sqlite3.connect(self.db_file_path, uri=True)
         self.cur = self.db.cursor()
 
-    def is_empty(self) -> bool:
+    def _is_empty(self) -> bool:
         """Returns True iff the database is empty."""
         raise NotImplementedError
 
@@ -36,6 +36,11 @@ class SemanticSearchDB(LocalSearchAPI):
         if self.embedding_model is None:
             self._setup_embedding_model()
         return self.embedding_model.embed(*args, **kwargs)
+
+    def _embed_many(self, *args, **kwargs):
+        if self.embedding_model is None:
+            self._setup_embedding_model()
+        return self.embedding_model.embed_many(*args, **kwargs)
 
     def _setup_embedding_model(self):
         self.embedding_model = EmbeddingModel(embedding_model)
