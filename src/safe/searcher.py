@@ -56,8 +56,15 @@ class Searcher:
     def search(self, query: str) -> list[SearchResult]:
         """Searches for evidence using the search APIs according to their precedence."""
         for search_engine in list(self.search_apis.values()):
-            results = self._submit_query_and_process_results(query, search_engine, None, None)
-            results = self._remove_known_search_results(results)
+            results = self._retrieve_search_results(query, search_engine)
+
+            # Log search results info
+            self.logger.log(f"Got {len(results)} new result(s):")
+            for i, result in enumerate(results):
+                self.logger.log(f"\t{i+1}. {result.source}")
+
+            # Postprocess the results
+            results = self._postprocess_results(results)
 
             # If there is at least one result, we were successful
             if len(results) > 0:
@@ -87,7 +94,7 @@ class Searcher:
 
         # Start with a first ad-hoc search by simply using the original claim as the search query
         first_precedence_search_engine = list(self.search_apis.values())[0]
-        search_results = self._submit_query_and_process_results(claim, first_precedence_search_engine, claim)
+        search_results = self._retrieve_search_results(claim, first_precedence_search_engine, claim)
 
         # As long as the information is insufficient for a conclusive veracity prediction,
         # continue gathering more information
@@ -111,7 +118,7 @@ class Searcher:
         # Try the search engines according to their precedence
         for search_engine in list(self.search_apis.values()):
             query = self._generate_query(claim, search_engine.name, past_results)
-            results = self._submit_query_and_process_results(query, search_engine, claim, past_results)
+            results = self._retrieve_search_results(query, search_engine, claim, past_results)
 
             # Register the used query and save its usefulness
             self.past_queries_helpful[query] = np.any([result.is_useful() for result in results])
@@ -185,38 +192,27 @@ class Searcher:
 
         return query
 
-    def _submit_query_and_process_results(
+    def _retrieve_search_results(
             self,
             query: str,
             search_engine: SearchAPI,
-            claim: str,
-            past_results: list[SearchResult] = None
     ) -> list[SearchResult]:
         # Run the search
         results = search_engine.search(query, self.limit_per_search)
         self.past_queries_helpful[query] = True
 
+        # Remove already known results
+        return self._remove_known_search_results(results)
+
+    def _postprocess_results(self, results: list[SearchResult]) -> list[SearchResult]:
+        """Modifies the results text and truncates it."""
         # Postprocess results
         for result in results:
             result.text = postprocess_result(result.text)
 
-        # Remove already known results
-        if past_results:
-            results = [r for r in results if r not in past_results]
-
-        self.logger.log(f"Got {len(results)} result(s).")
-
-        # No results found
-        if len(results) == 0:
-            return []
-
-        # Truncate and summarize results
+        # Truncate results
         for result in results:
-            # result_str = result.text if len(result.text) < 10_000 else result.text[:10_000] + " [...]"
-            # self.logger.log(gray(result_str))
             self._maybe_truncate_result(result)
-            if self.summarize:
-                self._summarize_result(result, claim)
 
         return results
 

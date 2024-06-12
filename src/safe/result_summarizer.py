@@ -30,7 +30,7 @@ class ResultSummarizer:
                     self.logger.log(orange(f"Used prompt:\n{str(summarize_result_prompt)}"))
                     result.summary = "NONE"
                 if result.is_useful():
-                    self.logger.log(gray(str(result)))
+                    self.logger.log("Useful result: " + gray(str(result)))
             else:
                 raise NotImplementedError()
         return results
