@@ -14,7 +14,8 @@ from common.shared_config import path_to_data
 
 class Benchmark(ABC, Iterable):
     data: MutableSequence[dict]  # Each element is of the form {"id": ..., "content": ..., "label": ...}
-    label_mapping: dict[str, Label]
+    class_mapping: dict[str, Label]  # Maps the benchmark-specific class/label to the standard Label class
+    class_definitions: dict[Label, str]  # Explains (to the LLM) the meaning of each class/label
     file_path: Path
 
     def __init__(self, name: str):
@@ -29,7 +30,7 @@ class Benchmark(ABC, Iterable):
 
     def get_classes(self) -> list[Label]:
         """Returns a list of distinct labels representing the classes occurring in this dataset."""
-        return list(self.label_mapping.values())
+        return list(self.class_mapping.values())
 
     def shuffle(self):
         """Reorders the samples randomly."""
@@ -54,11 +55,26 @@ class Benchmark(ABC, Iterable):
 
 
 class AVeriTeC(Benchmark):
-    label_mapping = {
+    class_mapping = {
         "Supported": Label.SUPPORTED,
         "Not Enough Evidence": Label.NEI,
         "Refuted": Label.REFUTED,
         "Conflicting Evidence/Cherrypicking": Label.CONFLICTING,
+    }
+
+    class_definitions = {
+        Label.SUPPORTED: "The knowledge from the fact-check supports or at least strongly implies the CLAIM. "
+                         "Mere plausibility is not enough for this decision.",
+        Label.NEI: "The fact-check does not contain sufficient information to come to a conclusion. For example, "
+                   "there is substantial lack of evidence. In this case, state which information exactly "
+                   "is missing. In particular, if no RESULTS or sources are available, pick this decision.",
+        Label.REFUTED: "The knowledge from the fact-check explicitly and clearly refutes the CLAIM. The mere "
+                       "absence or lack of supporting evidence is not enough for being refuted (argument "
+                       "from ignorance).",
+        Label.CONFLICTING: "The knowledge from the fact-check contains conflicting evidence from multiple "
+                           "reliable, up-to-date, non-refuted sources, even after extensive fact-checking research.",
+        Label.CHERRY_PICKING: "The CLAIM is supported (see ´supported´), however it ignores important facts that, "
+                              "when added to the CLAIM, create a significantly different impression.",
     }
 
     def __init__(self, variant="dev"):
@@ -76,7 +92,7 @@ class AVeriTeC(Benchmark):
                           date=datetime.strptime(d["claim_date"], "%d-%m-%Y"),
                           origin=d["original_claim_url"]
                       ),
-                      "label": self.label_mapping[d["label"]]}
+                      "label": self.class_mapping[d["label"]]}
                      for i, d in enumerate(data)]
 
     def __iter__(self) -> Iterator[dict]:
@@ -84,10 +100,21 @@ class AVeriTeC(Benchmark):
 
 
 class FEVER(Benchmark):
-    label_mapping = {
+    class_mapping = {
         "supports": Label.SUPPORTED,
         "not enough info": Label.NEI,
         "refutes": Label.REFUTED,
+    }
+
+    class_definitions = {
+        Label.SUPPORTED: "The knowledge from the fact-check supports the CLAIM. "
+                         "Mere plausibility is not enough for this decision.",
+        Label.NEI: "The fact-check does not contain sufficient information to come to a conclusion. For example, "
+                   "there is substantial lack of evidence. In this case, state which information exactly "
+                   "is missing. Pick this decision particularly if no sources are available at all.",
+        Label.REFUTED: "The knowledge from the fact-check explicitly and clearly refutes the CLAIM. The mere "
+                       "absence or lack of supporting evidence is not enough for being refuted (argument "
+                       "from ignorance).",
     }
 
     def __init__(self, variant="dev"):
@@ -99,7 +126,7 @@ class FEVER(Benchmark):
 
         self.data = [{"id": i,
                       "content": Claim(d["claim"]),
-                      "label": self.label_mapping[d["label"].lower()]}
+                      "label": self.class_mapping[d["label"].lower()]}
                      for i, d in enumerate(data)]
 
     def __iter__(self) -> Iterator[dict]:

@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Sequence
 
-from common.label import Label, LABEL_DEFINITIONS
+from common.label import Label, DEFAULT_LABEL_DEFINITIONS
 from common.utils import strip_string
 from common.shared_config import search_engine_options
 from common.document import FCDocument
@@ -91,8 +91,10 @@ class ReasonPrompt(Prompt):
 
 class JudgePrompt(Prompt):
     # TODO: Add ICL
-    def __init__(self, doc: FCDocument, classes: list[Label]):
-        class_str = '\n'.join([f"`{cls.value}`: {LABEL_DEFINITIONS[cls]}" for cls in classes])
+    def __init__(self, doc: FCDocument, classes: list[Label], class_definitions: dict[Label, str] = None):
+        if class_definitions is None:
+            class_definitions = DEFAULT_LABEL_DEFINITIONS
+        class_str = '\n'.join([f"`{cls.value}`: {class_definitions[cls]}" for cls in classes])
         self.placeholder_targets["[DOC]"] = str(doc)
         self.placeholder_targets["[CLASSES]"] = class_str
         super().__init__()

@@ -41,9 +41,9 @@ def evaluate(
     assert n_samples is None or sample_ids is None
 
     benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
-    lookup = {value.value: key for key, value in benchmark.label_mapping.items()}
+    lookup = {value.value: key for key, value in benchmark.class_mapping.items()}
 
-    model = model_full_name_to_shorthand(model) if model not in AVAILABLE_MODELS["Shorthand"] else model
+    model = model_full_name_to_shorthand(model) if model not in AVAILABLE_MODELS["Shorthand"].values else model
     logger = EvaluationLogger(benchmark.name, model, verbose=verbose)
 
     # Save hyperparams based on the signature of evaluate()
@@ -58,7 +58,7 @@ def evaluate(
         extract_claims=extract_claims,
         max_iterations=max_iterations,
         logger=logger,
-        classes=benchmark.get_classes(),
+        class_definitions=benchmark.class_definitions,
     )
 
     if not n_samples:
@@ -78,6 +78,9 @@ def evaluate(
         doc = fc.check(content)
 
         prediction = doc.verdict
+        if prediction == Label.CHERRY_PICKING:  # AVeriTeC combines these two classes into one class (here CONFLICTING)
+            prediction = Label.CONFLICTING
+
         # TODO: extract evidence from docs
         eval_log.append({"claim": content, "evidence": "", "pred_label": prediction.name})
         prediction_is_correct = instance["label"] == prediction

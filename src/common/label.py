@@ -6,10 +6,11 @@ class Label(Enum):
     NEI = "not enough information"
     REFUTED = "refuted"
     CONFLICTING = "conflicting evidence"
+    CHERRY_PICKING = "cherry-picking"
     REFUSED_TO_ANSWER = "error: refused to answer"
 
 
-LABEL_DEFINITIONS = {
+DEFAULT_LABEL_DEFINITIONS = {
     Label.SUPPORTED: "The knowledge from the fact-check supports or at least strongly implies the CLAIM. "
                      "Mere plausibility is not enough for this decision.",
     Label.NEI: "The fact-check does not contain sufficient information to come to a conclusion. For example, "

@@ -25,9 +25,13 @@ class FinalAnswer:
 class Judge:
     """Determines the truthfulness of a claim given a collection of evidence."""
 
-    def __init__(self, model: Model, logger: EvaluationLogger, classes: list[Label]):
+    def __init__(self, model: Model,
+                 logger: EvaluationLogger,
+                 classes: list[Label],
+                 class_definitions: dict[Label, str] = None):
         self.model = model
         self.classes = classes
+        self.class_definitions = class_definitions
         self.debug = debug_safe
         self.max_steps = max_steps
         self.max_retries = max_retries
@@ -36,12 +40,13 @@ class Judge:
         self.logger = logger
 
     def judge(self, doc: FCDocument) -> Label:
-        judge_prompt = JudgePrompt(doc, self.classes)
+        judge_prompt = JudgePrompt(doc, self.classes, self.class_definitions)
         n_retries = 0
         while (verdict := self._generate_verdict(str(judge_prompt))) == Label.REFUSED_TO_ANSWER:
             n_retries += 1
             if n_retries > self.max_retries:
                 break
+            self.logger.log(orange("INFO: Verdict generation did not contain any valid label. Retrying..."))
         return verdict
 
     def _generate_verdict(self, prompt: str) -> Label:

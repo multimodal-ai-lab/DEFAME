@@ -32,6 +32,7 @@ class FactChecker:
                  max_results_per_search: int = 10,
                  logger: EvaluationLogger = None,
                  classes: Sequence[Label] = None,
+                 class_definitions: dict[Label, str] = None,
                  verbose: bool = True,
                  ):
         if isinstance(model, str):
@@ -48,7 +49,10 @@ class FactChecker:
         self.extract_claims = extract_claims
 
         if classes is None:
-            classes = [Label.SUPPORTED, Label.NEI, Label.REFUTED]
+            if class_definitions is None:
+                classes = [Label.SUPPORTED, Label.NEI, Label.REFUTED]
+            else:
+                classes = list(class_definitions.keys())
 
         # TODO: add to parameters
         actions = []
@@ -59,7 +63,7 @@ class FactChecker:
 
         self.planner = Planner(actions, self.model, self.logger)
         self.actor = Actor(self.model, search_engines, max_results_per_search, self.logger)
-        self.judge = Judge(self.model, self.logger, classes)
+        self.judge = Judge(self.model, self.logger, classes, class_definitions)
         self.doc_summarizer = DocSummarizer(self.model, self.logger)
         self.result_summarizer = ResultSummarizer(self.model, self.logger)
 
