@@ -31,6 +31,7 @@ openai_api_key = ''
 anthropic_api_key = ''
 serper_api_key = ''
 huggingface_user_access_token = ''
+x_bearer_token = ''
 random_seed = 1
 search_engine_options = {
     'google',

@@ -9,7 +9,7 @@ import re
 import shutil
 import string
 import types
-from typing import Any
+from typing import Any, Optional
 
 from common.console import green, orange, red
 
@@ -399,3 +399,8 @@ def replace(text: str, replacements: dict):
     rep = dict((re.escape(k), v) for k, v in replacements.items())
     pattern = re.compile("|".join(rep.keys()))
     return pattern.sub(lambda m: rep[re.escape(m.group(0))], text)
+
+
+def extract_by_regex(text: str, pattern: str) -> Optional[str]:
+    match = re.search(pattern, text)
+    return match.group(1) if match else None
