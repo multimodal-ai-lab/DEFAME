@@ -82,6 +82,7 @@ def evaluate(
             logger.log(bold(green("CORRECT")))
         else:
             logger.log(bold(red("WRONG - Ground truth: " + instance["label"].value +"\n\n")))
+        logger.log(bold("------------------------------------------------------------------"))
 
         predictions.append(prediction)
         if len(predictions) == n_samples:

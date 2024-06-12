@@ -198,11 +198,11 @@ class Searcher:
         """Truncates the result's text if it's too long (exceeds the LLM context length limit)."""
         num_result_tokens = len(result.text) // 3  # 1 token has approx. 3 to 4 chars
         if num_result_tokens > self.model.max_tokens:
-            self.logger.log(orange(f"INFO: Truncating search result due to excessive length "
+            self.logger.log(f"INFO: Truncating search result due to excessive length "
                                    f"({num2text(num_result_tokens)} tokens), exceeding maximum LLM "
-                                   f"context length of {num2text(self.model.max_tokens)} chars."))
+                                   f"context length of {num2text(self.model.max_tokens)} chars.")
             # Cut the result text, maintaining a little buffer for the summary prompt
-            result.text = result.text[:int(self.model.max_tokens * 3 * 0.9)]
+            result.text = result.text[:int(self.model.max_tokens * 3 * 0.8)]
 
     def _summarize_result(self, result: SearchResult, claim: str):
         summarize_prompt = SummarizePrompt(claim, result.query, result.text)
