@@ -14,6 +14,7 @@ orjsonl==1.0.0
 spacy==3.7.4
 sty>=1.0.6
 tqdm>=4.64.0
+tweepy==4.14.0
 numpy>=1.26.0
 PyYAML>=6.0.1
 rank-bm25==0.2.2

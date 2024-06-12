@@ -43,21 +43,21 @@ def model_full_name_to_shorthand(name: str) -> str:
     match = (AVAILABLE_MODELS["Platform"] == platform) & (AVAILABLE_MODELS["Specifier"] == specifier)
     if not np.any(match):
         raise ValueError(f"Specified model '{name}' not available.")
-    shorthand = AVAILABLE_MODELS[match]["Shorthand"][0]
+    shorthand = AVAILABLE_MODELS[match]["Shorthand"].iloc[0]
     return shorthand
 
 
 def model_shorthand_to_full_name(shorthand: str) -> str:
     match = AVAILABLE_MODELS["Shorthand"] == shorthand
-    platform = AVAILABLE_MODELS["Platform"][match][0]
-    specifier = AVAILABLE_MODELS["Specifier"][match][0]
+    platform = AVAILABLE_MODELS["Platform"][match].iloc[0]
+    specifier = AVAILABLE_MODELS["Specifier"][match].iloc[0]
     return f"{platform}:{specifier}"
 
 
 def get_model_context_window(name: str) -> int:
     if name not in AVAILABLE_MODELS["Shorthand"].to_list():
         name = model_full_name_to_shorthand(name)
-    return int(AVAILABLE_MODELS["Context window"][AVAILABLE_MODELS["Shorthand"] == name][0])
+    return int(AVAILABLE_MODELS["Context window"][AVAILABLE_MODELS["Shorthand"] == name].iloc[0])
 
 
 class Usage(pg.Object):
