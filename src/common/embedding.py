@@ -5,10 +5,10 @@ from sentence_transformers import SentenceTransformer
 
 
 class EmbeddingModel:
-    """Encodes text into vectors. Truncates long instances by default."""
+    """Encodes text into vectors. Truncates long instances by default to 32k characters."""
     dimension: int
 
-    def __init__(self, model_name: str, truncate_after: int = 16000):
+    def __init__(self, model_name: str, truncate_after: int = 32_000):
         self.model = SentenceTransformer(model_name, trust_remote_code=True, config_kwargs=dict(resume_download=None))
         self.dimension = self.model.get_sentence_embedding_dimension()
         self.truncate_after = truncate_after  # num characters
