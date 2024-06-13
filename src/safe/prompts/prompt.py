@@ -2,10 +2,10 @@ from abc import ABC
 from typing import Sequence
 
 from common.label import Label, DEFAULT_LABEL_DEFINITIONS
-from common.utils import strip_string
+from common.utils import strip_string, remove_non_letters
 from common.shared_config import search_engine_options
 from common.document import FCDocument
-from common.action import Action
+from common.action import Action, WebSearch, WikiDumpLookup
 from common.results import SearchResult
 
 SYMBOL = 'Check-worthy'
@@ -94,7 +94,8 @@ class JudgePrompt(Prompt):
     def __init__(self, doc: FCDocument, classes: list[Label], class_definitions: dict[Label, str] = None):
         if class_definitions is None:
             class_definitions = DEFAULT_LABEL_DEFINITIONS
-        class_str = '\n'.join([f"`{cls.value}`: {class_definitions[cls]}" for cls in classes])
+        class_str = '\n'.join([f"* `{cls.value}`: {remove_non_letters(class_definitions[cls])}"
+                               for cls in classes])
         self.placeholder_targets["[DOC]"] = str(doc)
         self.placeholder_targets["[CLASSES]"] = class_str
         super().__init__()
@@ -167,13 +168,20 @@ class SummarizeDocPrompt(Prompt):
 
 class PlanPrompt(Prompt):
     def __init__(self, doc: FCDocument, valid_actions: list[type[Action]]):
-        valid_action_str = "\n\n".join([f"`{a.name}`\n"
-                                        f"Description: {a.description}\n"
-                                        f"How to use: {a.how_to}\n"
-                                        f"Format: {a.format}" for a in valid_actions])
+        valid_action_str = "\n\n".join([f"* `{a.name}`\n"
+                                        f"   * Description: {remove_non_letters(a.description)}\n"
+                                        f"   * How to use: {remove_non_letters(a.how_to)}\n"
+                                        f"   * Format: {a.format}" for a in valid_actions])
         self.placeholder_targets["[DOC]"] = str(doc)
         self.placeholder_targets["[VALID_ACTIONS]"] = valid_action_str
+        self.placeholder_targets["[EXEMPLARS]"] = self.load_exemplars(valid_actions)
         super().__init__()
+
+    def load_exemplars(self, valid_actions) -> str:
+        if WikiDumpLookup in valid_actions:
+            return read_md_file("safe/prompts/plan_exemplars/wiki_dump.md")
+        else:
+            return read_md_file("safe/prompts/plan_exemplars/default.md")
 
     def assemble_prompt(self) -> str:
         return read_md_file("safe/prompts/plan.md")

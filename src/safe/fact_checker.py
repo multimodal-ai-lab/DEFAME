@@ -18,7 +18,7 @@ from safe.planner import Planner
 from safe.actor import Actor
 from safe.doc_summarizer import DocSummarizer
 from safe.result_summarizer import ResultSummarizer
-from common.action import WebSearch, WikiLookup
+from common.action import WebSearch, WikiDumpLookup
 
 
 class FactChecker:
@@ -57,7 +57,7 @@ class FactChecker:
         # TODO: add to parameters
         actions = []
         if "wiki_dump" in search_engines:
-            actions.append(WikiLookup)
+            actions.append(WikiDumpLookup)
         if "google" in search_engines or "duckduckgo" in search_engines or "averitec_kb" in search_engines:
             actions.append(WebSearch)
 
@@ -79,6 +79,7 @@ class FactChecker:
         verifying each claim individually. Returns the overall veracity which is true iff
         all elementary claims are true.
         """
+        # TODO: rework this method
 
         if image:
             if not self.multimodal_model:
@@ -88,7 +89,7 @@ class FactChecker:
             self.logger.log(bold(f"Interpreting Multimodal Content:\n"))
             self.logger.log(bold(light_blue(f"{content}")))
 
-        self.logger.log(bold(f"Content to be fact-checked:\n'{light_blue(str(content))}'"), important=True)
+        self.logger.log(bold(f"Content to be fact-checked:\n'{light_blue(content.text)}'"), important=True)
 
         claims = self.claim_extractor.extract_claims(content) if self.extract_claims else [content]
 
@@ -97,7 +98,7 @@ class FactChecker:
         for claim in claims:
             doc = self.verify_claim(claim)
             docs.append(doc)
-            self.logger.log(bold(f"The claim '{light_blue(str(claim))}' is {doc.verdict.value}."), important=True)
+            self.logger.log(bold(f"The claim '{light_blue(str(claim.text))}' is {doc.verdict.value}."), important=True)
             self.logger.log(f'Justification: {gray(doc.justification)}', important=True)
 
         overall_veracity = aggregate_predictions([doc.verdict for doc in docs])
@@ -118,11 +119,10 @@ class FactChecker:
             doc.add_reasoning(reasoning)
             doc.add_actions(actions)
             if not actions:
-                break  # The planner wasn't able to determine further useful actions, giving up
+                break  # the planner wasn't able to determine further useful actions, giving up
             results = self.actor.perform(actions)
-            if results:
-                results = self.result_summarizer.summarize(results, doc)
-                doc.add_results(results)
+            results = self.result_summarizer.summarize(results, doc)
+            doc.add_results(results)  # even if no results, add empty results block for the record
             label = self.judge.judge(doc)
             n_iterations += 1
         doc.add_reasoning(self.judge.get_latest_reasoning())

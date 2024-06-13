@@ -34,7 +34,4 @@ class Actor:
             raise ValueError(f"Action '{action}' unknown.")
 
     def _perform_search(self, search: Search) -> list[Result]:
-        match search.name:
-            case "WEB_SEARCH": return self.searcher.search(search.query)
-            case "WIKI_LOOKUP": return self.searcher.search(search.query)  # TODO
-            case _: raise ValueError(f"Unknown search API '{search.api}'.")
+        return self.searcher.search(search.query)  # TODO: split into different searchers

@@ -404,3 +404,9 @@ def replace(text: str, replacements: dict):
 def extract_by_regex(text: str, pattern: str) -> Optional[str]:
     match = re.search(pattern, text)
     return match.group(1) if match else None
+
+
+def remove_non_letters(text: str) -> str:
+    """Removes all newlines, tabs, and abundant whitespaces from text."""
+    text = re.sub(r'[\t\n\r\f\v]', ' ', text)
+    return re.sub(r' +', ' ', text)

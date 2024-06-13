@@ -109,10 +109,10 @@ class KnowledgeBase(SemanticSearchDB):
             # Embed all the (non-empty) sources at once
             sources_df = pd.DataFrame(filtered_sources, columns=["url", "text"])
             is_not_empty_string = sources_df["text"].str.len() > 0
-            texts_to_embed = sources_df["text"][is_not_empty_string]
+            texts_to_embed = sources_df.loc[is_not_empty_string, "text"]
             embeddings = self._embed_many(texts_to_embed.to_list(), to_bytes=True)
             sources_df["embedding"] = None  # initialize new, empty column
-            sources_df["embedding"][is_not_empty_string] = embeddings
+            sources_df.loc[is_not_empty_string, "embedding"] = embeddings
 
             # Send the processed data to the next worker
             self.insert_queue.put(sources_df)

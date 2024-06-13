@@ -1,4 +1,4 @@
-from common.action import Action, WebSearch, WikiLookup
+from common.action import Action, WebSearch, WikiLookup, ACTION_REGISTRY
 from common.console import orange
 from common.document import FCDocument
 from common.modeling import Model
@@ -40,13 +40,10 @@ class Planner:
         try:
             action_name, arguments_str = raw_action.split(':')
             arguments = [a.strip() for a in arguments_str.split(',')]
-            match action_name:
-                case "WEB_SEARCH":
-                    return WebSearch(arguments[0])
-                case "WIKI_LOOKUP":
-                    return WikiLookup(arguments[0])
-                case _:
-                    self.logger.log(orange(f"WARNING: Unrecognized action '{action_name}'"))
+            for action in ACTION_REGISTRY:
+                if action_name == action.name:
+                    return action(*arguments)
+            raise ValueError(f'Invalid action name: {action_name}')
         except Exception:
             self.logger.log(orange(f"WARNING: Failed to parse '{raw_action}'."))
         return None

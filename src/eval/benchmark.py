@@ -1,13 +1,13 @@
 import json
+import random
 from abc import ABC
+from datetime import datetime
 from pathlib import Path
 from typing import MutableSequence, Iterable, Iterator
-import random
-from datetime import datetime
-from common.claim import Claim
 
 import orjsonl
 
+from common.claim import Claim
 from common.label import Label
 from common.shared_config import path_to_data
 
@@ -107,14 +107,21 @@ class FEVER(Benchmark):
     }
 
     class_definitions = {
-        Label.SUPPORTED: "The knowledge from the fact-check supports the CLAIM. "
-                         "Mere plausibility is not enough for this decision.",
-        Label.NEI: "The fact-check does not contain sufficient information to come to a conclusion. For example, "
-                   "there is substantial lack of evidence. In this case, state which information exactly "
-                   "is missing. Pick this decision particularly if no sources are available at all.",
-        Label.REFUTED: "The knowledge from the fact-check explicitly and clearly refutes the CLAIM. The mere "
-                       "absence or lack of supporting evidence is not enough for being refuted (argument "
-                       "from ignorance).",
+        Label.SUPPORTED:
+            """The knowledge from the fact-check explicitly supports the entire CLAIM.
+            That is, there is at least (!) one source that clearly (directly or
+            indirectly) implies the CLAIM. Mere plausibility or the absence of
+            opposing evidence is not enough for this decision.""",
+        Label.REFUTED:
+            """The knowledge from the fact-check explicitly refutes (at leas a part of) the CLAIM.
+            That is, there is at least (!) one source that clearly (directly or
+            indirectly) opposes the CLAIM. Mere plausibility or the absence of
+            supporting evidence is not enough for this decision.""",
+        Label.NEI:
+            """Pick this decision if the CLAIM is neither `supported` nor `refuted`. For
+            example, pick this decision if there is still evidence needed to clearly verify
+            or refute the CLAIM. Before picking this decision, state which information exactly
+            is missing."""
     }
 
     def __init__(self, variant="dev"):

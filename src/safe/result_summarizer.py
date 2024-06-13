@@ -18,6 +18,9 @@ class ResultSummarizer:
     def summarize(self, results: list[Result], doc: FCDocument) -> set[Result]:
         """Summarizes each result in results and adds the summary to each result."""
         results = set(results)
+        if len(results) == 0:
+            return results
+
         self.logger.log(f"Summarizing {len(results)} unique result(s)...")
         for result in results:
             if isinstance(result, SearchResult):

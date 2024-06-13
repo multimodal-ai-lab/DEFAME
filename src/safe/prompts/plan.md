@@ -1,50 +1,19 @@
 # Instructions
-1. You are a fact-checker. Your overall motivation is to verify a given CLAIM.
-2. Under "Your Task", you can re-read the part of the fact-checking work you have already done, it might be empty. The currently given knowledge is insufficient to draw a verdict for the CLAIM already. Hence, we need to find more evidence.
-3. Your task right now is to propose AT LEAST one next action to take in order to find more evidence. You may propose multiple if it is useful.
-4. Under VALID_ACTIONS you can see which actions are available, including a short description. No other actions are possible at this moment. 
-5. Under REASONING, you think step-by-step. First, you reiterate over the available knowledge provided under "Your Task" under the RESULTS (if any available). Then, you should analyze what information is still missing. You are encouraged to pose explicit questions that ask for the missing information.
-6. Finally, under NEXT_ACTIONS, based on your current knowledge, you're going to propose the next actions to take (as available in VALID_ACTIONS). The actions should aim to extend your current knowledge. Format your proposed actions by putting them into a Markdown code block.
-7. You're provided with one example that shows how it is done.
+You are a fact-checker. Your overall motivation is to verify a given CLAIM. You started the fact-checking work which is documented under "Record". The currently given knowledge is insufficient to draw a verdict for the CLAIM already. Hence, **you need to find more evidence**. To this end, you do the following:
+1. Under REASONING, you reiterate step-by-step over the available knowledge provided in the Record under the RESULTS (if any available).
+2. Next, you analyze what information is still missing. Pose explicit questions that ask for the missing information.
+3. Finally, under NEXT_ACTIONS, you propose AT LEAST ONE next action that aims to retrieve evidence to answer the questions. You may propose multiple if it is useful. Caution:
+   * The actions available are listed under VALID_ACTIONS, including a short description for each action. No other actions are possible at this moment. 
+   * For each action, use the formatting as specified in VALID_ACTIONS.
+   * Format your proposed actions by putting them all into a Markdown code block.
+   * Each question should be addressed by at least one proper action. (One action might address multiple questions, so there might be fewer actions than questions.)
 
 VALID_ACTIONS:
 [VALID_ACTIONS]
 
+[EXEMPLARS]
 
-# Example
-CLAIM:
-Text: “The combined population of Wyoming, North Dakota and South Dakota is smaller than the total US prison population.”
-Claim date: Aug 23, 2024
-
-REASONING:
-In order to verify this claim, we need to compare the current population count of the three states with the total number of US inmates. How many people live in Wyoming, North Dakota, and South Dakota? How many people are imprisoned in the US? To answer these questions, we need to search the web for current numbers.
-
-ACTIONS:
-```
-WIKI_LOOKUP: Wyoming
-WIKI_LOOKUP: North Dakota
-WIKI_LOOKUP: South Dakota
-WEB_SEARCH: total US prison population
-```
-
-RESULTS:
-Wyoming has a population count of 576,851 in 2020 ([Wikipedia](https://en.wikipedia.org/wiki/Wyoming))
-North Dakota has a population count of less than 780,000 ([Wikipedia](https://en.wikipedia.org/wiki/North_Dakota))
-South Dakota has a population count of 909,824 in 2022 ([Wikipedia](https://en.wikipedia.org/wiki/South_Dakota))
-As of May 2024, there are 158,703 people imprisoned on federal level in the US ([Federal Bureau of Prisons](https://www.bop.gov/mobile/about/population_statistics.jsp)), however there are also state-level inmates
-
-REASONING:
-The total US inmates figure is incomplete because we only know the number of federal-level inmates but not the number of state-level inmates. How many people are imprisoned on state-level in the US? Maybe there is some statistic which combines all the different inmate numbers on state and federal level. To find out more, we search the web for some statistics and reports that aggregate all the numbers.
-
-NEXT_ACTIONS:
-```
-WEB_SEARCH: total aggregated US prison population state and federal level
-WEB_SEARCH: state-level US prison population
-WEB_SEARCH: number of US inmates report
-```
-
-
-# Your Task
+# Record
 [DOC]
 
 REASONING:
