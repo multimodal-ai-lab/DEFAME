@@ -17,6 +17,8 @@ class Result(ABC):
         e.g., does not contain NONE."""
         if self.summary is None:
             return None
+        elif self.summary == "":
+            return False
         else:
             return "NONE" not in self.summary
 

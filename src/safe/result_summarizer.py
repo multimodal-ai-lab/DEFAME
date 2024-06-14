@@ -27,7 +27,7 @@ class ResultSummarizer:
                 summarize_result_prompt = SummarizeResultPrompt(result, doc)
                 try:
                     result.summary = self.model.generate(str(summarize_result_prompt),
-                                                         max_attempts=10)
+                                                         max_attempts=3)
                 except InvalidRequestError as e:
                     self.logger.log(orange(f"InvalidRequestError: {e} - Skipping this summary"))
                     self.logger.log(orange(f"Used prompt:\n{str(summarize_result_prompt)}"))

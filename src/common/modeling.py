@@ -55,6 +55,7 @@ def model_shorthand_to_full_name(shorthand: str) -> str:
 
 
 def get_model_context_window(name: str) -> int:
+    """Returns the number of tokens that fit into the context of the model at most."""
     if name not in AVAILABLE_MODELS["Shorthand"].to_list():
         name = model_full_name_to_shorthand(name)
     return int(AVAILABLE_MODELS["Context window"][AVAILABLE_MODELS["Shorthand"] == name].iloc[0])
@@ -187,10 +188,10 @@ class Model:
             full_name = name
         self.name = shorthand
         self.temperature = temperature
-        self.context_window = get_model_context_window(shorthand)
+        self.context_window = get_model_context_window(shorthand)  # tokens
         assert max_response_len < self.context_window
-        self.max_response_len = max_response_len
-        self.max_prompt_len = self.context_window - max_response_len
+        self.max_response_len = max_response_len  # tokens
+        self.max_prompt_len = self.context_window - max_response_len  # tokens
         self.top_k = top_k
         self.repetition_penalty = repetition_penalty
         self.show_responses = show_responses

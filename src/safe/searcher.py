@@ -50,7 +50,7 @@ class Searcher:
 
         self.past_queries_helpful: dict[str, bool] = {}
         # Cut the result text, maintaining a little buffer for the summary prompt
-        self.max_result_len = int(self.model.max_prompt_len * 3 * 0.9)
+        self.max_result_tokens = int(self.model.max_prompt_len * 0.9)
         self.past_search_results = set()
 
     def search(self, query: str) -> list[SearchResult]:
@@ -218,12 +218,12 @@ class Searcher:
 
     def _maybe_truncate_result(self, result: SearchResult):
         """Truncates the result's text if it's too long (exceeds the LLM context length limit)."""
-        num_result_tokens = len(result.text) // 3  # 1 token has approx. 3 to 4 chars
-        if num_result_tokens > self.max_result_len:
+        num_result_tokens = len(result.text) // 3  # 1 token has approx. 3 to 5 chars, calculate conservatively
+        if num_result_tokens > self.max_result_tokens:
             self.logger.log(orange(f"INFO: Truncating search result due to excess length "
-                                   f"({num2text(num_result_tokens)} tokens), (potentially) exceeding maximum LLM "
+                                   f"({num2text(num_result_tokens)} tokens), exceeding maximum LLM "
                                    f"context window length of {num2text(self.model.context_window)} tokens."))
-            result.text = result.text[:self.max_result_len]
+            result.text = result.text[:self.max_result_tokens * 3]  # count with only 3 chars per token
 
     def _summarize_result(self, result: SearchResult, claim: str):
         summarize_prompt = SummarizePrompt(claim, result.query, result.text)
