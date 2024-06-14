@@ -1,6 +1,7 @@
 import csv
 import inspect
 import time
+import pandas as pd
 
 from common.console import green, red, bold
 from common.label import Label
@@ -132,3 +133,11 @@ def next_result(path: str):
         next(reader)  # skip header line
         for row in reader:
             yield row
+
+
+def compute_accuracy(predictions: pd.DataFrame) -> float:
+    correct_stats = predictions["correct"].value_counts()
+    prediction_stats = predictions["predicted"].value_counts()
+    n_refused = prediction_stats["REFUSED_TO_ANSWER"] if "REFUSED_TO_ANSWER" in list(prediction_stats.keys()) else 0
+    accuracy = correct_stats[True] / (len(predictions) - n_refused)
+    return accuracy
