@@ -4,7 +4,7 @@ from safe.tools.search.wiki_dump import WikiDumpAPI
 from safe.tools.search.duckduckgo import DuckDuckGo
 
 
-search_engine = KnowledgeBase()
+search_engine = WikiDumpAPI()
 
 while True:
     query = input(f"Enter a query for {search_engine.name}: ")

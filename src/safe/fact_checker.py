@@ -13,6 +13,7 @@ from common.claim import Claim
 from eval.logger import EvaluationLogger
 from safe.claim_extractor import ClaimExtractor
 from safe.judge import Judge
+from safe.prompts.prompt import PreparePrompt, ReiteratePrompt
 from common.document import FCDocument
 from safe.planner import Planner
 from safe.actor import Actor
@@ -33,6 +34,9 @@ class FactChecker:
                  logger: EvaluationLogger = None,
                  classes: Sequence[Label] = None,
                  class_definitions: dict[Label, str] = None,
+                 extra_prepare_rules: str = None,
+                 extra_plan_rules: str = None,
+                 extra_judge_rules: str = None,
                  verbose: bool = True,
                  ):
         if isinstance(model, str):
@@ -61,11 +65,13 @@ class FactChecker:
         if "google" in search_engines or "duckduckgo" in search_engines or "averitec_kb" in search_engines:
             actions.append(WebSearch)
 
-        self.planner = Planner(actions, self.model, self.logger)
+        self.planner = Planner(actions, self.model, self.logger, extra_plan_rules)
         self.actor = Actor(self.model, search_engines, max_results_per_search, self.logger)
-        self.judge = Judge(self.model, self.logger, classes, class_definitions)
+        self.judge = Judge(self.model, self.logger, classes, class_definitions, extra_judge_rules)
         self.doc_summarizer = DocSummarizer(self.model, self.logger)
         self.result_summarizer = ResultSummarizer(self.model, self.logger)
+
+        self.extra_prepare_rules = extra_prepare_rules
 
         self.max_iterations = max_iterations
 
@@ -113,11 +119,14 @@ class FactChecker:
         document is constructed incrementally."""
         self.actor.searcher.reset()  # remove all past search results
         doc = FCDocument(claim)
+        self._prepare_fact_check(doc)
         label = Label.NEI
         n_iterations = 0
-        while label == Label.NEI and n_iterations < self.max_iterations:
+        while True:
+            n_iterations += 1
             actions, reasoning = self.planner.plan_next_actions(doc)
-            doc.add_reasoning(reasoning)
+            if reasoning:
+                doc.add_reasoning(reasoning)
             doc.add_actions(actions)
             if not actions:
                 break  # the planner wasn't able to determine further useful actions, giving up
@@ -125,12 +134,27 @@ class FactChecker:
             results = self.result_summarizer.summarize(results, doc)
             doc.add_results(results)  # even if no results, add empty results block for the record
             label = self.judge.judge(doc)
-            n_iterations += 1
+            if label != Label.NEI or n_iterations == self.max_iterations:
+                break
+            self._reiterate_current_knowledge(doc)
         doc.add_reasoning(self.judge.get_latest_reasoning())
         doc.verdict = label
         if label != Label.REFUSED_TO_ANSWER:
             doc.justification = self.doc_summarizer.summarize(doc)
         return doc
+
+    def _prepare_fact_check(self, doc: FCDocument):
+        """Does some initial reasoning (like claim interpretation and question generation)."""
+        prompt = PreparePrompt(doc.claim, self.extra_prepare_rules)
+        answer = self.model.generate(str(prompt))
+        doc.add_reasoning(answer)
+
+    def _reiterate_current_knowledge(self, doc: FCDocument):
+        """Analyzes the currently available information and states new questions, adds them
+        to the FCDoc."""
+        prompt = ReiteratePrompt(doc)
+        answer = self.model.generate(str(prompt))
+        doc.add_reasoning(answer)
 
 
 def aggregate_predictions(veracities: Sequence[Label]) -> Label:

@@ -2,11 +2,12 @@ from abc import ABC
 from typing import Sequence
 
 from common.label import Label, DEFAULT_LABEL_DEFINITIONS
-from common.utils import strip_string, remove_non_letters
+from common.utils import strip_string, remove_non_symbols
 from common.shared_config import search_engine_options
 from common.document import FCDocument
 from common.action import Action, WebSearch, WikiDumpLookup
 from common.results import SearchResult
+from common.claim import Claim
 
 SYMBOL = 'Check-worthy'
 NOT_SYMBOL = 'Unimportant'
@@ -91,13 +92,17 @@ class ReasonPrompt(Prompt):
 
 class JudgePrompt(Prompt):
     # TODO: Add ICL
-    def __init__(self, doc: FCDocument, classes: list[Label], class_definitions: dict[Label, str] = None):
+    def __init__(self, doc: FCDocument,
+                 classes: list[Label],
+                 class_definitions: dict[Label, str] = None,
+                 extra_rules: str = None):
         if class_definitions is None:
             class_definitions = DEFAULT_LABEL_DEFINITIONS
-        class_str = '\n'.join([f"* `{cls.value}`: {remove_non_letters(class_definitions[cls])}"
+        class_str = '\n'.join([f"* `{cls.value}`: {remove_non_symbols(class_definitions[cls])}"
                                for cls in classes])
         self.placeholder_targets["[DOC]"] = str(doc)
         self.placeholder_targets["[CLASSES]"] = class_str
+        self.placeholder_targets["[EXTRA_RULES]"] = "" if extra_rules is None else remove_non_symbols(extra_rules)
         super().__init__()
 
     def assemble_prompt(self) -> str:
@@ -167,14 +172,17 @@ class SummarizeDocPrompt(Prompt):
 
 
 class PlanPrompt(Prompt):
-    def __init__(self, doc: FCDocument, valid_actions: list[type[Action]]):
+    def __init__(self, doc: FCDocument,
+                 valid_actions: list[type[Action]],
+                 extra_rules: str = None):
         valid_action_str = "\n\n".join([f"* `{a.name}`\n"
-                                        f"   * Description: {remove_non_letters(a.description)}\n"
-                                        f"   * How to use: {remove_non_letters(a.how_to)}\n"
+                                        f"   * Description: {remove_non_symbols(a.description)}\n"
+                                        f"   * How to use: {remove_non_symbols(a.how_to)}\n"
                                         f"   * Format: {a.format}" for a in valid_actions])
         self.placeholder_targets["[DOC]"] = str(doc)
         self.placeholder_targets["[VALID_ACTIONS]"] = valid_action_str
         self.placeholder_targets["[EXEMPLARS]"] = self.load_exemplars(valid_actions)
+        self.placeholder_targets["[EXTRA_RULES]"] = "" if extra_rules is None else remove_non_symbols(extra_rules)
         super().__init__()
 
     def load_exemplars(self, valid_actions) -> str:
@@ -185,6 +193,25 @@ class PlanPrompt(Prompt):
 
     def assemble_prompt(self) -> str:
         return read_md_file("safe/prompts/plan.md")
+
+
+class PreparePrompt(Prompt):
+    def __init__(self, claim: Claim, extra_rules: str = None):
+        self.placeholder_targets["[CLAIM]"] = str(claim)
+        self.placeholder_targets["[EXTRA_RULES]"] = "" if extra_rules is None else remove_non_symbols(extra_rules)
+        super().__init__()
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("safe/prompts/initial_reason.md")
+
+
+class ReiteratePrompt(Prompt):
+    def __init__(self, doc: FCDocument):
+        self.placeholder_targets["[DOC]"] = str(doc)
+        super().__init__()
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("safe/prompts/reiterate.md")
 
 
 def read_md_file(file_path: str) -> str:

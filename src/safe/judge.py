@@ -28,10 +28,12 @@ class Judge:
     def __init__(self, model: Model,
                  logger: EvaluationLogger,
                  classes: list[Label],
-                 class_definitions: dict[Label, str] = None):
+                 class_definitions: dict[Label, str] = None,
+                 extra_rules: str = None):
         self.model = model
         self.classes = classes
         self.class_definitions = class_definitions
+        self.extra_rules = extra_rules
         self.debug = debug_safe
         self.max_steps = max_steps
         self.max_retries = 5
@@ -40,7 +42,7 @@ class Judge:
         self.logger = logger
 
     def judge(self, doc: FCDocument) -> Label:
-        judge_prompt = JudgePrompt(doc, self.classes, self.class_definitions)
+        judge_prompt = JudgePrompt(doc, self.classes, self.class_definitions, self.extra_rules)
         n_tries = 0
         while (verdict := self._generate_verdict(str(judge_prompt))) == Label.REFUSED_TO_ANSWER:
             n_tries += 1

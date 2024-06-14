@@ -9,6 +9,7 @@ Always adhere to the following rules:
 * **Use information only from the recorded evidence**: Avoid inserting information that is not implied by the evidence. You may use commonsense knowledge, though.
 * Write down your thoughts step-by-step. Whenever necessary, you may elaborate in more detail (e.g. for comparisons).
 * Avoid repeating yourself.
+[EXTRA_RULES]
 
 DECISION_OPTIONS:
 [CLASSES]

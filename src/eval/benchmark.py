@@ -17,6 +17,9 @@ class Benchmark(ABC, Iterable):
     class_mapping: dict[str, Label]  # Maps the benchmark-specific class/label to the standard Label class
     class_definitions: dict[Label, str]  # Explains (to the LLM) the meaning of each class/label
     file_path: Path
+    extra_prepare_rules: str = None  # Additional, benchmark-specific instructions to guide LLM's initial reasoning
+    extra_plan_rules: str = None  # Additional, benchmark-specific instructions to guide LLM's action planning
+    extra_judge_rules: str = None  # Additional, benchmark-specific instructions to guide LLM's verdict prediction
 
     def __init__(self, name: str):
         self.name = name
@@ -123,6 +126,18 @@ class FEVER(Benchmark):
             or refute the CLAIM. Before picking this decision, state which information exactly
             is missing."""
     }
+
+    extra_prepare_rules = """* Before you start, begin with a _grammar check_ of the CLAIM. If it
+    has some grammatical errors, there is a high chance that the CLAIM means something different
+    than understandable at first glance. Take grammatical errors serious and elaborate on them.
+    * **Take the CLAIM literally**: Assume that each word of the CLAIM is as intended. Be strict
+    with the interpretation of the CLAIM.
+    * The CLAIM stems from a fact-checking challenge. A human engineered the CLAIM artificially 
+    by using Wikipedia. The CLAIM could be misleading, just like a trick question. It may also require
+    a chain of multiple investigation steps, re-using previously retrieved knowledge."""
+    extra_plan_rules = """* The CLAIM stems from a fact-checking challenge. A human engineered the CLAIM
+    artificially by using Wikipedia. The CLAIM could be misleading, just like a trick question. It may
+    also require a chain of multiple investigation steps, re-using previously retrieved knowledge."""
 
     def __init__(self, variant="dev"):
         super().__init__(f"fever_{variant}")

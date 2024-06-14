@@ -132,6 +132,11 @@ def find_code_blocks(
     return matches
 
 
+def remove_code_blocks(input_string: str) -> str:
+    pattern = re.compile(r'```(.*?)```', re.DOTALL)
+    return pattern.sub('', input_string)
+
+
 def find_code_span(
         input_string: str,
         ignore_language: bool = False,
@@ -406,7 +411,7 @@ def extract_by_regex(text: str, pattern: str) -> Optional[str]:
     return match.group(1) if match else None
 
 
-def remove_non_letters(text: str) -> str:
+def remove_non_symbols(text: str) -> str:
     """Removes all newlines, tabs, and abundant whitespaces from text."""
     text = re.sub(r'[\t\n\r\f\v]', ' ', text)
     return re.sub(r' +', ' ', text)

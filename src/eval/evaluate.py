@@ -62,7 +62,11 @@ def evaluate(
         extract_claims=extract_claims,
         max_iterations=max_iterations,
         logger=logger,
+        # Benchmark specifics:
         class_definitions=benchmark.class_definitions,
+        extra_prepare_rules=benchmark.extra_prepare_rules,
+        extra_plan_rules=benchmark.extra_plan_rules,
+        extra_judge_rules=benchmark.extra_judge_rules,
     )
 
     if not n_samples:
