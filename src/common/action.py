@@ -12,8 +12,13 @@ class Search(Action, ABC):
     api: str
     query: str
 
+    def __init__(self, query: str):
+        """Accepts a string enclosed with quotes."""
+        assert query[0] == '"' and query[-1] == '"'
+        self.query = query[1:-1]
+
     def __str__(self):
-        return f"{self.name}: {self.query}"
+        return f"{self.name}: \"{self.query}\""
 
 
 class WebSearch(Search):
@@ -22,9 +27,6 @@ class WebSearch(Search):
     how_to = """Do not use this with a previously used or similar query from previous WEB_SEARCHes.
     If a previous WEB_SEARCH did not yield any results, use a very different query."""
     format = "WEB_SEARCH: your web search query goes here"
-
-    def __init__(self, query: str):
-        self.query = query
 
 
 class WikiDumpLookup(Search):
@@ -37,9 +39,6 @@ class WikiDumpLookup(Search):
     `WIKI_DUMP_LOOKUP` did not yield enough results, use a very different query."""
     format = """WIKI_DUMP_LOOKUP: your wiki search query goes here"""
 
-    def __init__(self, query: str):
-        self.query = query
-
 
 class WikiLookup(Search):
     name = "WIKI_LOOKUP"
@@ -48,9 +47,6 @@ class WikiLookup(Search):
     how_to = """Do not use this with a previously used or similar query from previous WIKI_LOOKUPs. 
     If a previous WIKI_LOOKUP did not yield any results, use a very different query."""
     format = """WIKI_LOOKUP: your wiki search query goes here"""
-
-    def __init__(self, query: str):
-        self.query = query
 
 
 ACTION_REGISTRY = {

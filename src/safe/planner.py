@@ -6,6 +6,7 @@ from common.utils import extract_last_code_block
 from eval.logger import EvaluationLogger
 from safe.prompts.prompt import PlanPrompt
 from typing import Optional
+import pyparsing as pp
 
 
 class Planner:
@@ -45,17 +46,31 @@ class Planner:
 
     def _parse_single_action(self, raw_action: str) -> Optional[Action]:
         try:
-            action_name, arguments_str = raw_action.split(':')
-            arguments = [a.strip() for a in arguments_str.split(',')]
+            action_name, arguments_str = raw_action.split(':', maxsplit=1)
+            arguments = _extract_arguments(arguments_str)
             for action in ACTION_REGISTRY:
                 if action_name == action.name:
                     return action(*arguments)
             raise ValueError(f'Invalid action name: {action_name}')
-        except Exception:
-            self.logger.log(orange(f"WARNING: Failed to parse '{raw_action}'."))
+        except Exception as e:
+            self.logger.log(orange(f"WARNING: Failed to parse '{raw_action}':\n{e}"))
         return None
 
 
 def _process_answer(answer: str) -> str:
     reasoning = answer.split("NEXT_ACTIONS:")[0].strip()
     return reasoning.replace("REASONING:", "").strip()
+
+
+def _extract_arguments(arguments_str: str) -> list[str]:
+    """Separates the arguments_str at all commas that are not enclosed by quotes."""
+    ppc = pp.pyparsing_common
+
+    # Setup parser which separates at each comma not enclosed by a quote
+    csl = ppc.comma_separated_list()
+
+    # Parse the string using the created parser
+    parsed = csl.parse_string(arguments_str)
+
+    # Remove whitespaces and split into arguments list
+    return [str.strip(value) for value in parsed]

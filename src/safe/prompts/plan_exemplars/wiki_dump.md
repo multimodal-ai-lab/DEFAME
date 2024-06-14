@@ -14,6 +14,6 @@ To answer these questions, we should look up information related to the Battle o
 
 NEXT_ACTIONS:
 ```
-WIKI_DUMP_LOOKUP: Battle of France
-WIKI_DUMP_LOOKUP: Fall of France
+WIKI_DUMP_LOOKUP: "Battle of France"
+WIKI_DUMP_LOOKUP: "Fall of France"
 ```

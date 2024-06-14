@@ -10,10 +10,10 @@ In order to verify this claim, we need to compare the current population count o
 
 ACTIONS:
 ```
-WIKI_LOOKUP: Wyoming
-WIKI_LOOKUP: North Dakota
-WIKI_LOOKUP: South Dakota
-WEB_SEARCH: total US prison population
+WIKI_LOOKUP: "Wyoming"
+WIKI_LOOKUP: "North Dakota"
+WIKI_LOOKUP: "South Dakota"
+WEB_SEARCH: "total US prison population"
 ```
 
 RESULTS:
@@ -27,7 +27,7 @@ The total US inmates figure is incomplete because we only know the number of fed
 
 NEXT_ACTIONS:
 ```
-WEB_SEARCH: total aggregated US prison population state and federal level
-WEB_SEARCH: state-level US prison population
-WEB_SEARCH: number of US inmates report
+WEB_SEARCH: "total aggregated US prison population state and federal level"
+WEB_SEARCH: "state-level US prison population"
+WEB_SEARCH: "number of US inmates report"
 ```
