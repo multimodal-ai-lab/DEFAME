@@ -11,7 +11,6 @@ class Result(ABC):
     text: str
     date: datetime
     summary: str = None
-    action: Action
 
     def is_useful(self) -> Optional[bool]:
         """Returns true if the summary contains helpful information,
@@ -26,7 +25,7 @@ class Result(ABC):
         Differentiates between direct citation (original text) and
         indirect citation (if summary is available)."""
         text = self.summary or f'"{self.text}"'
-        return f'{text} ([Source]({self.source}))'
+        return f'From [Source]({self.source}):\n{text}'
 
     def __eq__(self, other):
         return self.source == other.source
