@@ -17,12 +17,19 @@ class Planner:
         self.valid_actions = valid_actions
         self.model = model
         self.logger = logger
+        self.max_tries = 5
 
     def plan_next_actions(self, doc: FCDocument) -> (list[Action], str):
         prompt = PlanPrompt(doc, self.valid_actions)
-        answer = self.model.generate(str(prompt))
-        reasoning = _process_answer(answer)
-        return self._extract_actions(answer), reasoning
+        n_tries = 0
+        while True:
+            n_tries += 1
+            answer = self.model.generate(str(prompt))
+            actions = self._extract_actions(answer)
+            reasoning = _process_answer(answer)
+            if len(actions) > 0 or n_tries == self.max_tries:
+                return actions, reasoning
+            self.logger.log("WARNING: No actions were found. Retrying...")
 
     def _extract_actions(self, answer: str) -> list[Action]:
         actions_str = extract_last_code_block(answer)

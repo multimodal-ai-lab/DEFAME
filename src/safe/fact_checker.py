@@ -99,7 +99,8 @@ class FactChecker:
             doc = self.verify_claim(claim)
             docs.append(doc)
             self.logger.log(bold(f"The claim '{light_blue(str(claim.text))}' is {doc.verdict.value}."), important=True)
-            self.logger.log(f'Justification: {gray(doc.justification)}', important=True)
+            if doc.justification:
+                self.logger.log(f'Justification: {gray(doc.justification)}', important=True)
 
         overall_veracity = aggregate_predictions([doc.verdict for doc in docs])
 

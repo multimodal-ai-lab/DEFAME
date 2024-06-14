@@ -5,7 +5,7 @@ import time
 from common.console import green, red, bold
 from common.label import Label
 from common.plot import plot_confusion_matrix
-from common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS
+from common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS, Model
 from eval.benchmark import load_benchmark
 from eval.logger import EvaluationLogger
 from safe.fact_checker import FactChecker
@@ -50,6 +50,9 @@ def evaluate(
     signature = inspect.signature(evaluate)
     logger.save_config(signature, locals())
     start_time = time.time()
+
+    # Initialize model
+    model = Model(model, **model_kwargs)
 
     fc = FactChecker(
         model=model,
@@ -97,9 +100,10 @@ def evaluate(
             break
 
     # Compute and save evaluation results
-    ground_truth = benchmark.get_labels()[:n_samples]
-    search_summary = {name: searcher.total_searches for name, searcher in fc.actor.searcher.search_apis.items() if
-                      searcher}
+    ground_truth = [s["label"] for s in samples_to_evaluate]
+    search_summary = {name: searcher.total_searches
+                      for name, searcher in fc.actor.searcher.search_apis.items()
+                      if searcher}
     end_time = time.time()
     accuracy = logger.save_results(predictions, ground_truth,
                                    duration=end_time - start_time,

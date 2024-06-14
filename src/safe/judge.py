@@ -34,19 +34,19 @@ class Judge:
         self.class_definitions = class_definitions
         self.debug = debug_safe
         self.max_steps = max_steps
-        self.max_retries = max_retries
+        self.max_retries = 5
         self.latest_reasoning = None
 
         self.logger = logger
 
     def judge(self, doc: FCDocument) -> Label:
         judge_prompt = JudgePrompt(doc, self.classes, self.class_definitions)
-        n_retries = 0
+        n_tries = 0
         while (verdict := self._generate_verdict(str(judge_prompt))) == Label.REFUSED_TO_ANSWER:
-            n_retries += 1
-            if n_retries > self.max_retries:
+            n_tries += 1
+            if n_tries > self.max_retries:
                 break
-            self.logger.log(orange("INFO: Verdict generation did not contain any valid label. Retrying..."))
+            self.logger.log(orange("WARNING: Verdict generation did not contain any valid label. Retrying..."))
         return verdict
 
     def _generate_verdict(self, prompt: str) -> Label:
@@ -61,7 +61,10 @@ class Judge:
             return Label.REFUSED_TO_ANSWER
 
         # Extract the verdict
-        return self._extract_verdict(response)
+        verdict = self._extract_verdict(response)
+        if verdict == Label.REFUSED_TO_ANSWER:
+            self.logger.log(orange(f"WARNING: Ill-formatted verdict in response:\n{response}"))
+        return verdict
 
     def _extract_verdict(self, response: str) -> Label:
         """Extract label from response"""

@@ -17,13 +17,13 @@ from safe.tools.search.x import X, extract_username_from_url, extract_tweet_id_f
 
 
 class KnowledgeBase(SemanticSearchDB):
-    """The AVeriTeC knowledge base consisting of a selection of webpages."""
+    """The AVeriTeC knowledge base consisting of 330,589 (deduplicated) sources."""
     name = 'averitec_kb'
 
     embedding_knn_path = path_to_data + "AVeriTeC/embedding_knn.pckl"
 
     def __init__(self, logger=None):
-        super().__init__(logger=logger, db_file_path=path_to_data + "AVeriTeC/knowledge_base_new.db")
+        super().__init__(logger=logger, db_file_path=path_to_data + "AVeriTeC/knowledge_base.db")
         self._load_embeddings()
 
     def retrieve(self, idx: int) -> (str, str, datetime):
