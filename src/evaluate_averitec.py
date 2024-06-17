@@ -4,12 +4,14 @@ from eval.evaluate import evaluate
 from eval.averitec_score import AVeriTeCEvaluator, print_with_space
 
 accuracy, evidence_log, benchmark = evaluate(
-    model="OPENAI:gpt-4o-2024-05-13",
+    model="gpt_4o",
+    model_kwargs=dict(temperature=0.01),
     benchmark_name="averitec",
     benchmark_kwargs=dict(variant="dev"),
     search_engine="averitec_kb",
+    # sample_ids=[400],
     extract_claims=False,
-    random_sampling=True,
+    random_sampling=False,
     n_samples=None,
     verbose=True,
 )

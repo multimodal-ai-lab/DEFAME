@@ -1,13 +1,13 @@
 from eval.evaluate import evaluate
 
 evaluate(
-    model="OPENAI:gpt-4o-2024-05-13",
+    model="gpt_4o",
+    model_kwargs=dict(temperature=0.01),
     benchmark_name="fever",
     search_engine="wiki_dump",
     benchmark_kwargs=dict(variant="dev"),
-    # n_samples=1,
-    # sample_ids=[865],
+    # sample_ids=[2],
     extract_claims=False,
     verbose=True,
-    # random_sampling=True,
+    random_sampling=False,
 )

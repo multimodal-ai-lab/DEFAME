@@ -5,6 +5,7 @@ from eval.logger import EvaluationLogger
 from safe.prompts.prompt import SummarizeResultPrompt
 from common.console import gray, orange
 from openai.error import InvalidRequestError
+from jinja2.exceptions import TemplateSyntaxError
 
 
 class ResultSummarizer:
@@ -25,13 +26,18 @@ class ResultSummarizer:
         for result in results:
             if isinstance(result, SearchResult):
                 summarize_result_prompt = SummarizeResultPrompt(result, doc)
+
                 try:
                     result.summary = self.model.generate(str(summarize_result_prompt),
                                                          max_attempts=3)
                 except InvalidRequestError as e:
-                    self.logger.log(orange(f"InvalidRequestError: {e} - Skipping this summary"))
+                    self.logger.log(orange(f"InvalidRequestError: {e} - Skipping this summary."))
                     self.logger.log(orange(f"Used prompt:\n{str(summarize_result_prompt)}"))
                     result.summary = "NONE"
+                except TemplateSyntaxError as e:
+                    self.logger.log(orange(f"TemplateSyntaxError: {e} - Skipping this summary."))
+                    result.summary = "NONE"
+
                 if result.is_useful():
                     self.logger.log("Useful result: " + gray(str(result)))
             else:

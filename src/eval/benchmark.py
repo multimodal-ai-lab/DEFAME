@@ -33,7 +33,7 @@ class Benchmark(ABC, Iterable):
 
     def get_classes(self) -> list[Label]:
         """Returns a list of distinct labels representing the classes occurring in this dataset."""
-        return list(self.class_mapping.values())
+        return list(self.class_definitions.keys())
 
     def shuffle(self):
         """Reorders the samples randomly."""

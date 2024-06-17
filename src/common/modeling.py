@@ -249,7 +249,7 @@ class Model:
             self,
             prompt: str,
             do_debug: bool = False,
-            temperature: float = 0.01,
+            temperature: float = None,
             max_tokens: Optional[int] = None,
             max_attempts: int = 1000,
             top_p=0.9,

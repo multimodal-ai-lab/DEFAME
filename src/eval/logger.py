@@ -28,12 +28,21 @@ class EvaluationLogger:
         log_date = datetime.now().strftime("%Y-%m-%d_%H-%M")
 
         # Determine the target dir
-        self.target_dir = path_to_result + log_date
+        target_dir = path_to_result + log_date
         if dataset_abbr:
-            self.target_dir += f'_{dataset_abbr}'
+            target_dir += f'_{dataset_abbr}'
         if model_abbr:
-            self.target_dir += f'_{model_abbr}'
-        self.target_dir += '/'
+            target_dir += f'_{model_abbr}'
+
+        # Increment target dir name if it exists
+        target_dir_tmp = target_dir
+        i = 1
+        while os.path.exists(target_dir_tmp):
+            target_dir_tmp = target_dir + f'_{i}'
+            i += 1
+        target_dir = target_dir_tmp
+
+        self.target_dir = target_dir + '/'
         os.makedirs(self.target_dir, exist_ok=True)
 
         # Define file paths
