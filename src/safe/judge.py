@@ -53,8 +53,13 @@ class Judge:
 
     def _generate_verdict(self, prompt: str) -> Label:
         # Generate an answer
-        response = self.model.generate(prompt, do_debug=self.debug)
-        self.latest_reasoning = response
+        try:
+            response = self.model.generate(prompt, do_debug=self.debug)
+            self.latest_reasoning = response
+        except Exception as e:
+            self.logger.log(orange("WARNING: Error when generating verdict, defaulting to REFUSED."))
+            self.logger.log(orange(str(e)))
+            return Label.REFUSED_TO_ANSWER
 
         # Validate model response
         if is_guardrail_hit(response):
