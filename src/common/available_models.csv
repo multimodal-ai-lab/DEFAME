@@ -11,6 +11,6 @@ claude_3_haiku,ANTHROPIC,claude-3-haiku-20240307, 200_000
 claude_21,ANTHROPIC,claude-2.1, 200_000
 claude_20,ANTHROPIC,claude-2.0, 100_000
 claude_instant,ANTHROPIC,claude-instant-1.2, 100_000
-llama3_8b_instruct,HUGGINGFACE,meta-llama/Meta-Llama-3-8B-Instruct, 8_000
-llama3_70b_instruct,HUGGINGFACE,meta-llama/Meta-Llama-3-70B-Instruct, 8_000
+llama3_8b,HUGGINGFACE,meta-llama/Meta-Llama-3-8B-Instruct, 8_000
+llama3_70b,HUGGINGFACE,meta-llama/Meta-Llama-3-70B-Instruct, 8_000
 mixtral_v0.1,HUGGINGFACE,mistralai/Mixtral-8x7B-Instruct-v0.1, 32_000

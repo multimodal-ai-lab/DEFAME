@@ -261,7 +261,7 @@ class Model:
         self.model.retry_interval = 0
         self.model.timeout = timeout
         prompt = modeling_utils.add_format(prompt, self.model, self.name)
-        gen_temp = temperature or self.temperature
+        gen_temp = temperature if temperature is not None else self.temperature
         response, num_attempts = '', 0
 
         if self.open_source:
