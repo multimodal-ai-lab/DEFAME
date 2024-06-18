@@ -7,7 +7,7 @@ from common.console import green, red, bold
 from common.label import Label
 from common.plot import plot_confusion_matrix
 from common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS, Model
-from eval.benchmark import load_benchmark
+from eval.benchmark import load_benchmark, AVeriTeC
 from eval.logger import EvaluationLogger
 from safe.fact_checker import FactChecker
 
@@ -69,13 +69,20 @@ def evaluate(
         extra_judge_rules=benchmark.extra_judge_rules,
     )
 
-    if not n_samples:
-        n_samples = len(benchmark) if not sample_ids else len(sample_ids)
-
     if random_sampling:
         benchmark.shuffle()
 
-    samples_to_evaluate = [benchmark.get_by_id(i) for i in sample_ids] if sample_ids else benchmark
+    if n_samples:
+        samples_to_evaluate = benchmark[:n_samples]
+    else:
+        if sample_ids:
+            samples_to_evaluate = [benchmark.get_by_id(i) for i in sample_ids]
+            n_samples = len(sample_ids)
+        else:
+            samples_to_evaluate = benchmark
+            n_samples = len(benchmark)
+
+
     eval_log = []
     # Run the evaluation for each instance individually
     predictions = []
@@ -89,7 +96,6 @@ def evaluate(
         if prediction == Label.CHERRY_PICKING:  # AVeriTeC combines these two classes into one class (here CONFLICTING)
             prediction = Label.CONFLICTING
 
-        # TODO: extract evidence from docs
         eval_log.append({"claim": content, "evidence": "", "pred_label": prediction.name})
         prediction_is_correct = instance["label"] == prediction
 
@@ -104,6 +110,10 @@ def evaluate(
         if len(predictions) == n_samples:
             break
 
+    benchmark_classes = benchmark.get_classes()
+    if isinstance(benchmark, AVeriTeC):
+        benchmark_classes.remove(Label.CHERRY_PICKING)
+
     # Compute and save evaluation results
     ground_truth = [s["label"] for s in samples_to_evaluate]
     search_summary = {name: searcher.total_searches
@@ -115,7 +125,7 @@ def evaluate(
                                    search_summary=search_summary)
     plot_confusion_matrix(predictions,
                           ground_truth,
-                          benchmark.get_classes(),
+                          benchmark_classes,
                           benchmark_name=benchmark.name,
                           save_dir=logger.target_dir)
 
