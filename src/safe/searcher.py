@@ -50,7 +50,6 @@ class Searcher:
 
         self.past_queries_helpful: dict[str, bool] = {}
         # Cut the result text, maintaining a little buffer for the summary prompt
-        self.max_result_tokens = int(self.model.max_prompt_len * 0.9)
         self.past_search_results = set()
 
     def search(self, query: str) -> list[SearchResult]:
@@ -63,7 +62,7 @@ class Searcher:
             for i, result in enumerate(results):
                 self.logger.log(f"\t{i+1}. {result.source}")
 
-            # Postprocess the results
+            # Modify the results text to avoid jinja errors when used in prompt
             results = self._postprocess_results(results)
 
             # If there is at least one result, we were successful
@@ -205,25 +204,10 @@ class Searcher:
         return self._remove_known_search_results(results)
 
     def _postprocess_results(self, results: list[SearchResult]) -> list[SearchResult]:
-        """Modifies the results text and truncates it."""
-        # Postprocess results
+        """Modifies the results text to avoid jinja errors when used in prompt."""
         for result in results:
             result.text = postprocess_result(result.text)
-
-        # Truncate results
-        for result in results:
-            self._maybe_truncate_result(result)
-
         return results
-
-    def _maybe_truncate_result(self, result: SearchResult):
-        """Truncates the result's text if it's too long (exceeds the LLM context length limit)."""
-        num_result_tokens = len(result.text) // 3  # 1 token has approx. 3 to 5 chars, calculate conservatively
-        if num_result_tokens > self.max_result_tokens:
-            self.logger.log(orange(f"INFO: Truncating search result due to excess length "
-                                   f"({num2text(num_result_tokens)} tokens), exceeding maximum LLM "
-                                   f"context window length of {num2text(self.model.context_window)} tokens."))
-            result.text = result.text[:self.max_result_tokens * 3]  # count with only 3 chars per token
 
     def _summarize_result(self, result: SearchResult, claim: str):
         summarize_prompt = SummarizePrompt(claim, result.query, result.text)
