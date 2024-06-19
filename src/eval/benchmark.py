@@ -66,18 +66,20 @@ class AVeriTeC(Benchmark):
     }
 
     class_definitions = {
-        Label.SUPPORTED: "The knowledge from the fact-check supports or at least strongly implies the CLAIM. "
+        Label.SUPPORTED: "The knowledge from the fact-check supports or at least strongly implies the Claim. "
                          "Mere plausibility is not enough for this decision.",
         Label.NEI: "The fact-check does not contain sufficient information to come to a conclusion. For example, "
                    "there is substantial lack of evidence. In this case, state which information exactly "
                    "is missing. In particular, if no RESULTS or sources are available, pick this decision.",
-        Label.REFUTED: "The knowledge from the fact-check explicitly and clearly refutes the CLAIM. The mere "
+        Label.REFUTED: "The knowledge from the fact-check explicitly and clearly refutes the Claim. The mere "
                        "absence or lack of supporting evidence is not enough for being refuted (argument "
                        "from ignorance).",
         Label.CONFLICTING: "The knowledge from the fact-check contains conflicting evidence from multiple "
                            "reliable, up-to-date, non-refuted sources, even after extensive fact-checking research.",
-        Label.CHERRY_PICKING: "The CLAIM is supported (see ´supported´), however it ignores important facts that, "
-                              "when added to the CLAIM, create a significantly different impression.",
+        Label.CHERRY_PICKING: "The Claim is supported or refuted, however it ignores important facts that, "
+                              "when added to the Claim, create a significantly different impression. Pick this "
+                              "decision also in the case if the Claim is not universally true but true under "
+                              "certain conditions.",
     }
 
     def __init__(self, variant="dev"):
@@ -111,32 +113,32 @@ class FEVER(Benchmark):
 
     class_definitions = {
         Label.SUPPORTED:
-            """The knowledge from the fact-check explicitly supports the entire CLAIM.
+            """The knowledge from the fact-check explicitly supports the entire Claim.
             That is, there is at least (!) one source that clearly (directly or
-            indirectly) implies the CLAIM. Mere plausibility or the absence of
+            indirectly) implies the Claim. Mere plausibility or the absence of
             opposing evidence is not enough for this decision.""",
         Label.REFUTED:
-            """The knowledge from the fact-check explicitly refutes (at leas a part of) the CLAIM.
+            """The knowledge from the fact-check explicitly refutes (at leas a part of) the Claim.
             That is, there is at least (!) one source that clearly (directly or
-            indirectly) opposes the CLAIM. Mere plausibility or the absence of
+            indirectly) opposes the Claim. Mere plausibility or the absence of
             supporting evidence is not enough for this decision.""",
         Label.NEI:
-            """Pick this decision if the CLAIM is neither `supported` nor `refuted`. For
+            """Pick this decision if the Claim is neither `supported` nor `refuted`. For
             example, pick this decision if there is still evidence needed to clearly verify
-            or refute the CLAIM. Before picking this decision, state which information exactly
+            or refute the Claim. Before picking this decision, state which information exactly
             is missing."""
     }
 
-    extra_prepare_rules = """* Before you start, begin with a _grammar check_ of the CLAIM. If it
-    has some grammatical errors, there is a high chance that the CLAIM means something different
+    extra_prepare_rules = """* Before you start, begin with a _grammar check_ of the Claim. If it
+    has some grammatical errors, there is a high chance that the Claim means something different
     than understandable at first glance. Take grammatical errors serious and elaborate on them.
-    * **Take the CLAIM literally**: Assume that each word of the CLAIM is as intended. Be strict
-    with the interpretation of the CLAIM.
-    * The CLAIM stems from a fact-checking challenge. A human engineered the CLAIM artificially 
-    by using Wikipedia. The CLAIM could be misleading, just like a trick question. It may also require
+    * **Take the Claim literally**: Assume that each word of the Claim is as intended. Be strict
+    with the interpretation of the Claim.
+    * The Claim stems from a fact-checking challenge. A human fabricated the Claim artificially 
+    by using Wikipedia. The Claim could be a misleading prank, just like a trick question. It may also require
     a chain of multiple investigation steps, re-using previously retrieved knowledge."""
-    extra_plan_rules = """* The CLAIM stems from a fact-checking challenge. A human engineered the CLAIM
-    artificially by using Wikipedia. The CLAIM could be misleading, just like a trick question. It may
+    extra_plan_rules = """* The Claim stems from a fact-checking challenge. A human engineered the Claim
+    artificially by using Wikipedia. The Claim could be misleading, just like a trick question. It may
     also require a chain of multiple investigation steps, re-using previously retrieved knowledge."""
 
     def __init__(self, variant="dev"):

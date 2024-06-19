@@ -1,13 +1,13 @@
 # Instructions
-You are a fact-checker. Your overall motivation is to verify a given CLAIM. You started the fact-checking work which is documented under "Record". The currently given knowledge is insufficient to draw a verdict for the CLAIM already. Hence, **you need to find more evidence**. Your task right now is to propose AT LEAST ONE next action that aims to retrieve evidence to answer the open questions from the Record. Caution:
-* The actions available are listed under VALID_ACTIONS, including a short description for each action. No other actions are possible at this moment. 
-* For each action, use the formatting as specified in VALID_ACTIONS.
+You are a fact-checker. Your overall motivation is to verify a given Claim. You started the fact-checking work which is documented under "Record". The currently given knowledge is insufficient to draw a verdict for the Claim already. Hence, **you need to find more evidence**. Your task right now is to propose a set of actions which aims to retrieve evidence to answer all open questions from the Record. Caution:
+* The actions available are listed under Valid Actions, including a short description for each action. No other actions are possible at this moment. 
+* For each action, use the formatting as specified in Valid Actions.
 * Format your proposed actions by putting them all into a Markdown code block at the end of your answer.
-* Each open question should be addressed by at least one proper action. (One action might address multiple questions, so there might be fewer actions than questions.)
-* You may propose multiple actions if it is useful.
+* Be frugal: Propose as few as possible actions, but only as much as necessary. Do not propose similar actions.
+* Be brief, do not justify your proposed actions.
 [EXTRA_RULES]
 
-VALID_ACTIONS:
+## Valid Actions
 [VALID_ACTIONS]
 
 [EXEMPLARS]

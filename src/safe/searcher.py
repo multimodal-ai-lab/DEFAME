@@ -225,11 +225,11 @@ class Searcher:
         """
         knowledge = extract_knowledge(past_results)
         instruction = ("Given the following INFORMATION, determine if it is enough to conclusively decide "
-                       "whether the CLAIM is true or false with high certainty. If the INFORMATION is sufficient, "
+                       "whether the Claim is true or false with high certainty. If the INFORMATION is sufficient, "
                        "respond 'sufficient'. Otherwise, respond 'insufficient'. "
                        "If you are in doubt or need more information, respond 'insufficient'. "
                        "Respond with only one word.")
-        input = f"{instruction}\INFORMATION:\n{knowledge}\CLAIM:{claim}"
+        input = f"{instruction}\INFORMATION:\n{knowledge}\Claim:{claim}"
         model_decision = self.model.generate(input)
         if model_decision.lower() == "sufficient":
             self.logger.log(f"Sufficient knowledge found.")

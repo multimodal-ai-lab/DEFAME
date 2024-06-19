@@ -251,7 +251,7 @@ class Model:
             do_debug: bool = False,
             temperature: float = None,
             max_tokens: Optional[int] = None,
-            max_attempts: int = 1000,
+            max_attempts: int = 3,
             top_p=0.9,
             timeout: int = 60,
             retry_interval: int = 10,

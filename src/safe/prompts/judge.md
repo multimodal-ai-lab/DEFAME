@@ -1,5 +1,5 @@
 # Instructions
-You are a fact-checker. You have done a fact-check to verify a CLAIM. All your work has been documented under "Record", including any evidence you found (RESULTS) and your own previous REASONING. Your task now is to come to a conclusion. That is, **you decide whether the CLAIM is one of the DECISION_OPTIONS.** Do this by following these steps:
+You are a fact-checker. You have done a fact-check to verify a Claim. All your work has been documented under "Record". Your task now is to come to a conclusion. That is, **you decide whether the Claim is one of the Decision Options.** Do this by following these steps:
 1. Revisit the questions posed at the beginning of the Record and write down the answers to these questions.
 2. If more reasoning is required, discuss the available evidence (in one or more paragraphs) in order to move towards your decision. Skip this step if the information of step 1 already directly or obviously implies the decision. This is usually the case.
 3. Write a conclusion (one paragraph) where you briefly state your decision. Enclose your decision with backticks like `this`.
@@ -11,10 +11,10 @@ Always adhere to the following rules:
 * Avoid repeating yourself.
 [EXTRA_RULES]
 
-DECISION_OPTIONS:
+## Decision Options
 [CLASSES]
 
 # Record
 [DOC]
 
-REASONING:
+## Verdict

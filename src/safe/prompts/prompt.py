@@ -1,12 +1,13 @@
+import os.path
 from abc import ABC
-from typing import Sequence
+from typing import Sequence, Collection, Any
 
 from common.label import Label, DEFAULT_LABEL_DEFINITIONS
 from common.utils import strip_string, remove_non_symbols
 from common.shared_config import search_engine_options
 from common.document import FCDocument
-from common.action import Action, WebSearch, WikiDumpLookup
-from common.results import SearchResult
+from common.action import Action, WikiDumpLookup, WebSearch
+from common.results import Result, SearchResult
 from common.claim import Claim
 
 SYMBOL = 'Check-worthy'
@@ -14,11 +15,9 @@ NOT_SYMBOL = 'Unimportant'
 
 
 class Prompt(ABC):
-    text: str
-    placeholder_targets: dict[str, str] = {}
-
-    def __init__(self):
-        self.text = self.finalize_prompt()
+    def __init__(self, placeholder_targets: dict[str, Any]):
+        self.placeholder_targets = placeholder_targets
+        self.text: str = self.finalize_prompt()
 
     def finalize_prompt(self) -> str:
         """Turns a template prompt into a ready-to-send prompt string."""
@@ -35,7 +34,9 @@ class Prompt(ABC):
         """Replaces all specified placeholders in placeholder_targets with the
         respective target content."""
         for placeholder, target in self.placeholder_targets.items():
-            text = text.replace(placeholder, target)
+            if placeholder not in text:
+                raise ValueError(f"Placeholder '{placeholder}' not found in prompt template:\n{text}")
+            text = text.replace(placeholder, str(target))
         return text
 
     def __str__(self):
@@ -48,13 +49,15 @@ class SearchPrompt(Prompt):
 
     def __init__(self, claim: str, knowledge: str, past_queries: str,
                  search_engine: str = "google", open_source: bool = False):
-        self.placeholder_targets["[STATEMENT]"] = claim
-        self.placeholder_targets["[KNOWLEDGE]"] = knowledge
-        self.placeholder_targets["[PAST_QUERIES]"] = past_queries
+        placeholder_targets = {
+            "[STATEMENT]": claim,
+            "[KNOWLEDGE]": knowledge,
+            "[PAST_QUERIES]": past_queries,
+        }
         self.open_source = open_source
         assert search_engine in search_engine_options
         self.search_engine = search_engine
-        super().__init__()
+        super().__init__(placeholder_targets)
 
     def assemble_prompt(self) -> str:
         match self.search_engine:
@@ -100,10 +103,12 @@ class JudgePrompt(Prompt):
             class_definitions = DEFAULT_LABEL_DEFINITIONS
         class_str = '\n'.join([f"* `{cls.value}`: {remove_non_symbols(class_definitions[cls])}"
                                for cls in classes])
-        self.placeholder_targets["[DOC]"] = str(doc)
-        self.placeholder_targets["[CLASSES]"] = class_str
-        self.placeholder_targets["[EXTRA_RULES]"] = "" if extra_rules is None else remove_non_symbols(extra_rules)
-        super().__init__()
+        placeholder_targets = {
+            "[DOC]": str(doc),
+            "[CLASSES]": class_str,
+            "[EXTRA_RULES]": "" if extra_rules is None else remove_non_symbols(extra_rules),
+        }
+        super().__init__(placeholder_targets)
 
     def assemble_prompt(self) -> str:
         return read_md_file("safe/prompts/judge.md")
@@ -111,26 +116,28 @@ class JudgePrompt(Prompt):
 
 class DecontextualizePrompt(Prompt):
     def __init__(self, atomic_fact: str, context: str):
-        self.placeholder_targets["[ATOMIC_FACT]"] = atomic_fact
-        self.placeholder_targets["[CONTEXT]"] = context
-        super().__init__()
+        placeholder_targets = {
+            "[ATOMIC_FACT]": atomic_fact,
+            "[CONTEXT]": context,
+        }
+        super().__init__(placeholder_targets)
 
     def assemble_prompt(self) -> str:
         return read_md_file("safe/prompts/decontextualize.md")
 
 
 class FilterCheckWorthyPrompt(Prompt):
-    placeholder_targets = {
-        "[SYMBOL]": SYMBOL,
-        "[NOT_SYMBOL]": NOT_SYMBOL,
-    }
 
     def __init__(self, atomic_fact: str, context: str, filter: str = "default"):
         assert (filter in ["default", "custom"])
+        placeholder_targets = {
+            "[SYMBOL]": SYMBOL,
+            "[NOT_SYMBOL]": NOT_SYMBOL,
+            "[ATOMIC_FACT]": atomic_fact,
+            "[CONTEXT]": context,
+        }
         self.filter = filter
-        self.placeholder_targets["[ATOMIC_FACT]"] = atomic_fact
-        self.placeholder_targets["[CONTEXT]"] = context
-        super().__init__()
+        super().__init__(placeholder_targets)
 
     def assemble_prompt(self) -> str:
         if self.filter == 'custom':
@@ -152,11 +159,11 @@ class SummarizePrompt(Prompt):
 
 class SummarizeResultPrompt(Prompt):
     def __init__(self, search_result: SearchResult, doc: FCDocument):
-        search_result_str = f"From {search_result.source}:\n{search_result.text}"
-        self.placeholder_targets["[SEARCH_RESULT]"] = search_result_str
-        context_str = f'CLAIM: "{doc.claim}"\n\nREASONING:\n' + "\n".join(doc.get_all_reasoning())
-        self.placeholder_targets["[DOC]"] = context_str
-        super().__init__()
+        placeholder_targets = {
+            "[SEARCH_RESULT]": str(search_result),
+            "[DOC]": str(doc),
+        }
+        super().__init__(placeholder_targets)
 
     def assemble_prompt(self) -> str:
         return read_md_file("safe/prompts/summarize_result.md")
@@ -164,8 +171,7 @@ class SummarizeResultPrompt(Prompt):
 
 class SummarizeDocPrompt(Prompt):
     def __init__(self, doc: FCDocument):
-        self.placeholder_targets["[DOC]"] = str(doc)
-        super().__init__()
+        super().__init__({"[DOC]": doc})
 
     def assemble_prompt(self) -> str:
         return read_md_file("safe/prompts/summarize_doc.md")
@@ -179,15 +185,20 @@ class PlanPrompt(Prompt):
                                         f"   * Description: {remove_non_symbols(a.description)}\n"
                                         f"   * How to use: {remove_non_symbols(a.how_to)}\n"
                                         f"   * Format: {a.format}" for a in valid_actions])
-        self.placeholder_targets["[DOC]"] = str(doc)
-        self.placeholder_targets["[VALID_ACTIONS]"] = valid_action_str
-        self.placeholder_targets["[EXEMPLARS]"] = self.load_exemplars(valid_actions)
-        self.placeholder_targets["[EXTRA_RULES]"] = "" if extra_rules is None else remove_non_symbols(extra_rules)
-        super().__init__()
+        extra_rules = "" if extra_rules is None else remove_non_symbols(extra_rules)
+        placeholder_targets = {
+            "[DOC]": doc,
+            "[VALID_ACTIONS]": valid_action_str,
+            "[EXEMPLARS]": self.load_exemplars(valid_actions),
+            "[EXTRA_RULES]": extra_rules,
+        }
+        super().__init__(placeholder_targets)
 
     def load_exemplars(self, valid_actions) -> str:
         if WikiDumpLookup in valid_actions:
             return read_md_file("safe/prompts/plan_exemplars/wiki_dump.md")
+        elif WebSearch in valid_actions:
+            return read_md_file("safe/prompts/plan_exemplars/web_search.md")
         else:
             return read_md_file("safe/prompts/plan_exemplars/default.md")
 
@@ -197,25 +208,32 @@ class PlanPrompt(Prompt):
 
 class PreparePrompt(Prompt):
     def __init__(self, claim: Claim, extra_rules: str = None):
-        self.placeholder_targets["[CLAIM]"] = str(claim)
-        self.placeholder_targets["[EXTRA_RULES]"] = "" if extra_rules is None else remove_non_symbols(extra_rules)
-        super().__init__()
+        placeholder_targets = {
+            "[CLAIM]": claim,
+            "[EXTRA_RULES]": "" if extra_rules is None else remove_non_symbols(extra_rules),
+        }
+        super().__init__(placeholder_targets)
 
     def assemble_prompt(self) -> str:
         return read_md_file("safe/prompts/initial_reason.md")
 
 
 class ReiteratePrompt(Prompt):
-    def __init__(self, doc: FCDocument):
-        self.placeholder_targets["[DOC]"] = str(doc)
-        super().__init__()
+    def __init__(self, doc: FCDocument, results: Collection[Result]):
+        results_str = "\n\n".join([str(r) for r in results])
+        placeholder_targets = {
+            "[DOC]": doc,
+            "[RESULTS]": results_str,
+        }
+        super().__init__(placeholder_targets)
 
     def assemble_prompt(self) -> str:
-        return read_md_file("safe/prompts/reiterate.md")
+        return read_md_file("safe/prompts/consolidate.md")
 
 
 def read_md_file(file_path: str) -> str:
     """Reads and returns the contents of the specified Markdown file."""
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"No Markdown file found at '{file_path}'.")
     with open(file_path, 'r') as f:
-        contents = f.read()
-    return contents
+        return f.read()

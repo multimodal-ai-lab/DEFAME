@@ -12,7 +12,7 @@ class ReasoningBlock:
     text: str
 
     def __str__(self):
-        return f"REASONING:\n{self.text}"
+        return self.text
 
 
 @dataclass
@@ -21,7 +21,7 @@ class ActionsBlock:
 
     def __str__(self):
         actions_str = "\n".join([str(a) for a in self.actions])
-        return f"ACTIONS:\n```\n{actions_str}\n```"
+        return f"## Actions\n```\n{actions_str}\n```"
 
 
 @dataclass
@@ -29,15 +29,17 @@ class ResultsBlock:
     results: Collection[Result]
 
     def __str__(self):
-        if self.num_useful_results > 0:
-            results_str = "\n".join([str(r) for r in self.results if r.is_useful()])
-        else:
-            results_str = "No new useful results found!"
-        return f"RESULTS:\n{results_str}"
+        return f"## Results\nRetrieved {self.num_useful_results} new useful results."
 
     @property
     def num_useful_results(self):
         return len([r for r in self.results if r.is_useful()])
+
+    def get_useful_results_str(self) -> str:
+        if self.num_useful_results > 0:
+            return "\n".join([str(r) for r in self.results if r.is_useful()])
+        else:
+            return "No new useful results found!"
 
 
 class FCDocument:
@@ -55,13 +57,13 @@ class FCDocument:
         self.record = []
 
     def __str__(self):
-        doc_str = f'CLAIM:\n{self.claim}'
+        doc_str = f'## Claim\n{self.claim}'
         if self.record:
             doc_str += "\n\n" + "\n\n".join([str(block) for block in self.record])
         if self.verdict:
-            doc_str += f"\n\nVERDICT: {self.verdict.name}"
+            doc_str += f"\n\n## Verdict: {self.verdict.name}"
         if self.justification:
-            doc_str += f"\n\nJUSTIFICATION:\n{self.justification}"
+            doc_str += f"\n\n## Justification\n{self.justification}"
         return doc_str
 
     def add_reasoning(self, text: str):

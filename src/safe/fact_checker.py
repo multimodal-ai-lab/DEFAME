@@ -1,4 +1,4 @@
-from typing import Sequence, Optional
+from typing import Sequence, Optional, Collection
 
 import numpy as np
 import torch
@@ -10,6 +10,7 @@ from common.label import Label
 from common.modeling import Model, MultimodalModel
 from common.shared_config import path_to_data
 from common.claim import Claim
+from common.results import Result
 from eval.logger import EvaluationLogger
 from safe.claim_extractor import ClaimExtractor
 from safe.judge import Judge
@@ -125,7 +126,7 @@ class FactChecker:
         while True:
             n_iterations += 1
             actions, reasoning = self.planner.plan_next_actions(doc)
-            if reasoning:
+            if len(reasoning) > 32:  # Only keep substantial reasoning
                 doc.add_reasoning(reasoning)
             doc.add_actions(actions)
             if not actions:
@@ -136,7 +137,9 @@ class FactChecker:
             label = self.judge.judge(doc)
             if label != Label.NEI or n_iterations == self.max_iterations:
                 break
-            self._reiterate_current_knowledge(doc)
+            else:
+                self.logger.log("Not enough information yet. Continuing fact-check...")
+            self._consolidate_new_knowledge(doc, results)
         doc.add_reasoning(self.judge.get_latest_reasoning())
         doc.verdict = label
         if label != Label.REFUSED_TO_ANSWER:
@@ -149,10 +152,10 @@ class FactChecker:
         answer = self.model.generate(str(prompt))
         doc.add_reasoning(answer)
 
-    def _reiterate_current_knowledge(self, doc: FCDocument):
+    def _consolidate_new_knowledge(self, doc: FCDocument, results: Collection[Result]):
         """Analyzes the currently available information and states new questions, adds them
         to the FCDoc."""
-        prompt = ReiteratePrompt(doc)
+        prompt = ReiteratePrompt(doc, results)
         answer = self.model.generate(str(prompt))
         doc.add_reasoning(answer)
 
