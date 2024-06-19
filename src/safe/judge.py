@@ -76,7 +76,7 @@ class Judge:
     def _extract_verdict(self, response: str) -> Label:
         """Extract label from response"""
         answer = utils.extract_last_code_span(response)
-        answer = re.sub(r'[^\w\s]', '', answer).strip().lower()
+        answer = re.sub(r'[^\w\-\s]', '', answer).strip().lower()
 
         if not answer:
             # No valid response given, therefore returning refused label

@@ -52,11 +52,11 @@ class ResultSummarizer:
 
     def _maybe_truncate_prompt(self, prompt: str) -> str:
         """Truncates the prompt if it's too long (exceeds the LLM context length limit)."""
-        num_prompt_tokens = len(prompt) // 3  # 1 token has approx. 3 to 5 chars, calculate conservatively
+        num_prompt_tokens = self.model.count_tokens(prompt)
         if num_prompt_tokens > self.model.max_prompt_len:
             self.logger.log(orange(f"INFO: Truncating search result due to excess length. Cutting away "
                                    f"{num2text(num_prompt_tokens - self.model.max_prompt_len)} tokens to fit into "
                                    f"LLM context window of {num2text(self.model.context_window)} tokens."))
-            return prompt[:self.model.max_prompt_len * 3]  # count with only 3 chars per token
+            return prompt[:self.model.max_prompt_len * 3]  # count conservatively with only 3 chars per token
         else:
             return prompt

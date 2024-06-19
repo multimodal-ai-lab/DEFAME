@@ -220,7 +220,7 @@ class PreparePrompt(Prompt):
 
 class ReiteratePrompt(Prompt):
     def __init__(self, doc: FCDocument, results: Collection[Result]):
-        results_str = "\n\n".join([str(r) for r in results])
+        results_str = "\n\n".join([str(r) for r in results if r.is_useful()])
         placeholder_targets = {
             "[DOC]": doc,
             "[RESULTS]": results_str,

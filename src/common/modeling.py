@@ -14,6 +14,7 @@ import pandas as pd
 import pyglove as pg
 import torch
 from transformers import BitsAndBytesConfig, pipeline
+import tiktoken
 
 from common import modeling_utils
 from common import shared_config
@@ -198,6 +199,7 @@ class Model:
         self.show_prompts = show_prompts
         self.open_source = False
         self.model = self.load(full_name)
+        self.encoding = tiktoken.get_encoding("cl100k_base")
 
     def load(self, model_name: str) -> lf.LanguageModel:
         """Loads a language model from string representation."""
@@ -349,6 +351,12 @@ class Model:
             'show_prompts': self.show_prompts,
         }
         print(utils.to_readable_json(settings))
+
+    def count_tokens(self, string: str) -> int:
+        """Returns the number of tokens in a text string. Uses the tokenizer used by
+        GPT-4 and GPT-3.5 models."""
+        num_tokens = len(self.encoding.encode(string))
+        return num_tokens
 
 
 class MultimodalModel(Model):

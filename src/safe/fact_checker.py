@@ -134,12 +134,12 @@ class FactChecker:
             results = self.actor.perform(actions)
             results = self.result_summarizer.summarize(results, doc)
             doc.add_results(results)  # even if no results, add empty results block for the record
+            self._consolidate_new_knowledge(doc, results)
             label = self.judge.judge(doc)
             if label != Label.NEI or n_iterations == self.max_iterations:
                 break
             else:
                 self.logger.log("Not enough information yet. Continuing fact-check...")
-            self._consolidate_new_knowledge(doc, results)
         doc.add_reasoning(self.judge.get_latest_reasoning())
         doc.verdict = label
         if label != Label.REFUSED_TO_ANSWER:
