@@ -26,7 +26,7 @@ class WebSearch(Search):
     description = """Run an open web search on Google or DuckDuckGO to retrieve any related webpage."""
     how_to = """Do not use this with a previously used or similar query from previous WEB_SEARCHes.
     If a previous WEB_SEARCH did not yield any results, use a very different query."""
-    format = "WEB_SEARCH: your web search query goes here"
+    format = "WEB_SEARCH: \"your web search query goes here\""
 
 
 class WikiDumpLookup(Search):
@@ -37,7 +37,7 @@ class WikiDumpLookup(Search):
     an event etc."""
     how_to = """Do not repeat queries from previous `WIKI_DUMP_LOOKUP`s. If a previous
     `WIKI_DUMP_LOOKUP` did not yield enough results, use a very different query."""
-    format = """WIKI_DUMP_LOOKUP: your wiki search query goes here"""
+    format = """WIKI_DUMP_LOOKUP: \"your wiki search query goes here\""""
 
 
 class WikiLookup(Search):
@@ -46,7 +46,7 @@ class WikiLookup(Search):
     entity, an event etc."""
     how_to = """Do not use this with a previously used or similar query from previous WIKI_LOOKUPs. 
     If a previous WIKI_LOOKUP did not yield any results, use a very different query."""
-    format = """WIKI_LOOKUP: your wiki search query goes here"""
+    format = """WIKI_LOOKUP: \"your wiki search query goes here\""""
 
 
 ACTION_REGISTRY = {
