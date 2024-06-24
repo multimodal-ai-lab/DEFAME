@@ -33,6 +33,7 @@ def evaluate(
         benchmark_kwargs: dict = None,
         multimodal_model: str = None,
         n_samples: int = None,
+        max_results_per_search: int = 3,
         sample_ids: list[int] = None,
         random_sampling: bool = False,
         extract_claims: bool = True,
@@ -42,7 +43,7 @@ def evaluate(
     assert n_samples is None or sample_ids is None
 
     benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
-    lookup = {value.value: key for key, value in benchmark.class_mapping.items()}
+    #lookup = {value.value: key for key, value in benchmark.class_mapping.items()}
 
     model = model_full_name_to_shorthand(model) if model not in AVAILABLE_MODELS["Shorthand"].values else model
     logger = EvaluationLogger(benchmark.name, model, verbose=verbose)
@@ -53,7 +54,7 @@ def evaluate(
     start_time = time.time()
 
     # Initialize model
-    model = Model(model, **model_kwargs)
+    model = Model(model, logger=logger, **model_kwargs)
 
     fc = FactChecker(
         model=model,
@@ -61,6 +62,7 @@ def evaluate(
         search_engines=[search_engine],
         extract_claims=extract_claims,
         max_iterations=max_iterations,
+        max_results_per_search=max_results_per_search,
         logger=logger,
         # Benchmark specifics:
         class_definitions=benchmark.class_definitions,
@@ -99,7 +101,13 @@ def evaluate(
         eval_log.append({"claim": content, "evidence": "", "pred_label": prediction.name})
         prediction_is_correct = instance["label"] == prediction
 
-        logger.save_next_prediction(sample_index=instance['id'], target=instance["label"], predicted=prediction)
+        logger.save_next_prediction(sample_index=instance['id'], 
+                                    claim=doc.claim.text, 
+                                    target=instance["label"], 
+                                    justification=doc.justification, 
+                                    predicted=prediction, 
+                                    gt_justification=instance["ground_truth_justification"]
+                                    )
         logger.save_fc_doc(doc, instance['id'])
         if prediction_is_correct:
             logger.log(bold(green("CORRECT\n")))

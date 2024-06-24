@@ -31,7 +31,7 @@ class FactChecker:
                  extract_claims: bool = False,
                  summarize_search_results: bool = True,
                  max_iterations: int = 5,
-                 max_results_per_search: int = 10,
+                 max_results_per_search: int = 3,
                  logger: EvaluationLogger = None,
                  classes: Sequence[Label] = None,
                  class_definitions: dict[Label, str] = None,
@@ -40,15 +40,15 @@ class FactChecker:
                  extra_judge_rules: str = None,
                  verbose: bool = True,
                  ):
+        self.logger = logger or EvaluationLogger(verbose=verbose)
+        
         if isinstance(model, str):
-            model = Model(model)
+            model = Model(model, logger)
         self.model = model
 
         if isinstance(multimodal_model, str):
-            multimodal_model = MultimodalModel(multimodal_model)
+            multimodal_model = MultimodalModel(multimodal_model, logger)
         self.multimodal_model = multimodal_model
-
-        self.logger = logger or EvaluationLogger(verbose=verbose)
 
         self.claim_extractor = ClaimExtractor(model, self.logger)
         self.extract_claims = extract_claims

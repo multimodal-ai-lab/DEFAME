@@ -13,10 +13,13 @@ class Search(Action, ABC):
     query: str
 
     def __init__(self, query: str):
-        """Accepts a string enclosed with quotes."""
-        assert query[0] == '"' and query[-1] == '"'
-        self.query = query[1:-1]
-
+        """Expects a string enclosed with quotes."""
+        if query[0] == '"': 
+            query = query[1:]
+        if query[-1] == '"':
+            query = query[:-1]
+        self.query = query
+            
     def __str__(self):
         return f"{self.name}: \"{self.query}\""
 

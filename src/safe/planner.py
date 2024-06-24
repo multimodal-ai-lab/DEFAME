@@ -1,4 +1,4 @@
-from common.action import Action, WebSearch, WikiLookup, ACTION_REGISTRY
+from common.action import Action, WebSearch, WikiDumpLookup, WikiLookup, ACTION_REGISTRY
 from common.console import orange
 from common.document import FCDocument
 from common.modeling import Model
@@ -53,15 +53,21 @@ class Planner:
 
     def _parse_single_action(self, raw_action: str) -> Optional[Action]:
         try:
-            action_name, arguments_str = raw_action.split(':', maxsplit=1)
+            if ":" in raw_action:
+                action_name, arguments_str = raw_action.split(':', maxsplit=1)
+            # A fallback if the LLM formats incorrectly
+            else:
+                action_name = raw_action
+                arguments_str = '"' + action_name + '"' if action_name[0]!='"' else action_name 
+            arguments_str = arguments_str.replace('"', "'")
             arguments = _extract_arguments(arguments_str)
             for action in ACTION_REGISTRY:
                 if action_name == action.name:
                     return action(*arguments)
-            raise ValueError(f'Invalid action name: {action_name}')
+            raise ValueError(f'Invalid action name: {action_name} or arguments: {arguments}. Fallback to WikiDumpLookup.')
         except Exception as e:
             self.logger.log(orange(f"WARNING: Failed to parse '{raw_action}':\n{e}"))
-        return None
+        return WikiDumpLookup(*arguments)
 
 
 def _process_answer(answer: str) -> str:
@@ -81,3 +87,4 @@ def _extract_arguments(arguments_str: str) -> list[str]:
 
     # Remove whitespaces and split into arguments list
     return [str.strip(value) for value in parsed]
+

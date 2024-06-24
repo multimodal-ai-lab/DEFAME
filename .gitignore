@@ -25,3 +25,8 @@ MANIFEST
 
 out/*
 src/results/*
+src/evaluate_averitec.py
+src/evaluate_fever.py
+src/safe/multimodal_interpreter.py
+src/safe/tools/search/test_local_base.py
+src/eval/averitec_score_tests/*

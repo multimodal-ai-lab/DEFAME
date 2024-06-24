@@ -12,7 +12,7 @@ class ReasoningBlock:
     text: str
 
     def __str__(self):
-        return self.text
+        return self.text if self.text else "None"
 
 
 @dataclass

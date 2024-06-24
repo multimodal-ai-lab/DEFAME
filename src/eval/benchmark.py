@@ -4,12 +4,15 @@ from abc import ABC
 from datetime import datetime
 from pathlib import Path
 from typing import MutableSequence, Iterable, Iterator
-
+import re
+import os
 import orjsonl
+from tqdm import tqdm
 
 from common.claim import Claim
 from common.label import Label
 from common.shared_config import path_to_data
+from safe.tools.search.wiki_dump import WikiDumpAPI
 
 
 class Benchmark(ABC, Iterable):
@@ -89,16 +92,28 @@ class AVeriTeC(Benchmark):
         # Load the data
         with open(self.file_path, 'r') as f:
             data = json.load(f)
-
-        self.data = [{"id": i,
-                      "content": Claim(
-                          text=d["claim"],
-                          author=d["speaker"],
-                          date=datetime.strptime(d["claim_date"], "%d-%m-%Y"),
-                          origin=d["original_claim_url"]
-                      ),
-                      "label": self.class_mapping[d["label"]]}
-                     for i, d in enumerate(data)]
+        if variant in ["train", "dev"]:
+            self.data = [{"id": i,
+                          "content": Claim(
+                              text=d["claim"],
+                              author=d["speaker"],
+                              date=datetime.strptime(d["claim_date"], "%d-%m-%Y"),
+                              origin=d["original_claim_url"]
+                          ),
+                          "label": self.class_mapping[d["label"]],
+                          "ground_truth_justification": d["justification"]}
+                         for i, d in enumerate(data)]
+        else:
+            self.data = [{"id": i,
+                          "content": Claim(
+                              text=d["claim"],
+                              author=d["speaker"],
+                              date=datetime.strptime(d["claim_date"], "%d-%m-%Y"),
+                              origin=d["original_claim_url"]
+                          ),
+                          "label": None,
+                          "ground_truth_justification": None}
+                         for i, d in enumerate(data)]
 
     def __iter__(self) -> Iterator[dict]:
         return iter(self.data)
@@ -144,16 +159,105 @@ class FEVER(Benchmark):
     def __init__(self, variant="dev"):
         super().__init__(f"fever_{variant}")
         self.file_path = Path(path_to_data + f"FEVER/{variant}.jsonl")
+        # Load the data 
+        self.data = []
+        self.load_data(variant)
+        
 
-        # Load the data
+    def load_data(self, variant):
+        cache_file_path = os.path.join(path_to_data, f"FEVER/gt_justification_{variant}.jsonl")
+
         data = orjsonl.load(self.file_path)
+        evidence_searcher = WikiDumpAPI()
 
-        self.data = [{"id": i,
-                      "content": Claim(d["claim"]),
-                      "label": self.class_mapping[d["label"].lower()]}
-                     for i, d in enumerate(data)]
+        if os.path.exists(cache_file_path):
+            # Load ground truth justifications from the cache file
+            with open(cache_file_path, 'r') as cache_file:
+                ground_truth_data = [json.loads(line) for line in cache_file]
 
-    def __iter__(self) -> Iterator[dict]:
+            # Check if the number of lines in the cache file matches the number of samples
+            if len(ground_truth_data) < len(data):
+                print("Updating ground truth justifications.")
+                for i in tqdm(range(len(ground_truth_data), len(data)), desc="Updating cache"):
+                    d = data[i]
+                    ground_truth_justification = []
+
+                    for evidence in d["evidence"][0] if d["evidence"] else [[None, None, None, None]]:
+                        evidence_key, relevant_sentence = evidence[2], evidence[3]
+
+                        if evidence_key and relevant_sentence is not None:
+                            evidence_text = evidence_searcher._call_api(evidence_key, 3)[0].text
+                            relevant_evidence = extract_nth_sentence(evidence_text, int(relevant_sentence))
+                            ground_truth_justification.append(relevant_evidence)
+                        else:
+                            ground_truth_justification.append(evidence_key)
+
+                    entry = {
+                        "id": i,
+                        "content": Claim(d["claim"]),
+                        "label": self.class_mapping[d["label"].lower()],
+                        "ground_truth_justification": ground_truth_justification
+                    }
+                    self.data.append(entry)
+                    ground_truth_data.append(entry)
+                
+                # Append the new entries to the cache file
+                with open(cache_file_path, 'a') as cache_file:
+                    for entry in ground_truth_data[len(ground_truth_data) - (len(data) - len(ground_truth_data)):]:
+                        cache_file.write(json.dumps(entry) + '\n')
+        else:
+            print("Creating ground truth justifications.")
+            ground_truth_data = []
+
+            for i in tqdm(range(len(data)), desc="Creating cache"):
+                d = data[i]
+                ground_truth_justification = []
+
+                for evidence in d["evidence"][0] if d["evidence"] else [[None, None, None, None]]:
+                    evidence_key, relevant_sentence = evidence[2], evidence[3]
+
+                    if evidence_key and relevant_sentence is not None:
+                        evidence_text = evidence_searcher._call_api(evidence_key, 3)[0].text
+                        relevant_evidence = extract_nth_sentence(evidence_text, int(relevant_sentence))
+                        ground_truth_justification.append(relevant_evidence)
+                    else:
+                        ground_truth_justification.append(evidence_key)
+
+                entry = {
+                    "id": i,
+                    "content": Claim(d["claim"]),
+                    "label": self.class_mapping[d["label"].lower()],
+                    "ground_truth_justification": ground_truth_justification
+                }
+                self.data.append(entry)
+                ground_truth_data.append(entry)
+            
+            # Save the generated ground truth justifications to the cache file
+            with open(cache_file_path, 'w') as cache_file:
+                for entry in ground_truth_data:
+                    cache_file.write(json.dumps(entry) + '\n')
+
+        # Populate self.data from ground_truth_data
+        if variant in ["train", "dev"]:
+            for i, d in enumerate(data):
+                entry = {
+                    "id": i,
+                    "content": Claim(d["claim"]),
+                    "label": self.class_mapping[d["label"].lower()],
+                    "ground_truth_justification": ground_truth_data[i]["ground_truth_justification"]
+                }
+                self.data.append(entry)
+        else:
+            self.data = [{"id": i,
+                          "content": Claim(d["claim"]),
+                          "label": None,
+                          "ground_truth_justification": None
+                          }
+                      for i, d in enumerate(data)]
+
+
+
+def __iter__(self) -> Iterator[dict]:
         return iter(self.data)
 
 
@@ -163,3 +267,13 @@ def load_benchmark(name: str, **kwargs) -> Benchmark:
             return FEVER(**kwargs)
         case "averitec":
             return AVeriTeC(**kwargs)
+        
+def extract_nth_sentence(text, n):
+    # Split the text into sentences using regular expressions
+    sentences = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|!|\;)\s', text)
+    
+    # Ensure the index n is within the range of the sentences list
+    if 0 <= n < len(sentences):
+        return sentences[n]
+    else:
+        return "" 

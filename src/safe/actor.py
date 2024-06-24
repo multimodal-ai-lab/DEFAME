@@ -9,13 +9,13 @@ class Actor:
     def __init__(self,
                  model: str | Model = "OPENAI:gpt-3.5-turbo-0125",
                  search_engines: list[str] = None,
-                 max_results_per_search: int = 5,
+                 max_results_per_search: int = 3,
                  logger: EvaluationLogger = None,
                  ):
 
         self.logger = logger or EvaluationLogger()
 
-        search_engines = search_engines or ["duckduck"]
+        search_engines = search_engines or ["duckduckgo"]
         self.searcher = Searcher(search_engines, model, self.logger,
                                  summarize=False,
                                  limit_per_search=max_results_per_search)

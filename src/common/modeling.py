@@ -19,7 +19,8 @@ import tiktoken
 from common import modeling_utils
 from common import shared_config
 from common import utils
-from common.console import cyan, magenta
+from common.console import cyan, magenta, orange
+from eval.logger import EvaluationLogger
 
 AVAILABLE_MODELS = pd.read_csv("common/available_models.csv", skipinitialspace=True)
 
@@ -173,6 +174,7 @@ class Model:
     def __init__(
             self,
             name: str,
+            logger: EvaluationLogger = None,
             temperature: float = 0.01,
             max_response_len: int = 2048,
             top_k: int = 50,
@@ -200,6 +202,7 @@ class Model:
         self.open_source = False
         self.model = self.load(full_name)
         self.encoding = tiktoken.get_encoding("cl100k_base")
+        self.logger = logger or EvaluationLogger()
 
     def load(self, model_name: str) -> lf.LanguageModel:
         """Loads a language model from string representation."""
@@ -275,6 +278,10 @@ class Model:
             ]
             # useful for controlling the length of the generated sequences.
             self.model.tokenizer.pad_token_id = self.model.tokenizer.eos_token_id
+            while len(self.model.tokenizer(prompt)['input_ids']) > self.context_window:
+                prompt_length = len(self.model.tokenizer(prompt))
+                self.logger.log(orange(f"INFO: Prompt is too long. Length: {prompt_length}. Truncating it hard with factor 0.9."))
+                prompt = prompt[:0.9*len(prompt)]
             output = self.model(prompt,
                                 eos_token_id=terminators,
                                 pad_token_id=terminators[0],
@@ -284,6 +291,10 @@ class Model:
                                 )
             response = output[0]['generated_text'][len(prompt):]
         else:
+            while len(self.encoding.encode(prompt)) > self.context_window:
+                prompt_length = len(self.encoding.encode(prompt))
+                self.logger.log(orange(f"INFO: Prompt is too long. Length: {prompt_length}. Truncating it hard with factor 0.9."))
+                prompt = prompt[:0.9*len(prompt)]
             with modeling_utils.get_lf_context(gen_temp, max_tokens):
                 while not response and num_attempts < max_attempts:
                     with futures.ThreadPoolExecutor() as executor:
@@ -335,7 +346,7 @@ class Model:
                 f"Please check the model's documentation on Hugging Face for the correct prompt formatting: "
                 f"https://huggingface.co/{self.model.model_name[12:]}"
             )
-            print(error_message)
+            self.logger.log(error_message)
             # Use the original prompt if the formatting fails
             formatted_prompt = original_prompt
 
@@ -380,7 +391,7 @@ class MultimodalModel(Model):
         if model_name.lower().startswith('huggingface:'):
             model_name = model_name[12:]
             if model_name != "llava-hf/llava-1.5-7b-hf":
-                print(
+                self.logger.log(
                     "Warning: Model output is cut according to Llava 1.5 standard input format < output[len(prompt)-5:] >.")
             quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,

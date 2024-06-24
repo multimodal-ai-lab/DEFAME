@@ -79,16 +79,34 @@ class EvaluationLogger:
 
     def _init_predictions_csv(self):
         with open(self.predictions_path, "w") as f:
-            csv.writer(f).writerow(("sample_index", "target", "predicted", "correct"))
+            csv.writer(f).writerow(("sample_index", 
+                                    "claim", 
+                                    "target", 
+                                    "predicted", 
+                                    "justification", 
+                                    "correct", 
+                                    "ground_truth_justification"))
 
     def log(self, text: str, important: bool = False):
         if self.verbose or important:
             print("--> " + text)
         self.print_logger.info("--> " + remove_string_formatters(text))
 
-    def save_next_prediction(self, sample_index: int, target: Label, predicted: Label):
+    def save_next_prediction(self, 
+                             sample_index: int, 
+                             claim: str, 
+                             target: Label, 
+                             predicted: Label, 
+                             justification: str,
+                             gt_justification: str):
         with open(self.predictions_path, "a") as f:
-            csv.writer(f).writerow((sample_index, target.name, predicted.name, target == predicted))
+            csv.writer(f).writerow((sample_index, 
+                                    claim, 
+                                    target.name, 
+                                    predicted.name, 
+                                    justification, 
+                                    target == predicted, 
+                                    gt_justification))
 
     def save_fc_doc(self, doc: FCDocument, claim_id: int):
         with open(self.fc_docs_path + f"{claim_id}.md", "w") as f:
