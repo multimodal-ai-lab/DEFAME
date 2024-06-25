@@ -14,42 +14,39 @@ class Search(Action, ABC):
 
     def __init__(self, query: str):
         """Expects a string enclosed with quotes."""
-        if query[0] == '"': 
-            query = query[1:]
-        if query[-1] == '"':
-            query = query[:-1]
-        self.query = query
+        assert (query[0]=='"' and query[-1]=='"')
+        self.query = query[1:-1]
             
     def __str__(self):
         return f"{self.name}: \"{self.query}\""
 
 
 class WebSearch(Search):
-    name = "WEB_SEARCH"
+    name = "web_search"
     description = """Run an open web search on Google or DuckDuckGO to retrieve any related webpage."""
     how_to = """Do not use this with a previously used or similar query from previous WEB_SEARCHes.
     If a previous WEB_SEARCH did not yield any results, use a very different query."""
-    format = "WEB_SEARCH: \"your web search query goes here\""
+    format = """web_search("your web search query goes here")"""
 
 
 class WikiDumpLookup(Search):
-    name = "WIKI_DUMP_LOOKUP"
+    name = "wiki_dump_lookup"
     description = """Look up something on the Wikipedia dump from 2017. Each article in the dump
     contains only the first few paragraphs of the article. In particular, the dump is incomplete
     and may miss much information. Use the dump to retrieve an article for a person, an entity, 
     an event etc."""
-    how_to = """Do not repeat queries from previous `WIKI_DUMP_LOOKUP`s. If a previous
-    `WIKI_DUMP_LOOKUP` did not yield enough results, use a very different query."""
-    format = """WIKI_DUMP_LOOKUP: \"your wiki search query goes here\""""
+    how_to = """Do not repeat queries from previous `wiki_dump_lookup`s. If a previous
+    `wiki_dump_lookup` did not yield enough results, use a very different query."""
+    format = """wiki_dump_lookup("your wiki search query goes here")"""
 
 
 class WikiLookup(Search):
-    name = "WIKI_LOOKUP"
+    name = "wiki_lookup"
     description = """Look up something on Wikipedia to retrieve an article for a person, an 
     entity, an event etc."""
     how_to = """Do not use this with a previously used or similar query from previous WIKI_LOOKUPs. 
-    If a previous WIKI_LOOKUP did not yield any results, use a very different query."""
-    format = """WIKI_LOOKUP: \"your wiki search query goes here\""""
+    If a previous wiki_lookup did not yield any results, use a very different query."""
+    format = """wiki_lookup("your wiki search query goes here")"""
 
 
 ACTION_REGISTRY = {

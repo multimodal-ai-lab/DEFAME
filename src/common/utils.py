@@ -130,11 +130,6 @@ def find_code_blocks(
     else:
         pattern = re.compile(r'```(.*?)```', re.DOTALL)
     matches = pattern.findall(input_string)
-    
-    if not matches:
-        for action in ACTION_REGISTRY:
-            pattern = re.compile(f'{action.name}: "(.*?)"', re.DOTALL)
-            matches += pattern.findall(input_string)
     return matches
 
 

@@ -5,8 +5,9 @@ from common.modeling import Model
 from common.utils import extract_last_code_block, remove_code_blocks
 from eval.logger import EvaluationLogger
 from safe.prompts.prompt import PlanPrompt
-from typing import Optional
+from typing import Optional, Tuple
 import pyparsing as pp
+import re
 
 
 class Planner:
@@ -39,6 +40,12 @@ class Planner:
     def _extract_actions(self, answer: str) -> list[Action]:
         actions_str = extract_last_code_block(answer)
         if not actions_str:
+            candidates = []
+            for action in ACTION_REGISTRY:
+                pattern = re.compile(f'{action.name}("(.*?)")', re.DOTALL)
+                candidates += pattern.findall(answer)
+            actions_str = "\n".join(candidates)
+        if not actions_str:
             return []
         raw_actions = actions_str.split('\n')
         actions = []
@@ -53,21 +60,44 @@ class Planner:
 
     def _parse_single_action(self, raw_action: str) -> Optional[Action]:
         try:
-            if ":" in raw_action:
-                action_name, arguments_str = raw_action.split(':', maxsplit=1)
-            # A fallback if the LLM formats incorrectly
+            # Use regular expression to match action and argument in the form action(argument)
+            match = re.match(r'(\w+)\((.*)\)', raw_action)
+            if match:
+                action_name, argument = match.groups()
+                argument = argument.strip()
             else:
-                action_name = raw_action
-                arguments_str = '"' + action_name + '"' if action_name[0]!='"' else action_name 
-            arguments_str = arguments_str.replace('"', "'")
-            arguments = _extract_arguments(arguments_str)
+                self.logger.log(f"Invalid action format: {raw_action}")
+                action_name, argument = self._analyze_raw_action(raw_action)
+
             for action in ACTION_REGISTRY:
                 if action_name == action.name:
-                    return action(*arguments)
-            raise ValueError(f'Invalid action name: {action_name} or arguments: {arguments}. Fallback to WikiDumpLookup.')
+                    return action(argument)
+            raise ValueError(f'Invalid action name: {action_name} or arguments: {argument}. Fallback to WikiDumpLookup.')
         except Exception as e:
-            self.logger.log(orange(f"WARNING: Failed to parse '{raw_action}':\n{e}"))
-        return WikiDumpLookup(*arguments)
+            self.logger.log(f"WARNING: Failed to parse '{raw_action}':\n{e}")
+        return WikiDumpLookup(argument)
+    
+    def _analyze_raw_action(self, raw_action: str) -> Tuple[str, str]:
+        match = re.match(r'(\w+)\((.*)\)', raw_action)
+        if match:
+            action_name, argument = match.groups()
+            argument = argument.strip()
+        else:
+            raise ValueError(f"Could not parse action and argument from raw_action: {raw_action}")
+
+        # Check if the action is known
+        for action in ACTION_REGISTRY:
+            if action_name == action.name:
+                return action.name, argument
+
+        # If the action is unknown, use the fallback action
+        self.logger.log(f"Unknown action '{action_name}' found, using fallback action wiki_dump_lookup.")
+
+        if not argument:
+            self.logger.log(f"No argument found, using whole output as argument: {raw_action}.")
+            argument = raw_action
+        return 'wiki_dump_lookup', argument
+
 
 
 def _process_answer(answer: str) -> str:

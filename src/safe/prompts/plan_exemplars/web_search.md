@@ -16,6 +16,6 @@ To verify the CLAIM, we need to answer the following factuality questions:
 
 ACTIONS:
 ```
-WEB_SEARCH: "New Zealand Food Bill 2020"
-WEB_SEARCH: "New Zealand Food Bill gardening ban"
+web_search("New Zealand Food Bill 2020")
+web_search("New Zealand Food Bill gardening ban")
 ```
