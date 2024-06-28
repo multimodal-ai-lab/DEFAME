@@ -2,15 +2,15 @@ import csv
 import inspect
 import time
 import pandas as pd
+import numpy as np
 
 from common.console import green, red, bold
 from common.label import Label
 from common.plot import plot_confusion_matrix
-from common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS, Model
+from common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS, Model, MultimodalModel
 from eval.benchmark import load_benchmark, AVeriTeC
 from eval.logger import EvaluationLogger
 from safe.fact_checker import FactChecker
-
 
 # TODO The following comments should be inserted in the README.md
 # For multimodal usage turn image into a tensor by either:
@@ -23,7 +23,6 @@ from safe.fact_checker import FactChecker
 #    image = Image.open(image_path)
 #
 # Hand the tensor as second argument to Factchecker.check
-
 
 def evaluate(
         model: str,
@@ -43,7 +42,7 @@ def evaluate(
     assert n_samples is None or sample_ids is None
 
     benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
-    #lookup = {value.value: key for key, value in benchmark.class_mapping.items()}
+    multimodal = benchmark.is_multimodal
 
     model = model_full_name_to_shorthand(model) if model not in AVAILABLE_MODELS["Shorthand"].values else model
     logger = EvaluationLogger(benchmark.name, model, verbose=verbose)
@@ -55,8 +54,11 @@ def evaluate(
 
     # Initialize model
     model = Model(model, logger=logger, **model_kwargs)
+    if multimodal:
+        multimodal_model = MultimodalModel(name=multimodal_model, logger=logger, **model_kwargs)
 
     fc = FactChecker(
+        multimodal=multimodal,
         model=model,
         multimodal_model=multimodal_model,
         search_engines=[search_engine],
@@ -84,30 +86,34 @@ def evaluate(
             samples_to_evaluate = benchmark
             n_samples = len(benchmark)
 
-
     eval_log = []
-    # Run the evaluation for each instance individually
     predictions = []
     for i, instance in enumerate(samples_to_evaluate):
         logger.log(f"Evaluating claim {i + 1} of {n_samples} (#{instance['id']}):")
         content = instance["content"]
 
-        doc = fc.check(content)
+        if multimodal:
+
+            images = instance["content"].images
+            doc = fc.check(content, images=images)
+        else:
+            doc = fc.check(content)
 
         prediction = doc.verdict
-        if prediction == Label.CHERRY_PICKING:  # AVeriTeC combines these two classes into one class (here CONFLICTING)
+        if prediction == Label.CHERRY_PICKING:
             prediction = Label.CONFLICTING
 
         eval_log.append({"claim": content, "evidence": "", "pred_label": prediction.name})
         prediction_is_correct = instance["label"] == prediction
 
-        logger.save_next_prediction(sample_index=instance['id'], 
-                                    claim=doc.claim.text, 
-                                    target=instance["label"], 
-                                    justification=doc.justification, 
-                                    predicted=prediction, 
-                                    gt_justification=instance["ground_truth_justification"]
-                                    )
+        logger.save_next_prediction(
+            sample_index=instance['id'], 
+            claim=doc.claim.text, 
+            target=instance["label"], 
+            justification=doc.justification, 
+            predicted=prediction, 
+            gt_justification=instance["ground_truth_justification"]
+        )
         logger.save_fc_doc(doc, instance['id'])
         if prediction_is_correct:
             logger.log(bold(green("CORRECT\n")))
@@ -119,10 +125,10 @@ def evaluate(
             break
 
     benchmark_classes = benchmark.get_classes()
+    #TODO: get this out of the evaluate function
     if isinstance(benchmark, AVeriTeC):
         benchmark_classes.remove(Label.CHERRY_PICKING)
 
-    # Compute and save evaluation results
     ground_truth = [s["label"] for s in samples_to_evaluate]
     search_summary = {name: searcher.total_searches
                       for name, searcher in fc.actor.searcher.search_apis.items()
@@ -139,7 +145,6 @@ def evaluate(
 
     return accuracy, eval_log, benchmark
 
-
 def load_results(path: str):
     ground_truth = []
     predictions = []
@@ -148,7 +153,6 @@ def load_results(path: str):
         predictions.append(Label[predicted])
     return ground_truth, predictions
 
-
 def next_result(path: str):
     with open(path) as f:
         reader = csv.reader(f)
@@ -156,10 +160,32 @@ def next_result(path: str):
         for row in reader:
             yield row
 
-
 def compute_accuracy(predictions: pd.DataFrame) -> float:
     correct_stats = predictions["correct"].value_counts()
     prediction_stats = predictions["predicted"].value_counts()
     n_refused = prediction_stats["REFUSED_TO_ANSWER"] if "REFUSED_TO_ANSWER" in list(prediction_stats.keys()) else 0
     accuracy = correct_stats[True] / (len(predictions) - n_refused)
     return accuracy
+
+import csv
+import pandas as pd
+from common.modeling import Model
+
+def naive_evaluate(model: str, model_kwargs: dict = None, benchmark_name: str = "fever1", n_samples: int = None, **kwargs) -> float:
+    benchmark = load_benchmark(benchmark_name)
+    model = Model(model, **model_kwargs)
+    samples_to_evaluate = benchmark[:n_samples] if n_samples else benchmark
+
+    eval_log = []
+    predictions = []
+    for instance in samples_to_evaluate:
+        query = f"Check if the following claim is 'supported', 'not enough information', or 'refuted' using your available knowledge. Answer with only one of the three options. Claim: {instance['content']}"
+        prediction = model.generate(query).replace("'","").replace(".","").lower()
+        if prediction not in ['supported', 'not enough information', 'refuted']:
+            print(instance["id"], prediction)
+        eval_log.append({"claim": instance["content"], "pred_label": prediction})
+        prediction_is_correct = instance["label"].value == prediction
+        predictions.append(prediction_is_correct)
+    accuracy = np.average(predictions)
+
+    return accuracy, eval_log

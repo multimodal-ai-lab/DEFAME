@@ -6,7 +6,7 @@ from common.label import Label, DEFAULT_LABEL_DEFINITIONS
 from common.utils import strip_string, remove_non_symbols
 from common.shared_config import search_engine_options
 from common.document import FCDocument
-from common.action import Action, WikiDumpLookup, WebSearch
+from common.action import *
 from common.results import Result, SearchResult
 from common.claim import Claim
 
@@ -195,15 +195,29 @@ class PlanPrompt(Prompt):
         super().__init__(placeholder_targets)
 
     def load_exemplars(self, valid_actions) -> str:
+        #TODO: Check the Note files for the new actions
         if WikiDumpLookup in valid_actions:
             return read_md_file("safe/prompts/plan_exemplars/wiki_dump.md")
         elif WebSearch in valid_actions:
             return read_md_file("safe/prompts/plan_exemplars/web_search.md")
+        elif ObjectRecognition in valid_actions:
+            return read_md_file("safe/prompts/plan_exemplars/object_recognition.md")
+        elif ReverseSearch in valid_actions:
+            return read_md_file("safe/prompts/plan_exemplars/reverse_search.md")
+        elif GeoLocation in valid_actions:
+            return read_md_file("safe/prompts/plan_exemplars/geo_location.md")
+        elif FaceRecognition in valid_actions:
+            return read_md_file("safe/prompts/plan_exemplars/face_recognition.md")
+        elif SourceCredibilityCheck in valid_actions:
+            return read_md_file("safe/prompts/plan_exemplars/source_credibility_check.md")
+        elif OCR in valid_actions:
+            return read_md_file("safe/prompts/plan_exemplars/ocr.md")
         else:
             return read_md_file("safe/prompts/plan_exemplars/default.md")
 
     def assemble_prompt(self) -> str:
         return read_md_file("safe/prompts/plan.md")
+
 
 
 class PreparePrompt(Prompt):

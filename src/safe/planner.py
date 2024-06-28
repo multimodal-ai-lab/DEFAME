@@ -8,36 +8,40 @@ from safe.prompts.prompt import PlanPrompt
 from typing import Optional, Tuple
 import pyparsing as pp
 import re
+from PIL import Image
 
 
 class Planner:
     """Takes a fact-checking document and proposes the next actions to take
     based on the current knowledge as contained in the document."""
 
-    def __init__(self, valid_actions: list[type[Action]],
+    def __init__(self, 
+                 multimodal: bool,
+                 valid_actions: list[type[Action]],
                  model: Model,
                  logger: EvaluationLogger,
                  extra_rules: str):
         assert len(valid_actions) > 0
+        self.multimodal = multimodal
         self.valid_actions = valid_actions
         self.model = model
         self.logger = logger
         self.max_tries = 5
         self.extra_rules = extra_rules
 
-    def plan_next_actions(self, doc: FCDocument) -> (list[Action], str):
+    def plan_next_actions(self, doc: FCDocument, images: Optional[list[Image.Image]] = None) -> (list[Action], str):
         prompt = PlanPrompt(doc, self.valid_actions, self.extra_rules)
         n_tries = 0
         while True:
             n_tries += 1
             answer = self.model.generate(str(prompt))
-            actions = self._extract_actions(answer)
+            actions = self._extract_actions(answer, images)
             reasoning = self._extract_reasoning(answer)
             if len(actions) > 0 or n_tries == self.max_tries:
                 return actions, reasoning
             self.logger.log("WARNING: No actions were found. Retrying...")
 
-    def _extract_actions(self, answer: str) -> list[Action]:
+    def _extract_actions(self, answer: str, images: Optional[list[Image.Image]] = None) -> list[Action]:
         actions_str = extract_last_code_block(answer)
         if not actions_str:
             candidates = []
@@ -50,7 +54,7 @@ class Planner:
         raw_actions = actions_str.split('\n')
         actions = []
         for raw_action in raw_actions:
-            action = self._parse_single_action(raw_action)
+            action = self._parse_single_action(raw_action, images)
             if action:
                 actions.append(action)
         return actions
@@ -58,7 +62,7 @@ class Planner:
     def _extract_reasoning(self, answer: str) -> str:
         return remove_code_blocks(answer).strip()
 
-    def _parse_single_action(self, raw_action: str) -> Optional[Action]:
+    def _parse_single_action(self, raw_action: str, images: Optional[list[Image.Image]] = None, fallback = 'wiki_dump_lookup') -> Optional[Action]:
         try:
             # Use regular expression to match action and argument in the form action(argument)
             match = re.match(r'(\w+)\((.*)\)', raw_action)
@@ -67,37 +71,18 @@ class Planner:
                 argument = argument.strip()
             else:
                 self.logger.log(f"Invalid action format: {raw_action}")
-                action_name, argument = self._analyze_raw_action(raw_action)
-
+                argument = raw_action
+            if argument == "image":
+                #TODO: implement multi image argument
+                argument = images[0]
             for action in ACTION_REGISTRY:
                 if action_name == action.name:
-                    return action(argument)
-            raise ValueError(f'Invalid action name: {action_name} or arguments: {argument}. Fallback to WikiDumpLookup.')
+                    return action(argument) #IMAGE ??
+            raise ValueError(f'Invalid action format. Fallback to {fallback} with argument: {argument}')
         except Exception as e:
             self.logger.log(f"WARNING: Failed to parse '{raw_action}':\n{e}")
-        return WikiDumpLookup(argument)
-    
-    def _analyze_raw_action(self, raw_action: str) -> Tuple[str, str]:
-        match = re.match(r'(\w+)\((.*)\)', raw_action)
-        if match:
-            action_name, argument = match.groups()
-            argument = argument.strip()
-        else:
-            raise ValueError(f"Could not parse action and argument from raw_action: {raw_action}")
-
-        # Check if the action is known
-        for action in ACTION_REGISTRY:
-            if action_name == action.name:
-                return action.name, argument
-
-        # If the action is unknown, use the fallback action
-        self.logger.log(f"Unknown action '{action_name}' found, using fallback action wiki_dump_lookup.")
-
-        if not argument:
-            self.logger.log(f"No argument found, using whole output as argument: {raw_action}.")
-            argument = raw_action
-        return 'wiki_dump_lookup', argument
-
+            fallback_action = next((action for action in ACTION_REGISTRY if fallback == action.name), None)
+        return fallback_action(argument)
 
 
 def _process_answer(answer: str) -> str:

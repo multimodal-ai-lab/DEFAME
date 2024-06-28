@@ -25,11 +25,14 @@ class FinalAnswer:
 class Judge:
     """Determines the truthfulness of a claim given a collection of evidence."""
 
-    def __init__(self, model: Model,
+    def __init__(self, 
+                 multimodal: bool,
+                 model: Model,
                  logger: EvaluationLogger,
                  classes: list[Label],
                  class_definitions: dict[Label, str] = None,
                  extra_rules: str = None):
+        self.multimodal = multimodal
         self.model = model
         self.classes = classes
         self.class_definitions = class_definitions

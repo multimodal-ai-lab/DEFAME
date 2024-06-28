@@ -14,3 +14,4 @@ claude_instant,ANTHROPIC,claude-instant-1.2, 100_000
 llama3_8b,HUGGINGFACE,meta-llama/Meta-Llama-3-8B-Instruct, 8_000
 llama3_70b,HUGGINGFACE,meta-llama/Meta-Llama-3-70B-Instruct, 8_000
 mixtral_v0.1,HUGGINGFACE,mistralai/Mixtral-8x7B-Instruct-v0.1, 32_000
+llava_16,HUGGINGFACE,liuhaotian/llava-v1.6-34b,4096

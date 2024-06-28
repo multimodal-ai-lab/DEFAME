@@ -200,9 +200,10 @@ class Model:
         self.show_responses = show_responses
         self.show_prompts = show_prompts
         self.open_source = False
-        self.model = self.load(full_name)
         self.encoding = tiktoken.get_encoding("cl100k_base")
         self.logger = logger or EvaluationLogger()
+        self.model = self.load(full_name)
+        
 
     def load(self, model_name: str) -> lf.LanguageModel:
         """Loads a language model from string representation."""
@@ -376,6 +377,7 @@ class MultimodalModel(Model):
     def __init__(
             self,
             name: str,
+            logger: EvaluationLogger = None,
             temperature: Optional[float] = None,
             max_tokens: Optional[int] = 2000,
             top_k: Optional[int] = 50,
@@ -384,7 +386,7 @@ class MultimodalModel(Model):
             show_prompts: bool = False,
     ) -> None:
         """Initializes a multimodal model."""
-        super().__init__(name, temperature, max_tokens, top_k, repetition_penalty, show_responses, show_prompts)
+        super().__init__(name, logger, temperature, max_tokens, top_k, repetition_penalty, show_responses, show_prompts)
 
     def load(self, model_name: str):
         """Loads a multimodal model from string representation."""

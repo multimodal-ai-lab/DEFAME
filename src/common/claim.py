@@ -1,6 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
-
+from PIL.Image import Image 
 
 @dataclass
 class Claim:
@@ -8,6 +8,7 @@ class Claim:
     author: str = None
     date: datetime = None
     origin: str = None  # URL or similar
+    images: list[Image] = field(default_factory=list)
 
     def __str__(self):
         claim_str = f'Text: "{self.text}"'

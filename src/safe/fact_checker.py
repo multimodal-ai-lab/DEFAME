@@ -1,7 +1,6 @@
 from typing import Sequence, Optional, Collection
 
 import numpy as np
-import torch
 from PIL import Image
 
 from common import modeling_utils
@@ -20,16 +19,16 @@ from safe.planner import Planner
 from safe.actor import Actor
 from safe.doc_summarizer import DocSummarizer
 from safe.result_summarizer import ResultSummarizer
-from common.action import WebSearch, WikiDumpLookup
+from common.action import *
 
 
 class FactChecker:
     def __init__(self,
+                 multimodal: bool = False,
                  model: str | Model = "OPENAI:gpt-3.5-turbo-0125",
                  multimodal_model: Optional[str] | Optional[Model] = None,
                  search_engines: list[str] = None,
                  extract_claims: bool = False,
-                 summarize_search_results: bool = True,
                  max_iterations: int = 5,
                  max_results_per_search: int = 3,
                  logger: EvaluationLogger = None,
@@ -59,27 +58,47 @@ class FactChecker:
             else:
                 classes = list(class_definitions.keys())
 
-        # TODO: add to parameters
+        # TODO: add to parameters   
         actions = []
-        if "wiki_dump" in search_engines:
-            actions.append(WikiDumpLookup)
-        if "google" in search_engines or "duckduckgo" in search_engines or "averitec_kb" in search_engines:
-            actions.append(WebSearch)
+        if search_engines:
+            if "wiki_dump" in search_engines:
+                actions.append(WikiDumpLookup)
+            if "google" in search_engines or "duckduckgo" in search_engines or "averitec_kb" in search_engines:
+                actions.append(WebSearch)
+        if multimodal:
+            actions.append(ObjectRecognition)
+            #actions.append(ReverseSearch)
+            actions.append(GeoLocation)
+            #actions.append(FaceRecognition)
+            actions.append(SourceCredibilityCheck)
+            actions.append(OCR)
 
-        self.planner = Planner(actions, self.model, self.logger, extra_plan_rules)
-        self.actor = Actor(self.model, search_engines, max_results_per_search, self.logger)
-        self.judge = Judge(self.model, self.logger, classes, class_definitions, extra_judge_rules)
+        self.planner = Planner(multimodal=multimodal, 
+                               valid_actions=actions, 
+                               model=self.model, 
+                               logger=self.logger, 
+                               extra_rules=extra_plan_rules)
+        self.actor = Actor(multimodal=multimodal,
+                           model=self.model, 
+                           search_engines=search_engines, 
+                           max_results_per_search=max_results_per_search, 
+                           logger=self.logger)
+        self.judge = Judge(multimodal=multimodal,
+                           model=self.model, 
+                           logger=self.logger, 
+                           classes=classes, 
+                           class_definitions=class_definitions, 
+                           extra_rules=extra_judge_rules)
         self.doc_summarizer = DocSummarizer(self.model, self.logger)
         self.result_summarizer = ResultSummarizer(self.model, self.logger)
 
         self.extra_prepare_rules = extra_prepare_rules
-
         self.max_iterations = max_iterations
 
     def check(
             self,
             content: Claim | str | Sequence[str],
-            image: Optional[torch.Tensor] = None,
+            images: Optional[list[Image.Image]] = None,
     ) -> FCDocument:
         """
         Fact-checks the given content by first extracting all elementary claims and then
@@ -87,34 +106,32 @@ class FactChecker:
         all elementary claims are true.
         """
         # TODO: rework this method
-
-        if image:
+        if images:
             if not self.multimodal_model:
                 raise AssertionError("please specify which multimodal model to use.")
             prompt = modeling_utils.prepare_interpretation(content)
-            content = self.multimodal_model.generate(image=image, prompt=prompt)
+            #maybe it has to be content instead of multimodal_content
+            multimodal_content = self.multimodal_model.generate(image=image, prompt=prompt)
             self.logger.log(bold(f"Interpreting Multimodal Content:\n"))
-            self.logger.log(bold(light_blue(f"{content}")))
+            self.logger.log(bold(light_blue(f"{multimodal_content}")))
 
         self.logger.log(bold(f"Content to be fact-checked:\n'{light_blue(content.text)}'"), important=True)
-
         claims = self.claim_extractor.extract_claims(content) if self.extract_claims else [content]
 
         self.logger.log(bold("Verifying the claims..."), important=True)
         docs = []
         for claim in claims:
-            doc = self.verify_claim(claim)
+            doc = self.verify_claim(claim, images)
             docs.append(doc)
             self.logger.log(bold(f"The claim '{light_blue(str(claim.text))}' is {doc.verdict.value}."), important=True)
             if doc.justification:
                 self.logger.log(f'Justification: {gray(doc.justification)}', important=True)
 
         overall_veracity = aggregate_predictions([doc.verdict for doc in docs])
-
         self.logger.log(bold(f"So, the overall veracity is: {overall_veracity.value}"))
-        return doc  # TODO
+        return doc
 
-    def verify_claim(self, claim: Claim) -> FCDocument:
+    def verify_claim(self, claim: Claim, images: Optional[list[Image.Image]] = None) -> FCDocument:
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it.
         This is the core of the fact-checking implementation. Here, the fact-checking
         document is constructed incrementally."""
@@ -125,13 +142,13 @@ class FactChecker:
         n_iterations = 0
         while True:
             n_iterations += 1
-            actions, reasoning = self.planner.plan_next_actions(doc)
+            actions, reasoning = self.planner.plan_next_actions(doc) # TODO: Missing Grounding Maybe because it doesn't actually see the Image. Still using LLM instead of MLLM
             if len(reasoning) > 32:  # Only keep substantial reasoning
                 doc.add_reasoning(reasoning)
             doc.add_actions(actions)
             if not actions:
                 break  # the planner wasn't able to determine further useful actions, giving up
-            results = self.actor.perform(actions)
+            results = self.actor.perform(actions, images)
             results = self.result_summarizer.summarize(results, doc)
             doc.add_results(results)  # even if no results, add empty results block for the record
             self._consolidate_new_knowledge(doc, results)
@@ -189,10 +206,10 @@ def main():
     print(f"Alternatively, pulling image from path:\n")
 
     image_path = path_to_data + "MAFC_test/image_claims/00000.png"
-    image = Image.open(image_path)
-    image
+    images = [Image.open(image_path)]
+    images[0]
     prompt = "The red area has a smaller population than the US prison population."
-    prediction = fc.check(prompt, image)
+    prediction = fc.check(prompt, images)
     print(f"Generated Prediction: {prediction}")
 
 
