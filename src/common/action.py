@@ -54,6 +54,7 @@ class ObjectRecognition(Action):
     description = "Identifies objects within an image."
     how_to = "Provide an image and the model will recognize objects in it."
     format = 'object_recognition(image)'
+    is_multimodal = True
 
     def __init__(self, image: Image.Image):
         self.image = image
@@ -78,6 +79,7 @@ class GeoLocation(Action):
     description = "Performs geolocation to determine the country where an image was taken."
     how_to = f"Provide an image and the model will determine the most likely countries where it was taken."
     format = 'geo_location(image)'
+    is_multimodal = True
 
     def __init__(self, image: Image.Image, top_k: int = 10):
         self.image = image
@@ -91,6 +93,7 @@ class FaceRecognition(Action):
     description = "Identifies and recognizes faces within an image."
     how_to = "Provide an image and the model will recognize faces in it."
     format = 'face_recognition(image_patch)'
+    is_multimodal = True
 
     def __init__(self, image: Image.Image):
         self.image = image
@@ -103,6 +106,7 @@ class SourceCredibilityCheck(Action):
     description = "Evaluates the credibility of a given source."
     how_to = "Provide a source URL or name and the model will assess its credibility."
     format = 'source_credibility_check("source_name_or_url")'
+    is_multimodal = True
 
     def __init__(self, source: str):
         self.source = source
@@ -114,7 +118,8 @@ class OCR(Action):
     name = "ocr"
     description = "Performs Optical Character Recognition to extract text from an image."
     how_to = "Provide an image and the model will extract text from it."
-    format = 'ocr()'
+    format = 'ocr(image)'
+    is_multimodal = True
 
     def __init__(self, image: Image.Image):
         self.image = image

@@ -97,7 +97,7 @@ def evaluate(
             images = instance["content"].images
             doc = fc.check(content, images=images)
         else:
-            doc = fc.check(content)
+            doc = fc.check(content, images=images)
 
         prediction = doc.verdict
         if prediction == Label.CHERRY_PICKING:

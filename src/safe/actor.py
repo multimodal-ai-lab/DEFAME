@@ -54,7 +54,7 @@ class ObjectDetector:
 
 
 class GeoLocator:
-    def __init__(self, model_name: str = "geolocal/StreetCLIP", device: int = -1, use_multiple_gpus: bool = False):
+    def __init__(self, model_name: str = "geolocal/StreetCLIP", top_k = 10, device: int = -1, use_multiple_gpus: bool = False):
         """
         Initialize the GeoLocator with a pretrained model from Hugging Face.
         
@@ -65,6 +65,7 @@ class GeoLocator:
         self.processor = AutoProcessor.from_pretrained(model_name)
         self.model = AutoModel.from_pretrained(model_name)
         self.device = torch.device("cuda" if torch.cuda.is_available() and device != -1 else "cpu")
+        self.top_k = top_k
 
         if use_multiple_gpus and torch.cuda.device_count() > 1:
             self.model = torch.nn.DataParallel(self.model)
@@ -118,9 +119,10 @@ class FaceRecognizer:
         self.model = None
 
     def recognize_faces(self, image: torch.Tensor) -> List[str]:
-        results = self.model(image)
-        faces = [result['label'] for result in results]
-        return faces
+        #results = self.model(image)
+        #faces = [result['label'] for result in results]
+        #return faces
+        return "Face Recognition is not implemented yet."
     
 #TODO: create an acutal SourceCredibilityChecker
 class SourceCredibilityChecker:
@@ -128,8 +130,9 @@ class SourceCredibilityChecker:
         self.model = model
 
     def check_credibility(self, source: str) -> str:
-        credibility_score = self.model(source)
-        return credibility_score
+        #credibility_score = self.model(source)
+        #return credibility_score
+        return "Source Credibility Check is not implemented yet."
     
 #TODO: Integrate a differentiable OCR Reader. Potentially open-source like PaddleOCR
 #class OCR:
@@ -188,18 +191,18 @@ class Actor:
 
         self.logger = logger or EvaluationLogger()
         if multimodal:
-            self.object_detector = ObjectDetector(model_name=object_detector) if isinstance(object_detector, str) else object_detector
-            self.geo_locator = GeoLocator(model_name=geo_locator) if isinstance(geo_locator, str) else geo_locator
+            self.object_detector = ObjectDetector(model_name=object_detector) if isinstance(object_detector, str) else ObjectDetector()
+            self.geo_locator = GeoLocator(model_name=geo_locator) if isinstance(geo_locator, str) else GeoLocator(top_k = 10)
             #TODO: implement a correct reverse searcher.
             self.reverse_searcher = reverse_searcher or Searcher(search_engines=["google"],
                                                                  model=model, 
                                                                  logger=self.logger, 
                                                                  summarize=False, 
                                                                  limit_per_search=max_results_per_search)
-            self.face_recognizer = FaceRecognizer(model_name=face_recognizer) if isinstance(face_recognizer, str) else face_recognizer
-            self.image_reader = OCR(model_name=face_recognizer) if isinstance(face_recognizer, str) else image_reader
+            self.face_recognizer = FaceRecognizer(model_name=face_recognizer) if isinstance(face_recognizer, str) else FaceRecognizer()
+            self.image_reader = OCR(model_name=image_reader) if isinstance(image_reader, str) else OCR()
         #TODO: implement source_checker
-        self.source_checker = SourceCredibilityChecker(model_name=face_recognizer) if isinstance(face_recognizer, str) else source_checker
+        self.source_checker = SourceCredibilityChecker(model_name=source_checker) if isinstance(face_recognizer, str) else SourceCredibilityChecker()
         search_engines = search_engines or ["duckduckgo"]
         self.searcher = Searcher(search_engines, model, self.logger,
                                  summarize=False,

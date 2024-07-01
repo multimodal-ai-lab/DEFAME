@@ -110,8 +110,8 @@ class FactChecker:
             if not self.multimodal_model:
                 raise AssertionError("please specify which multimodal model to use.")
             prompt = modeling_utils.prepare_interpretation(content)
-            #maybe it has to be content instead of multimodal_content
-            multimodal_content = self.multimodal_model.generate(image=image, prompt=prompt)
+            #TODO: this is limited to one picture only right now and it is also not aligned with the rest of the pipeline.
+            multimodal_content = self.multimodal_model.generate(image=images[0], prompt=prompt)
             self.logger.log(bold(f"Interpreting Multimodal Content:\n"))
             self.logger.log(bold(light_blue(f"{multimodal_content}")))
 
@@ -142,7 +142,7 @@ class FactChecker:
         n_iterations = 0
         while True:
             n_iterations += 1
-            actions, reasoning = self.planner.plan_next_actions(doc) # TODO: Missing Grounding Maybe because it doesn't actually see the Image. Still using LLM instead of MLLM
+            actions, reasoning = self.planner.plan_next_actions(doc, images=images) # TODO: Missing Grounding Maybe because it doesn't actually see the Image. Still using LLM instead of MLLM
             if len(reasoning) > 32:  # Only keep substantial reasoning
                 doc.add_reasoning(reasoning)
             doc.add_actions(actions)

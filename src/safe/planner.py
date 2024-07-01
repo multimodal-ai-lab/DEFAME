@@ -77,7 +77,7 @@ class Planner:
                 argument = images[0]
             for action in ACTION_REGISTRY:
                 if action_name == action.name:
-                    return action(argument) #IMAGE ??
+                    return action(argument) 
             raise ValueError(f'Invalid action format. Fallback to {fallback} with argument: {argument}')
         except Exception as e:
             self.logger.log(f"WARNING: Failed to parse '{raw_action}':\n{e}")
