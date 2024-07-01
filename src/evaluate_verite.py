@@ -2,7 +2,7 @@ from eval.evaluate import evaluate
 
 evaluate(
     model="llama3_70b",
-    multimodal_model="llava_16",
+    multimodal_model="llava_15",
     model_kwargs=dict(temperature=0.01),
     benchmark_name="verite",
     search_engine="wiki_dump",

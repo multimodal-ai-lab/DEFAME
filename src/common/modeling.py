@@ -201,7 +201,7 @@ class Model:
         self.show_prompts = show_prompts
         self.open_source = False
         self.encoding = tiktoken.get_encoding("cl100k_base")
-        self.logger = logger or EvaluationLogger()
+        self.logger = logger
         self.model = self.load(full_name)
         
 
