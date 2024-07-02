@@ -30,16 +30,41 @@ class Planner:
         self.extra_rules = extra_rules
 
     def plan_next_actions(self, doc: FCDocument, images: Optional[list[Image.Image]] = None) -> (list[Action], str):
+        performed_actions = doc.get_all_actions()
+        new_valid_actions = []
+
+        # Check if actions have been performed before adding them to valid actions
+        for action_class in self.valid_actions:
+            is_performed = False
+            for action in performed_actions:
+                if isinstance(action, action_class):
+                    is_performed = True
+                    break
+
+            if not action_class.is_multimodal or (action_class.is_multimodal and not is_performed):
+                new_valid_actions.append(action_class)
+            else:
+                self.logger.log(f"INFO: Dropping action '{action_class.name}' as it was already performed.")
+
+        self.valid_actions = new_valid_actions
         prompt = PlanPrompt(doc, self.valid_actions, self.extra_rules)
         n_tries = 0
+
         while True:
             n_tries += 1
             answer = self.model.generate(str(prompt))
             actions = self._extract_actions(answer, images)
             reasoning = self._extract_reasoning(answer)
+
+            # Filter out actions that have been performed before
+            actions = [action for action in actions if action not in performed_actions]
+
             if len(actions) > 0 or n_tries == self.max_tries:
                 return actions, reasoning
-            self.logger.log("WARNING: No actions were found. Retrying...")
+
+            self.logger.log("WARNING: No new actions were found. Retrying...")
+
+
 
     def _extract_actions(self, answer: str, images: Optional[list[Image.Image]] = None) -> list[Action]:
         actions_str = extract_last_code_block(answer)
@@ -71,8 +96,11 @@ class Planner:
                 argument = argument.strip()
             else:
                 self.logger.log(f"Invalid action format: {raw_action}")
-                argument = raw_action
-            if argument == "image":
+                match = re.search(r'"(.*?)"', raw_action)
+                argument = f'"{match.group(1)}"' if match else f'"{raw_action}"'
+                first_part = raw_action.split(' ')[0]
+                action_name = re.sub(r'[^a-zA-Z0-9\_]', '', first_part)
+            if "image" in argument:
                 #TODO: implement multi image argument
                 argument = images[0]
             for action in ACTION_REGISTRY:
@@ -82,6 +110,10 @@ class Planner:
         except Exception as e:
             self.logger.log(f"WARNING: Failed to parse '{raw_action}':\n{e}")
             fallback_action = next((action for action in ACTION_REGISTRY if fallback == action.name), None)
+            if not isinstance(argument, str):
+                return None
+            elif not(argument[0] == argument[-1] == '"'):
+                argument = f'"{argument}"'
         return fallback_action(argument)
 
 

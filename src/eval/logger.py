@@ -18,7 +18,10 @@ logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('openai').setLevel(logging.ERROR)
 logging.getLogger('duckduckgo_search').setLevel(logging.WARNING)
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
-
+logging.getLogger('huggingface_hub').setLevel(logging.ERROR)
+logging.getLogger('transformers').setLevel(logging.ERROR)
+logging.getLogger('timm.models._builder').setLevel(logging.ERROR)
+logging.getLogger('timm.models._hub').setLevel(logging.ERROR)
 
 class EvaluationLogger:
     """Used to permanently save any information related to an evaluation run."""

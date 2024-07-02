@@ -416,3 +416,13 @@ def remove_non_symbols(text: str) -> str:
     """Removes all newlines, tabs, and abundant whitespaces from text."""
     text = re.sub(r'[\t\n\r\f\v]', ' ', text)
     return re.sub(r' +', ' ', text)
+
+def is_url(string: str) -> bool:
+        url_pattern = re.compile(
+            r'^(https?:\/\/)?'  # optional scheme
+            r'(\w+\.)+\w+'      # domain
+            r'(\.\w+)?'         # optional domain suffix
+            r'(:\d+)?'          # optional port
+            r'(\/.*)?$'         # optional path
+        )
+        return re.match(url_pattern, string) is not None

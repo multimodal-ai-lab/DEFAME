@@ -279,14 +279,14 @@ also require a chain of multiple investigation steps, re-using previously retrie
 class VERITE(Benchmark):
     class_mapping = {
         "true": Label.SUPPORTED,
-        "miscaptioned": Label.REFUTED,
+        "miscaptioned": Label.MISCAPTIONED,
         "out-of-context": Label.OUT_OF_CONTEXT,
     }
     class_definitions = {
         Label.SUPPORTED:
             "The image and caption pair is truthful. This means the caption accurately "
             "describes the content of the image, providing correct and factual information.",
-        Label.REFUTED:
+        Label.MISCAPTIONED:
             "The image and caption pair is miscaptioned. This means the caption provides incorrect " 
             "information about the image content, misleading the viewer about what is depicted.",
         Label.OUT_OF_CONTEXT:

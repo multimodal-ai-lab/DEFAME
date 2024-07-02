@@ -9,6 +9,7 @@ class Label(Enum):
     CHERRY_PICKING = "cherry-picking"
     REFUSED_TO_ANSWER = "error: refused to answer"
     OUT_OF_CONTEXT = "out of context"
+    MISCAPTIONED = "miscaptioned"
 
 
 DEFAULT_LABEL_DEFINITIONS = {
@@ -24,5 +25,7 @@ DEFAULT_LABEL_DEFINITIONS = {
                        "investigation was not successful.",
     Label.OUT_OF_CONTEXT: "The image is used out of context. This means that while the caption may be factually"
                           "correct, the image does not relate to the caption or is used in a misleading way to "
-                           "convey a false narrative.",
+                          "convey a false narrative.",
+    Label.MISCAPTIONED: "The claim has a true image, but the caption does not accurately describe the image, "
+                        "providing incorrect information.",
 }

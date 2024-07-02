@@ -81,3 +81,10 @@ class FCDocument:
             if isinstance(block, ReasoningBlock):
                 reasoning_texts.append(block.text)
         return reasoning_texts
+
+    def get_all_actions(self) -> list[Action]:
+        all_actions = []
+        for block in self.record:
+            if isinstance(block, ActionsBlock):
+                all_actions.extend(block.actions)
+        return all_actions

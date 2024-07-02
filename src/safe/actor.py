@@ -1,6 +1,7 @@
 from common.action import *
 from common.modeling import Model
 from common.results import Result, GeoLocationResult, OCRResult, ObjectDetectionResult
+from common.utils import is_url
 from eval.logger import EvaluationLogger
 from safe.searcher import Searcher
 
@@ -11,9 +12,15 @@ from PIL import Image
 import numpy as np
 import easyocr
 
+import warnings
+warnings.filterwarnings("ignore")
 
 class ObjectDetector:
-    def __init__(self, model_name: str = "facebook/detr-resnet-50", device: int = -1, use_multiple_gpus: bool = False):
+    def __init__(self, 
+                 model_name: str = "facebook/detr-resnet-50", 
+                 logger: EvaluationLogger = None,
+                 device: int = -1, 
+                 use_multiple_gpus: bool = False):
         """
         Initialize the ObjectDetector with a pretrained model from Hugging Face.
 
@@ -25,6 +32,7 @@ class ObjectDetector:
         self.processor = AutoProcessor.from_pretrained(model_name)
         self.model = AutoModelForObjectDetection.from_pretrained(model_name)
         self.device = torch.device("cuda" if torch.cuda.is_available() and device != -1 else "cpu")
+        self.logger = logger
 
         if use_multiple_gpus and torch.cuda.device_count() > 1:
             self.model = torch.nn.DataParallel(self.model)
@@ -46,8 +54,16 @@ class ObjectDetector:
         objects = [self.model.module.config.id2label[label.item()] if hasattr(self.model, 'module') else self.model.config.id2label[label.item()] for label in results["labels"]]
         bounding_boxes = [box.tolist() for box in results["boxes"]]
 
-        return ObjectDetectionResult(source=self.model_name, objects=objects, bounding_boxes=bounding_boxes, model_output=outputs)
+        result = ObjectDetectionResult(
+             source=self.model_name, 
+             objects=objects, 
+             bounding_boxes=bounding_boxes, 
+             model_output=outputs)
 
+        self.logger.log(str(result))
+        return result
+
+        return 
 # Example usage:
 # url = "http://images.cocodataset.org/val2017/000000039769.jpg"
 # image = Image.open(requests.get(url, stream=True).raw)
@@ -57,7 +73,12 @@ class ObjectDetector:
 
 
 class GeoLocator:
-    def __init__(self, model_name: str = "geolocal/StreetCLIP", top_k = 10, device: int = -1, use_multiple_gpus: bool = False):
+    def __init__(self, 
+                 model_name: str = "geolocal/StreetCLIP", 
+                 top_k = 10, 
+                 logger: EvaluationLogger = None, 
+                 device: int = -1, 
+                 use_multiple_gpus: bool = False):
         """
         Initialize the GeoLocator with a pretrained model from Hugging Face.
         
@@ -70,6 +91,7 @@ class GeoLocator:
         self.model = AutoModel.from_pretrained(model_name)
         self.device = torch.device("cuda" if torch.cuda.is_available() and device != -1 else "cpu")
         self.top_k = top_k
+        self.logger = logger
 
         if use_multiple_gpus and torch.cuda.device_count() > 1:
             self.model = torch.nn.DataParallel(self.model)
@@ -109,13 +131,15 @@ class GeoLocator:
         top_k_locations = dict(sorted(confidences.items(), key=lambda x: x[1], reverse=True)[:self.top_k])
         most_likely_location = max(top_k_locations, key=top_k_locations.get)
         model_output = logits_per_image
-        return GeoLocationResult(
+        result = GeoLocationResult(
             source=self.model_name,
             text=f"The most likely countries where the image was taken are: {top_k_locations}",
             most_likely_location=most_likely_location,
             top_k_locations=top_k_locations,
             model_output=model_output
         )
+        self.logger.log(str(result))
+        return result
 
 # Example usage:
 # url = "https://huggingface.co/geolocal/StreetCLIP/resolve/main/sanfrancisco.jpeg"
@@ -126,9 +150,13 @@ class GeoLocator:
     
 
 class FaceRecognizer:
-    def __init__(self, model_name: str = "face-recognition-model", device: int = -1):
+    def __init__(self, 
+                 model_name: str = "face-recognition-model", 
+                 logger: EvaluationLogger = None,
+                 device: int = -1):
         #self.model = pipeline("image-classification", model=model_name, device=device)
         self.model = None
+        self.logger = logger
 
     def recognize_faces(self, image: torch.Tensor) -> Result:
         #results = self.model(image)
@@ -137,20 +165,25 @@ class FaceRecognizer:
         result = Result()
         result.text = "Face Recognition is not implemented yet."
         result.source = self.model
+        self.logger.log(str(result))
         return result
     
 #TODO: create an acutal SourceCredibilityChecker
 class SourceCredibilityChecker:
-    def __init__(self, model: Model = None):
+    def __init__(self, model: Model = None, logger: EvaluationLogger = None):
         self.model = model
+        self.logger = logger
 
     def check_credibility(self, source: List[str]) -> List[Result]:
         #credibility_score = self.model(source)
         #return credibility_score
         result = Result()
-        result.text = "Source Credibility Check is not implemented yet."
+        result.text = "Source Credibility Check is not implemented yet. "
+        if is_url(source):
+             result.text += f'{source} is a valid url.'
         result.source = self.model
-        return [result]
+        self.logger.log(str(result))
+        return result
     
 #TODO: Integrate a differentiable OCR Reader. Potentially open-source like PaddleOCR
 #class OCR:
@@ -163,8 +196,8 @@ class SourceCredibilityChecker:
 #        return text
 
 
-class OCR:
-    def __init__(self, use_gpu: bool = True):
+class TextExtractor:
+    def __init__(self, use_gpu: bool = True, logger: EvaluationLogger = None):
         """
         Initialize the OCR tool with EasyOCR.
         
@@ -172,6 +205,7 @@ class OCR:
         """
         self.model = None #TODO: Later we could have a trainable OCR model here
         self.reader = easyocr.Reader(['en'], gpu=use_gpu)
+        self.logger = logger
 
     def extract_text(self, image: Image.Image) -> OCRResult:
         """
@@ -183,7 +217,9 @@ class OCR:
         results = self.reader.readtext(np.array(image))
         # Concatenate all detected text pieces
         extracted_text = ' '.join([result[1] for result in results])
-        return OCRResult(source="EasyOCR", text=extracted_text, model_output=results)
+        result = OCRResult(source="EasyOCR", text=extracted_text, model_output=results)
+        self.logger.log(str(result))
+        return result
 
 
 # Example usage:
@@ -202,7 +238,7 @@ class Actor:
                  geo_locator: str | GeoLocator = None,
                  face_recognizer: str | FaceRecognizer = None,
                  source_checker: str | SourceCredibilityChecker = None,
-                 image_reader: str | OCR = None,
+                 text_extractor: str | TextExtractor = None,
                  search_engines: list[str] = None,
                  max_results_per_search: int = 3,
                  logger: EvaluationLogger = None,
@@ -210,20 +246,22 @@ class Actor:
 
         self.logger = logger or EvaluationLogger()
         if multimodal:
-            self.object_detector = ObjectDetector(model_name=object_detector) if isinstance(object_detector, str) else ObjectDetector()
-            self.geo_locator = GeoLocator(model_name=geo_locator) if isinstance(geo_locator, str) else GeoLocator(top_k = 10)
+            self.object_detector = ObjectDetector(model_name=object_detector) if isinstance(object_detector, str) else ObjectDetector(logger=self.logger)
+            self.geo_locator = GeoLocator(model_name=geo_locator) if isinstance(geo_locator, str) else GeoLocator(top_k = 10, logger=self.logger)
             #TODO: implement a correct reverse searcher.
             self.reverse_searcher = reverse_searcher or Searcher(search_engines=["google"],
                                                                  model=model, 
                                                                  logger=self.logger, 
                                                                  summarize=False, 
                                                                  limit_per_search=max_results_per_search)
-            self.face_recognizer = FaceRecognizer(model_name=face_recognizer) if isinstance(face_recognizer, str) else FaceRecognizer()
-            self.image_reader = OCR(model_name=image_reader) if isinstance(image_reader, str) else OCR()
+            self.face_recognizer = FaceRecognizer(model_name=face_recognizer) if isinstance(face_recognizer, str) else FaceRecognizer(logger=self.logger)
+            self.text_extractor = TextExtractor(model_name=text_extractor) if isinstance(text_extractor, str) else TextExtractor(logger=self.logger)
         #TODO: implement source_checker
-        self.source_checker = SourceCredibilityChecker(model_name=source_checker) if isinstance(face_recognizer, str) else SourceCredibilityChecker()
+        self.source_checker = SourceCredibilityChecker(model_name=source_checker) if isinstance(face_recognizer, str) else SourceCredibilityChecker(logger=self.logger)
         search_engines = search_engines or ["duckduckgo"]
-        self.searcher = Searcher(search_engines, model, self.logger,
+        self.searcher = Searcher(search_engines, 
+                                 model, 
+                                 self.logger,
                                  summarize=False,
                                  limit_per_search=max_results_per_search)
 
@@ -258,26 +296,26 @@ class Actor:
     def _perform_object_recognition(self, action: ObjectRecognition) -> ObjectDetectionResult:
         #TODO: The Result can contain more detailed info. probably the actor needs to have a multimodal model and a general model
         self.logger.log(f"Performing object recognition on the image.")
-        return self.object_detector.recognize_objects(action.image)
+        return [self.object_detector.recognize_objects(action.image)]
 
     def _perform_reverse_search(self, action: ReverseSearch) -> list[Result]:
         self.logger.log(f"Performing reverse image search.")
-        return self.reverse_searcher.search(action.image)
+        return [self.reverse_searcher.search(action.image)]
     
     def _perform_geo_location(self, action: GeoLocation) -> GeoLocationResult:
         self.logger.log(f"Performing geolocation on the image.")
-        return self.geo_locator.locate(action.image)
+        return [self.geo_locator.locate(action.image)]
     
     def _perform_face_recognition(self, action: FaceRecognition) -> Result:
         self.logger.log(f"Performing face recognition on the image.")
-        return self.face_recognizer.recognize_faces(action.image)
+        return [self.face_recognizer.recognize_faces(action.image)]
     
     def _perform_source_credibility_check(self, action: SourceCredibilityCheck) -> list[Result]:
         self.logger.log(f"Performing source credibility check for {action.source}.")
-        return self.source_checker.check_credibility(action.source)
+        return [self.source_checker.check_credibility(action.source)]
     
     def _perform_ocr(self, action: OCR) -> OCRResult:
         self.logger.log(f"Performing OCR on the image.")
-        return self.image_reader.extract_text(action.image)
+        return [self.text_extractor.extract_text(action.image)]
     
 

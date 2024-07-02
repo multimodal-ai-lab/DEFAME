@@ -50,7 +50,7 @@ class DuckDuckGo(RemoteSearchAPI):
         """Parse results from DuckDuckGo search and return structured dictionary."""
         results = []
         for i, result in enumerate(response):
-            url = result.get('url', '')
+            url = result.get('href', '')
             text = f"{result.get('title', '')}: {result.get('body', '')}"
             results.append(SearchResult(url, text, query, i))
         return results

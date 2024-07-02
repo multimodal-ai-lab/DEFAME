@@ -47,7 +47,7 @@ class ResultSummarizer:
                 if result.is_useful():
                     self.logger.log("Useful result: " + gray(str(result)))
             else:
-                raise NotImplementedError()
+                result.summary = str(result)
         return results
 
     def _maybe_truncate_prompt(self, prompt: str) -> str:

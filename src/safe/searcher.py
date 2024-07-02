@@ -37,7 +37,7 @@ class Searcher:
                  logger: EvaluationLogger = None,
                  summarize: bool = True,
                  max_searches: int = 5,
-                 limit_per_search: int = 10):
+                 limit_per_search: int = 5):
         self.logger = logger or EvaluationLogger()
         self.search_apis = {se: SEARCH_APIS[se](logger=self.logger) for se in search_engines}
         self.model = model
