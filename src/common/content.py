@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import datetime
 
 from PIL.Image import Image
 
@@ -15,7 +15,7 @@ class Content:
     audios = None
 
     author: str = None
-    date: date = None
+    date: datetime = None
     origin: str = None  # URL
 
     interpretation: str = None  # Added during claim extraction

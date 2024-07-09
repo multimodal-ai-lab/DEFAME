@@ -6,11 +6,17 @@ evaluate(
         search_engines=["wiki_dump"],
         limit_per_search=5
     )),
+    fact_checker_kwargs=dict(
+        interpret=False,
+        decompose=False,
+        decontextualize=False,
+        filter_check_worthy=False,
+        max_iterations=3,
+    ),
     llm_kwargs=dict(temperature=0.01),
     benchmark_name="fever",
     benchmark_kwargs=dict(version=1, variant="dev"),
     # sample_ids=[2],
-    extract_claims=False,
     verbose=True,
     random_sampling=False,
 )

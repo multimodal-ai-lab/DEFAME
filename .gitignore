@@ -24,3 +24,4 @@ share/python-wheels/
 MANIFEST
 
 out/*
+/Dockerfile

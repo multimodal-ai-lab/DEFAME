@@ -1,26 +1,28 @@
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 
-from PIL.Image import Image
+from common.content import Content
 
 
 @dataclass
 class Claim:
-    text: str
-    author: str = None
-    date: datetime = None
-    origin: str = None  # URL or similar
-    images: list[Image] = field(default_factory=list)  # only inherent/material images
+    text: str  # Atomic, self-contained verbalization of the claim
+    original_context: Content  # The input the claim was extracted from
 
     def __str__(self):
         claim_str = f'Text: "{self.text}"'
-        if self.date:
-            claim_str += f"\nClaim date: {self.date.strftime('%B %d, %Y')}"
-        if self.author:
-            claim_str += f"\nClaim author: {self.author}"
-        if self.origin:
-            claim_str += f"\nClaim origin: {self.origin}"
+        if author := self.original_context.author:
+            claim_str += f"\nClaim author: {author}"
+        if date := self.original_context.date:
+            claim_str += f"\nClaim date: {date.strftime('%B %d, %Y')}"
+        if origin := self.original_context.origin:
+            claim_str += f"\nClaim origin: {origin}"
         return claim_str
 
-    def has_image(self):
-        return len(self.images) > 0
+    def has_image(self) -> bool:
+        return "<image_" in self.text
+
+    def has_audio(self) -> bool:
+        return "<audio_" in self.text
+
+    def has_video(self) -> bool:
+        return "<video_" in self.text

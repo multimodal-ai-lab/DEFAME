@@ -9,13 +9,18 @@ accuracy, evidence_log, benchmark = evaluate(
         search_engines=["averitec_kb"],
         limit_per_search=5
     )),
+    fact_checker_kwargs=dict(
+        interpret=False,
+        decompose=False,
+        decontextualize=False,
+        filter_check_worthy=False,
+        max_iterations=3,
+    ),
     llm_kwargs=dict(temperature=0.01),
     benchmark_name="averitec",
     benchmark_kwargs=dict(variant="dev"),
     # sample_ids=[300],
     # n_samples=1,
-    max_iterations=3,
-    extract_claims=False,
     random_sampling=False,
     verbose=True,
 )

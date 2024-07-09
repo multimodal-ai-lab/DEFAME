@@ -64,10 +64,10 @@ class JudgePrompt(Prompt):
 
 
 class DecontextualizePrompt(Prompt):
-    def __init__(self, atomic_fact: str, context: Content):
+    def __init__(self, claim: Claim):
         placeholder_targets = {
-            "[ATOMIC_FACT]": atomic_fact,
-            "[CONTEXT]": context,  # TODO: implement
+            "[ATOMIC_FACT]": claim.text,
+            "[CONTEXT]": claim.original_context.text,  # TODO: improve this, add images etc.
         }
         super().__init__(placeholder_targets)
 
@@ -76,13 +76,13 @@ class DecontextualizePrompt(Prompt):
 
 
 class FilterCheckWorthyPrompt(Prompt):
-    def __init__(self, claim: Claim, context: Content, filter: str = "default"):
+    def __init__(self, claim: Claim, filter: str = "default"):
         assert (filter in ["default", "custom"])
-        placeholder_targets = {  # TODO: implement for claim and content
+        placeholder_targets = {  # re-implement this
             "[SYMBOL]": SYMBOL,
             "[NOT_SYMBOL]": NOT_SYMBOL,
             "[ATOMIC_FACT]": claim,
-            "[CONTEXT]": context,
+            "[CONTEXT]": claim.original_context,
         }
         self.filter = filter
         super().__init__(placeholder_targets)

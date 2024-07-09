@@ -22,6 +22,7 @@ logging.getLogger('transformers').setLevel(logging.ERROR)
 logging.getLogger('timm.models._builder').setLevel(logging.ERROR)
 logging.getLogger('timm.models._hub').setLevel(logging.ERROR)
 logging.getLogger('filelock').setLevel(logging.ERROR)
+logging.getLogger('sentence_transformers').setLevel(logging.ERROR)
 
 
 class EvaluationLogger:

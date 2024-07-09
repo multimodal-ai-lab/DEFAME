@@ -11,9 +11,8 @@ class Actor:
     """Agent that executes given Actions and returns the resulted Evidence."""
 
     def __init__(self, tools: list[Tool], llm: LLM, logger: EvaluationLogger):
-        self.llm = llm
         self.tools = tools
-        self.result_summarizer = ResultSummarizer(self.llm, logger)
+        self.result_summarizer = ResultSummarizer(llm, logger)
 
     def perform(self, actions: list[Action], doc: FCDocument) -> list[Evidence]:
         # TODO: Parallelize
