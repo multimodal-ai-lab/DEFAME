@@ -1,6 +1,6 @@
 import json
 
-from eval.averitec_score import AVeriTeCEvaluator, print_with_space
+from eval.averitec.score import AVeriTeCEvaluator, print_with_space
 from eval.evaluate import evaluate
 
 accuracy, evidence_log, benchmark = evaluate(

@@ -14,7 +14,7 @@ def plot_confusion_matrix(predictions: Sequence[Label],
                           save_dir: str = None):
     class_conversion = {c: v for v, c in enumerate(classes)}
 
-    # Construct confusion matrix TODO: exclude refused
+    # Construct confusion matrix
     confusion_matrix = np.zeros((len(classes), len(classes)), dtype="float")
     for i, (pred, gt) in enumerate(zip(predictions, ground_truth)):
         if isinstance(pred, str):
