@@ -1,9 +1,11 @@
 from abc import ABC
-from PIL import Image
+
 import numpy as np
+from PIL import Image
 
 
 class Action(ABC):
+    """Executed by the actor. Performing an Action yields Evidence."""
     name: str
     description: str
     how_to: str
@@ -31,7 +33,7 @@ class Search(Action):
         self.query = query[1:-1]
 
     def __str__(self):
-        return f"{self.name}: \"{self.query}\""
+        return f'"{self.name}("{self.query}")"'
 
     def __eq__(self, other):
         return isinstance(other, Search) and self.query == other.query and self.name == other.name
@@ -43,8 +45,8 @@ class Search(Action):
 class WebSearch(Search):
     name = "web_search"
     description = """Run an open web search on Google or DuckDuckGO to retrieve any related webpage."""
-    how_to = """Do not use this with a previously used or similar query from previous WEB_SEARCHes.
-    If a previous WEB_SEARCH did not yield any results, use a very different query."""
+    how_to = """Do not use this with a previously used or similar query from previous web searches.
+    If a previous web search did not yield any results, use a very different query."""
     format = """web_search("your web search query goes here")"""
     is_multimodal = False
 
@@ -65,14 +67,14 @@ class WikiLookup(Search):
     name = "wiki_lookup"
     description = """Look up something on Wikipedia to retrieve an article for a person, an 
     entity, an event etc."""
-    how_to = """Do not use this with a previously used or similar query from previous WIKI_LOOKUPs. 
+    how_to = """Do not use this with a previously used or similar query from previous wiki lookup. 
     If a previous wiki_lookup did not yield any results, use a very different query."""
     format = """wiki_lookup("your wiki search query goes here")"""
     is_multimodal = False
 
 
-class ObjectRecognition(Action):
-    name = "object_recognition"
+class DetectObjects(Action):
+    name = "detect_objects"
     description = "Identifies objects within an image."
     how_to = "Provide an image and the model will recognize objects in it."
     format = 'object_recognition(image)'
@@ -85,7 +87,7 @@ class ObjectRecognition(Action):
         return f'{self.name}()'
 
     def __eq__(self, other):
-        return isinstance(other, ObjectRecognition) and np.array_equal(np.array(self.image), np.array(other.image))
+        return isinstance(other, DetectObjects) and np.array_equal(np.array(self.image), np.array(other.image))
 
     def __hash__(self):
         return hash((self.name, self.image.tobytes()))
@@ -110,8 +112,9 @@ class ReverseSearch(Action):
     def __hash__(self):
         return hash((self.name, self.image.tobytes()))
 
-class GeoLocation(Action):
-    name = "geo_location"
+
+class Geolocate(Action):
+    name = "geolocate"
     description = "Performs geolocation to determine the country where an image was taken."
     how_to = f"Provide an image and the model will determine the most likely countries where it was taken."
     format = 'geo_location(image)'
@@ -125,10 +128,11 @@ class GeoLocation(Action):
         return f'{self.name}()'
 
     def __eq__(self, other):
-        return isinstance(other, GeoLocation) and np.array_equal(np.array(self.image), np.array(other.image))
+        return isinstance(other, Geolocate) and np.array_equal(np.array(self.image), np.array(other.image))
 
     def __hash__(self):
         return hash((self.name, self.image.tobytes()))
+
 
 class FaceRecognition(Action):
     name = "face_recognition"
@@ -148,7 +152,8 @@ class FaceRecognition(Action):
 
     def __hash__(self):
         return hash((self.name, self.image.tobytes()))
-    
+
+
 class OCR(Action):
     name = "ocr"
     description = "Performs Optical Character Recognition to extract text from an image."
@@ -168,8 +173,9 @@ class OCR(Action):
     def __hash__(self):
         return hash((self.name, self.image.tobytes()))
 
-class SourceCredibilityCheck(Action):
-    name = "source_credibility_check"
+
+class CredibilityCheck(Action):
+    name = "credibility_check"
     description = "Evaluates the credibility of a given source."
     how_to = "Provide a source URL or name and the model will assess its credibility."
     format = 'source_credibility_check("source_name_or_url")'
@@ -180,22 +186,29 @@ class SourceCredibilityCheck(Action):
 
     def __str__(self):
         return f'{self.name}("{self.source}")'
-    
+
     def __eq__(self, other):
-        return isinstance(other, SourceCredibilityCheck) and self.source == other.source
+        return isinstance(other, CredibilityCheck) and self.source == other.source
 
     def __hash__(self):
         return hash((self.name, self.source))
 
-    
+
 ACTION_REGISTRY = {
     WebSearch,
     WikiDumpLookup,
-    ObjectRecognition,
+    DetectObjects,
     WikiLookup,
     ReverseSearch,
-    GeoLocation,
+    Geolocate,
     FaceRecognition,
-    SourceCredibilityCheck,
+    CredibilityCheck,
+    OCR,
+}
+
+IMAGE_ACTIONS = {
+    ReverseSearch,
+    Geolocate,
+    FaceRecognition,
     OCR,
 }

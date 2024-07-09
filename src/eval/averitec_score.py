@@ -1,9 +1,10 @@
 import argparse
 import json
-import scipy
-import numpy as np
-import sklearn
+
 import nltk
+import numpy as np
+import scipy
+import sklearn
 from nltk import word_tokenize
 
 
@@ -29,7 +30,6 @@ def print_with_space(left, right, left_space=45):
 
 
 class AVeriTeCEvaluator:
-
     verdicts = [
         "Supported",
         "Refuted",
@@ -180,8 +180,8 @@ class AVeriTeCEvaluator:
         """
 
         src_strings = self.extract_full_comparison_strings(src, is_target=False)[
-            : self.max_questions
-        ]
+                      : self.max_questions
+                      ]
         tgt_strings = self.extract_full_comparison_strings(tgt)
         pairwise_scores = compute_all_pairwise_scores(
             src_strings, tgt_strings, self.pairwise_metric
@@ -200,8 +200,8 @@ class AVeriTeCEvaluator:
         all_utils = []
         for src, tgt in zip(srcs, tgts):
             src_strings = self.extract_full_comparison_strings(src, is_target=False)[
-                : self.max_questions
-            ]
+                          : self.max_questions
+                          ]
             tgt_strings = self.extract_full_comparison_strings(tgt)
 
             pairwise_scores = compute_all_pairwise_scores(
@@ -237,8 +237,8 @@ class AVeriTeCEvaluator:
                             evidence["question"] + " " + answer["answer"]
                         )
                         if (
-                            "answer_type" in answer
-                            and answer["answer_type"] == "Boolean"
+                                "answer_type" in answer
+                                and answer["answer_type"] == "Boolean"
                         ):
                             example_strings[-1] += ". " + answer["boolean_explanation"]
                     if len(evidence["answers"]) == 0:
@@ -308,4 +308,3 @@ if __name__ == "__main__":
     )
     for t, v in type_scores.items():
         print_with_space(" * Veracity scores (" + t + "):", str(v))
-

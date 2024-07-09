@@ -3,26 +3,28 @@ import logging
 import os
 import threading
 import time
+from abc import ABC
 from concurrent import futures
 from typing import Any, Annotated, Optional
-import numpy as np
 
 import anthropic
 import langfun as lf
+import numpy as np
 import openai
 import pandas as pd
 import pyglove as pg
+import tiktoken
 import torch
 from transformers import BitsAndBytesConfig, pipeline
-import tiktoken
+from transformers.pipelines import Pipeline
 
-from common import modeling_utils
-from common import shared_config
-from common import utils
-from common.console import cyan, magenta, orange
+from config.globals import api_keys
 from eval.logger import EvaluationLogger
+from utils import modeling
+from utils.console import cyan, magenta, orange
+from utils.utils import maybe_print_error, stop_all_execution, to_readable_json
 
-AVAILABLE_MODELS = pd.read_csv("common/available_models.csv", skipinitialspace=True)
+AVAILABLE_MODELS = pd.read_csv("config/available_models.csv", skipinitialspace=True)
 
 _DEBUG_PRINT_LOCK = threading.Lock()
 _ANTHROPIC_MODELS = [
@@ -168,27 +170,29 @@ class AnthropicModel(lf.LanguageModel):
         )
 
 
-class Model:
-    """Class for storing any single language model."""
+class LanguageModel(ABC):
+    """Base class for all (M)LLMs."""
+    model = lf.LanguageModel | Pipeline
 
-    def __init__(
-            self,
-            name: str,
-            logger: EvaluationLogger = None,
-            temperature: float = 0.01,
-            max_response_len: int = 2048,
-            top_k: int = 50,
-            repetition_penalty: float = 1.2,
-            show_responses: bool = False,
-            show_prompts: bool = False,
-    ) -> None:
-        """Initializes a model."""
+    def __init__(self,
+                 name: str,
+                 logger: EvaluationLogger = None,
+                 temperature: float = 0.01,
+                 max_response_len: int = 2048,
+                 top_k: int = 50,
+                 repetition_penalty: float = 1.2,
+                 show_responses: bool = False,
+                 show_prompts: bool = False,
+                 ):
+        self.logger = logger
+
         if name in AVAILABLE_MODELS["Shorthand"].to_list():
             shorthand = name
             full_name = model_shorthand_to_full_name(shorthand)
         else:
             shorthand = model_full_name_to_shorthand(name)
             full_name = name
+
         self.name = shorthand
         self.temperature = temperature
         self.context_window = get_model_context_window(shorthand)  # tokens
@@ -201,34 +205,44 @@ class Model:
         self.show_prompts = show_prompts
         self.open_source = False
         self.encoding = tiktoken.get_encoding("cl100k_base")
-        self.logger = logger
-        self.model = self.load(full_name)
-        
 
-    def load(self, model_name: str) -> lf.LanguageModel:
+        self.model = self.load(full_name)
+
+    def load(self, model_name: str) -> lf.LanguageModel | Pipeline:
+        raise NotImplementedError
+
+    def generate(self, **kwargs) -> str:
+        """Continues the provided prompt and returns the continuation (the response)."""
+        raise NotImplementedError
+
+
+class LLM(LanguageModel):
+    """Wraps any Huggingface, OpenAI, Anthropic language model."""
+
+    def load(self, model_name: str) -> lf.LanguageModel | Pipeline:
         """Loads a language model from string representation."""
         sampling = lf.LMSamplingOptions(
             temperature=self.temperature, max_tokens=self.max_response_len
         )
 
         if model_name.lower().startswith('openai:'):
-            if not shared_config.openai_api_key:
-                utils.maybe_print_error('No OpenAI API Key specified.')
-                utils.stop_all_execution(True)
+            if not api_keys["openai_api_key"]:
+                maybe_print_error('No OpenAI API Key specified.')
+                stop_all_execution(True)
 
             return lf.llms.OpenAI(
                 model=model_name[7:],
-                api_key=shared_config.openai_api_key,
+                api_key=api_keys["openai_api_key"],
                 sampling_options=sampling,
             )
         elif model_name.lower().startswith('anthropic:'):
-            if not shared_config.anthropic_api_key:
-                utils.maybe_print_error('No Anthropic API Key specified.')
-                utils.stop_all_execution(True)
+            if not api_keys["anthropic_api_key"]:
+                maybe_print_error('No Anthropic API Key specified.')
+                stop_all_execution(True)
 
             return AnthropicModel(
                 model=model_name[10:],
-                api_key=shared_config.anthropic_api_key,
+                api_key=api_keys["anthropic_api_key"],
                 sampling_options=sampling,
             )
         # Pipeline works with various out-of-the-box huggingface models 
@@ -244,7 +258,7 @@ class Model:
                 repetition_penalty=self.repetition_penalty,
                 model_kwargs={"torch_dtype": torch.bfloat16},
                 device_map="auto",
-                token=shared_config.huggingface_user_access_token,
+                token=api_keys["huggingface_user_access_token"],
             )
         elif 'unittest' == model_name.lower():
             return lf.llms.Echo()
@@ -259,6 +273,7 @@ class Model:
             max_tokens: Optional[int] = None,
             max_attempts: int = 3,
             top_p=0.9,
+            top_k=None,
             timeout: int = 60,
             retry_interval: int = 10,
     ) -> str:
@@ -266,37 +281,37 @@ class Model:
         self.model.max_attempts = 1
         self.model.retry_interval = 0
         self.model.timeout = timeout
-        prompt = modeling_utils.add_format(prompt, self.model, self.name)
+        prompt = modeling.add_format(prompt, self.model, self.name)
         gen_temp = temperature if temperature is not None else self.temperature
         response, num_attempts = '', 0
+        top_k = self.top_k if top_k is None else top_k
 
         if self.open_source:
             # Handling needs to be done case by case. Default uses meta-llama formatting.
             prompt = self.handle_prompt(prompt)
-            terminators = [
-                self.model.tokenizer.eos_token_id,
-                self.model.tokenizer.convert_tokens_to_ids("<|eot_id|>")
-            ]
             # useful for controlling the length of the generated sequences.
             self.model.tokenizer.pad_token_id = self.model.tokenizer.eos_token_id
             while len(self.model.tokenizer(prompt)['input_ids']) > self.context_window:
                 prompt_length = len(self.model.tokenizer(prompt))
-                self.logger.log(orange(f"INFO: Prompt is too long. Length: {prompt_length}. Truncating it hard with factor 0.9."))
-                prompt = prompt[:0.9*len(prompt)]
+                self.logger.log(
+                    orange(f"INFO: Prompt is too long. Length: {prompt_length}. Truncating it hard with factor 0.9."))
+                prompt = prompt[:0.9 * len(prompt)]
             output = self.model(prompt,
-                                eos_token_id=terminators,
-                                pad_token_id=terminators[0],
+                                eos_token_id=self.model.tokenizer.eos_token_id,
+                                pad_token_id=self.model.tokenizer.pad_token_id,
                                 do_sample=True,
                                 temperature=gen_temp,
                                 top_p=top_p,
+                                top_k=top_k,
                                 )
             response = output[0]['generated_text'][len(prompt):]
         else:
             while len(self.encoding.encode(prompt)) > self.context_window:
                 prompt_length = len(self.encoding.encode(prompt))
-                self.logger.log(orange(f"INFO: Prompt is too long. Length: {prompt_length}. Truncating it hard with factor 0.9."))
-                prompt = prompt[:0.9*len(prompt)]
-            with modeling_utils.get_lf_context(gen_temp, max_tokens):
+                self.logger.log(
+                    orange(f"INFO: Prompt is too long. Length: {prompt_length}. Truncating it hard with factor 0.9."))
+                prompt = prompt[:0.9 * len(prompt)]
+            with modeling.get_lf_context(gen_temp, max_tokens):
                 while not response and num_attempts < max_attempts:
                     with futures.ThreadPoolExecutor() as executor:
                         future = executor.submit(lf.LangFunc(prompt, lm=self.model, temperature=gen_temp))
@@ -309,7 +324,7 @@ class Model:
                                 lf.core.concurrent.RetryError,
                                 anthropic.AnthropicError,
                         ) as e:
-                            utils.maybe_print_error(e)
+                            maybe_print_error(e)
                             time.sleep(retry_interval)
 
                     num_attempts += 1
@@ -332,7 +347,7 @@ class Model:
         Processes the prompt using the model's tokenizer with a specific template,
         and continues execution even if an error occurs during formatting.
         """
-        original_prompt = modeling_utils.prepare_prompt(original_prompt, system_prompt, self.name)
+        original_prompt = modeling.prepare_prompt(original_prompt, system_prompt, self.name)
         try:
             # Attempt to apply the chat template formatting
             formatted_prompt = self.model.tokenizer.apply_chat_template(
@@ -362,7 +377,7 @@ class Model:
             'show_responses': self.show_responses,
             'show_prompts': self.show_prompts,
         }
-        print(utils.to_readable_json(settings))
+        print(to_readable_json(settings))
 
     def count_tokens(self, string: str) -> int:
         """Returns the number of tokens in a text string. Uses the tokenizer used by
@@ -371,30 +386,16 @@ class Model:
         return num_tokens
 
 
-class MultimodalModel(Model):
-    """Class for storing any multimodal language model."""
-
-    def __init__(
-            self,
-            name: str,
-            logger: EvaluationLogger = None,
-            temperature: Optional[float] = None,
-            max_tokens: Optional[int] = 2000,
-            top_k: Optional[int] = 50,
-            repetition_penalty: Optional[float] = 1.2,
-            show_responses: bool = False,
-            show_prompts: bool = False,
-    ) -> None:
-        """Initializes a multimodal model."""
-        super().__init__(name, logger, temperature, max_tokens, top_k, repetition_penalty, show_responses, show_prompts)
+class MLLM(LanguageModel):
+    """Wraps any Multimodal LLM."""
 
     def load(self, model_name: str):
         """Loads a multimodal model from string representation."""
         if model_name.lower().startswith('huggingface:'):
             model_name = model_name[12:]
             if model_name != "llava-hf/llava-1.5-7b-hf":
-                self.logger.log(
-                    "Warning: Model output is cut according to Llava 1.5 standard input format < output[len(prompt)-5:] >.")
+                self.logger.log("Warning: Model output is cut according to Llava "
+                                "1.5 standard input format < output[len(prompt)-5:] >.")
             quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=torch.float16
@@ -415,7 +416,8 @@ class MultimodalModel(Model):
             repetition_penalty: float = 1.2,
     ) -> str:
         max_response_len = max_response_len or self.max_response_len
-        response = self.model(
+
+        out = self.model(
             image,
             prompt=prompt,
             generate_kwargs={
@@ -424,8 +426,10 @@ class MultimodalModel(Model):
                 "top_k": top_k,
                 "repetition_penalty": repetition_penalty
             }
-        )[0]["generated_text"][
-                   len(prompt) - 5:]  # Because of <image> in the Llava template. Might need adjustment for other LLMs.
+        )
+
+        # Count -5 because of <image> in the Llava template. Might need adjustment for other MLLMs.
+        response = out[0]["generated_text"][len(prompt) - 5:]
 
         if do_debug:
             if self.show_prompts:
@@ -434,45 +438,3 @@ class MultimodalModel(Model):
                 print(f"Response: {response}")
 
         return response
-
-
-class FakeModel(Model):
-    """Class for faking responses during unit tests."""
-
-    def __init__(
-            self,
-            static_response: str = '',
-            sequential_responses: Optional[list[str]] = None,
-    ) -> None:
-        Model.__init__(self, name='unittest')
-        self.static_response = static_response
-        self.sequential_responses = sequential_responses
-        self.sequential_response_idx = 0
-
-        if static_response:
-            self.model = lf.llms.StaticResponse(static_response)
-        elif sequential_responses:
-            self.model = lf.llms.StaticSequence(sequential_responses)
-        else:
-            self.model = lf.llms.Echo()
-
-    def generate(
-            self,
-            prompt: str,
-            do_debug: bool = False,
-            temperature: Optional[float] = None,
-            max_tokens: Optional[int] = None,
-            max_attempts: int = 1000,
-            timeout: int = 60,
-            retry_interval: int = 10,
-    ) -> str:
-        if self.static_response:
-            return self.static_response
-        elif self.sequential_responses:
-            response = self.sequential_responses[
-                self.sequential_response_idx % len(self.sequential_responses)
-                ]
-            self.sequential_response_idx += 1
-            return response
-        else:
-            return ''

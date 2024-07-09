@@ -1,38 +1,28 @@
-import csv
 import inspect
 import time
-import pandas as pd
-import numpy as np
 
-from common.console import green, red, bold
+import numpy as np
+import pandas as pd
+
 from common.label import Label
-from common.plot import plot_confusion_matrix
-from common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS, Model, MultimodalModel
+from common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS, MLLM
+from utils.console import green, red, bold
+from utils.plot import plot_confusion_matrix
 from eval.benchmark import load_benchmark, AVeriTeC
 from eval.logger import EvaluationLogger
-from safe.fact_checker import FactChecker
+from fact_checker import FactChecker
+from tools import initialize_tools
 
-# TODO The following comments should be inserted in the README.md
-# For multimodal usage turn image into a tensor by either:
-# 1) pulling it from link:
-#    image_url = "https://llava-vl.github.io/static/images/view.jpg"
-#    image = Image.open(requests.get(image_url, stream=True).raw)
-#   or
-# 2) pulling it from path
-#    image_path = path_to_data + "MAFC_test/image_claims/00000.png"
-#    image = Image.open(image_path)
-#
-# Hand the tensor as second argument to Factchecker.check
 
 def evaluate(
-        model: str,
-        search_engine: str,
+        llm: str,
         benchmark_name: str,
-        model_kwargs: dict = None,
+        tools_config: dict[str, dict],
+        llm_kwargs: dict = None,
         benchmark_kwargs: dict = None,
-        multimodal_model: str = None,
+        mllm: str = None,
+        mllm_kwargs: dict = None,
         n_samples: int = None,
-        max_results_per_search: int = 3,
         sample_ids: list[int] = None,
         random_sampling: bool = False,
         extract_claims: bool = True,
@@ -41,30 +31,39 @@ def evaluate(
 ) -> float:
     assert n_samples is None or sample_ids is None
 
-    benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
-    multimodal = benchmark.is_multimodal
+    if llm_kwargs is None:
+        llm_kwargs = dict()
+    if mllm_kwargs is None:
+        mllm_kwargs = dict()
 
-    model = model_full_name_to_shorthand(model) if model not in AVAILABLE_MODELS["Shorthand"].values else model
-    logger = EvaluationLogger(benchmark.name, model, verbose=verbose)
+    benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
+
+    llm = model_full_name_to_shorthand(llm) if llm not in AVAILABLE_MODELS["Shorthand"].values else llm
+    logger = EvaluationLogger(benchmark.shorthand, llm, verbose=verbose)
 
     # Save hyperparams based on the signature of evaluate()
     signature = inspect.signature(evaluate)
     logger.save_config(signature, locals())
-    start_time = time.time()
 
-    # Initialize model
-    model = Model(model, logger=logger, **model_kwargs)
-    if multimodal:
-        multimodal_model = MultimodalModel(name=multimodal_model, logger=logger, **model_kwargs)
+    # Load the tools and verify if they are allowed
+    tools = initialize_tools(tools_config, logger=logger)
+    if benchmark.available_actions is not None:
+        for tool in tools:
+            for action in tool.actions:
+                assert action in benchmark.available_actions, \
+                    f"Action {action} not available for benchmark {benchmark.name}."
+
+    # Initialize model(s)
+    llm = LLM(llm, logger=logger, **llm_kwargs)
+    if mllm is not None:
+        mllm = MLLM(name=mllm, logger=logger, **mllm_kwargs)
 
     fc = FactChecker(
-        multimodal=multimodal,
-        model=model,
-        multimodal_model=multimodal_model,
-        search_engines=[search_engine],
+        llm=llm,
+        mllm=mllm,
+        tools=tools,
         extract_claims=extract_claims,
         max_iterations=max_iterations,
-        max_results_per_search=max_results_per_search,
         logger=logger,
         # Benchmark specifics:
         class_definitions=benchmark.class_definitions,
@@ -86,33 +85,31 @@ def evaluate(
             samples_to_evaluate = benchmark
             n_samples = len(benchmark)
 
+    start_time = time.time()
+
     eval_log = []
     predictions = []
     for i, instance in enumerate(samples_to_evaluate):
         logger.log(f"Evaluating claim {i + 1} of {n_samples} (#{instance['id']}):")
         content = instance["content"]
 
-        if multimodal:
-
-            images = instance["content"].images
-            doc = fc.check(content, images=images)
-        else:
-            doc = fc.check(content)
+        _, docs = fc.check(content)
+        doc = docs[0]
 
         prediction = doc.verdict
-        if prediction == Label.CHERRY_PICKING:
+        if prediction == Label.CHERRY_PICKING:  # Needed for Averitec
             prediction = Label.CONFLICTING
 
         eval_log.append({"claim": content, "evidence": "", "pred_label": prediction.name})
         prediction_is_correct = instance["label"] == prediction
 
         logger.save_next_prediction(
-            sample_index=instance['id'], 
-            claim=doc.claim.text, 
-            target=instance["label"], 
-            justification=doc.justification, 
-            predicted=prediction, 
-            gt_justification=instance["ground_truth_justification"]
+            sample_index=instance['id'],
+            claim=doc.claim.text,
+            target=instance["label"],
+            justification=doc.justification,
+            predicted=prediction,
+            gt_justification=instance["justification"]
         )
         logger.save_fc_doc(doc, instance['id'])
         if prediction_is_correct:
@@ -125,7 +122,7 @@ def evaluate(
             break
 
     benchmark_classes = benchmark.get_classes()
-    #TODO: get this out of the evaluate function
+    # TODO: get this out of the evaluate function
     if isinstance(benchmark, AVeriTeC):
         benchmark_classes.remove(Label.CHERRY_PICKING)
 
@@ -145,6 +142,7 @@ def evaluate(
 
     return accuracy, eval_log, benchmark
 
+
 def load_results(path: str):
     ground_truth = []
     predictions = []
@@ -153,12 +151,14 @@ def load_results(path: str):
         predictions.append(Label[predicted])
     return ground_truth, predictions
 
+
 def next_result(path: str):
     with open(path) as f:
         reader = csv.reader(f)
         next(reader)  # skip header line
         for row in reader:
             yield row
+
 
 def compute_accuracy(predictions: pd.DataFrame) -> float:
     correct_stats = predictions["correct"].value_counts()
@@ -167,20 +167,22 @@ def compute_accuracy(predictions: pd.DataFrame) -> float:
     accuracy = correct_stats[True] / (len(predictions) - n_refused)
     return accuracy
 
-import csv
-import pandas as pd
-from common.modeling import Model
 
-def naive_evaluate(model: str, model_kwargs: dict = None, benchmark_name: str = "fever1", n_samples: int = None, **kwargs) -> float:
+import csv
+from common.modeling import LLM
+
+
+def naive_evaluate(model: str, model_kwargs: dict = None, benchmark_name: str = "fever1", n_samples: int = None,
+                   **kwargs) -> float:
     benchmark = load_benchmark(benchmark_name)
-    model = Model(model, **model_kwargs)
+    model = LLM(model, **model_kwargs)
     samples_to_evaluate = benchmark[:n_samples] if n_samples else benchmark
 
     eval_log = []
     predictions = []
     for instance in samples_to_evaluate:
         query = f"Check if the following claim is 'supported', 'not enough information', or 'refuted' using your available knowledge. Answer with only one of the three options. Claim: {instance['content']}"
-        prediction = model.generate(query).replace("'","").replace(".","").lower()
+        prediction = model.generate(query).replace("'", "").replace(".", "").lower()
         if prediction not in ['supported', 'not enough information', 'refuted']:
             print(instance["id"], prediction)
         eval_log.append({"claim": instance["content"], "pred_label": prediction})
