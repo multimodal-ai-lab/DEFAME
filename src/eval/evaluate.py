@@ -18,6 +18,7 @@ def evaluate(
         llm: str,
         benchmark_name: str,
         tools_config: dict[str, dict],
+        fact_checker_kwargs: dict = None,
         llm_kwargs: dict = None,
         benchmark_kwargs: dict = None,
         mllm: str = None,
@@ -25,8 +26,6 @@ def evaluate(
         n_samples: int = None,
         sample_ids: list[int] = None,
         random_sampling: bool = False,
-        extract_claims: bool = True,
-        max_iterations: int = 3,
         verbose: bool = False,
 ) -> float:
     assert n_samples is None or sample_ids is None
@@ -62,9 +61,8 @@ def evaluate(
         llm=llm,
         mllm=mllm,
         tools=tools,
-        extract_claims=extract_claims,
-        max_iterations=max_iterations,
         logger=logger,
+        **fact_checker_kwargs,
         # Benchmark specifics:
         class_definitions=benchmark.class_definitions,
         extra_prepare_rules=benchmark.extra_prepare_rules,

@@ -5,6 +5,7 @@ import pyparsing as pp
 from PIL import Image
 
 from common.action import (Action, ACTION_REGISTRY, IMAGE_ACTIONS)
+from common.content import Content
 from common.document import FCDocument
 from common.modeling import LLM
 from eval.logger import EvaluationLogger
@@ -64,7 +65,7 @@ class Planner:
         while True:
             n_tries += 1
             answer = self.llm.generate(str(prompt))
-            actions = self._extract_actions(answer, doc.claim.images)
+            actions = self._extract_actions(answer, doc.claim.original_context)
             reasoning = self._extract_reasoning(answer)
 
             # Filter out actions that have been performed before
@@ -75,7 +76,7 @@ class Planner:
 
             self.logger.log("WARNING: No new actions were found. Retrying...")
 
-    def _extract_actions(self, answer: str, images: Optional[list[Image.Image]] = None) -> list[Action]:
+    def _extract_actions(self, answer: str, context: Content = None) -> list[Action]:
         actions_str = extract_last_code_block(answer)
         if not actions_str:
             candidates = []
@@ -88,7 +89,7 @@ class Planner:
         raw_actions = actions_str.split('\n')
         actions = []
         for raw_action in raw_actions:
-            action = self._parse_single_action(raw_action, images)
+            action = self._parse_single_action(raw_action, context.images)
             if action:
                 actions.append(action)
         return actions

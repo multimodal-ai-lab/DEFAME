@@ -25,7 +25,10 @@ class FactChecker:
                  mllm: Optional[str | MLLM] = None,
                  tools: list[Tool] = None,
                  search_engines: list[str] = None,
-                 extract_claims: bool = False,
+                 interpret: bool = False,
+                 decompose: bool = False,
+                 decontextualize: bool = False,
+                 filter_check_worthy: bool = False,
                  max_iterations: int = 5,
                  logger: EvaluationLogger = None,
                  classes: Sequence[Label] = None,
@@ -43,9 +46,13 @@ class FactChecker:
         self.llm = LLM(llm, self.logger) if isinstance(llm, str) else llm
         self.mllm = MLLM(mllm, self.logger) if (isinstance(mllm, str)) else mllm
 
-        self.extract_claims = extract_claims
-        if self.extract_claims:
-            self.claim_extractor = ClaimExtractor(self.llm, self.mllm, self.logger)
+        self.claim_extractor = ClaimExtractor(llm=self.llm,
+                                              mllm=self.mllm,
+                                              interpret=interpret,
+                                              decompose=decompose,
+                                              decontextualize=decontextualize,
+                                              filter_check_worthy=filter_check_worthy,
+                                              logger=self.logger)
 
         if classes is None:
             if class_definitions is None:
@@ -54,8 +61,7 @@ class FactChecker:
                 classes = list(class_definitions.keys())
 
         if tools is None:
-            multimodal = self.mllm is not None
-            tools = self._initialize_tools(multimodal, search_engines)
+            tools = self._initialize_tools(search_engines)
 
         available_actions = get_available_actions(tools)
 
@@ -78,13 +84,14 @@ class FactChecker:
         self.extra_prepare_rules = extra_prepare_rules
         self.max_iterations = max_iterations
 
-    def _initialize_tools(self, multimodal: bool, search_engines: list[str]) -> list[Tool]:
+    def _initialize_tools(self, search_engines: list[str]) -> list[Tool]:
         """Loads a default collection of tools."""
         tools = [
             Searcher(search_engines, logger=self.logger),
             CredibilityChecker(logger=self.logger)
         ]
 
+        multimodal = self.mllm is not None
         if multimodal:
             tools.extend([
                 ObjectDetector(logger=self.logger),
@@ -110,7 +117,7 @@ class FactChecker:
 
         self.logger.log(bold(f"Content to be checked:\n'{light_blue(str(content))}'"), important=True)
 
-        claims = self.claim_extractor.extract_claims(content) if self.extract_claims else [content]
+        claims = self.claim_extractor.extract_claims(content)
 
         # Verify each single extracted claim
         self.logger.log(bold("Verifying the claims..."), important=True)
