@@ -1,10 +1,10 @@
-from typing import Collection
 from dataclasses import dataclass
+from typing import Collection
 
-from common.label import Label
 from common.action import Action
-from common.results import Result
 from common.claim import Claim
+from common.label import Label
+from common.results import Evidence
 
 
 @dataclass
@@ -25,21 +25,29 @@ class ActionsBlock:
 
 
 @dataclass
-class ResultsBlock:
-    results: Collection[Result]
+class EvidenceBlock:
+    evidences: Collection[Evidence]
 
     def __str__(self):
-        return f"## Results\nRetrieved {self.num_useful_results} new useful results."
+        return f"## Results\nRetrieved {self.num_useful_results} new useful results."  # TODO: Rename to evidence
 
     @property
     def num_useful_results(self):
-        return len([r for r in self.results if r.is_useful()])
+        n_useful = 0
+        for e in self.evidences:
+            for r in e.results:
+                if r.is_useful():
+                    n_useful += 1
+        return n_useful
 
     def get_useful_results_str(self) -> str:
         if self.num_useful_results > 0:
-            return "\n".join([str(r) for r in self.results if r.is_useful()])
+            useful_results = []
+            for e in self.evidences:
+                useful_results.extend([str(r) for r in e.results])
+            return "\n".join(useful_results)
         else:
-            return "No new useful results found!"
+            return "No new useful results!"
 
 
 class FCDocument:
@@ -72,8 +80,8 @@ class FCDocument:
     def add_actions(self, actions: list[Action]):
         self.record.append(ActionsBlock(actions))
 
-    def add_results(self, results: Collection[Result]):
-        self.record.append(ResultsBlock(results))
+    def add_evidence(self, evidences: Collection[Evidence]):
+        self.record.append(EvidenceBlock(evidences))
 
     def get_all_reasoning(self) -> list[str]:
         reasoning_texts = []

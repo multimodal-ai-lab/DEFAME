@@ -4,6 +4,7 @@ bitsandbytes==0.41.3
 duckduckgo_search==6.1.0
 easyocr==1.3.2
 huggingface-hub>=0.23.2
+Jinja2~=3.1.3
 langfun==0.0.2.dev20240515
 matplotlib>=3.8.2
 nltk==3.8.1
@@ -13,6 +14,7 @@ orjsonl==1.0.0
 pandas>=2.2.0
 Pillow==9.5.0
 pyglove==0.4.5.dev20240501
+pyparsing~=3.1.1
 PyYAML>=6.0.1
 rank-bm25==0.2.2
 requests~=2.31.0
@@ -21,6 +23,7 @@ scipy~=1.12.0
 sentence-transformers
 spacy==3.7.4
 sty>=1.0.6
+tiktoken~=0.7.0
 torch==2.3.1
 transformers>=4.40.2
 tqdm>=4.64.0

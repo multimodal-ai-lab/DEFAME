@@ -1,28 +1,35 @@
 import json
+import os
 import random
 from abc import ABC
 from datetime import datetime
 from pathlib import Path
 from typing import MutableSequence, Iterable, Iterator
-import re
-import os
-import orjsonl
-from tqdm import tqdm
-from PIL import Image
-import pandas as pd
 
-from common.claim import Claim
+import orjsonl
+import pandas as pd
+from PIL import Image
+
+from common.action import Action, WebSearch, WikiDumpLookup
+from common.content import Content
 from common.label import Label
-from common.shared_config import path_to_data
-from safe.tools.search.wiki_dump import WikiDumpAPI
-from common.modeling import Model
+from config.globals import path_to_data
 
 
 class Benchmark(ABC, Iterable):
+    shorthand: str
+
     data: MutableSequence[dict]  # Each element is of the form {"id": ..., "content": ..., "label": ...}
+
+    is_multimodal: bool
+
     class_mapping: dict[str, Label]  # Maps the benchmark-specific class/label to the standard Label class
     class_definitions: dict[Label, str]  # Explains (to the LLM) the meaning of each class/label
+
     file_path: Path
+
+    available_actions: list[Action]  # If none, all actions are allowed
+
     extra_prepare_rules: str = None  # Additional, benchmark-specific instructions to guide LLM's initial reasoning
     extra_plan_rules: str = None  # Additional, benchmark-specific instructions to guide LLM's action planning
     extra_judge_rules: str = None  # Additional, benchmark-specific instructions to guide LLM's verdict prediction
@@ -64,6 +71,10 @@ class Benchmark(ABC, Iterable):
 
 
 class AVeriTeC(Benchmark):
+    shorthand = "averitec"
+
+    is_multimodal = False
+
     class_mapping = {
         "Supported": Label.SUPPORTED,
         "Not Enough Evidence": Label.NEI,
@@ -88,42 +99,44 @@ class AVeriTeC(Benchmark):
                               "certain conditions.",
     }
 
+    extra_judge_rules = """* **Do not commit the "argument from ignorance" fallacy**: The absence of evidence
+    for claim `X` does NOT prove that `X` is false. Instead, `X` is simply unsupported--which is different
+    to `X` being refuted. Unsupported yet not refuted claims are of the category `not enough information`."""
+
+    available_actions = [WebSearch]
+
     def __init__(self, variant="dev"):
-        super().__init__(f"averitec_{variant}")
-        self.is_multimodal = False
+        super().__init__(f"AVeriTeC ({variant})")
         self.file_path = Path(path_to_data + f"AVeriTeC/{variant}.json")
 
         # Load the data
         with open(self.file_path, 'r') as f:
-            data = json.load(f)
-        if variant in ["train", "dev"]:
-            self.data = [{"id": i,
-                          "content": Claim(
-                              text=d["claim"],
-                              author=d["speaker"],
-                              date=datetime.strptime(d["claim_date"], "%d-%m-%Y"),
-                              origin=d["original_claim_url"]
-                          ),
-                          "label": self.class_mapping[d["label"]],
-                          "ground_truth_justification": d["justification"]}
-                         for i, d in enumerate(data)]
-        else:
-            self.data = [{"id": i,
-                          "content": Claim(
-                              text=d["claim"],
-                              author=d["speaker"],
-                              date=datetime.strptime(d["claim_date"], "%d-%m-%Y"),
-                              origin=d["original_claim_url"]
-                          ),
-                          "label": None,
-                          "ground_truth_justification": None}
-                         for i, d in enumerate(data)]
+            data_raw = json.load(f)
+
+        data = []
+        for i, d in enumerate(data_raw):
+            content = Content(
+                text=d["claim"],
+                author=d["speaker"],
+                date=datetime.strptime(d["claim_date"], "%d-%m-%Y"),
+                origin=d["original_claim_url"]
+            )
+            label = self.class_mapping[d["label"]] if variant in ["train", "dev"] else None
+            justification = d["justification"] if variant in ["train", "dev"] else None
+
+            data.append({"id": i, "content": content, "label": label, "justification": justification})
+
+        self.data = data
 
     def __iter__(self) -> Iterator[dict]:
         return iter(self.data)
 
 
 class FEVER(Benchmark):
+    shorthand = "fever"
+
+    is_multimodal = False
+
     class_mapping = {
         "supports": Label.SUPPORTED,
         "not enough info": Label.NEI,
@@ -148,181 +161,134 @@ class FEVER(Benchmark):
             is missing."""
     }
 
-    def __init__(self, version=1, variant="dev", include_justifications=True):
-        super().__init__(f"fever{version}_{variant}")
-        self.is_multimodal = False
+    extra_prepare_rules_v1 = """* **Identify the altered segments**: Since the Claim is generated by altering
+    sentences from Wikipedia, pinpoint the parts of the Claim that seem modified or out of place.
+    * **Consider potential misleading elements**: The Claim may contain misleading or confusing elements due to
+    the alteration process.
+    * **Prepare to investigate original context**: Since the Claim is derived from Wikipedia sentences, be prepared
+    to trace back to the original context or related information for accurate verification."""
+
+    extra_plan_rules_v1 = """* **Assume the Claim may be misleading**: Since the Claim is generated by altering
+    Wikipedia sentences, consider that it might be intentionally misleading or designed to test the fact-checking
+    process.
+    * **Identify key elements**: Break down the Claim into its key components and identify which parts require
+    verification.
+    * **Plan for multiple investigation steps**: The Claim may require a series of verification steps, including
+    checking the original Wikipedia context, cross-referencing related information, and verifying altered segments.
+    * **Consider alternative interpretations**: Given the altered nature of the Claim, consider multiple
+    interpretations and verify each to ensure thorough fact-checking.
+    * **Reuse previously retrieved knowledge**: Be prepared to reuse information and evidence gathered during
+    previous verification steps to form a comprehensive judgment."""
+
+    extra_prepare_rules_v2 = """* Before you start, begin with a _grammar check_ of the Claim. If it
+    has some grammatical errors, there is a high chance that the Claim means something different
+    than understandable at first glance. Take grammatical errors serious and elaborate on them.
+    * **Take the Claim literally**: Assume that each word of the Claim is as intended. Be strict
+    with the interpretation of the Claim.
+    * The Claim stems from a fact-checking challenge. A human fabricated the Claim artificially 
+    by using Wikipedia. The Claim could be a misleading prank, just like a trick question. It may also require
+    a chain of multiple investigation steps, re-using previously retrieved knowledge."""
+
+    extra_plan_rules_v2 = """* The Claim stems from a fact-checking challenge. A human engineered the Claim
+    artificially by using Wikipedia. The Claim could be misleading, just like a trick question. It may
+    also require a chain of multiple investigation steps, re-using previously retrieved knowledge."""
+
+    available_actions = [WikiDumpLookup]
+
+    def __init__(self, version=1, variant="dev"):
+        super().__init__(f"FEVER V{version} ({variant})")
         self.file_path = Path(path_to_data + f"FEVER/fever{version}_{variant}.jsonl")
-        self.data = []
-        self.load_data(version, variant, include_justifications=include_justifications)
-        if version==1:
-            self.extra_prepare_rules = """* **Identify the altered segments**: Since the Claim is generated by altering sentences from Wikipedia, pinpoint the parts of the Claim that seem modified or out of place.
-* **Consider potential misleading elements**: The Claim may contain misleading or confusing elements due to the alteration process.
-* **Prepare to investigate original context**: Since the Claim is derived from Wikipedia sentences, be prepared to trace back to the original context or related information for accurate verification."""
+        self.justifications_file_path = Path(path_to_data + f"FEVER/gt_justification_fever{version}_{variant}.jsonl")
 
-            self.extra_plan_rules = """* **Assume the Claim may be misleading**: Since the Claim is generated by altering Wikipedia sentences, consider that it might be intentionally misleading or designed to test the fact-checking process.
-* **Identify key elements**: Break down the Claim into its key components and identify which parts require verification.
-* **Plan for multiple investigation steps**: The Claim may require a series of verification steps, including checking the original Wikipedia context, cross-referencing related information, and verifying altered segments.
-* **Consider alternative interpretations**: Given the altered nature of the Claim, consider multiple interpretations and verify each to ensure thorough fact-checking.
-* **Reuse previously retrieved knowledge**: Be prepared to reuse information and evidence gathered during previous verification steps to form a comprehensive judgment."""
+        self.data = self.load_data(variant)
 
-        if version==2:
-            self.extra_prepare_rules = """* Before you start, begin with a _grammar check_ of the Claim. If it
-has some grammatical errors, there is a high chance that the Claim means something different
-than understandable at first glance. Take grammatical errors serious and elaborate on them.
-* **Take the Claim literally**: Assume that each word of the Claim is as intended. Be strict
-with the interpretation of the Claim.
-* The Claim stems from a fact-checking challenge. A human fabricated the Claim artificially 
-by using Wikipedia. The Claim could be a misleading prank, just like a trick question. It may also require
-a chain of multiple investigation steps, re-using previously retrieved knowledge."""
-            self.extra_plan_rules = """* The Claim stems from a fact-checking challenge. A human engineered the Claim
-artificially by using Wikipedia. The Claim could be misleading, just like a trick question. It may
-also require a chain of multiple investigation steps, re-using previously retrieved knowledge."""
-
-    def load_data(self, version, variant, include_justifications=False):
-        cache_file_path = os.path.join(path_to_data, f"FEVER/gt_justification_fever{version}_{variant}.jsonl")
-        data = orjsonl.load(self.file_path)
-        if include_justifications:
-            self.data = self._load_with_justifications(data, cache_file_path, variant)
+        if version == 1:
+            self.extra_prepare_rules = self.extra_prepare_rules_v1
+            self.extra_plan_rules = self.extra_plan_rules_v1
+        elif version == 2:
+            self.extra_prepare_rules = self.extra_prepare_rules_v2
+            self.extra_plan_rules = self.extra_plan_rules_v2
         else:
-            self.data = self._load_without_justifications(data, variant)
+            raise ValueError(f"Invalid FEVER version '{version}' specified.")
 
-    def _load_with_justifications(self, data, cache_file_path, variant):
-        if os.path.exists(cache_file_path):
-            ground_truth_data = self._load_ground_truth_data(cache_file_path, data)
+    def load_data(self, variant) -> list[dict]:
+        # Read the files
+        raw_data = orjsonl.load(self.file_path)
+        if os.path.exists(self.justifications_file_path):
+            justifications = orjsonl.load(self.justifications_file_path)
         else:
-            ground_truth_data = self._create_ground_truth_cache(data, cache_file_path)
+            justifications = None
 
-        return self._populate_data_with_justifications(data, ground_truth_data, variant)
+        # Translate raw data into structured list of dicts
+        data = []
+        for i, row in enumerate(raw_data):
+            content = Content(row["claim"])
+            label = self.class_mapping[row["label"].lower()] if variant in ["train", "dev"] else None
+            justification = justifications[i] if justifications is not None else None
+            data.append({"id": i,
+                         "content": content,
+                         "label": label,
+                         "justification": justification})
 
-    def _load_without_justifications(self, data, variant):
-        if variant in ["train", "dev"]:
-            return [{"id": i,
-                     "content": Claim(d["claim"]),
-                     "label": self.class_mapping[d["label"].lower()],
-                     "ground_truth_justification": None}
-                    for i, d in enumerate(data)]
-        else:
-            return [{"id": i,
-                     "content": Claim(d["claim"]),
-                     "label": None,
-                     "ground_truth_justification": None}
-                    for i, d in enumerate(data)]
-
-    def _load_ground_truth_data(self, cache_file_path, data):
-        with open(cache_file_path, 'r') as cache_file:
-            ground_truth_data = [json.loads(line) for line in cache_file]
-
-        if len(ground_truth_data) < len(data):
-            ground_truth_data.extend(self._update_ground_truth_cache(data, len(ground_truth_data), cache_file_path))
-
-        return ground_truth_data
-
-    def _create_ground_truth_cache(self, data, cache_file_path):
-        ground_truth_data = []
-        for i in tqdm(range(len(data)), desc="Creating cache"):
-            ground_truth_data.append(self._get_entry_with_justification(i, data[i]))
-        self._save_ground_truth_data(ground_truth_data, cache_file_path)
-        return ground_truth_data
-
-    def _update_ground_truth_cache(self, data, start_index, cache_file_path):
-        new_entries = []
-        for i in tqdm(range(start_index, len(data)), desc="Updating cache"):
-            new_entries.append(self._get_entry_with_justification(i, data[i]))
-        self._save_ground_truth_data(new_entries, cache_file_path, append=True)
-        return new_entries
-
-    def _save_ground_truth_data(self, ground_truth_data, cache_file_path, append=False):
-        mode = 'a' if append else 'w'
-        with open(cache_file_path, mode) as cache_file:
-            for entry in ground_truth_data:
-                cache_file.write(json.dumps(entry) + '\n')
-
-    def _get_entry_with_justification(self, index, d):
-        ground_truth_justification = self._extract_ground_truth_justification(d)
-        return {
-            "id": index,
-            "content": d["claim"],
-            "label": d["label"].lower(),
-            "ground_truth_justification": ground_truth_justification
-        }
-
-    def _extract_ground_truth_justification(self, d):
-        evidence_searcher = WikiDumpAPI()
-        ground_truth_justification = []
-        for evidence in d["evidence"][0] if d["evidence"] else [[None, None, None, None]]:
-            evidence_key, relevant_sentence = evidence[2], evidence[3]
-            if evidence_key and relevant_sentence is not None:
-                evidence_text = evidence_searcher._call_api(evidence_key, 3)[0].text
-                relevant_evidence = extract_nth_sentence(evidence_text, int(relevant_sentence))
-                ground_truth_justification.append(relevant_evidence)
-            else:
-                ground_truth_justification.append(evidence_key)
-        return ground_truth_justification
-
-    def _populate_data_with_justifications(self, data, ground_truth_data, variant):
-        if variant in ["train", "dev"]:
-            return [{"id": i,
-                     "content": Claim(d["claim"]),
-                     "label": self.class_mapping[d["label"].lower()],
-                     "ground_truth_justification": ground_truth_data[i]["ground_truth_justification"]}
-                    for i, d in enumerate(data)]
-        else:
-            return [{"id": i,
-                     "content": Claim(d["claim"]),
-                     "label": None,
-                     "ground_truth_justification": None}
-                    for i, d in enumerate(data)]
+        return data
 
     def __iter__(self) -> Iterator[dict]:
         return iter(self.data)
 
+
 class VERITE(Benchmark):
+    shorthand = "verite"
+
+    is_multimodal = True
+
     class_mapping = {
         "true": Label.SUPPORTED,
         "miscaptioned": Label.MISCAPTIONED,
         "out-of-context": Label.OUT_OF_CONTEXT,
     }
+
     class_definitions = {
         Label.SUPPORTED:
             "The image and caption pair is truthful. This means the caption accurately "
             "describes the content of the image, providing correct and factual information.",
         Label.MISCAPTIONED:
-            "The image and caption pair is miscaptioned. This means the caption provides incorrect " 
+            "The image and caption pair is miscaptioned. This means the caption provides incorrect "
             "information about the image content, misleading the viewer about what is depicted.",
         Label.OUT_OF_CONTEXT:
             "The image is used out of context. This means that while the caption may be factually correct, "
             "the image does not relate to the caption or is used in a misleading way to convey a false narrative."
     }
 
-    def __init__(self, variant="dev", justification_gen_LLM="gpt_4o"):
-        super().__init__(f"verite_{variant}")
-        self.is_multimodal = True
+    extra_prepare_rules = """* **Identify Modality Balance**: Ensure that both text and image modalities are
+    considered equally. Avoid unimodal bias by giving equal importance to the text and the associated image.
+    * **Context Verification**: Since the images are sourced from various articles and Google Images, verify
+    the context in which the image is used. This includes checking the source article and understanding the
+    original context of the image.
+    * **Prepare to Handle Real-World Data**: The data consists of real-world examples, so be prepared for
+    diverse and potentially complex scenarios that may not be straightforward to classify."""
+
+    extra_plan_rules = """* **Consider Both Modalities Equally**: Ensure that the verification process equally
+    considers both the text and image modalities. Avoid focusing too much on one modality at the expense of the other.
+    * **Plan for Multimodal Verification**: Develop a plan that includes steps for verifying both the text and
+    the image. This might include object recognition, context checking, and text analysis.
+    * **Check for Context and Misleading Information**: Verify the context of the image and caption. Check for
+    any misleading information that might suggest the image is used out of context or the caption is miscaptioned.
+    * **Identify Key Elements**: Break down the claim into its key components and identify which parts require
+    verification. This includes identifying any potential asymmetry in the modalities.
+    * **Reuse Previously Retrieved Knowledge**: Be prepared to reuse information and evidence gathered during
+    previous verification steps to form a comprehensive judgment."""
+
+    available_actions = None
+
+    def __init__(self, variant="dev"):
+        super().__init__(f"VERITE ({variant})")
         self.file_path = Path(path_to_data + "VERITE/VERITE.csv")
-        self.output_path = Path(path_to_data + f"VERITE/VERITE_w_justifications.csv")
         self.data = self.load_data()
-        self.extra_prepare_rules = """* **Identify Modality Balance**: Ensure that both text and image modalities are considered equally. Avoid unimodal bias by giving equal importance to the text and the associated image.
-* **Context Verification**: Since the images are sourced from various articles and Google Images, verify the context in which the image is used. This includes checking the source article and understanding the original context of the image.
-* **Prepare to Handle Real-World Data**: The data consists of real-world examples, so be prepared for diverse and potentially complex scenarios that may not be straightforward to classify."""
-        self.extra_plan_rules = """* **Consider Both Modalities Equally**: Ensure that the verification process equally considers both the text and image modalities. Avoid focusing too much on one modality at the expense of the other.
-* **Plan for Multimodal Verification**: Develop a plan that includes steps for verifying both the text and the image. This might include object recognition, context checking, and text analysis.
-* **Check for Context and Misleading Information**: Verify the context of the image and caption. Check for any misleading information that might suggest the image is used out of context or the caption is miscaptioned.
-* **Identify Key Elements**: Break down the claim into its key components and identify which parts require verification. This includes identifying any potential asymmetry in the modalities.
-* **Reuse Previously Retrieved Knowledge**: Be prepared to reuse information and evidence gathered during previous verification steps to form a comprehensive judgment."""
 
-
-        if not os.path.exists(self.output_path):
-            print("Generating justifications using model:", justification_gen_LLM)
-            self.model = self.initialize_model(justification_gen_LLM)
-            data = self.generate_justifications(self.data, self.model)
-            self.data = self.save_data(data, self.output_path)
-        else:
-            print(f"Justifications file {self.output_path} already exists. Loading data.")
-            self.data = self.load_data_with_justifications()
-
-    def load_data(self):
+    def load_data(self) -> list[dict]:
         df = pd.read_csv(self.file_path)
-        data = []
 
+        data = []
         for i, row in df.iterrows():
             image_path = Path(path_to_data + f"VERITE/{row['image_path']}")
             if os.path.exists(image_path):
@@ -331,96 +297,27 @@ class VERITE(Benchmark):
                 image = None
             entry = {
                 "id": i,
-                "content": Claim(text=row["caption"], images=[image]),
+                "content": Content(text=row["caption"], images=[image]),
                 "label": self.class_mapping[row["label"]],
-                "ground_truth_justification": row.get("ground_truth_justification", "")
+                "justification": row.get("ground_truth_justification", "")
             }
             data.append(entry)
 
         return data
-    
-    def load_data_with_justifications(self):
-        df = pd.read_csv(self.output_path)
-        data = []
-
-        for i, row in df.iterrows():
-            image_path = Path(path_to_data + f"VERITE/{row['image_path']}")
-            if os.path.exists(image_path):
-                image = Image.open(image_path)
-            else:
-                image = None
-            entry = {
-                "id": i,
-                "content": Claim(text=row["caption"], images=[image]),
-                "label": self.class_mapping[row["label"]],
-                "ground_truth_justification": row["ground_truth_justification"]
-            }
-            data.append(entry)
-
-        return data
-
-    def initialize_model(self, model_name):
-        #TODO: creates an empty folder because no logger is given, so EvluationLogger is initialized per default. 
-        model = Model(model_name)
-        return model
-
-    def generate_justifications(self, df, model):
-        justifications = []
-
-        for i in tqdm(range(0, len(df), 3), desc="Generating Justification Cache"):
-            group = df.iloc[i:i+3]
-            assert (group.iloc[0]["label"] == "true" and group.iloc[1]["label"] == "miscaptioned" and group.iloc[2]["label"] == "out-of-context")
-            true_row = group[group["label"] == "true"]
-            miscaptioned_row = group[group["label"] == "miscaptioned"]
-            true_caption = true_row["caption"].values[0]
-            false_caption = miscaptioned_row["caption"].values[0]
-
-            # Generate justifications
-            query = f"This is an image's true caption:'{true_caption}'. This is an image's manipulated caption: '{false_caption}'. Explain briefly how the miscaptioned image constitutes misinformation:"
-            justification_false_caption = model.generate(query)
-            justification_out_of_context = "The image is used out of context."
-
-            df.loc[(df["caption"] == false_caption) & (df["label"] == "miscaptioned"), "ground_truth_justification"] = justification_false_caption
-            df.loc[(df["caption"] == true_caption) & (df["label"] == "out-of-context"), "ground_truth_justification"] = justification_out_of_context
-
-        return df
-
-    def save_data(self, data, output_path):
-        rows = []
-        for entry in data:
-            row = {
-                "id": entry["id"],
-                "caption": entry["content"].text,
-                "image_path": entry["content"].images[0].filename,
-                "label": entry["label"].name,
-                "ground_truth_justification": entry["ground_truth_justification"]
-            }
-            rows.append(row)
-
-        df = pd.DataFrame(rows)
-        df.to_csv(output_path, index=False)
 
     def __iter__(self) -> Iterator[dict]:
-        return iter(self.data.to_dict('records'))
+        return iter(self.data)
+
+
+BENCHMARK_REGISTRY = {
+    AVeriTeC,
+    FEVER,
+    VERITE
+}
 
 
 def load_benchmark(name: str, **kwargs) -> Benchmark:
-    match name:
-        case "fever1":
-            return FEVER(version=1, **kwargs)
-        case "fever2":
-            return FEVER(version=2, **kwargs)
-        case "averitec":
-            return AVeriTeC(**kwargs)
-        case "verite":
-            return VERITE(**kwargs)
-        
-def extract_nth_sentence(text, n):
-    # Split the text into sentences using regular expressions
-    sentences = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|!|\;)\s', text)
-    
-    # Ensure the index n is within the range of the sentences list
-    if 0 <= n < len(sentences):
-        return sentences[n]
-    else:
-        return "" 
+    for benchmark in BENCHMARK_REGISTRY:
+        if name == benchmark.shorthand:
+            return benchmark(**kwargs)
+    raise ValueError(f"No benchmark named '{name}'.")

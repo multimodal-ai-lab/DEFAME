@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from PIL.Image import Image 
+
+from PIL.Image import Image
+
 
 @dataclass
 class Claim:
@@ -8,7 +10,7 @@ class Claim:
     author: str = None
     date: datetime = None
     origin: str = None  # URL or similar
-    images: list[Image] = field(default_factory=list)
+    images: list[Image] = field(default_factory=list)  # only inherent/material images
 
     def __str__(self):
         claim_str = f'Text: "{self.text}"'
@@ -19,3 +21,6 @@ class Claim:
         if self.origin:
             claim_str += f"\nClaim origin: {self.origin}"
         return claim_str
+
+    def has_image(self):
+        return len(self.images) > 0

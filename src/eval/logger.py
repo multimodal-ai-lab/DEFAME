@@ -8,11 +8,10 @@ from typing import Sequence
 import numpy as np
 import yaml
 
-from common.console import remove_string_formatters, bold
-from common.label import Label
-from common.shared_config import path_to_result
-from common.console import sec2hhmmss
 from common.document import FCDocument
+from common.label import Label
+from config.globals import path_to_result
+from utils.console import remove_string_formatters, bold, sec2hhmmss
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('openai').setLevel(logging.ERROR)
@@ -22,6 +21,8 @@ logging.getLogger('huggingface_hub').setLevel(logging.ERROR)
 logging.getLogger('transformers').setLevel(logging.ERROR)
 logging.getLogger('timm.models._builder').setLevel(logging.ERROR)
 logging.getLogger('timm.models._hub').setLevel(logging.ERROR)
+logging.getLogger('filelock').setLevel(logging.ERROR)
+
 
 class EvaluationLogger:
     """Used to permanently save any information related to an evaluation run."""
@@ -31,9 +32,10 @@ class EvaluationLogger:
         log_date = datetime.now().strftime("%Y-%m-%d_%H-%M")
 
         # Determine the target dir
-        target_dir = path_to_result + log_date
+        target_dir = path_to_result
         if dataset_abbr:
-            target_dir += f'_{dataset_abbr}'
+            target_dir += f'{dataset_abbr}/'
+        target_dir += log_date
         if model_abbr:
             target_dir += f'_{model_abbr}'
 
@@ -77,38 +79,38 @@ class EvaluationLogger:
         with open(self.config_path, "w") as f:
             yaml.dump(hyperparams, f)
         if print_summary:
-            print("Configuration summary:")
-            bold_print_dict(hyperparams)
+            print(bold("Configuration summary:"))
+            print(yaml.dump(hyperparams, sort_keys=False, indent=4))
 
     def _init_predictions_csv(self):
         with open(self.predictions_path, "w") as f:
-            csv.writer(f).writerow(("sample_index", 
-                                    "claim", 
-                                    "target", 
-                                    "predicted", 
-                                    "justification", 
-                                    "correct", 
-                                    "ground_truth_justification"))
+            csv.writer(f).writerow(("sample_index",
+                                    "claim",
+                                    "target",
+                                    "predicted",
+                                    "justification",
+                                    "correct",
+                                    "justification"))
 
     def log(self, text: str, important: bool = False):
         if self.verbose or important:
             print("--> " + text)
         self.print_logger.info("--> " + remove_string_formatters(text))
 
-    def save_next_prediction(self, 
-                             sample_index: int, 
-                             claim: str, 
-                             target: Label, 
-                             predicted: Label, 
+    def save_next_prediction(self,
+                             sample_index: int,
+                             claim: str,
+                             target: Label,
+                             predicted: Label,
                              justification: str,
                              gt_justification: str):
         with open(self.predictions_path, "a") as f:
-            csv.writer(f).writerow((sample_index, 
-                                    claim, 
-                                    target.name, 
-                                    predicted.name, 
-                                    justification, 
-                                    target == predicted, 
+            csv.writer(f).writerow((sample_index,
+                                    claim,
+                                    target.name,
+                                    predicted.name,
+                                    justification,
+                                    target == predicted,
                                     gt_justification))
 
     def save_fc_doc(self, doc: FCDocument, claim_id: int):
