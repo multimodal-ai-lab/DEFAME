@@ -20,3 +20,14 @@ TBC
 
 ## Usage
 TBC
+
+### Image Loading
+For multimodal usage turn image into a tensor by either:
+1) pulling it from link:
+   image_url = "https://llava-vl.github.io/static/images/view.jpg"
+   image = Image.open(requests.get(image_url, stream=True).raw)
+  or
+2) pulling it from path
+   image_path = path_to_data + "MAFC_test/image_claims/00000.png"
+   image = Image.open(image_path)
+Hand the tensor as second argument to Factchecker.check

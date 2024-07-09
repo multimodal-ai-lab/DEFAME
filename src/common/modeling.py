@@ -1,40 +1,30 @@
-# Copyright 2024 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""Sets up language models to be used."""
-
 import functools
 import logging
 import os
 import threading
 import time
-import torch
+from abc import ABC
 from concurrent import futures
-from transformers import BitsAndBytesConfig, pipeline
 from typing import Any, Annotated, Optional
 
 import anthropic
 import langfun as lf
+import numpy as np
 import openai
+import pandas as pd
 import pyglove as pg
+import tiktoken
+import torch
+from transformers import BitsAndBytesConfig, pipeline
+from transformers.pipelines import Pipeline
 
-# pylint: disable=g-bad-import-order
-from common import modeling_utils
-from common import shared_config
-from common import utils
-from common.console import cyan, magenta
+from config.globals import api_keys
+from eval.logger import EvaluationLogger
+from utils import modeling
+from utils.console import cyan, magenta, orange
+from utils.utils import maybe_print_error, stop_all_execution, to_readable_json
 
-# pylint: enable=g-bad-import-order
+AVAILABLE_MODELS = pd.read_csv("config/available_models.csv", skipinitialspace=True)
 
 _DEBUG_PRINT_LOCK = threading.Lock()
 _ANTHROPIC_MODELS = [
@@ -47,17 +37,39 @@ _ANTHROPIC_MODELS = [
 ]
 
 
+def model_full_name_to_shorthand(name: str) -> str:
+    """Returns model shorthand, platform, specifier and context window of the specified model."""
+    try:
+        platform, specifier = name.split(':')
+    except:
+        raise ValueError(f'Invalid model specification "{name}". Must be in format "<PLATFORM>:<Specifier>".')
+
+    match = (AVAILABLE_MODELS["Platform"] == platform) & (AVAILABLE_MODELS["Specifier"] == specifier)
+    if not np.any(match):
+        raise ValueError(f"Specified model '{name}' not available.")
+    shorthand = AVAILABLE_MODELS[match]["Shorthand"].iloc[0]
+    return shorthand
+
+
+def model_shorthand_to_full_name(shorthand: str) -> str:
+    match = AVAILABLE_MODELS["Shorthand"] == shorthand
+    platform = AVAILABLE_MODELS["Platform"][match].iloc[0]
+    specifier = AVAILABLE_MODELS["Specifier"][match].iloc[0]
+    return f"{platform}:{specifier}"
+
+
+def get_model_context_window(name: str) -> int:
+    """Returns the number of tokens that fit into the context of the model at most."""
+    if name not in AVAILABLE_MODELS["Shorthand"].to_list():
+        name = model_full_name_to_shorthand(name)
+    return int(AVAILABLE_MODELS["Context window"][AVAILABLE_MODELS["Shorthand"] == name].iloc[0])
+
+
 class Usage(pg.Object):
     """Usage information per completion."""
 
     prompt_tokens: int
     completion_tokens: int
-
-
-# class LMSamplingResult(lf.LMSamplingResult):
-#     """LMSamplingResult with usage information."""
-#
-#     usage: Usage | None = None
 
 
 @lf.use_init_args(['model'])
@@ -139,7 +151,7 @@ class AnthropicModel(lf.LanguageModel):
             )
             model_response = response.content[0].text
             samples = [lf.LMSample(model_response, score=0.0)]
-            raise NotImplementedError()
+            raise NotImplementedError  # TODO: Removed due to bug, see git history
 
         self._set_logging()
         return lf.concurrent_execute(
@@ -157,55 +169,80 @@ class AnthropicModel(lf.LanguageModel):
             ),
         )
 
-class Model:
-    """Class for storing any single language model."""
 
-    def __init__(
-            self,
-            model_name: str,
-            temperature: float = 0.01,
-            max_tokens: int = 2048,
-            top_k: int = 50,
-            repetition_penalty: float = 1.2,
-            show_responses: bool = False,
-            show_prompts: bool = False,
-    ) -> None:
-        """Initializes a model."""
-        self.model_name = model_name
+class LanguageModel(ABC):
+    """Base class for all (M)LLMs."""
+    model = lf.LanguageModel | Pipeline
+
+    def __init__(self,
+                 name: str,
+                 logger: EvaluationLogger = None,
+                 temperature: float = 0.01,
+                 max_response_len: int = 2048,
+                 top_k: int = 50,
+                 repetition_penalty: float = 1.2,
+                 show_responses: bool = False,
+                 show_prompts: bool = False,
+                 ):
+        self.logger = logger
+
+        if name in AVAILABLE_MODELS["Shorthand"].to_list():
+            shorthand = name
+            full_name = model_shorthand_to_full_name(shorthand)
+        else:
+            shorthand = model_full_name_to_shorthand(name)
+            full_name = name
+
+        self.name = shorthand
         self.temperature = temperature
-        self.max_tokens = max_tokens
+        self.context_window = get_model_context_window(shorthand)  # tokens
+        assert max_response_len < self.context_window
+        self.max_response_len = max_response_len  # tokens
+        self.max_prompt_len = self.context_window - max_response_len  # tokens
         self.top_k = top_k
         self.repetition_penalty = repetition_penalty
         self.show_responses = show_responses
         self.show_prompts = show_prompts
         self.open_source = False
-        self.model = self.load(model_name)
-        self.total_calls = 0
+        self.encoding = tiktoken.get_encoding("cl100k_base")
 
-    def load(self, model_name: str) -> lf.LanguageModel:
+        self.model = self.load(full_name)
+
+    def load(self, model_name: str) -> lf.LanguageModel | Pipeline:
+        raise NotImplementedError
+
+    def generate(self, **kwargs) -> str:
+        """Continues the provided prompt and returns the continuation (the response)."""
+        raise NotImplementedError
+
+
+class LLM(LanguageModel):
+    """Wraps any Huggingface, OpenAI, Anthropic language model."""
+
+    def load(self, model_name: str) -> lf.LanguageModel | Pipeline:
         """Loads a language model from string representation."""
         sampling = lf.LMSamplingOptions(
-            temperature=self.temperature, max_tokens=self.max_tokens
+            temperature=self.temperature, max_tokens=self.max_response_len
         )
 
         if model_name.lower().startswith('openai:'):
-            if not shared_config.openai_api_key:
-                utils.maybe_print_error('No OpenAI API Key specified.')
-                utils.stop_all_execution(True)
+            if not api_keys["openai_api_key"]:
+                maybe_print_error('No OpenAI API Key specified.')
+                stop_all_execution(True)
 
             return lf.llms.OpenAI(
                 model=model_name[7:],
-                api_key=shared_config.openai_api_key,
+                api_key=api_keys["openai_api_key"],
                 sampling_options=sampling,
             )
         elif model_name.lower().startswith('anthropic:'):
-            if not shared_config.anthropic_api_key:
-                utils.maybe_print_error('No Anthropic API Key specified.')
-                utils.stop_all_execution(True)
+            if not api_keys["anthropic_api_key"]:
+                maybe_print_error('No Anthropic API Key specified.')
+                stop_all_execution(True)
 
             return AnthropicModel(
                 model=model_name[10:],
-                api_key=shared_config.anthropic_api_key,
+                api_key=api_keys["anthropic_api_key"],
                 sampling_options=sampling,
             )
         # Pipeline works with various out-of-the-box huggingface models 
@@ -213,16 +250,16 @@ class Model:
             self.open_source = True
             model_name = model_name[12:]
             return pipeline(
-                'text-generation', 
-                max_length=self.max_tokens,
+                'text-generation',
+                max_length=self.context_window,
                 temperature=self.temperature,
                 top_k=self.top_k,
                 model=model_name,
                 repetition_penalty=self.repetition_penalty,
                 model_kwargs={"torch_dtype": torch.bfloat16},
                 device_map="auto",
-                token=shared_config.huggingface_user_access_token,
-                )
+                token=api_keys["huggingface_user_access_token"],
+            )
         elif 'unittest' == model_name.lower():
             return lf.llms.Echo()
         else:
@@ -232,41 +269,49 @@ class Model:
             self,
             prompt: str,
             do_debug: bool = False,
-            temperature: float = 0.01,
+            temperature: float = None,
             max_tokens: Optional[int] = None,
-            max_attempts: int = 1000,
+            max_attempts: int = 3,
             top_p=0.9,
+            top_k=None,
             timeout: int = 60,
             retry_interval: int = 10,
     ) -> str:
         """Generates a response to a prompt."""
-        self.total_calls += 1
         self.model.max_attempts = 1
         self.model.retry_interval = 0
         self.model.timeout = timeout
-        prompt = modeling_utils.add_format(prompt, self.model, self.model_name)
-        gen_temp = temperature or self.temperature
+        prompt = modeling.add_format(prompt, self.model, self.name)
+        gen_temp = temperature if temperature is not None else self.temperature
         response, num_attempts = '', 0
+        top_k = self.top_k if top_k is None else top_k
 
         if self.open_source:
             # Handling needs to be done case by case. Default uses meta-llama formatting.
             prompt = self.handle_prompt(prompt)
-            terminators = [
-            self.model.tokenizer.eos_token_id,
-            self.model.tokenizer.convert_tokens_to_ids("<|eot_id|>")
-            ]
             # useful for controlling the length of the generated sequences.
             self.model.tokenizer.pad_token_id = self.model.tokenizer.eos_token_id
+            while len(self.model.tokenizer(prompt)['input_ids']) > self.context_window:
+                prompt_length = len(self.model.tokenizer(prompt))
+                self.logger.log(
+                    orange(f"INFO: Prompt is too long. Length: {prompt_length}. Truncating it hard with factor 0.9."))
+                prompt = prompt[:0.9 * len(prompt)]
             output = self.model(prompt,
-                eos_token_id=terminators,
-                pad_token_id=terminators[0],
-                do_sample=True,
-                temperature=gen_temp,
-                top_p=top_p,
-            )
+                                eos_token_id=self.model.tokenizer.eos_token_id,
+                                pad_token_id=self.model.tokenizer.pad_token_id,
+                                do_sample=True,
+                                temperature=gen_temp,
+                                top_p=top_p,
+                                top_k=top_k,
+                                )
             response = output[0]['generated_text'][len(prompt):]
         else:
-            with modeling_utils.get_lf_context(gen_temp, max_tokens):
+            while len(self.encoding.encode(prompt)) > self.context_window:
+                prompt_length = len(self.encoding.encode(prompt))
+                self.logger.log(
+                    orange(f"INFO: Prompt is too long. Length: {prompt_length}. Truncating it hard with factor 0.9."))
+                prompt = prompt[:0.9 * len(prompt)]
+            with modeling.get_lf_context(gen_temp, max_tokens):
                 while not response and num_attempts < max_attempts:
                     with futures.ThreadPoolExecutor() as executor:
                         future = executor.submit(lf.LangFunc(prompt, lm=self.model, temperature=gen_temp))
@@ -279,7 +324,7 @@ class Model:
                                 lf.core.concurrent.RetryError,
                                 anthropic.AnthropicError,
                         ) as e:
-                            utils.maybe_print_error(e)
+                            maybe_print_error(e)
                             time.sleep(retry_interval)
 
                     num_attempts += 1
@@ -294,15 +339,15 @@ class Model:
         return response
 
     def handle_prompt(
-        self, 
-        original_prompt: str, 
-        system_prompt: str = "Make sure to follow the instructions. Keep the output to the minimum."
-) ->     str:
+            self,
+            original_prompt: str,
+            system_prompt: str = "Make sure to follow the instructions. Keep the output to the minimum."
+    ) -> str:
         """
         Processes the prompt using the model's tokenizer with a specific template,
         and continues execution even if an error occurs during formatting.
         """
-        original_prompt =  modeling_utils.prepare_prompt(original_prompt, system_prompt, self.model_name)
+        original_prompt = modeling.prepare_prompt(original_prompt, system_prompt, self.name)
         try:
             # Attempt to apply the chat template formatting
             formatted_prompt = self.model.tokenizer.apply_chat_template(
@@ -317,7 +362,7 @@ class Model:
                 f"Please check the model's documentation on Hugging Face for the correct prompt formatting: "
                 f"https://huggingface.co/{self.model.model_name[12:]}"
             )
-            print(error_message)
+            self.logger.log(error_message)
             # Use the original prompt if the formatting fails
             formatted_prompt = original_prompt
 
@@ -326,42 +371,37 @@ class Model:
 
     def print_config(self) -> None:
         settings = {
-            'model_name': self.model_name,
+            'model_name': self.name,
             'temperature': self.temperature,
-            'max_tokens': self.max_tokens,
+            'max_response_len': self.max_response_len,
             'show_responses': self.show_responses,
             'show_prompts': self.show_prompts,
         }
-        print(utils.to_readable_json(settings))
+        print(to_readable_json(settings))
+
+    def count_tokens(self, string: str) -> int:
+        """Returns the number of tokens in a text string. Uses the tokenizer used by
+        GPT-4 and GPT-3.5 models."""
+        num_tokens = len(self.encoding.encode(string))
+        return num_tokens
 
 
-class MultimodalModel(Model):
-    """Class for storing any multimodal language model."""
-
-    def __init__(
-            self,
-            model_name: str,
-            temperature: Optional[float] = None,
-            max_tokens: Optional[int] = 2000,
-            top_k: Optional[int] = 50,
-            repetition_penalty: Optional[float] = 1.2,
-            show_responses: bool = False,
-            show_prompts: bool = False,
-    ) -> None:
-        """Initializes a multimodal model."""
-        super().__init__(model_name, temperature, max_tokens, top_k, repetition_penalty, show_responses, show_prompts)
+class MLLM(LanguageModel):
+    """Wraps any Multimodal LLM."""
 
     def load(self, model_name: str):
         """Loads a multimodal model from string representation."""
         if model_name.lower().startswith('huggingface:'):
             model_name = model_name[12:]
             if model_name != "llava-hf/llava-1.5-7b-hf":
-                print("Warning: Model output is cut according to Llava 1.5 standard input format < output[len(prompt)-5:] >.")
+                self.logger.log("Warning: Model output is cut according to Llava "
+                                "1.5 standard input format < output[len(prompt)-5:] >.")
             quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=torch.float16
             )
-            return pipeline("image-to-text", model=model_name, model_kwargs={"quantization_config": quantization_config})
+            return pipeline("image-to-text", model=model_name,
+                            model_kwargs={"quantization_config": quantization_config})
         else:
             raise ValueError(f'ERROR: Unsupported model type: {model_name}.')
 
@@ -371,21 +411,25 @@ class MultimodalModel(Model):
             prompt: str,
             do_debug: bool = False,
             temperature: Optional[float] = None,
-            max_tokens: Optional[int] = None,
+            max_response_len: Optional[int] = None,
             top_k: int = 50,
             repetition_penalty: float = 1.2,
     ) -> str:
-        max_tokens = max_tokens or self.max_tokens
-        response = self.model(
+        max_response_len = max_response_len or self.max_response_len
+
+        out = self.model(
             image,
             prompt=prompt,
             generate_kwargs={
-                "max_new_tokens": max_tokens,
+                "max_new_tokens": max_response_len,
                 "temperature": temperature or self.temperature,
                 "top_k": top_k,
                 "repetition_penalty": repetition_penalty
             }
-        )[0]["generated_text"][len(prompt)-5:] # Because of <image> in the Llava template. Might need adjustment for other LLMs.
+        )
+
+        # Count -5 because of <image> in the Llava template. Might need adjustment for other MLLMs.
+        response = out[0]["generated_text"][len(prompt) - 5:]
 
         if do_debug:
             if self.show_prompts:
@@ -394,45 +438,3 @@ class MultimodalModel(Model):
                 print(f"Response: {response}")
 
         return response
-
-
-class FakeModel(Model):
-    """Class for faking responses during unit tests."""
-
-    def __init__(
-            self,
-            static_response: str = '',
-            sequential_responses: Optional[list[str]] = None,
-    ) -> None:
-        Model.__init__(self, model_name='unittest')
-        self.static_response = static_response
-        self.sequential_responses = sequential_responses
-        self.sequential_response_idx = 0
-
-        if static_response:
-            self.model = lf.llms.StaticResponse(static_response)
-        elif sequential_responses:
-            self.model = lf.llms.StaticSequence(sequential_responses)
-        else:
-            self.model = lf.llms.Echo()
-
-    def generate(
-            self,
-            prompt: str,
-            do_debug: bool = False,
-            temperature: Optional[float] = None,
-            max_tokens: Optional[int] = None,
-            max_attempts: int = 1000,
-            timeout: int = 60,
-            retry_interval: int = 10,
-    ) -> str:
-        if self.static_response:
-            return self.static_response
-        elif self.sequential_responses:
-            response = self.sequential_responses[
-                self.sequential_response_idx % len(self.sequential_responses)
-                ]
-            self.sequential_response_idx += 1
-            return response
-        else:
-            return ''
