@@ -77,6 +77,7 @@ class EvaluationLogger:
                      predictions: Sequence[Label],
                      ground_truth: Sequence[Label],
                      duration: float,
+                     total_llm_calls: int,
                      search_summary: dict,
                      print_summary: bool = True) -> bool:
         n_samples = len(predictions)
@@ -91,6 +92,7 @@ class EvaluationLogger:
             "Wrong predictions": int(n_wrong_predictions),
             "Accuracy": f"{accuracy * 100:.1f} %",
             "Run duration": sec2hhmmss(duration),
+            "Total LLM calls": total_llm_calls,
             "Total searches": search_summary,
         }
         with open(self.results_path, "w") as f:

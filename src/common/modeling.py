@@ -180,6 +180,7 @@ class Model:
         self.show_prompts = show_prompts
         self.open_source = False
         self.model = self.load(model_name)
+        self.total_calls = 0
 
     def load(self, model_name: str) -> lf.LanguageModel:
         """Loads a language model from string representation."""
@@ -239,6 +240,7 @@ class Model:
             retry_interval: int = 10,
     ) -> str:
         """Generates a response to a prompt."""
+        self.total_calls += 1
         self.model.max_attempts = 1
         self.model.retry_interval = 0
         self.model.timeout = timeout

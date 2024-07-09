@@ -9,6 +9,7 @@ from common.shared_config import model_abbr
 from eval.benchmark import load_benchmark
 from eval.logger import EvaluationLogger
 from safe.fact_checker import FactChecker
+from safe.tools.search.remote_search_api import RemoteSearchAPI
 
 
 # TODO The following comments should be inserted in the README.md
@@ -81,6 +82,7 @@ def evaluate(
             logger.log(bold(green("CORRECT")))
         else:
             logger.log(bold(red("WRONG - Ground truth: " + instance["label"].value +"\n\n")))
+        logger.log(bold("------------------------------------------------------------------"))
 
         predictions.append(prediction)
         if len(predictions) == n_samples:
@@ -88,10 +90,18 @@ def evaluate(
 
     # Compute and save evaluation results
     ground_truth = benchmark.get_labels()[:n_samples]
-    search_summary = {name: searcher.total_searches for name, searcher in fc.searcher.search_apis.items() if searcher}
+    if all(isinstance(x, RemoteSearchAPI) for x in fc.searcher.search_apis.values()):
+        search_summary = {name: f'API Searches: {searcher.api_searches}, Local Searches: {searcher.local_searches}' 
+                      for name, searcher in fc.searcher.search_apis.items() if searcher}
+    else:
+         search_summary = {name: searcher.total_searches 
+                      for name, searcher in fc.searcher.search_apis.items() if searcher}
     end_time = time.time()
+    total_llm_calls = fc.model.total_calls
+    #total_mllm_calls = fc.multimodal_model.total_calls
     accuracy = logger.save_results(predictions, ground_truth,
                                    duration=end_time - start_time,
+                                   total_llm_calls = total_llm_calls,
                                    search_summary=search_summary)
     plot_confusion_matrix(predictions,
                           ground_truth,

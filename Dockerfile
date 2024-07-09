@@ -9,6 +9,7 @@ WORKDIR /mafc
 COPY out/requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 RUN python -m spacy download en_core_web_sm
+RUN python -m nltk.download('wordnet')
 
 # Transfer all relevant code
 COPY src src
