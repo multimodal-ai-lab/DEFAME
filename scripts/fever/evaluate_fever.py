@@ -1,4 +1,4 @@
-from eval.evaluate import evaluate
+from src.eval.evaluate import evaluate
 
 evaluate(
     llm="gpt_4o",

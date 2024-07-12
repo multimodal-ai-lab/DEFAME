@@ -1,7 +1,7 @@
 import pandas as pd
-from utils.plot import plot_confusion_matrix
-from eval.benchmark import AVeriTeC
-from eval.evaluate import compute_accuracy
+from src.utils.plot import plot_confusion_matrix
+from src.eval.benchmark import AVeriTeC
+from src.eval.evaluate import compute_accuracy
 
 path = "insert_path"
 
