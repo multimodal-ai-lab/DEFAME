@@ -4,7 +4,7 @@
 import pandas as pd
 from tqdm import tqdm
 
-from common.modeling import LLM
+from src.common.modeling import LLM
 from config.globals import path_to_data
 
 llm = LLM("gpt_4o")

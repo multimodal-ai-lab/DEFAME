@@ -1,9 +1,9 @@
 import pandas as pd
 import numpy as np
-from eval.evaluate import compute_accuracy
+from src.eval.evaluate import compute_accuracy
 
-predictions_prev_path = "/pfss/mlde/workspaces/mlde_wsp_Rohrbach/users/mr74vahu/MAFC/out/2024-06-13 V0.3 FEVER GPT-4o/predictions.csv"
-predictions_new_path = "/pfss/mlde/workspaces/mlde_wsp_Rohrbach/users/mr74vahu/MAFC/out/2024-06-13 V0.3.1 FEVER GPT-4o/predictions.csv"
+predictions_prev_path = ""
+predictions_new_path = ""
 
 predictions_prev = pd.read_csv(predictions_prev_path)
 predictions_new = pd.read_csv(predictions_new_path)

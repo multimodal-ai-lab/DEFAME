@@ -1,4 +1,4 @@
-from fact_checker import FactChecker
+from src.fact_checker import FactChecker
 
 
 model = "OPENAI:gpt-4o-2024-05-13"

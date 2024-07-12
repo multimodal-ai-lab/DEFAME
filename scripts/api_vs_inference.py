@@ -1,5 +1,5 @@
 import time
-from common.modeling import LLM
+from src.common.modeling import LLM
 
 
 def time_execution(code_block, content):
