@@ -1,4 +1,4 @@
-from tools.search.knowledge_base import KnowledgeBase
+from src.tools.search.knowledge_base import KnowledgeBase
 from config.globals import path_to_data
 
 

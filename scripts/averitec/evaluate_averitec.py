@@ -1,10 +1,10 @@
 import json
 
-from eval.averitec.score import AVeriTeCEvaluator, print_with_space
-from eval.evaluate import evaluate
+from src.eval.averitec.score import AVeriTeCEvaluator, print_with_space
+from src.eval.evaluate import evaluate
 
 accuracy, evidence_log, benchmark = evaluate(
-    llm="gpt_4o",
+    llm="llama3_8b",
     tools_config=dict(searcher=dict(
         search_engines=["averitec_kb"],
         limit_per_search=5
