@@ -15,6 +15,7 @@ from modules.planner import Planner
 from prompts.prompt import PoseQuestionsPrompt, ReiteratePrompt
 from tools import *
 from utils.console import gray, light_blue, bold
+from utils.parsing import extract_factuality_questions
 
 
 class FactChecker:
@@ -39,7 +40,7 @@ class FactChecker:
                  verbose: bool = True,
                  ):
         assert tools is None or search_engines is None, \
-            "You are allowed to specify only either tools or search engines."
+            "You are allowed to specify either tools or search engines."
 
         self.logger = logger or EvaluationLogger(verbose=verbose)
 
@@ -62,6 +63,8 @@ class FactChecker:
 
         if tools is None:
             tools = self._initialize_tools(search_engines)
+        self.fall_back_action = tools[0].actions[0]
+        logger.log(f"Selecting {self.fall_back_action.name} as fallback option if no action can be matched.")
 
         available_actions = get_available_actions(tools)
 
@@ -69,7 +72,8 @@ class FactChecker:
         self.planner = Planner(valid_actions=available_actions,
                                llm=self.llm,
                                logger=self.logger,
-                               extra_rules=extra_plan_rules)
+                               extra_rules=extra_plan_rules,
+                               fall_back=self.fall_back_action)
 
         self.actor = Actor(tools=tools, llm=self.llm, logger=self.logger)
 
@@ -122,16 +126,18 @@ class FactChecker:
         # Verify each single extracted claim
         self.logger.log(bold("Verifying the claims..."), important=True)
         docs = []
+        evidences = []
         for claim in claims:  # TODO: parallelize
-            doc = self.verify_claim(claim)
+            doc, evidence = self.verify_claim(claim)
             docs.append(doc)
+            evidences += evidence
             self.logger.log(bold(f"The claim '{light_blue(str(claim.text))}' is {doc.verdict.value}."), important=True)
             if doc.justification:
                 self.logger.log(f'Justification: {gray(doc.justification)}', important=True)
 
         overall_veracity = aggregate_predictions([doc.verdict for doc in docs])
         self.logger.log(bold(f"So, the overall veracity is: {overall_veracity.value}"))
-        return overall_veracity, docs
+        return overall_veracity, docs, evidences
 
     def verify_claim(self, claim: Claim) -> FCDocument:
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it.
@@ -139,7 +145,27 @@ class FactChecker:
         document is constructed incrementally."""
         self.actor.reset()  # remove all past search evidences
         doc = FCDocument(claim)
-        self._pose_questions(doc)
+        questions = self._pose_questions(doc)
+        initial_actions = [self.fall_back_action(f'"{question}"') for question in questions]
+        initial_search_results = [self.actor._perform_single(action, doc) for action in initial_actions]
+        assert len(questions)==len(initial_search_results), \
+            "Number of questions does not match number of search results."
+        initial_evidence = {"claim": claim.text, "evidence":[]}
+        
+        for question, evidence in zip(questions, initial_search_results):
+            for result in evidence.results:
+                if result.is_useful:
+                    if not result.source:
+                        self.logger.log(f"Evidence without URL was listed for question: {question}")
+                    single_evidence = {"question": question, "answer": result.text, "url": result.source}
+                    break
+                else:
+                    continue
+            #TODO: check whether length of answer matters for METEOR score.
+            if single_evidence:
+                initial_evidence["evidence"].append(single_evidence)
+            else:
+                continue
         label = Label.NEI
         n_iterations = 0
         while True:
@@ -162,13 +188,15 @@ class FactChecker:
         doc.verdict = label
         if label != Label.REFUSED_TO_ANSWER:
             doc.justification = self.doc_summarizer.summarize(doc)
-        return doc
+        return doc, initial_evidence
 
     def _pose_questions(self, doc: FCDocument):
         """Generates some questions that needs to be answered during the fact-check."""
         prompt = PoseQuestionsPrompt(doc.claim, self.extra_prepare_rules)
         answer = self.llm.generate(str(prompt))
+        questions = extract_factuality_questions(answer)
         doc.add_reasoning(answer)
+        return questions
 
     def _consolidate_knowledge(self, doc: FCDocument, evidences: Collection[Evidence]):
         """Analyzes the currently available information and states new questions, adds them

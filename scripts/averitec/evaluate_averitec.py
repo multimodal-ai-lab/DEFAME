@@ -3,8 +3,8 @@ import json
 from src.eval.averitec.score import AVeriTeCEvaluator, print_with_space
 from src.eval.evaluate import evaluate
 
-accuracy, evidence_log, benchmark = evaluate(
-    llm="llama3_8b",
+accuracy, evidence_log, evidences, benchmark = evaluate(
+    llm="llama3_70b",
     tools_config=dict(searcher=dict(
         search_engines=["averitec_kb"],
         limit_per_search=5
@@ -20,7 +20,7 @@ accuracy, evidence_log, benchmark = evaluate(
     benchmark_name="averitec",
     benchmark_kwargs=dict(variant="dev"),
     # sample_ids=[300],
-    # n_samples=1,
+    n_samples=10,
     random_sampling=False,
     verbose=True,
 )

@@ -87,11 +87,14 @@ def evaluate(
 
     eval_log = []
     predictions = []
+    question_log = []
     for i, instance in enumerate(samples_to_evaluate):
         logger.log(f"Evaluating claim {i + 1} of {n_samples} (#{instance['id']}):")
         content = instance["content"]
 
-        _, docs = fc.check(content)
+        _, docs, evidences = fc.check(content)
+        evidences["claim_id"] = instance['id']
+        question_log.append(questions)
         doc = docs[0]
 
         prediction = doc.verdict
@@ -138,7 +141,7 @@ def evaluate(
                           benchmark_name=benchmark.name,
                           save_dir=logger.target_dir)
 
-    return accuracy, eval_log, benchmark
+    return accuracy, eval_log, evidences, benchmark
 
 
 def load_results(path: str):
