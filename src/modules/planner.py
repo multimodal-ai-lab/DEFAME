@@ -21,13 +21,15 @@ class Planner:
                  valid_actions: Collection[type[Action]],
                  llm: LLM,
                  logger: EvaluationLogger,
-                 extra_rules: str):
+                 extra_rules: str,
+                 fall_back: str):
         assert len(valid_actions) > 0
         self.valid_actions = valid_actions
         self.llm = llm
         self.logger = logger
         self.max_tries = 5
         self.extra_rules = extra_rules
+        self.fallback_action = fall_back
 
     def get_available_actions(self, doc: FCDocument):
         available_actions = []
@@ -77,7 +79,7 @@ class Planner:
             self.logger.log("WARNING: No new actions were found. Retrying...")
 
     def _extract_actions(self, answer: str, context: Content = None) -> list[Action]:
-        actions_str = extract_last_code_block(answer)
+        actions_str = extract_last_code_block(answer).replace("markdown","")
         if not actions_str:
             candidates = []
             for action in ACTION_REGISTRY:
@@ -97,9 +99,12 @@ class Planner:
     def _extract_reasoning(self, answer: str) -> str:
         return remove_code_blocks(answer).strip()
 
-    def _parse_single_action(self, raw_action: str, images: Optional[list[Image.Image]] = None,
-                             fallback='wiki_dump_lookup') -> Optional[Action]:
+    def _parse_single_action(self, raw_action: str, images: Optional[list[Image.Image]] = None) -> Optional[Action]:
         arguments = None
+        if not raw_action:
+            return None
+        elif raw_action[0] == '"':
+            raw_action = raw_action[1:]
 
         try:
             # Use regular expression to match action and argument in the form action(argument)
@@ -124,20 +129,19 @@ class Planner:
                 if action_name == action.name:
                     return action(arguments)
 
-            raise ValueError(f'Invalid action format. Fallback to {fallback} with argument: {arguments}')
+            raise ValueError(f'Invalid action format. Fallback to {self.fallback_action.name} with argument: {arguments}')
 
         except Exception as e:
             self.logger.log(f"WARNING: Failed to parse '{raw_action}':\n{e}")
 
         # Try fallback parsing
         try:
-            fallback_action = next((action for action in ACTION_REGISTRY if fallback == action.name), None)
             if not isinstance(arguments, str):
                 return None
             elif not (arguments[0] == arguments[-1] == '"'):
                 arguments = f'"{arguments}"'
 
-            return fallback_action(arguments)
+            return self.fallback_action(arguments)
 
         except Exception as e:
             self.logger.log(f"WARNING: Failed to parse '{raw_action}' even during fallback parsing:\n{e}")
