@@ -3,8 +3,8 @@ the DB and saves them in an extra file."""
 # TODO: Test this script
 
 from config.globals import path_to_data
-from tools.search.wiki_dump import WikiDumpAPI
-from utils.parsing import extract_nth_sentence
+from src.tools.search.wiki_dump import WikiDumpAPI
+from src.utils.parsing import extract_nth_sentence
 from tqdm import tqdm
 import orjsonl
 
