@@ -6,8 +6,8 @@ from typing import Any, Optional, Literal
 
 import requests
 
-from common.results import SearchResult
-from tools.search.remote_search_api import RemoteSearchAPI
+from src.common.results import SearchResult
+from src.tools.search.remote_search_api import RemoteSearchAPI
 from config.globals import api_keys
 
 _SERPER_URL = 'https://google.serper.dev'

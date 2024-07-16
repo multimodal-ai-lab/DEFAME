@@ -2,10 +2,10 @@ import torch
 from PIL import Image
 from transformers import AutoProcessor, AutoModelForObjectDetection
 
-from common.results import ObjectDetectionResult, Evidence
-from eval.logger import EvaluationLogger
-from tools.tool import Tool
-from common.action import DetectObjects
+from src.common.results import ObjectDetectionResult, Evidence
+from src.eval.logger import EvaluationLogger
+from src.tools.tool import Tool
+from src.common.action import DetectObjects
 
 
 class ObjectDetector(Tool):

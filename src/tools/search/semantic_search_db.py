@@ -10,10 +10,10 @@ import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
-from common.embedding import EmbeddingModel
+from src.common.embedding import EmbeddingModel
 from config.globals import embedding_model
-from tools.search.local_search_api import LocalSearchAPI
-from common.results import SearchResult
+from src.tools.search.local_search_api import LocalSearchAPI
+from src.common.results import SearchResult
 
 
 class SemanticSearchDB(LocalSearchAPI):

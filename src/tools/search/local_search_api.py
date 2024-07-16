@@ -1,4 +1,4 @@
-from tools.search.search_api import SearchAPI
+from src.tools.search.search_api import SearchAPI
 
 
 class LocalSearchAPI(SearchAPI):

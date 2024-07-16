@@ -18,7 +18,7 @@ from typing import Any, ContextManager, Optional
 
 import langfun as lf
 
-from utils.parsing import strip_string
+from src.utils.parsing import strip_string
 
 
 def add_format(prompt: str, model: Any, model_name: str) -> str:

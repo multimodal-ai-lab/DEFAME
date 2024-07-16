@@ -3,16 +3,16 @@ import time
 
 import numpy as np
 import pandas as pd
+import csv
 
-from common.label import Label
-from common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS, MLLM
-from utils.console import green, red, bold
-from utils.plot import plot_confusion_matrix
-from eval.benchmark import load_benchmark, AVeriTeC
-from eval.logger import EvaluationLogger
-from fact_checker import FactChecker
-from tools import initialize_tools
-
+from src.common.label import Label
+from src.common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS, MLLM, LLM
+from src.utils.console import green, red, bold
+from src.utils.plot import plot_confusion_matrix
+from src.eval.benchmark import load_benchmark, AVeriTeC
+from src.eval.logger import EvaluationLogger
+from src.fact_checker import FactChecker
+from src.tools import initialize_tools
 
 def evaluate(
         llm: str,
@@ -167,10 +167,6 @@ def compute_accuracy(predictions: pd.DataFrame) -> float:
     n_refused = prediction_stats["REFUSED_TO_ANSWER"] if "REFUSED_TO_ANSWER" in list(prediction_stats.keys()) else 0
     accuracy = correct_stats[True] / (len(predictions) - n_refused)
     return accuracy
-
-
-import csv
-from common.modeling import LLM
 
 
 def naive_evaluate(model: str, model_kwargs: dict = None, benchmark_name: str = "fever1", n_samples: int = None,

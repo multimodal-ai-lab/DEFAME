@@ -1,7 +1,7 @@
 from abc import ABC
 
-from common.action import Action
-from common.results import Result
+from src.common.action import Action
+from src.common.results import Result
 
 
 class Tool(ABC):

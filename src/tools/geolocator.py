@@ -4,10 +4,10 @@ import torch
 from PIL import Image
 from transformers import AutoProcessor, AutoModel
 
-from common.action import Geolocate
-from common.results import GeolocationResult, Result
-from eval.logger import EvaluationLogger
-from tools.tool import Tool
+from src.common.action import Geolocate
+from src.common.results import GeolocationResult, Result
+from src.eval.logger import EvaluationLogger
+from src.tools.tool import Tool
 
 
 class Geolocator(Tool):

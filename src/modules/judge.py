@@ -1,13 +1,13 @@
 import dataclasses
 import re
 
-from common.document import FCDocument
-from common.label import Label
-from common.modeling import LLM
-from eval.logger import EvaluationLogger
-from prompts.prompt import JudgePrompt
-from utils.console import orange
-from utils.parsing import extract_last_code_span, is_guardrail_hit, GUARDRAIL_WARNING
+from src.common.document import FCDocument
+from src.common.label import Label
+from src.common.modeling import LLM
+from src.eval.logger import EvaluationLogger
+from src.prompts.prompt import JudgePrompt
+from src.utils.console import orange
+from src.utils.parsing import extract_last_code_span, is_guardrail_hit, GUARDRAIL_WARNING
 
 
 @dataclasses.dataclass()

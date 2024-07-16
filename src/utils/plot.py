@@ -4,7 +4,7 @@ import matplotlib as mpl
 import numpy as np
 from matplotlib import pyplot as plt
 
-from common.label import Label
+from src.common.label import Label
 
 
 def plot_confusion_matrix(predictions: Sequence[Label],
