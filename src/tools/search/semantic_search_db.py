@@ -43,7 +43,9 @@ class SemanticSearchDB(LocalSearchAPI):
         return self.embedding_model.embed_many(*args, **kwargs)
 
     def _setup_embedding_model(self):
+        print("Initializing embedding model...")
         self.embedding_model = EmbeddingModel(embedding_model)
+        print("Embedding model successfully initialized.")
 
     def _restore_knn_from(self, path: str) -> NearestNeighbors:
         with open(path, "rb") as f:
