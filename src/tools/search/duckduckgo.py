@@ -3,9 +3,9 @@ from typing import List, Dict
 
 from duckduckgo_search import DDGS
 
-from common.results import SearchResult
-from tools.search.remote_search_api import RemoteSearchAPI
-from utils.console import red, bold
+from src.common.results import SearchResult
+from src.tools.search.remote_search_api import RemoteSearchAPI
+from src.utils.console import red, bold
 
 
 class DuckDuckGo(RemoteSearchAPI):

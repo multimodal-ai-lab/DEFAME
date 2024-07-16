@@ -19,10 +19,10 @@ from transformers import BitsAndBytesConfig, pipeline
 from transformers.pipelines import Pipeline
 
 from config.globals import api_keys
-from eval.logger import EvaluationLogger
-from utils import modeling
-from utils.console import cyan, magenta, orange
-from utils.utils import maybe_print_error, stop_all_execution, to_readable_json
+from src.eval.logger import EvaluationLogger
+from src.utils import modeling
+from src.utils.console import cyan, magenta, orange
+from src.utils.utils import maybe_print_error, stop_all_execution, to_readable_json
 
 AVAILABLE_MODELS = pd.read_csv("config/available_models.csv", skipinitialspace=True)
 

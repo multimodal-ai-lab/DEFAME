@@ -1,13 +1,13 @@
 import os.path
 from typing import Collection, Any
 
-from common.action import *
-from common.claim import Claim
-from common.content import Content
-from common.document import FCDocument
-from common.label import Label, DEFAULT_LABEL_DEFINITIONS
-from common.results import Evidence, SearchResult
-from utils.parsing import strip_string, remove_non_symbols
+from src.common.action import *
+from src.common.claim import Claim
+from src.common.content import Content
+from src.common.document import FCDocument
+from src.common.label import Label, DEFAULT_LABEL_DEFINITIONS
+from src.common.results import Evidence, SearchResult
+from src.utils.parsing import strip_string, remove_non_symbols
 
 SYMBOL = 'Check-worthy'
 NOT_SYMBOL = 'Unimportant'
@@ -104,6 +104,17 @@ class SummarizeResultPrompt(Prompt):
 
     def assemble_prompt(self) -> str:
         return read_md_file("src/prompts/summarize_result.md")
+    
+class SelectionPrompt(Prompt):
+    def __init__(self, question: str, evidences: list[SearchResult]):
+        placeholder_targets = {
+            "[QUESTION]": question,
+            "[EVIDENCES]": "\n\n".join(str(evidence) for evidence in evidences),
+        }
+        super().__init__(placeholder_targets)
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("src/prompts/select_evidence.md")
 
 
 class SummarizeDocPrompt(Prompt):
@@ -154,6 +165,29 @@ class PlanPrompt(Prompt):
 
     def assemble_prompt(self) -> str:
         return read_md_file("src/prompts/plan.md")
+    
+class InitialPlanPrompt(Prompt):
+    def __init__(self, doc: FCDocument,
+                 valid_actions: list[type[Action]],
+                 extra_rules: str = None):
+        valid_action_str = "\n\n".join([f"* `{a.name}`\n"
+                                        f"   * Description: {remove_non_symbols(a.description)}\n"
+                                        f"   * How to use: {remove_non_symbols(a.how_to)}\n"
+                                        f"   * Format: {a.format}" for a in valid_actions])
+        extra_rules = "" if extra_rules is None else remove_non_symbols(extra_rules)
+        placeholder_targets = {
+            "[DOC]": doc,
+            "[VALID_ACTIONS]": valid_action_str,
+            "[EXEMPLARS]": self.load_exemplars(valid_actions),
+            "[EXTRA_RULES]": extra_rules,
+        }
+        super().__init__(placeholder_targets)
+
+    def load_exemplars(self, valid_actions) -> str:
+            return read_md_file("src/prompts/plan_exemplars/initial_search.md")
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("src/prompts/initial_plan.md")
 
 
 class PoseQuestionsPrompt(Prompt):  # TODO: rework this prompt

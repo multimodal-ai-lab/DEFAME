@@ -10,9 +10,9 @@ import orjsonl
 import pandas as pd
 from PIL import Image
 
-from common.action import Action, WebSearch, WikiDumpLookup
-from common.content import Content
-from common.label import Label
+from src.common.content import Content
+from src.common.label import Label
+from src.common.action import Action, WebSearch, WikiDumpLookup
 from config.globals import path_to_data
 
 

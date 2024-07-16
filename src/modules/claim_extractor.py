@@ -1,11 +1,11 @@
-from common.claim import Claim
-from common.content import Content
-from common.modeling import LLM, MLLM
-from eval.logger import EvaluationLogger
-from prompts.prompt import FilterCheckWorthyPrompt, DecontextualizePrompt, SYMBOL, NOT_SYMBOL
+from src.common.claim import Claim
+from src.common.content import Content
+from src.common.modeling import LLM, MLLM
+from src.eval.logger import EvaluationLogger
+from src.prompts.prompt import FilterCheckWorthyPrompt, DecontextualizePrompt, SYMBOL, NOT_SYMBOL
 from third_party.factscore.atomic_facts import AtomicFactGenerator
-from utils.console import light_blue
-from utils.parsing import extract_first_square_brackets, extract_first_code_block
+from src.utils.console import light_blue
+from src.utils.parsing import extract_first_square_brackets, extract_first_code_block
 
 
 class ClaimExtractor:

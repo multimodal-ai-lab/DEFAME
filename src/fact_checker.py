@@ -1,21 +1,20 @@
 from typing import Sequence, Optional, Collection
 
-from common.action import *
-from common.claim import Claim
-from common.content import Content
-from common.document import FCDocument
-from common.label import Label
-from common.modeling import LLM, MLLM
-from common.results import Evidence
-from modules.actor import Actor
-from modules.claim_extractor import ClaimExtractor
-from modules.doc_summarizer import DocSummarizer
-from modules.judge import Judge
-from modules.planner import Planner
-from prompts.prompt import PoseQuestionsPrompt, ReiteratePrompt
-from tools import *
-from utils.console import gray, light_blue, bold
-from utils.parsing import extract_factuality_questions
+from src.common.action import *
+from src.common.claim import Claim
+from src.common.content import Content
+from src.common.document import FCDocument
+from src.common.label import Label
+from src.common.modeling import LLM, MLLM
+from src.common.results import Evidence
+from src.modules.actor import Actor
+from src.modules.claim_extractor import ClaimExtractor
+from src.modules.doc_summarizer import DocSummarizer
+from src.modules.judge import Judge
+from src.modules.planner import Planner
+from src.prompts.prompt import PoseQuestionsPrompt, ReiteratePrompt
+from src.tools import *
+from src.utils.console import gray, light_blue, bold
 
 
 class FactChecker:
@@ -145,27 +144,22 @@ class FactChecker:
         document is constructed incrementally."""
         self.actor.reset()  # remove all past search evidences
         doc = FCDocument(claim)
-        questions = self._pose_questions(doc)
-        initial_actions = [self.fall_back_action(f'"{question}"') for question in questions]
-        initial_search_results = [self.actor._perform_single(action, doc) for action in initial_actions]
-        assert len(questions)==len(initial_search_results), \
-            "Number of questions does not match number of search results."
         initial_evidence = {"claim": claim.text, "evidence":[]}
-        
-        for question, evidence in zip(questions, initial_search_results):
-            for result in evidence.results:
-                if result.is_useful:
-                    if not result.source:
-                        self.logger.log(f"Evidence without URL was listed for question: {question}")
-                    single_evidence = {"question": question, "answer": result.text, "url": result.source}
-                    break
-                else:
-                    continue
-            #TODO: check whether length of answer matters for METEOR score.
-            if single_evidence:
-                initial_evidence["evidence"].append(single_evidence)
-            else:
+        questions = self._pose_questions(doc)
+        questions_queries_dicts = self.planner.plan_initial_queries(questions, doc)
+        cumulative_results = []
+        for dict_ in questions_queries_dicts:
+            question = dict_["question"]
+            actions = self.planner._extract_actions(dict_["queries"], doc.claim.original_context)
+            evidences = self.actor.perform(actions, doc)
+            results = [result for evidence in evidences for result in evidence.results]
+            cumulative_results += results
+            generated_answer, url = self.actor.result_summarizer._extract_most_fitting(question, cumulative_results)
+            if not generated_answer or not url:
                 continue
+            single_evidence = {"question": question, "answer": generated_answer, "url": url}
+            initial_evidence["evidence"].append(single_evidence)
+
         label = Label.NEI
         n_iterations = 0
         while True:
@@ -194,9 +188,9 @@ class FactChecker:
         """Generates some questions that needs to be answered during the fact-check."""
         prompt = PoseQuestionsPrompt(doc.claim, self.extra_prepare_rules)
         answer = self.llm.generate(str(prompt))
-        questions = extract_factuality_questions(answer)
+        #questions = extract_factuality_questions(answer)
         doc.add_reasoning(answer)
-        return questions
+        return answer
 
     def _consolidate_knowledge(self, doc: FCDocument, evidences: Collection[Evidence]):
         """Analyzes the currently available information and states new questions, adds them

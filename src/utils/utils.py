@@ -6,8 +6,8 @@ import shutil
 import string
 from typing import Any
 
-from utils.console import green, red
-from utils.parsing import strip_string
+from src.utils.console import green, red
+from src.utils.parsing import strip_string
 
 
 def stop_all_execution(stop_flag: bool) -> None:

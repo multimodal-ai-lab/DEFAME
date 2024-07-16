@@ -4,13 +4,13 @@ from typing import Optional, Collection
 import pyparsing as pp
 from PIL import Image
 
-from common.action import (Action, ACTION_REGISTRY, IMAGE_ACTIONS)
-from common.content import Content
-from common.document import FCDocument
-from common.modeling import LLM
-from eval.logger import EvaluationLogger
-from prompts.prompt import PlanPrompt
-from utils.parsing import extract_last_code_block, remove_code_blocks
+from src.common.action import (Action, ACTION_REGISTRY, IMAGE_ACTIONS)
+from src.common.content import Content
+from src.common.document import FCDocument
+from src.common.modeling import LLM
+from src.eval.logger import EvaluationLogger
+from src.prompts.prompt import PlanPrompt, InitialPlanPrompt
+from src.utils.parsing import extract_last_code_block, remove_code_blocks
 
 
 class Planner:
@@ -77,6 +77,34 @@ class Planner:
                 return actions, reasoning
 
             self.logger.log("WARNING: No new actions were found. Retrying...")
+
+    def plan_initial_queries(self, question: str, doc: FCDocument) -> (list[Action], str):
+        prompt = InitialPlanPrompt(doc, self.valid_actions, self.extra_rules)
+        n_tries = 0
+
+        while True:
+            n_tries += 1
+            answer = self.llm.generate(str(prompt))
+            question_queries_dict = self._extract_initial_actions(answer, doc.claim.original_context)
+                
+            if len(question_queries_dict) > 0 or n_tries == self.max_tries:
+                return question_queries_dict
+
+            self.logger.log("WARNING: No new actions were found. Retrying...")
+
+    def _extract_initial_actions(self, answer: str, context: Content = None) -> list[Action]:
+
+        # Define regex patterns to match questions and their corresponding queries
+        question_pattern = r"(^[A-Z].*?\?)"
+        queries_pattern = re.compile(r'(```\n.+?```)', re.DOTALL)
+
+        # Find all questions and queries
+        questions = re.findall(question_pattern, answer, re.MULTILINE)
+        queries = queries_pattern.findall(answer)
+
+        # Create list of dictionaries
+        result = [{"question": q.strip(), "queries": qu.strip()} for q, qu in zip(questions, queries)]
+        return result
 
     def _extract_actions(self, answer: str, context: Content = None) -> list[Action]:
         actions_str = extract_last_code_block(answer).replace("markdown","")

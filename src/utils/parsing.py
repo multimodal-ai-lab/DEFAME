@@ -1,7 +1,7 @@
 import re
 from typing import Optional
 
-from utils.console import orange
+from src.utils.console import orange
 
 
 def strip_string(s: str) -> str:
@@ -144,6 +144,27 @@ def is_url(string: str) -> bool:
 
 def is_guardrail_hit(response: str) -> bool:
     return response.startswith("I cannot") or response.startswith("I'm sorry")
+
+def parse_selection(generated_result: str) -> tuple[str, str]:
+    # Define the regex pattern for the answer
+    answer_pattern = r'Selected Evidence:\s*"(.*?)"'
+    # Define the regex pattern for the URL
+    url_pattern = r'URL:\s*(\S+)'
+    
+    # Search for the answer using the pattern
+    answer_match = re.search(answer_pattern, generated_result, re.DOTALL)
+    # Search for the URL using the pattern
+    url_match = re.search(url_pattern, generated_result, re.DOTALL)
+    
+    # Extract the answer and URL from the matches
+    if answer_match and url_match:
+        generated_answer = answer_match.group(1).strip()
+        url = url_match.group(1).strip()
+        return generated_answer, url
+    else:
+        print(f"The generated result: {generated_result} does not contain a valid answer and URL.")
+        return None, None
+
 
 
 GUARDRAIL_WARNING = orange("Model hit the safety guardrails -.-'. Defaulting to REFUSED")

@@ -1,12 +1,13 @@
 from jinja2.exceptions import TemplateSyntaxError
 from openai.error import InvalidRequestError
 
-from common.document import FCDocument
-from common.modeling import LLM
-from common.results import Result, SearchResult
-from eval.logger import EvaluationLogger
-from prompts.prompt import SummarizeResultPrompt
-from utils.console import gray, orange, num2text
+from src.common.document import FCDocument
+from src.common.modeling import LLM
+from src.common.results import Result, SearchResult
+from src.eval.logger import EvaluationLogger
+from src.prompts.prompt import SummarizeResultPrompt, SelectionPrompt
+from src.utils.console import gray, orange, num2text
+from src.utils.parsing import parse_selection
 
 
 class ResultSummarizer:
@@ -62,3 +63,12 @@ class ResultSummarizer:
             return prompt[:self.model.max_prompt_len * 3]  # count conservatively with only 3 chars per token
         else:
             return prompt
+
+    def _extract_most_fitting(self, question, evidences: list[Result]) -> tuple[str, str]:
+        prompt = SelectionPrompt(question, evidences)
+        generated_result = self.model.generate(str(prompt), max_attempts=3)
+        generated_answer, url = parse_selection(generated_result)
+
+        return generated_answer, url
+    
+
