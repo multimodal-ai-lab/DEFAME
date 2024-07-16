@@ -1,5 +1,6 @@
 import json
 import os
+from urllib.request import urlretrieve
 import random
 from abc import ABC
 from datetime import datetime
@@ -108,6 +109,11 @@ class AVeriTeC(Benchmark):
     def __init__(self, variant="dev"):
         super().__init__(f"AVeriTeC ({variant})")
         self.file_path = Path(path_to_data + f"AVeriTeC/{variant}.json")
+
+        # Download the file if not done yet
+        if not os.path.exists(self.file_path):
+            url = f"https://huggingface.co/chenxwh/AVeriTeC/raw/main/data/{variant}.json"
+            urlretrieve(url, self.file_path)
 
         # Load the data
         with open(self.file_path, 'r') as f:

@@ -19,6 +19,7 @@ python -m spacy download en_core_web_sm
 TBC
 
 ## Usage
+Run the scripts under `scripts/` using the project root as the working directory.
 TBC
 
 ### Image Loading

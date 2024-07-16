@@ -6,6 +6,9 @@ from datetime import datetime
 from queue import Queue
 from threading import Thread
 from typing import Optional
+import zipfile
+from pathlib import Path
+from urllib.request import urlretrieve
 
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
@@ -51,15 +54,29 @@ class KnowledgeBase(SemanticSearchDB):
         distances, indices = self.embeddings.kneighbors(query_embedding, limit)
         return indices[0]
 
-    def build_db(self, from_path: str):
-        """Creates the SQLite database."""
+    def build_db(self):
+        """Downloads, extracts and creates the SQLite database."""
+
+        dataset_dir = Path(path_to_data) / "AVeriTeC"
+
+        zip_path = dataset_dir / "dev_knowledge_store.zip"
+        if not os.path.exists(zip_path):
+            print("Downloading knowledge base...")
+            url = ("https://huggingface.co/chenxwh/AVeriTeC/resolve/"
+                   "main/data_store/knowledge_store/dev_knowledge_store.zip")
+            urlretrieve(url, zip_path)
+
+        print("Extracting knowledge base...")
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(dataset_dir)
+        kb_dir = dataset_dir / "output_dev"
 
         print("Building database...")
 
         if os.path.getsize(self.db_file_path) > 1e6:
             raise RuntimeError(f"{self.db_file_path} already exists! Not overwriting.")
 
-        files = [f for f in iter_files(from_path)]
+        files = [f for f in iter_files(kb_dir)]
         if not self._is_initialized():
             self._init_db()
 
