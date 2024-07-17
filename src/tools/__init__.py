@@ -1,11 +1,11 @@
-from tools.credibility_checker import CredibilityChecker
-from eval.logger import EvaluationLogger
-from tools.face_recognizer import FaceRecognizer
-from tools.geolocator import Geolocator
-from tools.object_detector import ObjectDetector
-from tools.search.searcher import Searcher
-from tools.text_extractor import TextExtractor
-from tools.tool import Tool, get_available_actions
+from src.eval.logger import EvaluationLogger
+from .credibility_checker import CredibilityChecker
+from .face_recognizer import FaceRecognizer
+from .geolocator import Geolocator
+from .object_detector import ObjectDetector
+from .search.searcher import Searcher
+from .text_extractor import TextExtractor
+from .tool import Tool, get_available_actions
 
 TOOL_REGISTRY = [
     CredibilityChecker,

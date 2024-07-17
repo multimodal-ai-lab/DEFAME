@@ -1,20 +1,20 @@
 from typing import Sequence, Optional, Collection
 
-from common.action import *
-from common.claim import Claim
-from common.content import Content
-from common.document import FCDocument
-from common.label import Label
-from common.modeling import LLM, MLLM
-from common.results import Evidence
-from modules.actor import Actor
-from modules.claim_extractor import ClaimExtractor
-from modules.doc_summarizer import DocSummarizer
-from modules.judge import Judge
-from modules.planner import Planner
-from prompts.prompt import PoseQuestionsPrompt, ReiteratePrompt
-from tools import *
-from utils.console import gray, light_blue, bold
+from .common.action import *
+from .common.claim import Claim
+from .common.content import Content
+from .common.document import FCDocument
+from .common.label import Label
+from .common.modeling import LLM, MLLM
+from .common.results import Evidence
+from .modules.actor import Actor
+from .modules.claim_extractor import ClaimExtractor
+from .modules.doc_summarizer import DocSummarizer
+from .modules.judge import Judge
+from .modules.planner import Planner
+from .prompts.prompt import PoseQuestionsPrompt, ReiteratePrompt
+from .tools import *
+from .utils.console import gray, light_blue, bold
 
 
 class FactChecker:

@@ -1,9 +1,9 @@
-from common.action import CredibilityCheck
-from common.modeling import LLM
-from common.results import Result
-from utils.parsing import is_url
-from eval.logger import EvaluationLogger
-from tools.tool import Tool
+from src.common.action import CredibilityCheck
+from src.common.modeling import LLM
+from src.common.results import Result
+from src.utils.parsing import is_url
+from src.eval.logger import EvaluationLogger
+from src.tools.tool import Tool
 
 
 class CredibilityChecker(Tool):

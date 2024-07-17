@@ -1,13 +1,12 @@
 import os.path
 from typing import Collection, Any
 
-from common.action import *
-from common.claim import Claim
-from common.content import Content
-from common.document import FCDocument
-from common.label import Label, DEFAULT_LABEL_DEFINITIONS
-from common.results import Evidence, SearchResult
-from utils.parsing import strip_string, remove_non_symbols
+from src.common.action import *
+from src.common.claim import Claim
+from src.common.document import FCDocument
+from src.common.label import Label, DEFAULT_LABEL_DEFINITIONS
+from src.common.results import Evidence, SearchResult
+from src.utils.parsing import strip_string, remove_non_symbols
 
 SYMBOL = 'Check-worthy'
 NOT_SYMBOL = 'Unimportant'

@@ -2,18 +2,18 @@ import os
 import pickle
 import sqlite3
 import struct
-from typing import Sequence
 from datetime import datetime
+from typing import Sequence
 
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
-from common.embedding import EmbeddingModel
 from config.globals import embedding_model
-from tools.search.local_search_api import LocalSearchAPI
-from common.results import SearchResult
+from src.common.embedding import EmbeddingModel
+from src.common.results import SearchResult
+from .local_search_api import LocalSearchAPI
 
 
 class SemanticSearchDB(LocalSearchAPI):

@@ -1,7 +1,7 @@
 import re
 from typing import Optional
 
-from utils.console import orange
+from .console import orange
 
 
 def strip_string(s: str) -> str:

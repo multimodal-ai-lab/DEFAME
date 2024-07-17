@@ -2,10 +2,10 @@
 from PIL import Image
 import numpy as np
 
-from common.action import OCR
-from common.results import OCRResult, Result
-from eval.logger import EvaluationLogger
-from tools.tool import Tool
+from src.common.action import OCR
+from src.common.results import OCRResult, Result
+from src.eval.logger import EvaluationLogger
+from src.tools.tool import Tool
 
 
 # TODO: Integrate a differentiable OCR Reader. Potentially open-source like PaddleOCR

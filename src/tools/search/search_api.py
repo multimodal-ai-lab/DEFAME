@@ -1,8 +1,8 @@
 from abc import ABC
 
-from common.results import SearchResult
-from eval.logger import EvaluationLogger
-from utils.console import yellow
+from src.common.results import SearchResult
+from src.eval.logger import EvaluationLogger
+from src.utils.console import yellow
 
 
 class SearchAPI(ABC):

@@ -4,14 +4,15 @@ import time
 import numpy as np
 import pandas as pd
 
-from common.label import Label
-from common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS, MLLM
-from utils.console import green, red, bold
-from utils.plot import plot_confusion_matrix
-from eval.benchmark import load_benchmark, AVeriTeC
-from eval.logger import EvaluationLogger
-from fact_checker import FactChecker
-from tools import initialize_tools
+from src.common.label import Label
+from src.common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS, MLLM
+from src.eval.averitec.benchmark import AVeriTeC
+from src.eval.benchmark import load_benchmark
+from src.eval.logger import EvaluationLogger
+from src.fact_checker import FactChecker
+from src.tools import initialize_tools
+from src.utils.console import green, red, bold
+from src.utils.plot import plot_confusion_matrix
 
 
 def evaluate(

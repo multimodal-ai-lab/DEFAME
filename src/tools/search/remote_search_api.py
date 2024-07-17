@@ -1,4 +1,4 @@
-from tools.search.search_api import SearchAPI
+from .search_api import SearchAPI
 
 
 class RemoteSearchAPI(SearchAPI):
