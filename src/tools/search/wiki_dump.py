@@ -12,8 +12,8 @@ from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
 from config.globals import path_to_data
-from utils.parsing import replace
-from tools.search.semantic_search_db import SemanticSearchDB, df_embedding_to_np_embedding
+from src.utils.parsing import replace
+from src.tools.search.semantic_search_db import SemanticSearchDB, df_embedding_to_np_embedding
 
 
 class WikiDumpAPI(SemanticSearchDB):

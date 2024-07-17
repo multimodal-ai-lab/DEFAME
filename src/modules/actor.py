@@ -1,10 +1,10 @@
-from common.action import Action
-from common.document import FCDocument
-from common.modeling import LLM
-from common.results import Evidence
-from eval.logger import EvaluationLogger
-from modules.result_summarizer import ResultSummarizer
-from tools.tool import Tool
+from src.common.action import Action
+from src.common.document import FCDocument
+from src.common.modeling import LLM
+from src.common.results import Evidence
+from src.eval.logger import EvaluationLogger
+from src.modules.result_summarizer import ResultSummarizer
+from src.tools.tool import Tool
 
 
 class Actor:

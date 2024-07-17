@@ -1,17 +1,19 @@
 import argparse
-import torch
 import json
 import os
+import warnings
+
+import torch
+import torch.distributed as dist
+from peft import LoraConfig, get_peft_model
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import Dataset, DataLoader, DistributedSampler
 from transformers import AutoTokenizer, AutoModelForCausalLM, Trainer, TrainingArguments
-from peft import LoraConfig, get_peft_model
-import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
-from common.shared_config import path_to_data
-import warnings
+
+from config.globals import path_to_data
+
 warnings.filterwarnings("ignore", message="find_unused_parameters=True was specified in DDP constructor")
 warnings.filterwarnings("ignore", message="past_key_values as a tuple is deprecated")
-
 
 # Run with torchrun --nproc_per_node=8 averitec/averitec_q_trainer.py
 
@@ -23,6 +25,7 @@ parser.add_argument('--local_rank', type=int, default=os.getenv('LOCAL_RANK', -1
 args = parser.parse_args()
 dist.init_process_group(backend='nccl', init_method='env://')
 torch.cuda.set_device(args.local_rank)
+
 
 class ClaimsDataset(Dataset):
     def __init__(self, json_file, tokenizer, max_length=128):
@@ -39,10 +42,10 @@ class ClaimsDataset(Dataset):
             questions = entry.get('questions', [])
             for question_data in questions:
                 question = question_data['question']
-                prompt = (f"To determine the veracity of the following claim we need to collect " 
+                prompt = (f"To determine the veracity of the following claim we need to collect "
                           f"information either in support or against it. You are allowed to generate "
                           f"one question to achieve this.\nClaim: {claim}\nQuestion: "
-                )
+                          )
                 samples.append((prompt, question))
         return samples
 
@@ -76,10 +79,12 @@ class ClaimsDataset(Dataset):
             "labels": labels.flatten()
         }
 
+
 def print_memory_usage(stage):
     allocated = torch.cuda.memory_allocated() / (1024 * 1024)
     reserved = torch.cuda.memory_reserved() / (1024 * 1024)
     print(f"{stage} - Allocated: {allocated:.2f} MB, Reserved: {reserved:.2f} MB")
+
 
 tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
 if tokenizer.pad_token is None:
@@ -92,7 +97,7 @@ model.gradient_checkpointing_disable()
 lora_config = LoraConfig(
     r=8,
     lora_alpha=16,
-    lora_dropout=0.1, 
+    lora_dropout=0.1,
     target_modules=["q_proj", "v_proj"],  # Target modules for LoRA
     bias="none",
     task_type="CAUSAL_LM"
@@ -104,7 +109,7 @@ ddp_model = DDP(model, device_ids=[args.local_rank], output_device=args.local_ra
 dataset = ClaimsDataset(json_file, tokenizer)
 train_sampler = DistributedSampler(dataset, num_replicas=dist.get_world_size(), rank=dist.get_rank())
 train_loader = DataLoader(dataset, batch_size=1, sampler=train_sampler, num_workers=4)
-#print(f"Number of batches (rank {args.local_rank}): {len(train_loader)}")
+# print(f"Number of batches (rank {args.local_rank}): {len(train_loader)}")
 
 training_args = TrainingArguments(
     output_dir='./results',
@@ -122,7 +127,7 @@ training_args = TrainingArguments(
     eval_strategy="no",
 )
 
-#print_memory_usage("Before training")
+# print_memory_usage("Before training")
 trainer = Trainer(
     model=ddp_model.module,  # Use ddp_model.module for DDP
     args=training_args,
@@ -130,6 +135,6 @@ trainer = Trainer(
     tokenizer=tokenizer,
 )
 trainer.train()
-#print_memory_usage("After training")
+# print_memory_usage("After training")
 ddp_model.module.save_pretrained('./question_generator_model')
 tokenizer.save_pretrained('./question_generator_model')

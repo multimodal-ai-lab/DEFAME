@@ -8,10 +8,10 @@ from typing import Sequence
 import numpy as np
 import yaml
 
-from common.document import FCDocument
-from common.label import Label
 from config.globals import path_to_result
-from utils.console import remove_string_formatters, bold, sec2hhmmss
+from src.common.document import FCDocument
+from src.common.label import Label
+from src.utils.console import remove_string_formatters, bold, sec2hhmmss
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('openai').setLevel(logging.ERROR)

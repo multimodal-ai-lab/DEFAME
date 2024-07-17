@@ -1,9 +1,9 @@
 import torch
 
-from common.action import FaceRecognition
-from common.results import Result
-from eval.logger import EvaluationLogger
-from tools.tool import Tool
+from src.common.action import FaceRecognition
+from src.common.results import Result
+from src.eval.logger import EvaluationLogger
+from src.tools.tool import Tool
 
 
 class FaceRecognizer(Tool):

@@ -15,8 +15,8 @@ from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
 from config.globals import path_to_data
-from tools.search.semantic_search_db import SemanticSearchDB, df_embedding_to_np_embedding
-from tools.search.x import X, extract_username_from_url, extract_tweet_id_from_url, extract_search_query_from_url
+from src.tools.search.semantic_search_db import SemanticSearchDB, df_embedding_to_np_embedding
+from src.tools.search.x import X, extract_username_from_url, extract_tweet_id_from_url, extract_search_query_from_url
 
 
 class KnowledgeBase(SemanticSearchDB):

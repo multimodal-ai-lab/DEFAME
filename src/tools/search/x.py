@@ -5,8 +5,8 @@ from urllib.parse import urlparse, parse_qs
 import tweepy
 
 from config.globals import api_keys
-from utils.parsing import extract_by_regex
-from tools.search.search_api import SearchAPI, SearchResult
+from src.utils.parsing import extract_by_regex
+from .search_api import SearchAPI, SearchResult
 
 USERNAME_REGEX = r"((\w){1,15})"
 TWEET_ID_REGEX = r"([0-9]{15,22})"

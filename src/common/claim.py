@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from common.content import Content
+from src.common.content import Content
 
 
 @dataclass

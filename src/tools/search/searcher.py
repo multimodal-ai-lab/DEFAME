@@ -1,14 +1,14 @@
 import re
 
-from common.action import WebSearch, WikiDumpLookup, Search
-from common.results import SearchResult
-from eval.logger import EvaluationLogger
-from tools.search.duckduckgo import DuckDuckGo
-from tools.search.knowledge_base import KnowledgeBase
-from tools.search.query_serper import SerperAPI
-from tools.search.search_api import SearchAPI
-from tools.search.wiki_dump import WikiDumpAPI
-from tools.tool import Tool
+from src.common.action import WebSearch, WikiDumpLookup, Search
+from src.common.results import SearchResult
+from src.eval.logger import EvaluationLogger
+from src.tools.tool import Tool
+from .duckduckgo import DuckDuckGo
+from .knowledge_base import KnowledgeBase
+from .query_serper import SerperAPI
+from .search_api import SearchAPI
+from .wiki_dump import WikiDumpAPI
 
 SEARCH_APIS = {
     "google": SerperAPI,

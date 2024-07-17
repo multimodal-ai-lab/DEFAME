@@ -4,13 +4,13 @@ from typing import Optional, Collection
 import pyparsing as pp
 from PIL import Image
 
-from common.action import (Action, ACTION_REGISTRY, IMAGE_ACTIONS)
-from common.content import Content
-from common.document import FCDocument
-from common.modeling import LLM
-from eval.logger import EvaluationLogger
-from prompts.prompt import PlanPrompt
-from utils.parsing import extract_last_code_block, remove_code_blocks
+from src.common.action import (Action, ACTION_REGISTRY, IMAGE_ACTIONS)
+from src.common.content import Content
+from src.common.document import FCDocument
+from src.common.modeling import LLM
+from src.eval.logger import EvaluationLogger
+from src.prompts.prompt import PlanPrompt
+from src.utils.parsing import extract_last_code_block, remove_code_blocks
 
 
 class Planner:

@@ -1,12 +1,12 @@
 from jinja2.exceptions import TemplateSyntaxError
 from openai.error import InvalidRequestError
 
-from common.document import FCDocument
-from common.modeling import LLM
-from common.results import Result, SearchResult
-from eval.logger import EvaluationLogger
-from prompts.prompt import SummarizeResultPrompt
-from utils.console import gray, orange, num2text
+from src.common.document import FCDocument
+from src.common.modeling import LLM
+from src.common.results import Result, SearchResult
+from src.eval.logger import EvaluationLogger
+from src.prompts.prompt import SummarizeResultPrompt
+from src.utils.console import gray, orange, num2text
 
 
 class ResultSummarizer:

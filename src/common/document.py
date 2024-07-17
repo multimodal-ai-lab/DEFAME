@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import Collection
 
-from common.action import Action
-from common.claim import Claim
-from common.label import Label
-from common.results import Evidence
+from src.common.action import Action
+from src.common.claim import Claim
+from src.common.label import Label
+from src.common.results import Evidence
 
 
 @dataclass
