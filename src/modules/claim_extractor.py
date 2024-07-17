@@ -5,7 +5,7 @@ from src.eval.logger import EvaluationLogger
 from src.prompts.prompt import FilterCheckWorthyPrompt, DecontextualizePrompt, SYMBOL, NOT_SYMBOL
 from src.utils.console import light_blue
 from src.utils.parsing import extract_first_square_brackets, extract_first_code_block
-from third_party.factscore.atomic_facts import AtomicFactGenerator
+from src.common.atomic_facts import AtomicFactGenerator
 
 
 class ClaimExtractor:
