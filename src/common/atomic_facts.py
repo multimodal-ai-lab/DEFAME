@@ -23,12 +23,11 @@ import nltk
 import numpy as np
 import rank_bm25
 import spacy
-from absl import app
 from nltk import tokenize
 
-from utils.utils import open_file_wrapped
-from utils.parsing import replace
-from common import modeling
+from src.utils.utils import open_file_wrapped
+from src.utils.parsing import replace
+from src.common import modeling
 from config.globals import api_keys
 
 
@@ -524,7 +523,7 @@ def fix_sentence_splitter(curr_sentences, initials):
 
 def main(_) -> None:
     generator = AtomicFactGenerator(
-        api_keys["openai_api_key"], 'demos', gpt3_cache_file=None
+        api_keys["openai_api_key"], '../../third_party/factscore/demos', gpt3_cache_file=None
     )
     atomic_facts, para_breaks = generator.run(
         'Thierry Henry (born 17 August 1977) is a French professional football'
@@ -538,7 +537,3 @@ def main(_) -> None:
     )
     print(atomic_facts)
     print(para_breaks)
-
-
-if __name__ == '__main__':
-    app.run(main)
