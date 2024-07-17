@@ -28,7 +28,7 @@ def evaluate(
         random_sampling: bool = False,
         verbose: bool = False,
 ) -> float:
-    assert n_samples is None or sample_ids is None
+    assert not n_samples or not sample_ids
 
     if llm_kwargs is None:
         llm_kwargs = dict()
@@ -85,23 +85,20 @@ def evaluate(
 
     start_time = time.time()
 
-    eval_log = []
-    predictions = []
-    question_log = []
+    predictions = evidence_log = eval_log = []
     for i, instance in enumerate(samples_to_evaluate):
         logger.log(f"Evaluating claim {i + 1} of {n_samples} (#{instance['id']}):")
         content = instance["content"]
 
         _, docs, evidences = fc.check(content)
         evidences["claim_id"] = instance['id']
-        question_log.append(questions)
         doc = docs[0]
-
         prediction = doc.verdict
         if prediction == Label.CHERRY_PICKING:  # Needed for Averitec
             prediction = Label.CONFLICTING
-
+        evidences["pred_label"] = next(key for key, value in benchmark.class_mapping.items() if value == prediction)
         eval_log.append({"claim": content, "evidence": "", "pred_label": prediction.name})
+        evidence_log.append(evidences)
         prediction_is_correct = instance["label"] == prediction
 
         logger.save_next_prediction(
@@ -141,7 +138,7 @@ def evaluate(
                           benchmark_name=benchmark.name,
                           save_dir=logger.target_dir)
 
-    return accuracy, eval_log, evidences, benchmark
+    return accuracy, eval_log, evidence_log, benchmark
 
 
 def load_results(path: str):

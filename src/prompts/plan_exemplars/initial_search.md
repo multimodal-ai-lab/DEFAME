@@ -19,12 +19,8 @@ QUESTIONS AND QUERIES:
 Has New Zealand introduced a new Food Bill?
 ```
 web_search("New Zealand Food Bill 2020")
-web_search("New Zealand recent food reforms")
-web_search("Food Bill changes New Zealand")
 ```
 Does the new Food Bill contain any provisions that explicitly ban gardening? 
 ```
 web_search("New Zealand Food Bill gardening ban")
-web_search("New Zealand banning gardening")
-web_search("Gardening mentioned in Food Bill of New Zealand")
 ```

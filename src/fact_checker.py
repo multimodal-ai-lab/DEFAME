@@ -3,7 +3,7 @@ from typing import Sequence, Optional, Collection
 from src.common.action import *
 from src.common.claim import Claim
 from src.common.content import Content
-from src.common.document import FCDocument
+from src.common.document import FCDocument, ReasoningBlock
 from src.common.label import Label
 from src.common.modeling import LLM, MLLM
 from src.common.results import Evidence
@@ -106,7 +106,7 @@ class FactChecker:
 
         return tools
 
-    def check(self, content: Content | str) -> (Label, list[FCDocument]):
+    def check(self, content: Content | str) -> tuple[Label, list[FCDocument]]:
         """
         Fact-checks the given content ent-to-end by first extracting all check-worthy claims and then
         verifying each claim individually. Returns the aggregated veracity and the list of corresponding
@@ -125,11 +125,9 @@ class FactChecker:
         # Verify each single extracted claim
         self.logger.log(bold("Verifying the claims..."), important=True)
         docs = []
-        evidences = []
         for claim in claims:  # TODO: parallelize
-            doc, evidence = self.verify_claim(claim)
+            doc, evidences = self.verify_claim(claim)
             docs.append(doc)
-            evidences += evidence
             self.logger.log(bold(f"The claim '{light_blue(str(claim.text))}' is {doc.verdict.value}."), important=True)
             if doc.justification:
                 self.logger.log(f'Justification: {gray(doc.justification)}', important=True)
@@ -145,20 +143,21 @@ class FactChecker:
         self.actor.reset()  # remove all past search evidences
         doc = FCDocument(claim)
         initial_evidence = {"claim": claim.text, "evidence":[]}
-        questions = self._pose_questions(doc)
+        questions = self._pose_questions(no_of_questions=10, doc=doc)
         questions_queries_dicts = self.planner.plan_initial_queries(questions, doc)
-        cumulative_results = []
+        self.logger.log(bold(light_blue("Starting Evidence Retrieval for Factuality Questions.")))
         for dict_ in questions_queries_dicts:
             question = dict_["question"]
+            self.logger.log(light_blue(f"Answering Question: {question}"))
             actions = self.planner._extract_actions(dict_["queries"], doc.claim.original_context)
-            evidences = self.actor.perform(actions, doc)
-            results = [result for evidence in evidences for result in evidence.results]
-            cumulative_results += results
-            generated_answer, url = self.actor.result_summarizer._extract_most_fitting(question, cumulative_results)
+            results = [result for action in actions for result in self.actor.get_corresponding_tool_for_action(action).perform(action)]
+            self.actor.get_corresponding_tool_for_action(actions[0]).reset()
+            generated_answer, url = self.actor.result_summarizer._extract_most_fitting(question, results)
             if not generated_answer or not url:
                 continue
             single_evidence = {"question": question, "answer": generated_answer, "url": url}
             initial_evidence["evidence"].append(single_evidence)
+
 
         label = Label.NEI
         n_iterations = 0
@@ -173,6 +172,8 @@ class FactChecker:
             evidences = self.actor.perform(actions, doc)
             doc.add_evidence(evidences)  # even if no evidence, add empty evidence block for the record
             self._consolidate_knowledge(doc, evidences)
+            initial_evidence_string = '\n'.join(f'{key}: {value}' for key, value in initial_evidence["evidence"][0].items())
+            doc.add_reasoning(initial_evidence_string)
             label = self.judge.judge(doc)
             if label != Label.NEI or n_iterations == self.max_iterations:
                 break
@@ -184,9 +185,9 @@ class FactChecker:
             doc.justification = self.doc_summarizer.summarize(doc)
         return doc, initial_evidence
 
-    def _pose_questions(self, doc: FCDocument):
+    def _pose_questions(self, no_of_questions: int, doc: FCDocument):
         """Generates some questions that needs to be answered during the fact-check."""
-        prompt = PoseQuestionsPrompt(doc.claim, self.extra_prepare_rules)
+        prompt = PoseQuestionsPrompt(doc.claim, extra_rules=self.extra_prepare_rules, no_of_questions=no_of_questions)
         answer = self.llm.generate(str(prompt))
         #questions = extract_factuality_questions(answer)
         doc.add_reasoning(answer)

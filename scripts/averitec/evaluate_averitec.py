@@ -3,7 +3,7 @@ import json
 from src.eval.averitec.score import AVeriTeCEvaluator, print_with_space
 from src.eval.evaluate import evaluate
 
-accuracy, evidence_log, evidences, benchmark = evaluate(
+accuracy, eval_log, evidence_log, benchmark = evaluate(
     llm="llama3_70b",
     tools_config=dict(searcher=dict(
         search_engines=["averitec_kb"],
@@ -25,7 +25,7 @@ accuracy, evidence_log, evidences, benchmark = evaluate(
     verbose=True,
 )
 
-predictions = evidence_log
+predictions = eval_log
 with open(benchmark.file_path) as f:
     references = json.load(f)
 # potentially references = benchmark.data is enough here
