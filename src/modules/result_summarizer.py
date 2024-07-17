@@ -65,7 +65,18 @@ class ResultSummarizer:
             return prompt
 
     def _extract_most_fitting(self, question, evidences: list[Result]) -> tuple[str, str]:
-        prompt = SelectionPrompt(question, evidences)
+        len_ = len(evidences) or 1
+        result_len_limit = self.model.max_prompt_len/len_
+        shortened_evidences = []
+        for result in evidences:
+            num_prompt_tokens = self.model.count_tokens(result.text)
+            if num_prompt_tokens > result_len_limit:
+                #self.logger.log(orange(f"FACTUALITY QUESTION INFO: Truncating search result due to excess length. Cutting away "
+                #                   f"{num2text(num_prompt_tokens - result_len_limit)} tokens to fit into "
+                #                   f"LLM context window of {num2text(self.model.context_window)} tokens."))
+                result.text = result.text[:int(result_len_limit * 3)]
+            shortened_evidences.append(result)
+        prompt = SelectionPrompt(question, shortened_evidences)
         generated_result = self.model.generate(str(prompt), max_attempts=3)
         generated_answer, url = parse_selection(generated_result)
 

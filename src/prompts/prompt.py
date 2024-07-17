@@ -191,10 +191,11 @@ class InitialPlanPrompt(Prompt):
 
 
 class PoseQuestionsPrompt(Prompt):  # TODO: rework this prompt
-    def __init__(self, claim: Claim, extra_rules: str = None):
+    def __init__(self, claim: Claim, extra_rules: str = None, no_of_questions: int = 10):
         placeholder_targets = {
             "[CLAIM]": claim,
             "[EXTRA_RULES]": "" if extra_rules is None else remove_non_symbols(extra_rules),
+            "[NUMBER_OF_QUESTIONS]": no_of_questions
         }
         super().__init__(placeholder_targets)
 
