@@ -146,25 +146,23 @@ def is_guardrail_hit(response: str) -> bool:
     return response.startswith("I cannot") or response.startswith("I'm sorry")
 
 def parse_selection(generated_result: str) -> tuple[str, str]:
-    # Define the regex pattern for the answer
-    answer_pattern = r'Selected Evidence:\s*"(.*?)"'
-    # Define the regex pattern for the URL
-    url_pattern = r'URL:\s*(\S+)'
-    
-    # Search for the answer using the pattern
-    answer_match = re.search(answer_pattern, generated_result, re.DOTALL)
-    # Search for the URL using the pattern
-    url_match = re.search(url_pattern, generated_result, re.DOTALL)
-    
-    # Extract the answer and URL from the matches
-    if answer_match and url_match:
-        generated_answer = answer_match.group(1).strip()
-        url = url_match.group(1).strip()
-        return generated_answer, url
-    else:
+    if "NONE" in generated_result:
         print(f"The generated result: {generated_result} does not contain a valid answer and URL.")
         return None, None
+    
+    answer_pattern = r'(?:Selected Evidence:\s*"?\n?)?(.*?)(?:"?\n\nURL:|URL:)'
+    url_pattern = r'(http[s]?://\S+|www\.\S+)'
 
+    answer_match = re.search(answer_pattern, generated_result, re.DOTALL)
+    generated_answer = re.sub(r'Selected Evidence:|\n|"', '', answer_match.group(1)).strip() if answer_match else None
+
+    url_match = re.search(url_pattern, generated_result)
+    url = url_match.group(1).strip() if url_match else None
+    
+    if not generated_answer or not url:
+        print(f"The generated result: {generated_result} does not contain a valid answer or URL.")
+   
+    return generated_answer, url
 
 
 GUARDRAIL_WARNING = orange("Model hit the safety guardrails -.-'. Defaulting to REFUSED")

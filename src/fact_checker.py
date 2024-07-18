@@ -38,7 +38,7 @@ class FactChecker:
                  extra_judge_rules: str = None,
                  verbose: bool = True,
                  ):
-        assert tools is None or search_engines is None, \
+        assert not tools or not search_engines, \
             "You are allowed to specify either tools or search engines."
 
         self.logger = logger or EvaluationLogger(verbose=verbose)
@@ -158,7 +158,8 @@ class FactChecker:
             single_evidence = {"question": question, "answer": generated_answer, "url": url}
             initial_evidence["evidence"].append(single_evidence)
 
-
+        initial_evidence_string = '\n'.join(f'{key}: {value}' for evidence in initial_evidence["evidence"] for key, value in evidence.items())
+        doc.add_reasoning(f'**Initial Answers to Factuality Questions**\n\n{initial_evidence_string}')
         label = Label.NEI
         n_iterations = 0
         while True:
@@ -172,8 +173,6 @@ class FactChecker:
             evidences = self.actor.perform(actions, doc)
             doc.add_evidence(evidences)  # even if no evidence, add empty evidence block for the record
             self._consolidate_knowledge(doc, evidences)
-            initial_evidence_string = '\n'.join(f'{key}: {value}' for key, value in initial_evidence["evidence"][0].items())
-            doc.add_reasoning(initial_evidence_string)
             label = self.judge.judge(doc)
             if label != Label.NEI or n_iterations == self.max_iterations:
                 break
