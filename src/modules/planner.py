@@ -95,7 +95,7 @@ class Planner:
     def _extract_initial_actions(self, answer: str, context: Content = None) -> list[Action]:
 
         # Define regex patterns to match questions and their corresponding queries
-        question_pattern = r"(^[A-Z].*?\?)"
+        question_pattern = r"[.|?|!|:|\n][  *]?([A-Z].*?\?)"
         queries_pattern = re.compile(r'(```\n.+?```)', re.DOTALL)
 
         # Find all questions and queries

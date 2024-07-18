@@ -12,7 +12,7 @@ from src.utils.plot import plot_confusion_matrix
 from src.eval.benchmark import load_benchmark, AVeriTeC
 from src.eval.logger import EvaluationLogger
 from src.fact_checker import FactChecker
-from src.tools import initialize_tools
+from src.tools import initialize_tools, Searcher
 
 def evaluate(
         llm: str,
@@ -85,7 +85,7 @@ def evaluate(
 
     start_time = time.time()
 
-    predictions = evidence_log = eval_log = []
+    predictions, eval_log= [], []
     for i, instance in enumerate(samples_to_evaluate):
         logger.log(f"Evaluating claim {i + 1} of {n_samples} (#{instance['id']}):")
         content = instance["content"]
@@ -97,8 +97,7 @@ def evaluate(
         if prediction == Label.CHERRY_PICKING:  # Needed for Averitec
             prediction = Label.CONFLICTING
         evidences["pred_label"] = next(key for key, value in benchmark.class_mapping.items() if value == prediction)
-        eval_log.append({"claim": content, "evidence": "", "pred_label": prediction.name})
-        evidence_log.append(evidences)
+        eval_log.append(evidences)
         prediction_is_correct = instance["label"] == prediction
 
         logger.save_next_prediction(
@@ -125,9 +124,11 @@ def evaluate(
         benchmark_classes.remove(Label.CHERRY_PICKING)
 
     ground_truth = [s["label"] for s in samples_to_evaluate]
-    search_summary = {name: searcher.total_searches
-                      for name, searcher in fc.actor.searcher.search_apis.items()
-                      if searcher}
+    search_summary = {
+    name: searcher.total_searches
+    for tool in fc.actor.tools if isinstance(tool, Searcher)
+    for name, searcher in tool.search_apis.items()
+}
     end_time = time.time()
     accuracy = logger.save_results(predictions, ground_truth,
                                    duration=end_time - start_time,
@@ -138,7 +139,7 @@ def evaluate(
                           benchmark_name=benchmark.name,
                           save_dir=logger.target_dir)
 
-    return accuracy, eval_log, evidence_log, benchmark
+    return accuracy, eval_log, benchmark
 
 
 def load_results(path: str):

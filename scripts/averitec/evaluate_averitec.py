@@ -3,7 +3,7 @@ import json
 from src.eval.averitec.score import AVeriTeCEvaluator, print_with_space
 from src.eval.evaluate import evaluate
 
-accuracy, eval_log, evidence_log, benchmark = evaluate(
+accuracy, predictions, benchmark = evaluate(
     llm="llama3_70b",
     tools_config=dict(searcher=dict(
         search_engines=["averitec_kb"],
@@ -19,16 +19,16 @@ accuracy, eval_log, evidence_log, benchmark = evaluate(
     llm_kwargs=dict(temperature=0.01),
     benchmark_name="averitec",
     benchmark_kwargs=dict(variant="dev"),
-    # sample_ids=[300],
-    n_samples=10,
+    #sample_ids=[3,4],
+    n_samples=500,
     random_sampling=False,
     verbose=True,
 )
 
-predictions = eval_log
+# The following only works if ground-truth lables are present in the file at benchmark.file_path
 with open(benchmark.file_path) as f:
-    references = json.load(f)
-# potentially references = benchmark.data is enough here
+    references = json.load(f) 
+
 scorer = AVeriTeCEvaluator()
 q_score = scorer.evaluate_questions_only(predictions, references)
 print_with_space("Question-only score (HU-" + scorer.metric + "):", str(q_score))
