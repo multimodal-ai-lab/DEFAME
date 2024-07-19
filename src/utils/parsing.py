@@ -145,23 +145,24 @@ def is_url(string: str) -> bool:
 def is_guardrail_hit(response: str) -> bool:
     return response.startswith("I cannot") or response.startswith("I'm sorry")
 
-def parse_selection(generated_result: str) -> tuple[str, str]:
-    if "NONE" in generated_result:
-        print(f"The generated result: {generated_result} does not contain a valid answer and URL.")
+
+def extract_answer_and_url(response: str) -> tuple[Optional[str], Optional[str]]:
+    if "NONE" in response:
+        print(f"The generated result: {response} does not contain a valid answer and URL.")
         return None, None
-    
+
     answer_pattern = r'(?:Selected Evidence:\s*"?\n?)?(.*?)(?:"?\n\nURL:|URL:)'
     url_pattern = r'(http[s]?://\S+|www\.\S+)'
 
-    answer_match = re.search(answer_pattern, generated_result, re.DOTALL)
+    answer_match = re.search(answer_pattern, response, re.DOTALL)
     generated_answer = re.sub(r'Selected Evidence:|\n|"', '', answer_match.group(1)).strip() if answer_match else None
 
-    url_match = re.search(url_pattern, generated_result)
+    url_match = re.search(url_pattern, response)
     url = url_match.group(1).strip() if url_match else None
-    
+
     if not generated_answer or not url:
-        print(f"The generated result: {generated_result} does not contain a valid answer or URL.")
-   
+        print(f"The generated result: {response} does not contain a valid answer or URL.")
+
     return generated_answer, url
 
 

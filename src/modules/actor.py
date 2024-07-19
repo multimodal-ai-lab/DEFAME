@@ -14,17 +14,18 @@ class Actor:
         self.tools = tools
         self.result_summarizer = ResultSummarizer(llm, logger)
 
-    def perform(self, actions: list[Action], doc: FCDocument) -> list[Evidence]:
+    def perform(self, actions: list[Action], doc: FCDocument, summarize: bool = True) -> list[Evidence]:
         # TODO: Parallelize
         all_evidence = []
         for action in actions:
-            all_evidence.append(self._perform_single(action, doc))
+            all_evidence.append(self._perform_single(action, doc, summarize=summarize))
         return all_evidence
 
-    def _perform_single(self, action: Action, doc: FCDocument) -> Evidence:
+    def _perform_single(self, action: Action, doc: FCDocument, summarize: bool = True) -> Evidence:
         tool = self.get_corresponding_tool_for_action(action)
         results = tool.perform(action)
-        results = self.result_summarizer.summarize(results, doc)
+        if summarize:
+            results = self.result_summarizer.summarize(results, doc)
         summary = ""  # TODO: Summarize result summaries
         return Evidence(summary, list(results))
 

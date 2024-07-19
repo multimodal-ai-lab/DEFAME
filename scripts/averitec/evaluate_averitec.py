@@ -4,7 +4,7 @@ from src.eval.averitec.score import AVeriTeCEvaluator, print_with_space
 from src.eval.evaluate import evaluate
 
 accuracy, predictions, benchmark = evaluate(
-    llm="llama3_70b",
+    llm="gpt_4o",
     tools_config=dict(searcher=dict(
         search_engines=["averitec_kb"],
         limit_per_search=5
