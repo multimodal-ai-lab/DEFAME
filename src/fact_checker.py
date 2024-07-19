@@ -241,5 +241,7 @@ def aggregate_predictions(veracities: Sequence[Label]) -> Label:
         return Label.REFUTED
     elif np.any(veracities == Label.CONFLICTING):
         return Label.CONFLICTING
+    elif np.any(veracities == Label.CHERRY_PICKING):
+        return Label.CHERRY_PICKING
     else:
         return Label.NEI
