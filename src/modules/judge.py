@@ -66,6 +66,10 @@ class Judge:
         verdict = self._extract_verdict(response)
         if verdict == Label.REFUSED_TO_ANSWER:
             self.logger.log(orange(f"WARNING: Ill-formatted verdict in response:\n{response}"))
+            ####################### AVeriTeC Specific #######################
+            self.logger.log(orange(f"Fallback to REFUTED Label."))
+            verdict == Label.REFUTED
+            #################################################################
         return verdict
 
     def _extract_verdict(self, response: str) -> Label:
@@ -74,15 +78,15 @@ class Judge:
         answer = re.sub(r'[^\w\-\s]', '', answer).strip().lower()
 
         if not answer:
-            # No valid response given, therefore returning refused label
-            return Label.REFUSED_TO_ANSWER
-
+            pattern = re.compile(r'\*\*(.*)\*\*', re.DOTALL)
+            matches = pattern.findall(response) or ['']
+            answer = matches[0]
         try:
             verdict = Label(answer)
         except ValueError:
-            # Maybe the label is a substring of the answer
+            # Maybe the label is a substring of the response
             for c in self.classes:
-                if c.value in answer:
+                if c.value in response:
                     return c
 
             verdict = Label.REFUSED_TO_ANSWER

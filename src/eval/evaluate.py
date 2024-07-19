@@ -130,7 +130,7 @@ def evaluate(
     for name, searcher in tool.search_apis.items()
 }
     end_time = time.time()
-    accuracy = logger.save_results(predictions, ground_truth,
+    accuracy = logger.save_results(predictions, ground_truth, eval_log,
                                    duration=end_time - start_time,
                                    search_summary=search_summary)
     plot_confusion_matrix(predictions,
