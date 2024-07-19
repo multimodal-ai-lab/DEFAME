@@ -95,7 +95,7 @@ def evaluate(
         prediction = doc.verdict
         averitec_output = {
             "claim_id": instance['id'],
-            "claim": instance["content"],
+            "claim": instance["content"].text,
             "evidence": q_and_a,
             "pred_label": next(key for key, value in benchmark.class_mapping.items() if value == prediction)
         }

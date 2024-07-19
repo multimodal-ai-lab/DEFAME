@@ -146,8 +146,9 @@ class FactChecker:
 
         # Answer each question, one after another
         for question in questions:
+            self.actor.reset()
             self.logger.log(light_blue(f"Answering question: {question}"))
-            search_actions = self.planner.propose_queries_for_question(questions, doc)
+            search_actions = self.planner.propose_queries_for_question(question, doc)
             for search_action in search_actions:
                 evidence = self.actor.perform([search_action], doc, summarize=False)[0]
                 for result in evidence.results:
@@ -163,7 +164,6 @@ class FactChecker:
                         break
                 else:
                     continue  # with query loop if result loop did NOT break
-                self.actor.reset()
                 break  # continue with next question, executes if result loop DID break
 
         return q_and_a
