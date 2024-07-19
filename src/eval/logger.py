@@ -7,6 +7,7 @@ from typing import Sequence
 
 import numpy as np
 import yaml
+import json
 
 from src.common.document import FCDocument
 from src.common.label import Label
@@ -56,6 +57,7 @@ class EvaluationLogger:
         self.print_path = self.target_dir + 'print.txt'
         self.predictions_path = self.target_dir + 'predictions.csv'
         self.results_path = self.target_dir + 'results.yaml'
+        self.eval_path = self.target_dir + 'eval.json'
         self.fc_docs_path = self.target_dir + 'docs/'
         os.makedirs(self.fc_docs_path, exist_ok=True)
 
@@ -121,6 +123,7 @@ class EvaluationLogger:
     def save_results(self,
                      predictions: Sequence[Label],
                      ground_truth: Sequence[Label],
+                     eval_log: dict,
                      duration: float,
                      search_summary: dict,
                      print_summary: bool = True) -> bool:
@@ -142,6 +145,8 @@ class EvaluationLogger:
         }
         with open(self.results_path, "w") as f:
             yaml.dump(result_summary, f, sort_keys=False)
+        with open(self.eval_path, "w") as f:
+            json.dump(eval_log, f, indent=4)
         if print_summary:
             print("Results:")
             bold_print_dict(result_summary)
