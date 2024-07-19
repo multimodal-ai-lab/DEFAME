@@ -1,4 +1,5 @@
 Shorthand,Platform,Specifier, Context window
+gpt_4o_mini,OPENAI,gpt-4o-mini-2024-07-18, 128_000
 gpt_4o,OPENAI,gpt-4o-2024-05-13, 128_000
 gpt_4_turbo,OPENAI,gpt-4-0125-preview, 128_000
 gpt_4,OPENAI,gpt-4-0613, 8_192

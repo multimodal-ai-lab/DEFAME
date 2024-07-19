@@ -85,19 +85,23 @@ def evaluate(
 
     start_time = time.time()
 
-    predictions, eval_log= [], []
+    predictions, eval_log = [], []
     for i, instance in enumerate(samples_to_evaluate):
         logger.log(f"Evaluating claim {i + 1} of {n_samples} (#{instance['id']}):")
         content = instance["content"]
 
-        _, docs, evidences = fc.check(content)
-        evidences["claim_id"] = instance['id']
+        _, docs, q_and_a = fc.check(content)
         doc = docs[0]
         prediction = doc.verdict
+        averitec_output = {
+            "claim_id": instance['id'],
+            "claim": instance["content"],
+            "evidence": q_and_a,
+            "pred_label": next(key for key, value in benchmark.class_mapping.items() if value == prediction)
+        }
         if prediction == Label.CHERRY_PICKING:  # Needed for Averitec
             prediction = Label.CONFLICTING
-        evidences["pred_label"] = next(key for key, value in benchmark.class_mapping.items() if value == prediction)
-        eval_log.append(evidences)
+        eval_log.append(averitec_output)
         prediction_is_correct = instance["label"] == prediction
 
         logger.save_next_prediction(
