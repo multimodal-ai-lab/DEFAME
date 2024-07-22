@@ -146,8 +146,9 @@ class FactChecker:
 
         # Answer each question, one after another
         for question in questions:
+            self.actor.reset()
             self.logger.log(light_blue(f"Answering question: {question}"))
-            search_actions = self.planner.propose_queries_for_question(questions, doc)
+            search_actions = self.planner.propose_queries_for_question(question, doc)
             for search_action in search_actions:
                 evidence = self.actor.perform([search_action], doc, summarize=False)[0]
                 for result in evidence.results:
@@ -163,7 +164,6 @@ class FactChecker:
                         break
                 else:
                     continue  # with query loop if result loop did NOT break
-                self.actor.reset()
                 break  # continue with next question, executes if result loop DID break
 
         return q_and_a
@@ -200,7 +200,11 @@ class FactChecker:
 
         doc.add_reasoning(self.judge.get_latest_reasoning())
         doc.verdict = label
-        if label != Label.REFUSED_TO_ANSWER:
+        if label == Label.REFUSED_TO_ANSWER:
+            # This part of the code cannot be reached as the judge catches Refused to Answer labels.
+            self.logger.log("The model refused to answer. We default to Refuted")
+            label = Label.REFUTED
+        else:
             doc.justification = self.doc_summarizer.summarize(doc)
 
         return doc, q_and_a
@@ -241,5 +245,7 @@ def aggregate_predictions(veracities: Sequence[Label]) -> Label:
         return Label.REFUTED
     elif np.any(veracities == Label.CONFLICTING):
         return Label.CONFLICTING
+    elif np.any(veracities == Label.CHERRY_PICKING):
+        return Label.CHERRY_PICKING
     else:
         return Label.NEI

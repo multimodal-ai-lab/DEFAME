@@ -302,7 +302,7 @@ class LLM(LanguageModel):
                 prompt_length = len(self.encoding.encode(prompt))
                 self.logger.log(
                     orange(f"INFO: Prompt is too long. Length: {prompt_length}. Truncating it hard with factor 0.9."))
-                prompt = prompt[:0.9 * len(prompt)]
+                prompt = prompt[:int(0.9 * len(prompt))]
 
             while not response and num_attempts < max_attempts:
                 response = self.model(prompt,
