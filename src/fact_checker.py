@@ -200,7 +200,11 @@ class FactChecker:
 
         doc.add_reasoning(self.judge.get_latest_reasoning())
         doc.verdict = label
-        if label != Label.REFUSED_TO_ANSWER:
+        if label == Label.REFUSED_TO_ANSWER:
+            # This part of the code cannot be reached as the judge catches Refused to Answer labels.
+            self.logger.log("The model refused to answer. We default to Refuted")
+            label = Label.REFUTED
+        else:
             doc.justification = self.doc_summarizer.summarize(doc)
 
         return doc, q_and_a
