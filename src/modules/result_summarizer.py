@@ -1,5 +1,5 @@
 from jinja2.exceptions import TemplateSyntaxError
-from openai.error import InvalidRequestError
+from openai import APIError
 
 from src.common.document import FCDocument
 from src.common.modeling import LLM
@@ -32,8 +32,8 @@ class ResultSummarizer:
 
                 try:
                     result.summary = self.model.generate(prompt, max_attempts=3)
-                except InvalidRequestError as e:
-                    self.logger.log(orange(f"InvalidRequestError: {e} - Skipping the summary for {result.source}."))
+                except APIError as e:
+                    self.logger.log(orange(f"APIError: {e} - Skipping the summary for {result.source}."))
                     self.logger.log(orange(f"Used prompt:\n{str(prompt)}"))
                     result.summary = "NONE"
                 except TemplateSyntaxError as e:
