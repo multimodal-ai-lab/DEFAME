@@ -42,6 +42,10 @@ class Judge:
         while (verdict := self._generate_verdict(str(judge_prompt))) == Label.REFUSED_TO_ANSWER:
             n_tries += 1
             if n_tries > self.max_retries:
+                ####################### AVeriTeC Specific #######################
+                self.logger.log(orange(f"Model refused to answer. Fallback to REFUTED Label."))
+                verdict = Label.REFUTED
+                #################################################################
                 break
             self.logger.log(orange("WARNING: Verdict generation did not contain any valid label. Retrying..."))
         return verdict
@@ -66,10 +70,6 @@ class Judge:
         verdict = self._extract_verdict(response)
         if verdict == Label.REFUSED_TO_ANSWER:
             self.logger.log(orange(f"WARNING: Ill-formatted verdict in response:\n{response}"))
-            ####################### AVeriTeC Specific #######################
-            self.logger.log(orange(f"Fallback to REFUTED Label."))
-            verdict == Label.REFUTED
-            #################################################################
         return verdict
 
     def _extract_verdict(self, response: str) -> Label:
