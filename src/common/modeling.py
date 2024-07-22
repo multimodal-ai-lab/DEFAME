@@ -1,20 +1,12 @@
-import functools
-import logging
-import os
 import threading
-import time
 from abc import ABC
-from concurrent import futures
-from typing import Any, Annotated, Optional
+from typing import Optional
 
-import anthropic
-import langfun as lf
 import numpy as np
-import openai
 import pandas as pd
-import pyglove as pg
 import tiktoken
 import torch
+from openai import OpenAI
 from transformers import BitsAndBytesConfig, pipeline
 from transformers.pipelines import Pipeline
 
@@ -22,7 +14,7 @@ from config.globals import api_keys
 from src.eval.logger import EvaluationLogger
 from src.utils import modeling
 from src.utils.console import cyan, magenta, orange
-from src.utils.utils import maybe_print_error, stop_all_execution, to_readable_json
+from src.utils.utils import to_readable_json
 
 AVAILABLE_MODELS = pd.read_csv("config/available_models.csv", skipinitialspace=True)
 
@@ -65,114 +57,125 @@ def get_model_context_window(name: str) -> int:
     return int(AVAILABLE_MODELS["Context window"][AVAILABLE_MODELS["Shorthand"] == name].iloc[0])
 
 
-class Usage(pg.Object):
-    """Usage information per completion."""
+class GPTModel:
+    def __init__(self, model: str):
+        self.model = model
+        if not api_keys["openai_api_key"]:
+            raise ValueError("No OpenAI API key provided. Add it to config/api_keys.yaml")
+        self.client = OpenAI(api_key=api_keys["openai_api_key"])
 
-    prompt_tokens: int
-    completion_tokens: int
-
-
-@lf.use_init_args(['model'])
-class AnthropicModel(lf.LanguageModel):
-    """Anthropic model."""
-
-    model: pg.typing.Annotated[
-        pg.typing.Enum(pg.MISSING_VALUE, _ANTHROPIC_MODELS),
-        'The name of the model to use.',
-    ] = 'claude-instant-1.2'
-    api_key: Annotated[
-        str | None,
-        (
-            'API key. If None, the key will be read from environment variable '
-            "'ANTHROPIC_API_KEY'."
-        ),
-    ] = None
-
-    def _on_bound(self) -> None:
-        super()._on_bound()
-        self.__dict__.pop('_api_initialized', None)
-
-    @functools.cached_property
-    def _api_initialized(self) -> bool:
-        self.api_key = self.api_key or os.environ.get('ANTHROPIC_API_KEY', None)
-
-        if not self.api_key:
-            raise ValueError(
-                'Please specify `api_key` during `__init__` or set environment '
-                'variable `ANTHROPIC_API_KEY` with your Anthropic API key.'
-            )
-
-        return True
-
-    @property
-    def model_id(self) -> str:
-        """Returns a string to identify the model."""
-        return f'Anthropic({self.model})'
-
-    def _get_request_args(
-            self, options: lf.LMSamplingOptions
-    ) -> dict[str, Any]:
-        # Reference: https://docs.anthropic.com/claude/reference/messages_post
-        args = dict(
-            temperature=options.temperature,
-            max_tokens=options.max_tokens,
-            stream=False,
+    def __call__(self, prompt: str, **kwargs):
+        completion = self.client.chat.completions.create(
             model=self.model,
+            messages=[  # TODO: May add a system prompt
+                {"role": "user", "content": prompt}
+            ],
+            **kwargs
         )
+        return completion.choices[0].message.content
 
-        if options.top_p is not None:
-            args['top_p'] = options.top_p
-        if options.top_k is not None:
-            args['top_k'] = options.top_k
-        if options.stop:
-            args['stop_sequences'] = options.stop
 
-        return args
-
-    def _sample(self, prompts: list[lf.Message]) -> list:
-        assert self._api_initialized
-        return self._complete_batch(prompts)
-
-    def _set_logging(self) -> None:
-        logger: logging.Logger = logging.getLogger('anthropic')
-        httpx_logger: logging.Logger = logging.getLogger('httpx')
-        logger.setLevel(logging.WARNING)
-        httpx_logger.setLevel(logging.WARNING)
-
-    def _complete_batch(
-            self, prompts: list[lf.Message]
-    ) -> list:
-        def _anthropic_chat_completion(prompt: lf.Message):
-            content = prompt.text
-            client = anthropic.Anthropic(api_key=self.api_key)
-            response = client.messages.create(
-                messages=[{'role': 'user', 'content': content}],
-                **self._get_request_args(self.sampling_options),
-            )
-            model_response = response.content[0].text
-            samples = [lf.LMSample(model_response, score=0.0)]
-            raise NotImplementedError  # TODO: Removed due to bug, see git history
-
-        self._set_logging()
-        return lf.concurrent_execute(
-            _anthropic_chat_completion,
-            prompts,
-            executor=self.resource_id,
-            max_workers=1,
-            max_attempts=self.max_attempts,
-            retry_interval=self.retry_interval,
-            exponential_backoff=self.exponential_backoff,
-            retry_on_errors=(
-                anthropic.RateLimitError,
-                anthropic.APIConnectionError,
-                anthropic.InternalServerError,
-            ),
-        )
+# @lf.use_init_args(['model'])
+# class AnthropicModel(lf.LanguageModel):
+#     """Anthropic model."""
+#
+#     model: pg.typing.Annotated[
+#         pg.typing.Enum(pg.MISSING_VALUE, _ANTHROPIC_MODELS),
+#         'The name of the model to use.',
+#     ] = 'claude-instant-1.2'
+#     api_key: Annotated[
+#         str | None,
+#         (
+#             'API key. If None, the key will be read from environment variable '
+#             "'ANTHROPIC_API_KEY'."
+#         ),
+#     ] = None
+#
+#     def _on_bound(self) -> None:
+#         super()._on_bound()
+#         self.__dict__.pop('_api_initialized', None)
+#
+#     @functools.cached_property
+#     def _api_initialized(self) -> bool:
+#         self.api_key = self.api_key or os.environ.get('ANTHROPIC_API_KEY', None)
+#
+#         if not self.api_key:
+#             raise ValueError(
+#                 'Please specify `api_key` during `__init__` or set environment '
+#                 'variable `ANTHROPIC_API_KEY` with your Anthropic API key.'
+#             )
+#
+#         return True
+#
+#     @property
+#     def model_id(self) -> str:
+#         """Returns a string to identify the model."""
+#         return f'Anthropic({self.model})'
+#
+#     def _get_request_args(
+#             self, options: lf.LMSamplingOptions
+#     ) -> dict[str, Any]:
+#         # Reference: https://docs.anthropic.com/claude/reference/messages_post
+#         args = dict(
+#             temperature=options.temperature,
+#             max_tokens=options.max_tokens,
+#             stream=False,
+#             model=self.model,
+#         )
+#
+#         if options.top_p is not None:
+#             args['top_p'] = options.top_p
+#         if options.top_k is not None:
+#             args['top_k'] = options.top_k
+#         if options.stop:
+#             args['stop_sequences'] = options.stop
+#
+#         return args
+#
+#     def _sample(self, prompts: list[lf.Message]) -> list:
+#         assert self._api_initialized
+#         return self._complete_batch(prompts)
+#
+#     def _set_logging(self) -> None:
+#         logger: logging.Logger = logging.getLogger('anthropic')
+#         httpx_logger: logging.Logger = logging.getLogger('httpx')
+#         logger.setLevel(logging.WARNING)
+#         httpx_logger.setLevel(logging.WARNING)
+#
+#     def _complete_batch(
+#             self, prompts: list[lf.Message]
+#     ) -> list:
+#         def _anthropic_chat_completion(prompt: lf.Message):
+#             content = prompt.text
+#             client = anthropic.Anthropic(api_key=self.api_key)
+#             response = client.messages.create(
+#                 messages=[{'role': 'user', 'content': content}],
+#                 **self._get_request_args(self.sampling_options),
+#             )
+#             model_response = response.content[0].text
+#             samples = [lf.LMSample(model_response, score=0.0)]
+#             raise NotImplementedError  # TODO: Removed due to bug, see git history
+#
+#         self._set_logging()
+#         return lf.concurrent_execute(
+#             _anthropic_chat_completion,
+#             prompts,
+#             executor=self.resource_id,
+#             max_workers=1,
+#             max_attempts=self.max_attempts,
+#             retry_interval=self.retry_interval,
+#             exponential_backoff=self.exponential_backoff,
+#             retry_on_errors=(
+#                 anthropic.RateLimitError,
+#                 anthropic.APIConnectionError,
+#                 anthropic.InternalServerError,
+#             ),
+#         )
 
 
 class LanguageModel(ABC):
     """Base class for all (M)LLMs."""
-    model = lf.LanguageModel | Pipeline
+    model: Pipeline
 
     def __init__(self,
                  name: str,
@@ -208,7 +211,7 @@ class LanguageModel(ABC):
 
         self.model = self.load(full_name)
 
-    def load(self, model_name: str) -> lf.LanguageModel | Pipeline:
+    def load(self, model_name: str) -> Pipeline | GPTModel:
         raise NotImplementedError
 
     def generate(self, **kwargs) -> str:
@@ -219,32 +222,22 @@ class LanguageModel(ABC):
 class LLM(LanguageModel):
     """Wraps any Huggingface, OpenAI, Anthropic language model."""
 
-    def load(self, model_name: str) -> lf.LanguageModel | Pipeline:
+    def load(self, model_name: str) -> Pipeline | GPTModel:
         """Loads a language model from string representation."""
-        sampling = lf.LMSamplingOptions(
-            temperature=self.temperature, max_tokens=self.max_response_len
-        )
-
         if model_name.lower().startswith('openai:'):
-            if not api_keys["openai_api_key"]:
-                maybe_print_error('No OpenAI API Key specified.')
-                stop_all_execution(True)
+            return GPTModel(model=model_name[7:])
 
-            return lf.llms.OpenAI(
-                model=model_name[7:],
-                api_key=api_keys["openai_api_key"],
-                sampling_options=sampling,
-            )
-        elif model_name.lower().startswith('anthropic:'):
-            if not api_keys["anthropic_api_key"]:
-                maybe_print_error('No Anthropic API Key specified.')
-                stop_all_execution(True)
+        # elif model_name.lower().startswith('anthropic:'):
+        #     if not api_keys["anthropic_api_key"]:
+        #         maybe_print_error('No Anthropic API Key specified.')
+        #         stop_all_execution(True)
+        #
+        #     return AnthropicModel(
+        #         model=model_name[10:],
+        #         api_key=api_keys["anthropic_api_key"],
+        #         sampling_options=sampling,
+        #     )
 
-            return AnthropicModel(
-                model=model_name[10:],
-                api_key=api_keys["anthropic_api_key"],
-                sampling_options=sampling,
-            )
         # Pipeline works with various out-of-the-box huggingface models 
         elif model_name.lower().startswith('huggingface:'):
             self.open_source = True
@@ -260,8 +253,7 @@ class LLM(LanguageModel):
                 device_map="auto",
                 token=api_keys["huggingface_user_access_token"],
             )
-        elif 'unittest' == model_name.lower():
-            return lf.llms.Echo()
+
         else:
             raise ValueError(f'ERROR: Unsupported model type: {model_name}.')
 
@@ -311,23 +303,14 @@ class LLM(LanguageModel):
                 self.logger.log(
                     orange(f"INFO: Prompt is too long. Length: {prompt_length}. Truncating it hard with factor 0.9."))
                 prompt = prompt[:0.9 * len(prompt)]
-            with modeling.get_lf_context(gen_temp, max_tokens):
-                while not response and num_attempts < max_attempts:
-                    with futures.ThreadPoolExecutor() as executor:
-                        future = executor.submit(lf.LangFunc(prompt, lm=self.model, temperature=gen_temp))
 
-                        try:
-                            response = future.result(timeout=timeout).text
-                        except (
-                                openai.error.OpenAIError,
-                                futures.TimeoutError,
-                                lf.core.concurrent.RetryError,
-                                anthropic.AnthropicError,
-                        ) as e:
-                            maybe_print_error(e)
-                            time.sleep(retry_interval)
+            while not response and num_attempts < max_attempts:
+                response = self.model(prompt,
+                                      temperature=gen_temp,
+                                      top_p=top_p,  # TODO: Handle missing top_k
+                                      )
 
-                    num_attempts += 1
+                num_attempts += 1
 
         if do_debug:
             with _DEBUG_PRINT_LOCK:
