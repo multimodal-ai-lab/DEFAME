@@ -5,6 +5,7 @@ import os
 import shutil
 import string
 from typing import Any
+from tqdm import tqdm
 
 from src.utils.console import green, red
 from src.utils.parsing import strip_string
@@ -68,3 +69,22 @@ def maybe_print_error(
     message += f'\n{additional_info}' if verbose else ''
     clear_line()
     print(red(message))
+
+
+def my_hook(pbar: tqdm):
+    """Wraps tqdm progress bar for urlretrieve()."""
+
+    def update_to(n_blocks=1, block_size=1, total_size=None):
+        """
+        n_blocks  : int, optional
+            Number of blocks transferred so far [default: 1].
+        block_size  : int, optional
+            Size of each block (in tqdm units) [default: 1].
+        total_size  : int, optional
+            Total size (in tqdm units). If [default: None] remains unchanged.
+        """
+        if total_size is not None:
+            pbar.total = total_size
+        pbar.update(n_blocks * block_size - pbar.n)
+
+    return update_to
