@@ -10,11 +10,12 @@ accuracy, predictions, benchmark = evaluate(
         limit_per_search=5
     )),
     fact_checker_kwargs=dict(
+        stop_after_q_and_a=False,
         interpret=False,
         decompose=False,
         decontextualize=False,
         filter_check_worthy=False,
-        max_iterations=3,
+        max_iterations=2,
     ),
     llm_kwargs=dict(temperature=0.01),
     benchmark_name="averitec",

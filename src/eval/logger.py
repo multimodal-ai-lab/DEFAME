@@ -95,7 +95,7 @@ class EvaluationLogger:
                                     "predicted",
                                     "justification",
                                     "correct",
-                                    "justification"))
+                                    "gt_justification"))
 
     def log(self, text: str, important: bool = False):
         if self.verbose or important:
