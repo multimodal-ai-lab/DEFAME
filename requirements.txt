@@ -9,7 +9,7 @@ langdetect>=1.0.9
 matplotlib>=3.8.2
 nltk==3.8.1
 numpy>=1.26.0
-openai>=0.27.2
+openai>=1.37.0
 orjsonl==1.0.0
 pandas>=2.2.0
 pillow>=10.1.0

@@ -59,6 +59,13 @@ class Benchmark(ABC, Iterable):
                 return instance
         raise ValueError(f"No instance with ID {claim_id} was found.")
 
+    def get_class_name(self, label: Label) -> str:
+        """Returns the original class name for the given standard Label."""
+        for name, cls in self.class_mapping.items():
+            if cls == label:
+                return name
+        raise ValueError(f"Unknown label {label}.")
+
     def __len__(self):
         return len(self.data)
 

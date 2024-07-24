@@ -33,7 +33,7 @@ class Search(Action):
         self.query = query[1:-1]
 
     def __str__(self):
-        return f'"{self.name}("{self.query}")"'
+        return f'{self.name}("{self.query}")'
 
     def __eq__(self, other):
         return isinstance(other, Search) and self.query == other.query and self.name == other.name
