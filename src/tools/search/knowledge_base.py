@@ -7,6 +7,7 @@ from pathlib import Path
 from queue import Queue
 from threading import Thread
 from urllib.request import urlretrieve
+import langdetect
 
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
@@ -92,12 +93,24 @@ class KnowledgeBase(LocalSearchAPI):
             resource_file_path = self.resources_dir / f"{claim_id}.json"
             resources = get_contents(resource_file_path)
 
-            # Preprocess resources
+            # Preprocess resource texts, keep only non-empty natural language resources
+            resources_preprocessed = []
             for resource in resources:
-                resource["url2text"] = "\n".join(resource["url2text"])
+                text = "\n".join(resource["url2text"])
+
+                # Only keep samples with non-zero text length
+                if not text:
+                    continue
+
+                if len(text) < 512 and langdetect.detect(text) is not None:
+                    # Sample does not contain any meaningful natural language, therefore omit it
+                    continue
+
+                resource["url2text"] = text
+                resources_preprocessed.append(resource)
 
             # Save into cache for efficiency
-            self.cached_resources = resources
+            self.cached_resources = resources_preprocessed
             self.cached_resources_claim_id = claim_id
 
         return self.cached_resources
@@ -141,7 +154,7 @@ class KnowledgeBase(LocalSearchAPI):
             raise RuntimeError("No claim ID specified. You must set the current_claim_id to the "
                                "ID of the currently fact-checked claim.")
         knn = self.embedding_knns[self.current_claim_id]
-        query_embedding = self._embed(query)
+        query_embedding = self._embed(query).reshape(1, -1)
         distances, indices = knn.kneighbors(query_embedding, limit)
         return self._indices_to_search_results(indices[0], query)
 
@@ -231,11 +244,12 @@ class KnowledgeBase(LocalSearchAPI):
 
         print(f"Successfully built the {self.variant} knowledge base!")
 
+        self.embedding_knns = embedding_knns
+
     def _restore(self):
-        print("Restoring existing kNN learners... ", end="")
         with open(self.embedding_knns_path, "rb") as f:
             self.embedding_knns = pickle.load(f)
-        print("done.")
+        print("Successfully restored knowledge base.")
 
 
 def get_contents(file_path) -> list[dict]:
