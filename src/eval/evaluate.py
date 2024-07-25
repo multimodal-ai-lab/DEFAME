@@ -13,6 +13,7 @@ from src.eval.benchmark import load_benchmark, AVeriTeC
 from src.eval.logger import EvaluationLogger
 from src.fact_checker import FactChecker
 from src.tools import initialize_tools, Searcher
+from src.tools.search.knowledge_base import KnowledgeBase
 
 def evaluate(
         llm: str,
@@ -83,6 +84,14 @@ def evaluate(
             samples_to_evaluate = benchmark
             n_samples = len(benchmark)
 
+    if isinstance(benchmark, AVeriTeC):
+        searcher = tools[0]
+        assert isinstance(searcher, Searcher)
+        kb = searcher.search_apis["averitec_kb"]
+        assert isinstance(kb, KnowledgeBase)
+    else:
+        kb = None
+
     start_time = time.time()
 
     predictions, eval_log = [], []
@@ -90,10 +99,15 @@ def evaluate(
         logger.log(f"Evaluating claim {i + 1} of {n_samples} (#{instance['id']}):")
         content = instance["content"]
 
+        # Update the current claim to restrict the KB to the current claim's resources
+        if isinstance(benchmark, AVeriTeC):
+            kb.current_claim_id = instance['id']
+
         _, docs, q_and_a = fc.check(content)
+
         doc = docs[0]
         prediction = doc.verdict
-        if prediction == Label.CHERRY_PICKING:  # Needed for Averitec
+        if isinstance(benchmark, AVeriTeC) and prediction == Label.CHERRY_PICKING:  # Needed for Averitec
             prediction = Label.CONFLICTING
         pred_label = benchmark.get_class_name(prediction)
         averitec_output = {

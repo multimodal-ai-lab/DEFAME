@@ -102,9 +102,15 @@ class KnowledgeBase(LocalSearchAPI):
                 if not text:
                     continue
 
-                if len(text) < 512 and langdetect.detect(text) is not None:
-                    # Sample does not contain any meaningful natural language, therefore omit it
-                    continue
+                if len(text) < 512:
+                    try:
+                        lang = langdetect.detect(text)
+                    except langdetect.LangDetectException as e:
+                        lang = None
+
+                    if lang is None:
+                        # Sample does not contain any meaningful natural language, therefore omit it
+                        continue
 
                 resource["url2text"] = text
                 resources_preprocessed.append(resource)
@@ -123,7 +129,7 @@ class KnowledgeBase(LocalSearchAPI):
     def _embed_many(self, *args, **kwargs):
         if self.embedding_model is None:
             self._setup_embedding_model()
-        return self.embedding_model.embed_many(*args, **kwargs)
+        return self.embedding_model.embed_many(*args, batch_size=32, **kwargs)
 
     def _setup_embedding_model(self):
         self.embedding_model = EmbeddingModel(embedding_model)
@@ -173,11 +179,16 @@ class KnowledgeBase(LocalSearchAPI):
         for zip_file in tqdm(zip_files):
             zip_path = self.download_dir / zip_file
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(self.kb_dir)
-        os.rename(self.kb_dir / f"output_{self.variant}", self.resources_dir)
+                zip_ref.extractall(self.resources_dir)
+        if self.variant == "dev":
+            os.rename(self.resources_dir / f"output_dev", self.resources_dir)
+        elif self.variant == "train":
+            os.rename(self.resources_dir / f"data_store/train", self.resources_dir)
 
     def _build(self):
         """Downloads, extracts and creates the SQLite database."""
+        print(f"Building the {self.variant} knowledge base...")
+
         if (not os.path.exists(self.download_dir) or
                 len(os.listdir(self.download_dir)) < len(DOWNLOAD_URLS[self.variant])):
             self._download()
