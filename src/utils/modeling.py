@@ -38,7 +38,7 @@ def prepare_prompt(
     """
     messages = []
     if sys_prompt:
-        if "meta" in model_name:
+        if "llama" in model_name:
             messages.append({"role": "system", "content": sys_prompt})
     messages.append({"role": "user", "content": prompt})
     return messages
