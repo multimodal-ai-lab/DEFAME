@@ -16,8 +16,6 @@
 import contextlib
 from typing import Any, ContextManager, Optional
 
-import langfun as lf
-
 from src.utils.parsing import strip_string
 
 
@@ -27,27 +25,6 @@ def add_format(prompt: str, model: Any, model_name: str) -> str:
         return strip_string(prompt)
     else:
         return prompt
-
-
-# pylint: disable=g-bare-generic
-def get_lf_context(
-        temp: Optional[float] = None, max_tokens: Optional[int] = None
-) -> ContextManager:
-    """Gets a LangFun context manager with the given settings."""
-
-    # pylint: enable=g-bare-generic
-    @contextlib.contextmanager
-    def dummy_context_manager():
-        yield None
-
-    if temp is not None and max_tokens is not None:
-        return lf.use_settings(temperature=temp, max_tokens=max_tokens)
-    elif temp is not None:
-        return lf.use_settings(temperature=temp)
-    elif max_tokens is not None:
-        return lf.use_settings(max_tokens=max_tokens)
-    else:
-        return dummy_context_manager()
 
 
 def prepare_prompt(

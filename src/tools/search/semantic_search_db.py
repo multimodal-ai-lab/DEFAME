@@ -4,6 +4,7 @@ import sqlite3
 import struct
 from typing import Sequence
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -17,7 +18,7 @@ from src.common.results import SearchResult
 
 
 class SemanticSearchDB(LocalSearchAPI):
-    def __init__(self, db_file_path: str, **kwargs):
+    def __init__(self, db_file_path: str | Path, **kwargs):
         super().__init__(**kwargs)
         self.is_free = True
         self.db_file_path = db_file_path
@@ -84,7 +85,7 @@ class SemanticSearchDB(LocalSearchAPI):
             results.append(result)
         return results
 
-    def build_db(self, **kwargs) -> None:
+    def _build_db(self, **kwargs) -> None:
         """Creates the SQLite database."""
         raise NotImplementedError()
 
