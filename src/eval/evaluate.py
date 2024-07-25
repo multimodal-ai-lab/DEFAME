@@ -95,11 +95,12 @@ def evaluate(
         prediction = doc.verdict
         if prediction == Label.CHERRY_PICKING:  # Needed for Averitec
             prediction = Label.CONFLICTING
+        pred_label = benchmark.get_class_name(prediction)
         averitec_output = {
             "claim_id": instance['id'],
             "claim": instance["content"].text,
             "evidence": q_and_a,
-            "pred_label": next(key for key, value in benchmark.class_mapping.items() if value == prediction)
+            "pred_label": pred_label
         }
         
         eval_log.append(averitec_output)

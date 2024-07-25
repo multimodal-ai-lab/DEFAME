@@ -26,6 +26,7 @@ class FactChecker:
                  mllm: Optional[str | MLLM] = None,
                  tools: list[Tool] = None,
                  search_engines: list[str] = None,
+                 stop_after_q_and_a: bool = False,
                  interpret: bool = False,
                  decompose: bool = False,
                  decontextualize: bool = False,
@@ -86,6 +87,7 @@ class FactChecker:
         self.doc_summarizer = DocSummarizer(self.llm, self.logger)
 
         self.extra_prepare_rules = extra_prepare_rules
+        self.stop_after_q_and_a = stop_after_q_and_a
         self.max_iterations = max_iterations
 
     def _initialize_tools(self, search_engines: list[str]) -> list[Tool]:
@@ -146,8 +148,8 @@ class FactChecker:
 
         # Answer each question, one after another
         for question in questions:
-            self.actor.reset()
             self.logger.log(light_blue(f"Answering question: {question}"))
+            self.actor.reset()
             search_actions = self.planner.propose_queries_for_question(question, doc)
             for search_action in search_actions:
                 evidence = self.actor.perform([search_action], doc, summarize=False)[0]
@@ -177,15 +179,17 @@ class FactChecker:
 
         # Conduct Q&A and insert results into the fact-checking document as initial reasoning
         q_and_a = self.perform_q_and_a(doc)
-        q_and_a_strings = [(f"Question: {triplet['question']}\n"
-                            f"Answer: {triplet['answer']}\n"
+        q_and_a_strings = [(f"### {triplet['question']}\n"
+                            f"Answer: {triplet['answer']}\n\n"
                             f"Source URL: {triplet['url']}") for triplet in q_and_a]
         q_and_a_string = "## Initial Q&A\n" + "\n\n".join(q_and_a_strings)
         doc.add_reasoning(q_and_a_string)
 
         # Continue the fact-check if Q&A was insufficient
         n_iterations = 0
-        while (label := self.judge.judge(doc)) == Label.NEI and n_iterations < self.max_iterations:
+        while ((label := self.judge.judge(doc)) == Label.NEI
+               and n_iterations < self.max_iterations
+               and not self.stop_after_q_and_a):
             self.logger.log("Not enough information yet. Continuing fact-check...")
             n_iterations += 1
             actions, reasoning = self.planner.plan_next_actions(doc)
@@ -198,14 +202,14 @@ class FactChecker:
             doc.add_evidence(evidences)  # even if no evidence, add empty evidence block for the record
             self._consolidate_knowledge(doc, evidences)
 
-        doc.add_reasoning(self.judge.get_latest_reasoning())
-        doc.verdict = label
+        doc.add_reasoning("## Final Judgement\n" + self.judge.get_latest_reasoning())
         if label == Label.REFUSED_TO_ANSWER:
             # This part of the code cannot be reached as the judge catches Refused to Answer labels.
             self.logger.log("The model refused to answer. We default to Refuted")
-            label = Label.REFUTED
+            # label = Label.REFUTED
         else:
             doc.justification = self.doc_summarizer.summarize(doc)
+        doc.verdict = label
 
         return doc, q_and_a
 

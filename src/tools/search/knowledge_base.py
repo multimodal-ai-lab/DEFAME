@@ -1,255 +1,261 @@
 import json
 import os.path
 import pickle
-import sqlite3
+import zipfile
 from datetime import datetime
+from pathlib import Path
 from queue import Queue
 from threading import Thread
-from typing import Optional
+from urllib.request import urlretrieve
+import langdetect
 
-import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
-from config.globals import path_to_data
-from src.tools.search.semantic_search_db import SemanticSearchDB, df_embedding_to_np_embedding
-from src.tools.search.x import X, extract_username_from_url, extract_tweet_id_from_url, extract_search_query_from_url
+from config.globals import path_to_data, embedding_model
+from src.common.embedding import EmbeddingModel
+from src.common.results import SearchResult
+from src.tools.search.local_search_api import LocalSearchAPI
+from src.utils.utils import my_hook
+
+DOWNLOAD_URLS = {
+    "dev": [
+        "https://huggingface.co/chenxwh/AVeriTeC/resolve/main/data_store/knowledge_store/dev_knowledge_store.zip"
+    ],
+    "train": [
+        "https://huggingface.co/chenxwh/AVeriTeC/resolve/main/data_store/knowledge_store/train/train_0_999.zip",
+        "https://huggingface.co/chenxwh/AVeriTeC/resolve/main/data_store/knowledge_store/train/train_1000_1999.zip",
+        "https://huggingface.co/chenxwh/AVeriTeC/resolve/main/data_store/knowledge_store/train/train_2000_3067.zip",
+    ],
+    "test": [
+        "https://huggingface.co/chenxwh/AVeriTeC/resolve/main/data_store/knowledge_store/test/test_0_499.zip",
+        "https://huggingface.co/chenxwh/AVeriTeC/resolve/main/data_store/knowledge_store/test/test_500_999.zip",
+        "https://huggingface.co/chenxwh/AVeriTeC/resolve/main/data_store/knowledge_store/test/test_1000_1499.zip",
+        "https://huggingface.co/chenxwh/AVeriTeC/resolve/main/data_store/knowledge_store/test/test_1500_1999.zip",
+        "https://huggingface.co/chenxwh/AVeriTeC/resolve/main/data_store/knowledge_store/test/test_2000_2214.zip",
+    ]
+}
+
+N_CLAIMS = {
+    "dev": 500,
+    "train": 3068,
+    "test": 2215,
+}
 
 
-class KnowledgeBase(SemanticSearchDB):
-    """The AVeriTeC knowledge base consisting of 330,589 (deduplicated) sources."""
+class KnowledgeBase(LocalSearchAPI):
+    """The AVeriTeC Knowledge Base (KB) used to retrieve evidence for fact-checks."""
     name = 'averitec_kb'
+    embedding_knns: dict[int, NearestNeighbors]
+    embedding_model: EmbeddingModel = None
 
-    embedding_knn_path = path_to_data + "AVeriTeC/embedding_knn.pckl"
+    def __init__(self, variant: str = "dev", logger=None):
+        super().__init__(logger=logger)
+        self.variant = variant
 
-    def __init__(self, logger=None):
-        super().__init__(logger=logger, db_file_path=path_to_data + "AVeriTeC/knowledge_base.db")
-        self._load_embeddings()
+        # Setup paths and dirs
+        self.kb_dir = Path(path_to_data + f"AVeriTeC/knowledge_base/{variant}/")
+        os.makedirs(self.kb_dir, exist_ok=True)
+        self.download_dir = self.kb_dir / "download"
+        self.resources_dir = self.kb_dir / "resources"  # stores all .jsonl files extracted from the .zip in download
+        self.embedding_knns_path = self.kb_dir / "embedding_knns.pckl"
+
+        self.current_claim_id = None  # defines the behavior of the KB by preselecting the claim-relevant sources
+
+        # For speeding up data loading
+        self.cached_resources = None
+        self.cached_resources_claim_id = None
+
+        self._load()
+
+    def get_num_claims(self) -> int:
+        """Returns the number of claims the knowledge base is holding resources for."""
+        return N_CLAIMS[self.variant]
+
+    def _load(self):
+        if self.is_built():
+            self._restore()
+        else:
+            self._build()
+
+    def is_built(self) -> bool:
+        """Returns true if the KB is built (KB files are downloaded and extracted and embedding kNNs are there)."""
+        return (os.path.exists(self.resources_dir) and
+                len(os.listdir(self.resources_dir)) == self.get_num_claims() and
+                os.path.exists(self.embedding_knns_path))
+
+    def _get_resources(self, claim_id: int = None) -> list[dict]:
+        """Returns the list of resources for the currently active claim ID."""
+        claim_id = self.current_claim_id if claim_id is None else claim_id
+
+        if self.cached_resources_claim_id != claim_id:
+            # Load resources from disk
+            resource_file_path = self.resources_dir / f"{claim_id}.json"
+            resources = get_contents(resource_file_path)
+
+            # Preprocess resource texts, keep only non-empty natural language resources
+            resources_preprocessed = []
+            for resource in resources:
+                text = "\n".join(resource["url2text"])
+
+                # Only keep samples with non-zero text length
+                if not text:
+                    continue
+
+                if len(text) < 512 and langdetect.detect(text) is not None:
+                    # Sample does not contain any meaningful natural language, therefore omit it
+                    continue
+
+                resource["url2text"] = text
+                resources_preprocessed.append(resource)
+
+            # Save into cache for efficiency
+            self.cached_resources = resources_preprocessed
+            self.cached_resources_claim_id = claim_id
+
+        return self.cached_resources
+
+    def _embed(self, *args, **kwargs):
+        if self.embedding_model is None:
+            self._setup_embedding_model()
+        return self.embedding_model.embed(*args, **kwargs)
+
+    def _embed_many(self, *args, **kwargs):
+        if self.embedding_model is None:
+            self._setup_embedding_model()
+        return self.embedding_model.embed_many(*args, **kwargs)
+
+    def _setup_embedding_model(self):
+        self.embedding_model = EmbeddingModel(embedding_model)
 
     def retrieve(self, idx: int) -> (str, str, datetime):
-        stmt = f"""
-            SELECT url, text
-            FROM sources
-            WHERE ROWID = {idx + 1};
-            """
-        return *self._run_sql_query(stmt)[0], None
+        resources = self._get_resources()
+        resource = resources[idx]
+        url, text, date = resource["url"], resource["url2text"], None
+        return url, text, date
 
-    def retrieve_by_url(self, url: str) -> Optional[str]:
-        stmt = f"""
-            SELECT text
-            FROM sources
-            WHERE url = ?;
-            """
-        result = self._run_sql_query(stmt, url)
-        if result:
-            return result[0]
+    def _indices_to_search_results(self, indices: list[int], query: str) -> list[SearchResult]:
+        results = []
+        for i, index in enumerate(indices):
+            url, text, date = self.retrieve(index)
+            result = SearchResult(
+                source=url,
+                text=text,
+                query=query,
+                rank=i,
+                date=date
+            )
+            results.append(result)
+        return results
+
+    def _call_api(self, query: str, limit: int) -> list[SearchResult]:
+        """Performs a vector search on the text embeddings of the resources of the currently active claim."""
+        if self.current_claim_id is None:
+            raise RuntimeError("No claim ID specified. You must set the current_claim_id to the "
+                               "ID of the currently fact-checked claim.")
+        knn = self.embedding_knns[self.current_claim_id]
+        query_embedding = self._embed(query).reshape(1, -1)
+        distances, indices = knn.kneighbors(query_embedding, limit)
+        return self._indices_to_search_results(indices[0], query)
+
+    def _download(self):
+        print("Downloading knowledge base...")
+        os.makedirs(self.download_dir, exist_ok=True)
+        urls = DOWNLOAD_URLS[self.variant]
+        for i, url in enumerate(urls):
+            target_path = self.download_dir / f"{i}.zip"
+            urlretrieve(url, target_path, my_hook(tqdm()))
+
+    def _extract(self):
+        print("Extracting knowledge base...")
+        # os.makedirs(self.resources_dir, exist_ok=True)
+        zip_files = os.listdir(self.download_dir)
+        for zip_file in tqdm(zip_files):
+            zip_path = self.download_dir / zip_file
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(self.kb_dir)
+        os.rename(self.kb_dir / f"output_{self.variant}", self.resources_dir)
+
+    def _build(self):
+        """Downloads, extracts and creates the SQLite database."""
+        if (not os.path.exists(self.download_dir) or
+                len(os.listdir(self.download_dir)) < len(DOWNLOAD_URLS[self.variant])):
+            self._download()
         else:
-            return None
+            print("Found downloaded zip files.")
 
-    def _search_semantically(self, query_embedding, limit: int) -> list[int]:
-        """Performs a vector search on the text embeddings."""
-        distances, indices = self.embeddings.kneighbors(query_embedding, limit)
-        return indices[0]
+        if (not os.path.exists(self.resources_dir) or
+                len(os.listdir(self.resources_dir)) < self.get_num_claims()):
+            self._extract()
+        else:
+            print("Found extracted resource files.")
 
-    def build_db(self, from_path: str):
-        """Creates the SQLite database."""
+        print("Constructing kNNs for embeddings...")
 
-        print("Building database...")
-
-        if os.path.getsize(self.db_file_path) > 1e6:
-            raise RuntimeError(f"{self.db_file_path} already exists! Not overwriting.")
-
-        files = [f for f in iter_files(from_path)]
-        if not self._is_initialized():
-            self._init_db()
-
+        # Initialize and run the KB building pipeline
         self.read_queue = Queue()
-        self.insert_queue = Queue()
+        self.train_queue = Queue()
 
-        reader = Thread(target=self._read, args=(files,))
+        reader = Thread(target=self._read)
         processor = Thread(target=self._process_and_embed)
-        inserter = Thread(target=self._insert)
+        trainer = Thread(target=self._train_embedding_knn)
 
         reader.start()
         processor.start()
-        inserter.start()
+        trainer.start()
 
         reader.join()
         processor.join()
-        inserter.join()
+        trainer.join()
 
-    def _init_db(self):
-        stmt = """
-                CREATE TABLE sources(
-                    url TEXT UNIQUE,
-                    text TEXT,
-                    text_embedding BLOB
-                );
-                """
-        self.cur.execute(stmt)
-        self.db.commit()
-
-    def _read(self, files):
-        for file in files:
-            self.read_queue.put(get_contents(file))
+    def _read(self):
+        for claim_id in range(self.get_num_claims()):
+            resources = self._get_resources(claim_id)
+            self.read_queue.put(resources)
         self.read_queue.put("done")
 
     def _process_and_embed(self):
-        known_urls = set()
-        while (sources := self.read_queue.get()) != "done":
-            # Only keep sources that are new (not in known_urls)
-            filtered_sources = []
-            for source in sources:
-                url = source["url"]
-                text = "\n".join(source["url2text"])
-                if url not in known_urls:
-                    filtered_sources.append((url, text))
-                    known_urls.add(url)
-
-            # Embed all the (non-empty) sources at once
-            sources_df = pd.DataFrame(filtered_sources, columns=["url", "text"])
-            is_not_empty_string = sources_df["text"].str.len() > 0
-            texts_to_embed = sources_df.loc[is_not_empty_string, "text"]
-            embeddings = self._embed_many(texts_to_embed.to_list(), to_bytes=True)
-            sources_df["embedding"] = None  # initialize new, empty column
-            sources_df.loc[is_not_empty_string, "embedding"] = embeddings
+        while (resources := self.read_queue.get()) != "done":
+            # Embed all the resources at once
+            texts = [resource["url2text"] for resource in resources]
+            embeddings = self._embed_many(texts)
+            claim_id = int(resources[0]["claim_id"])
 
             # Send the processed data to the next worker
-            self.insert_queue.put(sources_df)
+            self.train_queue.put((claim_id, embeddings))
 
-        self.insert_queue.put("done")
+        self.train_queue.put("done")
 
-    def _insert(self):
+    def _train_embedding_knn(self):
         # Re-initialize connections (threads need to do that for any SQLite object anew)
-        db = sqlite3.connect(self.db_file_path, uri=True)
-        cur = db.cursor()
+        embedding_knns = dict()
 
         # As long as there comes data from the queue, insert it into the DB
-        pbar = tqdm(total=331_000, smoothing=0.01)  # size already known
-        while True:
-            sources_df = self.insert_queue.get()
-            if isinstance(sources_df, str) and sources_df == "done":
-                break
-            cur.executemany("INSERT OR IGNORE INTO sources VALUES (?,?,?)", sources_df.values.tolist())
-            pbar.update(n=len(sources_df))
+        pbar = tqdm(total=self.get_num_claims(), smoothing=0.01)
+        while (out := self.train_queue.get()) != "done":
+            claim_id, embeddings = out
+            embedding_knn = NearestNeighbors(n_neighbors=10).fit(embeddings)
+            embedding_knns[claim_id] = embedding_knn
+            pbar.update()
         pbar.close()
 
-        print(f"Done building DB.")
-        print("Committing...", end="")
-        db.commit()
-        print(" done!")
+        with open(self.embedding_knns_path, "wb") as f:
+            pickle.dump(embedding_knns, f)
 
-    def _deduplicate(self):
-        """Removes all duplicate entries from the database."""
-        print("Deduplicating (may take a while)...", end="")
-        # Remove all duplicates
-        stmt = """
-        DELETE FROM sources
-        WHERE rowid NOT IN (
-            SELECT MIN(rowid)
-            FROM sources
-            GROUP BY url
-        )
-        """
-        self.cur.execute(stmt)
-        print(" done!")
+        print(f"Successfully built the {self.variant} knowledge base!")
 
-        # 2. Reset ROWIDs to become sequential again (i.e. remove gaps)
-        print("Resetting ROWIDs (may also take a while)...", end="")
-        stmt = """
-        ALTER TABLE sources ADD COLUMN new_rowid INTEGER;
-        
-        WITH seq AS (
-            SELECT ROWID, ROW_NUMBER() OVER (ORDER BY ROWID) AS new_id
-            FROM sources  
-        )
-        UPDATE sources      
-        SET new_rowid = (SELECT new_id FROM seq WHERE seq.ROWID = sources.ROWID);
-        
-        UPDATE sources
-        SET ROWID = new_rowid;
-        
-        ALTER TABLE sources DROP COLUMN new_rowid;
-        """
-        self.cur.execute(stmt)
-        self.db.commit()
-        print(" done!")
+        self.embedding_knns = embedding_knns
 
-        # 3. Remove existing kNN learner because IDs have changed
-        if os.path.exists(self.embedding_knn_path):
-            os.remove(self.embedding_knn_path)
-
-    def _refill_twitter_instances(self):
-        """By default, the X/Twitter instances are empty (due to X's terms of use). We need to
-        reload the contents of the respective 1636 URLs and save them into the database."""
-        # Get the IDs of the samples with Twitter URL
-        stmt = """
-        SELECT rowid, url FROM sources
-        WHERE url LIKE "https://twitter.%";
-        """
-        rows = self._run_sql_query(stmt)
-
-        # Initiate the Twitter API
-        x = X()
-
-        # For each instance, load the current content from the web, and add it to the DB
-        for row_id, url in rows:
-            if tweet_id := extract_tweet_id_from_url(url):
-                tweet = x.get_tweet(tweet_id=tweet_id)
-                text = tweet
-            elif search_query := extract_search_query_from_url(url):
-                results = x.search(search_query, limit=10)
-                text = results
-            elif username := extract_username_from_url(url):
-                user_page = x.get_user_page(username=username)
-                text = user_page
-            else:
-                raise ValueError(f"URL {url} does not contain any username, tweet ID or search query.")
-            print(text)
-            raise NotImplementedError
-
-        self.db.commit()
-
-    def _is_initialized(self) -> bool:
-        stmt = """SELECT name FROM sqlite_master WHERE type='table' AND name='sources';"""
-        result = self._run_sql_query(stmt)
-        return len(result) > 0
-
-    def is_empty(self) -> bool:
-        if not self._is_initialized():
-            return True
-        stmt = """SELECT * FROM sources LIMIT 1;"""
-        rows = self._run_sql_query(stmt)
-        return len(rows) == 0
-
-    def _load_embeddings(self):
-        if os.path.exists(self.embedding_knn_path):
-            self._restore_knn()
-        elif not self.is_empty():
-            self._build_knn()
-
-    def _restore_knn(self):
-        print("Restoring existing kNN learner... ", end="")
-        self.embeddings = self._restore_knn_from(self.embedding_knn_path)
-        print("done.")
-
-    def _build_knn(self):
-        self._setup_embedding_model()
-        stmt = "SELECT ROWID, text_embedding FROM sources ORDER BY ROWID"
-        embeddings = pd.read_sql_query(stmt, self.db)
-        print("Reading embeddings...")
-        embeddings = df_embedding_to_np_embedding(embeddings["text_embedding"], self.embedding_model.dimension)
-        print("Setting up nearest neighbor learners...")
-        self.embeddings = NearestNeighbors(n_neighbors=10).fit(embeddings)
-        print("Saving kNN learner...")
-        with open(self.embedding_knn_path, "wb") as f:
-            pickle.dump(self.embeddings, f)
+    def _restore(self):
+        with open(self.embedding_knns_path, "rb") as f:
+            self.embedding_knns = pickle.load(f)
+        print("Successfully restored knowledge base.")
 
 
-def get_contents(filename):
+def get_contents(file_path) -> list[dict]:
     """Parse the contents of a file. Each line is a JSON encoded document."""
     searches = []
-    with open(filename) as f:
+    with open(file_path) as f:
         for line in f:
             # Parse document
             doc = json.loads(line)
@@ -259,15 +265,3 @@ def get_contents(filename):
             # Add the document
             searches.append(doc)
     return searches
-
-
-def iter_files(path):
-    """Walk through all files located under a root path."""
-    if os.path.isfile(path):
-        yield path
-    elif os.path.isdir(path):
-        for dirpath, _, filenames in os.walk(path):
-            for f in filenames:
-                yield os.path.join(dirpath, f)
-    else:
-        raise RuntimeError('Path %s is invalid' % path)

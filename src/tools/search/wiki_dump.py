@@ -102,7 +102,7 @@ class WikiDumpAPI(SemanticSearchDB):
         else:
             return ""
 
-    def build_db(self, from_path: str, num_workers: int = 4):
+    def _build_db(self, from_path: str, num_workers: int = 4):
         """Creates the SQLite database."""
 
         print("Fetching resource files...")
