@@ -3,12 +3,12 @@ import os.path
 import pickle
 import zipfile
 from datetime import datetime
+from multiprocessing import Pool, Queue
 from pathlib import Path
-from queue import Queue
-from threading import Thread
 from urllib.request import urlretrieve
-import langdetect
 
+import langdetect
+import torch
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
@@ -201,54 +201,39 @@ class KnowledgeBase(LocalSearchAPI):
         else:
             print("Found extracted resource files.")
 
-        print("Constructing kNNs for embeddings...")
+        n_workers = torch.cuda.device_count()
+
+        print(f"Constructing kNNs for embeddings using {n_workers} workers...")
 
         # Initialize and run the KB building pipeline
-        self.read_queue = Queue()
-        self.train_queue = Queue()
+        self.resource_queue = Queue()
+        self.embedding_queue = Queue()
+        devices_queue = Queue()
 
-        reader = Thread(target=self._read)
-        processor = Thread(target=self._process_and_embed)
-        trainer = Thread(target=self._train_embedding_knn)
-
-        reader.start()
-        processor.start()
-        trainer.start()
-
-        reader.join()
-        processor.join()
-        trainer.join()
+        with Pool(n_workers, embed, (self.resource_queue, self.embedding_queue, devices_queue)):
+            for d in range(n_workers):
+                devices_queue.put(d)
+            self._read()
+            self._train_embedding_knn()
 
     def _read(self):
-        for claim_id in range(self.get_num_claims()):
+        print("Reading and preparing resource files...")
+        for claim_id in tqdm(range(self.get_num_claims())):
             resources = self._get_resources(claim_id)
-            self.read_queue.put(resources)
-        self.read_queue.put("done")
-
-    def _process_and_embed(self):
-        while (resources := self.read_queue.get()) != "done":
-            # Embed all the resources at once
-            texts = [resource["url2text"] for resource in resources]
-            embeddings = self._embed_many(texts)
-            claim_id = int(resources[0]["claim_id"])
-
-            # Send the processed data to the next worker
-            self.train_queue.put((claim_id, embeddings))
-
-        self.train_queue.put("done")
+            self.resource_queue.put(resources)
 
     def _train_embedding_knn(self):
+        print("Fitting the k nearest neighbor learners...")
+
         # Re-initialize connections (threads need to do that for any SQLite object anew)
         embedding_knns = dict()
 
         # As long as there comes data from the queue, insert it into the DB
-        pbar = tqdm(total=self.get_num_claims(), smoothing=0.01)
-        while (out := self.train_queue.get()) != "done":
+        for _ in tqdm(range(self.get_num_claims()), smoothing=0.01):
+            out = self.embedding_queue.get()
             claim_id, embeddings = out
             embedding_knn = NearestNeighbors(n_neighbors=10).fit(embeddings)
             embedding_knns[claim_id] = embedding_knn
-            pbar.update()
-        pbar.close()
 
         with open(self.embedding_knns_path, "wb") as f:
             pickle.dump(embedding_knns, f)
@@ -276,3 +261,19 @@ def get_contents(file_path) -> list[dict]:
             # Add the document
             searches.append(doc)
     return searches
+
+
+def embed(in_queue: Queue, out_queue: Queue, devices_queue: Queue):
+    device = devices_queue.get()
+    em = EmbeddingModel(embedding_model, device=f"cuda:{device}")
+
+    while True:
+        resources = in_queue.get()
+
+        # Embed all the resources at once
+        texts = [resource["url2text"] for resource in resources]
+        embeddings = em.embed_many(texts, batch_size=32)
+        claim_id = int(resources[0]["claim_id"])
+
+        # Send the processed data to the next worker
+        out_queue.put((claim_id, embeddings))

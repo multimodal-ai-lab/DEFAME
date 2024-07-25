@@ -8,8 +8,11 @@ class EmbeddingModel:
     """Encodes text into vectors. Truncates long instances by default to 32k characters."""
     dimension: int
 
-    def __init__(self, model_name: str, truncate_after: int = 32_000):
-        self.model = SentenceTransformer(model_name, trust_remote_code=True, config_kwargs=dict(resume_download=None))
+    def __init__(self, model_name: str, truncate_after: int = 32_000, device=None):
+        self.model = SentenceTransformer(model_name,
+                                         trust_remote_code=True,
+                                         config_kwargs=dict(resume_download=None),
+                                         device=device)
         self.dimension = self.model.get_sentence_embedding_dimension()
         self.truncate_after = truncate_after  # num characters
 
