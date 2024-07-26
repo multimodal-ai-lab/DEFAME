@@ -11,9 +11,9 @@ class CredibilityChecker(Tool):
     name = "credibility_checker"
     actions = [CredibilityCheck]
 
-    def __init__(self, llm: LLM = None, logger: EvaluationLogger = None):
+    def __init__(self, llm: LLM = None, **kwargs):
+        super().__init__(**kwargs)
         self.llm = llm
-        self.logger = logger
 
     def perform(self, action: CredibilityCheck) -> list[Result]:
         return [self.check_credibility(action.source)]

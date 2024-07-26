@@ -1,4 +1,5 @@
 from typing import Sequence, Optional, Collection
+import time
 
 from src.common.action import *
 from src.common.claim import Claim
@@ -14,7 +15,7 @@ from src.modules.judge import Judge
 from src.modules.planner import Planner
 from src.prompts.prompt import PoseQuestionsPrompt, ReiteratePrompt, AnswerPrompt
 from src.tools import *
-from src.utils.console import gray, light_blue, bold
+from src.utils.console import gray, light_blue, bold, sec2mmss
 from src.utils.parsing import find_code_span
 
 
@@ -115,6 +116,8 @@ class FactChecker:
         verifying each claim individually. Returns the aggregated veracity and the list of corresponding
         fact-checking documents, one doc per claim.
         """
+        start = time.time()
+
         content = Content(content) if isinstance(content, str) else content
 
         # Input validation
@@ -126,18 +129,17 @@ class FactChecker:
         claims = self.claim_extractor.extract_claims(content)
 
         # Verify each single extracted claim
-        self.logger.log(bold("Verifying the claims..."), important=True)
+        self.logger.log(bold("Verifying the claims..."))
         docs = []
         q_and_a = None
         for claim in claims:  # TODO: parallelize
             doc, q_and_a = self.verify_claim(claim)
             docs.append(doc)
-            self.logger.log(bold(f"The claim '{light_blue(str(claim.text))}' is {doc.verdict.value}."), important=True)
-            if doc.justification:
-                self.logger.log(f'Justification: {gray(doc.justification)}', important=True)
 
         overall_veracity = aggregate_predictions([doc.verdict for doc in docs])
         self.logger.log(bold(f"So, the overall veracity is: {overall_veracity.value}"))
+        fc_duration = time.time() - start
+        self.logger.log(f"Fact-check took {sec2mmss(fc_duration)}.", important=True)
         return overall_veracity, docs, q_and_a
 
     def perform_q_and_a(self, doc: FCDocument) -> list:
@@ -202,6 +204,8 @@ class FactChecker:
             doc.add_evidence(evidences)  # even if no evidence, add empty evidence block for the record
             self._consolidate_knowledge(doc, evidences)
 
+        self.logger.log(bold(f"The claim '{light_blue(str(claim.text))}' is {label.value}."), important=True)
+
         doc.add_reasoning("## Final Judgement\n" + self.judge.get_latest_reasoning())
         if label == Label.REFUSED_TO_ANSWER:
             # This part of the code cannot be reached as the judge catches Refused to Answer labels.
@@ -209,6 +213,7 @@ class FactChecker:
             # label = Label.REFUTED
         else:
             doc.justification = self.doc_summarizer.summarize(doc)
+            self.logger.log(f'Justification: {gray(doc.justification)}', important=True)
         doc.verdict = label
 
         return doc, q_and_a

@@ -10,13 +10,10 @@ class FaceRecognizer(Tool):
     name = "face_recognizer"
     actions = [FaceRecognition]
 
-    def __init__(self,
-                 model_name: str = "face-recognition-model",
-                 logger: EvaluationLogger = None,
-                 device: int = -1):
+    def __init__(self, model_name: str = "face-recognition-model", **kwargs):
+        super().__init__(**kwargs)
         # self.model = pipeline("image-classification", model=model_name, device=device)
         self.model = None
-        self.logger = logger
 
     def perform(self, action: FaceRecognition) -> list[Result]:
         return [self.recognize_faces(action.image)]

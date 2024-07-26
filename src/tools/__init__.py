@@ -24,10 +24,10 @@ def get_tool_by_name(name: str):
     raise ValueError(f'Tool with name "{name}" does not exist.')
 
 
-def initialize_tools(config: dict[str, dict], logger: EvaluationLogger) -> list[Tool]:
+def initialize_tools(config: dict[str, dict], logger: EvaluationLogger, device=None) -> list[Tool]:
     tools = []
     for tool_name, kwargs in config.items():
         tool_class = get_tool_by_name(tool_name)
-        t = tool_class(**kwargs, logger=logger)
+        t = tool_class(**kwargs, logger=logger, device=device)
         tools.append(t)
     return tools
