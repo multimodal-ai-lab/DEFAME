@@ -49,7 +49,8 @@ class KnowledgeBase(LocalSearchAPI):
     embedding_knns: dict[int, NearestNeighbors]
     embedding_model: EmbeddingModel = None
 
-    def __init__(self, variant: str = "dev", logger=None):
+    def __init__(self, variant: str = "dev", logger=None,
+                 device: str | torch.device = None):
         super().__init__(logger=logger)
         self.variant = variant
 
@@ -65,6 +66,8 @@ class KnowledgeBase(LocalSearchAPI):
         # For speeding up data loading
         self.cached_resources = None
         self.cached_resources_claim_id = None
+
+        self.device = device
 
         self._load()
 
@@ -132,7 +135,7 @@ class KnowledgeBase(LocalSearchAPI):
         return self.embedding_model.embed_many(*args, batch_size=32, **kwargs)
 
     def _setup_embedding_model(self):
-        self.embedding_model = EmbeddingModel(embedding_model)
+        self.embedding_model = EmbeddingModel(embedding_model, device=self.device)
 
     def retrieve(self, idx: int) -> (str, str, datetime):
         resources = self._get_resources()
@@ -245,7 +248,7 @@ class KnowledgeBase(LocalSearchAPI):
     def _restore(self):
         with open(self.embedding_knns_path, "rb") as f:
             self.embedding_knns = pickle.load(f)
-        print("Successfully restored knowledge base.")
+        print(f"Successfully restored knowledge base.")
 
 
 def get_contents(file_path) -> list[dict]:

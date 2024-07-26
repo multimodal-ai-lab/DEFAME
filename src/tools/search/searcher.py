@@ -28,26 +28,32 @@ class Searcher(Tool):
     search_apis: dict[str, SearchAPI]
 
     def __init__(self,
-                 search_engines: list[str] = None,
-                 logger: EvaluationLogger = None,
+                 search_engine_config: dict[str, dict] = None,
                  summarize: bool = True,
                  max_searches: int = 5,
                  limit_per_search: int = 5,
-                 do_debug: bool = False):
-        self.logger = logger or EvaluationLogger()
+                 do_debug: bool = False,
+                 **kwargs):
+        super().__init__(**kwargs)
 
-        if search_engines is None:
+        if search_engine_config is None:
             self.logger.log("No search engine specified. Falling back to DuckDuckGo.")
-            search_engines = ["duckduckgo"]
+            search_engine_config = {"duckduckgo": {}}
+
+        # Add device to knowledge base kwargs
+        if "averitec_kb" in search_engine_config:
+            search_engine_config["averitec_kb"].update(dict(device=self.device))
 
         # Setup search APIs
-        self.search_apis = {se: SEARCH_APIS[se](logger=self.logger) for se in search_engines}
+        self.search_apis = {se: SEARCH_APIS[se](logger=self.logger, **kwargs)
+                            for se, kwargs in search_engine_config.items()}
 
         # Register available tools
         actions = []
-        if "wiki_dump" in search_engines:
+        available_apis = self.search_apis.keys()
+        if "wiki_dump" in available_apis:
             actions.append(WikiDumpLookup)
-        if "google" in search_engines or "duckduckgo" in search_engines or "averitec_kb" in search_engines:
+        if "google" in available_apis or "duckduckgo" in available_apis or "averitec_kb" in available_apis:
             actions.append(WebSearch)
         self.actions = actions
 

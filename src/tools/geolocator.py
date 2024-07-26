@@ -18,9 +18,8 @@ class Geolocator(Tool):
     def __init__(self,
                  model_name: str = "geolocal/StreetCLIP",
                  top_k=10,
-                 logger: EvaluationLogger = None,
-                 device: int = -1,
-                 use_multiple_gpus: bool = False):
+                 logger: EvaluationLogger = None, **kwargs):
+        super().__init__(**kwargs)
         """
         Initialize the GeoLocator with a pretrained model from Hugging Face.
 
@@ -31,11 +30,9 @@ class Geolocator(Tool):
         self.model_name = model_name
         self.processor = AutoProcessor.from_pretrained(model_name)
         self.model = AutoModel.from_pretrained(model_name)
-        self.device = torch.device("cuda" if torch.cuda.is_available() and device != -1 else "cpu")
         self.top_k = top_k
-        self.logger = logger
 
-        if use_multiple_gpus and torch.cuda.device_count() > 1:
+        if use_multiple_gpus and torch.cuda.device_count() > 1:  # TODO
             self.model = torch.nn.DataParallel(self.model)
 
         self.model.to(self.device)

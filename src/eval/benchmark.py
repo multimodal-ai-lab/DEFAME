@@ -34,8 +34,9 @@ class Benchmark(ABC, Iterable):
     extra_plan_rules: str = None  # Additional, benchmark-specific instructions to guide LLM's action planning
     extra_judge_rules: str = None  # Additional, benchmark-specific instructions to guide LLM's verdict prediction
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, variant: str):
         self.name = name
+        self.variant = variant  # 'train', 'dev' or 'test'
 
     def get_labels(self) -> list[Label]:
         """Returns the ground truth labels of this dataset as a list."""
@@ -113,7 +114,7 @@ class AVeriTeC(Benchmark):
     available_actions = [WebSearch]
 
     def __init__(self, variant="dev"):
-        super().__init__(f"AVeriTeC ({variant})")
+        super().__init__(f"AVeriTeC ({variant})", variant)
         self.file_path = Path(path_to_data + f"AVeriTeC/{variant}.json")
 
         # Load the data
@@ -126,7 +127,8 @@ class AVeriTeC(Benchmark):
                 text=d["claim"],
                 author=d["speaker"],
                 date=datetime.strptime(d["claim_date"], "%d-%m-%Y"),
-                origin=d["original_claim_url"]
+                origin=d["original_claim_url"],
+                id_number=i
             )
             label = self.class_mapping[d["label"]] if variant in ["train", "dev"] else None
             justification = d["justification"] if variant in ["train", "dev"] else None
@@ -203,7 +205,7 @@ class FEVER(Benchmark):
     available_actions = [WikiDumpLookup]
 
     def __init__(self, version=1, variant="dev"):
-        super().__init__(f"FEVER V{version} ({variant})")
+        super().__init__(f"FEVER V{version} ({variant})", variant)
         self.file_path = Path(path_to_data + f"FEVER/fever{version}_{variant}.jsonl")
         self.justifications_file_path = Path(path_to_data + f"FEVER/gt_justification_fever{version}_{variant}.jsonl")
 
@@ -288,7 +290,7 @@ class VERITE(Benchmark):
     available_actions = None
 
     def __init__(self, variant="dev"):
-        super().__init__(f"VERITE ({variant})")
+        super().__init__(f"VERITE ({variant})", variant)
         self.file_path = Path(path_to_data + "VERITE/VERITE.csv")
         self.data = self.load_data()
 

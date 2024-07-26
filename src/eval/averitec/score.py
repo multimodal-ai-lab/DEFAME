@@ -7,6 +7,8 @@ import scipy
 import sklearn
 from nltk import word_tokenize
 
+nltk.download("wordnet")
+
 
 def pairwise_meteor(candidate, reference):
     return nltk.translate.meteor_score.single_meteor_score(
@@ -42,7 +44,6 @@ class AVeriTeCEvaluator:
     averitec_reporting_levels = [0.1, 0.2, 0.25, 0.3, 0.4, 0.5]
 
     def __init__(self, metric="meteor"):
-        nltk.download("wordnet")
         self.metric = metric
         if metric == "meteor":
             self.pairwise_metric = pairwise_meteor

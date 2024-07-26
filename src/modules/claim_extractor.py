@@ -35,7 +35,7 @@ class ClaimExtractor:
         self.logger = logger
 
     def extract_claims(self, content: Content) -> list[Claim]:
-        self.logger.log("Starting claim extraction.", important=True)
+        self.logger.log("Starting claim extraction.")
 
         if self.do_interpretation:
             self.logger.log("Interpreting...")
@@ -61,7 +61,7 @@ class ClaimExtractor:
             claims = [claim for claim in claims if self.is_check_worthy(claim)]
 
         for claim in claims:
-            self.logger.log(light_blue(f"'{claim}'"), important=True)
+            self.logger.log(light_blue(f"'{claim}'"))
 
         return claims
 

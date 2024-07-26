@@ -187,6 +187,7 @@ class LanguageModel(ABC):
                  repetition_penalty: float = 1.2,
                  show_responses: bool = False,
                  show_prompts: bool = False,
+                 device: str | torch.device = None
                  ):
         self.logger = logger
 
@@ -209,6 +210,7 @@ class LanguageModel(ABC):
         self.show_prompts = show_prompts
         self.open_source = False
         self.encoding = tiktoken.get_encoding("cl100k_base")
+        self.device = device
 
         self.model = self.load(full_name)
 
@@ -253,6 +255,7 @@ class LLM(LanguageModel):
                 model_kwargs={"torch_dtype": torch.bfloat16},
                 device_map="auto",
                 token=api_keys["huggingface_user_access_token"],
+                device=self.device,
             )
 
         else:
@@ -403,7 +406,8 @@ class MLLM(LanguageModel):
                 bnb_4bit_compute_dtype=torch.float16
             )
             return pipeline("image-to-text", model=model_name,
-                            model_kwargs={"quantization_config": quantization_config})
+                            model_kwargs={"quantization_config": quantization_config},
+                            device=self.device)
         else:
             raise ValueError(f'ERROR: Unsupported model type: {model_name}.')
 

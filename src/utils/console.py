@@ -80,5 +80,10 @@ def sec2hhmmss(s):
     return "%d:%02d:%02d h" % (h, m % 60, s % 60)
 
 
+def sec2mmss(s):
+    m = s // 60
+    return "%d:%02d min" % (m % 60, s % 60)
+
+
 def remove_string_formatters(text: str) -> str:
     return re.sub(r"\x1b\[[0-9;]*m", "", text)

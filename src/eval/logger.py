@@ -1,17 +1,17 @@
 import csv
+import json
 import logging
 import os.path
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
-from typing import Sequence
+from typing import Sequence, Optional
 
 import numpy as np
 import yaml
-import json
 
+from config.globals import path_to_result
 from src.common.document import FCDocument
 from src.common.label import Label
-from config.globals import path_to_result
 from src.utils.console import remove_string_formatters, bold, sec2hhmmss
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
@@ -122,38 +122,48 @@ class EvaluationLogger:
         with open(self.fc_docs_path + f"{claim_id}.md", "w") as f:
             f.write(str(doc))
 
+    def save_averitec_out(self, averitec_out: list):
+        with open(self.averitec_out, "w") as f:
+            json.dump(averitec_out, f, indent=4)
+
     def save_results(self,
                      predictions: Sequence[Label],
-                     ground_truth: Sequence[Label],
-                     averitec_out: list,
                      duration: float,
                      search_summary: dict,
-                     print_summary: bool = True) -> bool:
+                     ground_truth: Sequence[Label] = None,
+                     print_summary: bool = True) -> Optional[float]:
         n_samples = len(predictions)
         n_refused = np.count_nonzero(np.array(predictions) == Label.REFUSED_TO_ANSWER)
-        correct_predictions = np.asarray(np.array(predictions) == np.array(ground_truth))
-        n_correct_predictions = np.sum(correct_predictions)
-        n_wrong_predictions = n_samples - n_correct_predictions - n_refused
-        accuracy = n_correct_predictions / (n_samples - n_refused)
         search_summary = ", ".join(f"{searcher}: {n_searches}" for searcher, n_searches in search_summary.items())
+
         result_summary = {
             "Total samples": n_samples,
-            "Correct predictions": int(n_correct_predictions),
-            "Wrong predictions": int(n_wrong_predictions),
             "Refused predictions": int(n_refused),
-            "Accuracy": f"{accuracy * 100:.1f} %",
             "Run duration": sec2hhmmss(duration),
             "Total searches": search_summary,
         }
+
+        if ground_truth is not None:
+            correct_predictions = np.asarray(np.array(predictions) == np.array(ground_truth))
+            n_correct_predictions = np.sum(correct_predictions)
+            n_wrong_predictions = n_samples - n_correct_predictions - n_refused
+            accuracy = n_correct_predictions / (n_samples - n_refused)
+
+            result_summary.update({
+                "Correct predictions": int(n_correct_predictions),
+                "Wrong predictions": int(n_wrong_predictions),
+                "Accuracy": f"{accuracy * 100:.1f} %",
+            })
+
+        else:
+            accuracy = None
+
         with open(self.results_path, "w") as f:
             yaml.dump(result_summary, f, sort_keys=False)
 
         if print_summary:
             print("Results:")
             bold_print_dict(result_summary)
-
-        with open(self.averitec_out, "w") as f:
-            json.dump(averitec_out, f, indent=4)
 
         return accuracy
 
