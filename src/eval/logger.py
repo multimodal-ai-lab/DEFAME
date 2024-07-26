@@ -59,7 +59,7 @@ class EvaluationLogger:
         self.print_path = self.target_dir + 'print.txt'
         self.predictions_path = self.target_dir + 'predictions.csv'
         self.results_path = self.target_dir + 'results.yaml'
-        self.eval_path = self.target_dir + 'eval.json'
+        self.averitec_out = self.target_dir + 'averitec_out.json'
         self.fc_docs_path = self.target_dir + 'docs/'
         os.makedirs(self.fc_docs_path, exist_ok=True)
 
@@ -125,7 +125,7 @@ class EvaluationLogger:
     def save_results(self,
                      predictions: Sequence[Label],
                      ground_truth: Sequence[Label],
-                     eval_log: dict,
+                     averitec_out: list,
                      duration: float,
                      search_summary: dict,
                      print_summary: bool = True) -> bool:
@@ -147,11 +147,14 @@ class EvaluationLogger:
         }
         with open(self.results_path, "w") as f:
             yaml.dump(result_summary, f, sort_keys=False)
-        with open(self.eval_path, "w") as f:
-            json.dump(eval_log, f, indent=4)
+
         if print_summary:
             print("Results:")
             bold_print_dict(result_summary)
+
+        with open(self.averitec_out, "w") as f:
+            json.dump(averitec_out, f, indent=4)
+
         return accuracy
 
 

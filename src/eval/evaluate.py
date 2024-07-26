@@ -1,19 +1,22 @@
+import csv
 import inspect
 import time
+import yaml
 
 import numpy as np
 import pandas as pd
-import csv
 
 from src.common.label import Label
 from src.common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS, MLLM, LLM
-from src.utils.console import green, red, bold
-from src.utils.plot import plot_confusion_matrix
+from src.eval.averitec.compute_score import compute_averitec_score
 from src.eval.benchmark import load_benchmark, AVeriTeC
 from src.eval.logger import EvaluationLogger
 from src.fact_checker import FactChecker
 from src.tools import initialize_tools, Searcher
 from src.tools.search.knowledge_base import KnowledgeBase
+from src.utils.console import green, red, bold
+from src.utils.plot import plot_confusion_matrix
+
 
 def evaluate(
         llm: str,
@@ -84,7 +87,9 @@ def evaluate(
             samples_to_evaluate = benchmark
             n_samples = len(benchmark)
 
-    if isinstance(benchmark, AVeriTeC):
+    is_averitec = isinstance(benchmark, AVeriTeC)
+
+    if is_averitec:
         searcher = tools[0]
         assert isinstance(searcher, Searcher)
         kb = searcher.search_apis["averitec_kb"]
@@ -94,20 +99,20 @@ def evaluate(
 
     start_time = time.time()
 
-    predictions, eval_log = [], []
+    predictions, averitec_out = [], []
     for i, instance in enumerate(samples_to_evaluate):
         logger.log(f"Evaluating claim {i + 1} of {n_samples} (#{instance['id']}):")
         content = instance["content"]
 
         # Update the current claim to restrict the KB to the current claim's resources
-        if isinstance(benchmark, AVeriTeC):
+        if is_averitec:
             kb.current_claim_id = instance['id']
 
         _, docs, q_and_a = fc.check(content)
 
         doc = docs[0]
         prediction = doc.verdict
-        if isinstance(benchmark, AVeriTeC) and prediction == Label.CHERRY_PICKING:  # Needed for Averitec
+        if is_averitec and prediction == Label.CHERRY_PICKING:  # Needed for Averitec
             prediction = Label.CONFLICTING
         pred_label = benchmark.get_class_name(prediction)
         averitec_output = {
@@ -116,8 +121,8 @@ def evaluate(
             "evidence": q_and_a,
             "pred_label": pred_label
         }
-        
-        eval_log.append(averitec_output)
+
+        averitec_out.append(averitec_output)
         prediction_is_correct = instance["label"] == prediction
 
         logger.save_next_prediction(
@@ -139,18 +144,17 @@ def evaluate(
             break
 
     benchmark_classes = benchmark.get_classes()
-    # TODO: get this out of the evaluate function
-    if isinstance(benchmark, AVeriTeC):
+    if is_averitec:
         benchmark_classes.remove(Label.CHERRY_PICKING)
 
     ground_truth = [s["label"] for s in samples_to_evaluate]
     search_summary = {
-    name: searcher.total_searches
-    for tool in fc.actor.tools if isinstance(tool, Searcher)
-    for name, searcher in tool.search_apis.items()
-}
+        name: searcher.total_searches
+        for tool in fc.actor.tools if isinstance(tool, Searcher)
+        for name, searcher in tool.search_apis.items()
+    }
     end_time = time.time()
-    accuracy = logger.save_results(predictions, ground_truth, eval_log,
+    accuracy = logger.save_results(predictions, ground_truth, averitec_out,
                                    duration=end_time - start_time,
                                    search_summary=search_summary)
     plot_confusion_matrix(predictions,
@@ -159,7 +163,13 @@ def evaluate(
                           benchmark_name=benchmark.name,
                           save_dir=logger.target_dir)
 
-    return accuracy, eval_log, benchmark
+    if is_averitec:
+        scores = compute_averitec_score(benchmark.file_path, logger.averitec_out)
+        scores_path = logger.target_dir + "averitec_scores.yaml"
+        with open(scores_path, "w") as f:
+            yaml.dump(scores, f, sort_keys=False)
+
+    return accuracy
 
 
 def load_results(path: str):
