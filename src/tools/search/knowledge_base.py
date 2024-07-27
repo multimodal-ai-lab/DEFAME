@@ -49,7 +49,7 @@ class KnowledgeBase(LocalSearchAPI):
     embedding_knns: dict[int, NearestNeighbors]
     embedding_model: EmbeddingModel = None
 
-    def __init__(self, variant: str = "dev", logger=None,
+    def __init__(self, variant, logger=None,
                  device: str | torch.device = None):
         super().__init__(logger=logger)
         self.variant = variant
