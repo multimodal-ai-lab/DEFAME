@@ -16,7 +16,7 @@ def plot_confusion_matrix(predictions: Sequence[Label],
 
     # Construct confusion matrix
     confusion_matrix = np.zeros((len(classes), len(classes)), dtype="float")
-    for i, (pred, gt) in enumerate(zip(predictions, ground_truth)):
+    for pred, gt in zip(predictions, ground_truth):
         if isinstance(pred, str):
             pred = Label[pred]
             gt = Label[gt]
