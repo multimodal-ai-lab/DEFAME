@@ -15,7 +15,7 @@ from src.modules.judge import Judge
 from src.modules.planner import Planner
 from src.prompts.prompt import PoseQuestionsPrompt, ReiteratePrompt, AnswerPrompt
 from src.tools import *
-from src.utils.console import gray, light_blue, bold, sec2mmss
+from src.utils.console import gray, light_blue, bold, sec2mmss, orange
 from src.utils.parsing import find_code_span
 
 
@@ -204,15 +204,15 @@ class FactChecker:
             doc.add_evidence(evidences)  # even if no evidence, add empty evidence block for the record
             self._consolidate_knowledge(doc, evidences)
 
-        self.logger.log(bold(f"The claim '{light_blue(str(claim.text))}' is {label.value}."), important=True)
-
         doc.add_reasoning("## Final Judgement\n" + self.judge.get_latest_reasoning())
+
         if label == Label.REFUSED_TO_ANSWER:
             # This part of the code cannot be reached as the judge catches Refused to Answer labels.
-            self.logger.log("The model refused to answer. We default to Refuted")
+            self.logger.log(orange("The model refused to answer."))
             # label = Label.REFUTED
         else:
             doc.justification = self.doc_summarizer.summarize(doc)
+            self.logger.log(bold(f"The claim '{light_blue(str(claim.text))}' is {label.value}."), important=True)
             self.logger.log(f'Justification: {gray(doc.justification)}', important=True)
         doc.verdict = label
 

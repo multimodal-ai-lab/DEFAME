@@ -17,6 +17,7 @@ from src.common.embedding import EmbeddingModel
 from src.common.results import SearchResult
 from src.tools.search.local_search_api import LocalSearchAPI
 from src.utils.utils import my_hook
+from src.utils.console import orange
 
 DOWNLOAD_URLS = {
     "dev": [
@@ -162,10 +163,19 @@ class KnowledgeBase(LocalSearchAPI):
         if self.current_claim_id is None:
             raise RuntimeError("No claim ID specified. You must set the current_claim_id to the "
                                "ID of the currently fact-checked claim.")
+
         knn = self.embedding_knns[self.current_claim_id]
+        if knn is None:
+            return []
+
         query_embedding = self._embed(query).reshape(1, -1)
-        distances, indices = knn.kneighbors(query_embedding, limit)
-        return self._indices_to_search_results(indices[0], query)
+        limit = min(limit, knn.n_samples_fit_)  # account for very small resource sets
+        try:
+            distances, indices = knn.kneighbors(query_embedding, limit)
+            return self._indices_to_search_results(indices[0], query)
+        except Exception as e:
+            self.logger.log(orange(f"Resource retrieval from kNN failed: {e}"), important=True)
+            return []
 
     def _download(self):
         print("Downloading knowledge base...")
@@ -223,7 +233,7 @@ class KnowledgeBase(LocalSearchAPI):
         print("Reading and preparing resource files...")
         for claim_id in tqdm(range(self.get_num_claims())):
             resources = self._get_resources(claim_id)
-            self.resource_queue.put(resources)
+            self.resource_queue.put((claim_id, resources))
 
     def _train_embedding_knn(self):
         print("Fitting the k nearest neighbor learners...")
@@ -235,7 +245,10 @@ class KnowledgeBase(LocalSearchAPI):
         for _ in tqdm(range(self.get_num_claims()), smoothing=0.01):
             out = self.embedding_queue.get()
             claim_id, embeddings = out
-            embedding_knn = NearestNeighbors(n_neighbors=10).fit(embeddings)
+            if len(embeddings) > 0:
+                embedding_knn = NearestNeighbors(n_neighbors=10).fit(embeddings)
+            else:
+                embedding_knn = None
             embedding_knns[claim_id] = embedding_knn
 
         with open(self.embedding_knns_path, "wb") as f:
@@ -271,12 +284,11 @@ def embed(in_queue: Queue, out_queue: Queue, devices_queue: Queue):
     em = EmbeddingModel(embedding_model, device=f"cuda:{device}")
 
     while True:
-        resources = in_queue.get()
+        claim_id, resources = in_queue.get()
 
         # Embed all the resources at once
         texts = [resource["url2text"] for resource in resources]
         embeddings = em.embed_many(texts, batch_size=32)
-        claim_id = int(resources[0]["claim_id"])
 
         # Send the processed data to the next worker
         out_queue.put((claim_id, embeddings))

@@ -108,8 +108,8 @@ class AVeriTeC(Benchmark):
     }
 
     extra_judge_rules = """* **Do not commit the "argument from ignorance" fallacy**: The absence of evidence
-    for claim `X` does NOT prove that `X` is false. Instead, `X` is simply unsupported--which is different
-    to `X` being refuted. Unsupported yet not refuted claims are of the category `not enough information`."""
+    for the Claim does NOT prove that the Claim is refuted. Instead, the Claim is simply unsupported--which is a case of 
+    'not enough information'."""
 
     available_actions = [WebSearch]
 

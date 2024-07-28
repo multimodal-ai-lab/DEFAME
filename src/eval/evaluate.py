@@ -2,7 +2,8 @@ import csv
 import inspect
 import time
 from multiprocessing import Pool, Queue, set_start_method
-from typing import Optional
+from queue import Empty
+from typing import Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -13,12 +14,12 @@ from tqdm import tqdm
 from src.common.label import Label
 from src.common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS, MLLM, LLM
 from src.eval.averitec.compute_score import compute_averitec_score
-from src.eval.benchmark import load_benchmark, AVeriTeC
+from src.eval.benchmark import load_benchmark, AVeriTeC, Benchmark
 from src.eval.logger import EvaluationLogger
 from src.fact_checker import FactChecker
-from src.tools import initialize_tools, Searcher, Tool
+from src.tools import initialize_tools, Searcher
 from src.tools.search.knowledge_base import KnowledgeBase
-from src.utils.console import green, red, bold
+from src.utils.console import green, red, bold, sec2hhmmss
 from src.utils.plot import plot_confusion_matrix
 
 
@@ -35,6 +36,7 @@ def evaluate(
         sample_ids: list[int] = None,
         random_sampling: bool = False,
         verbose: bool = False,
+        continue_experiment_dir: str = None,
 ) -> Optional[float]:
     assert not n_samples or not sample_ids
 
@@ -47,11 +49,20 @@ def evaluate(
     is_test = benchmark.variant == "test"
 
     llm = model_full_name_to_shorthand(llm) if llm not in AVAILABLE_MODELS["Shorthand"].values else llm
-    logger = EvaluationLogger(benchmark.shorthand, llm, verbose=verbose)
+    logger = EvaluationLogger(benchmark.shorthand,
+                              llm,
+                              verbose=verbose,
+                              target_dir=continue_experiment_dir)
+
+    is_resumed = continue_experiment_dir is not None
+
+    status_verb = "Resuming" if is_resumed else "Starting"
+    print(bold(f"{status_verb} evaluation for {benchmark.name}."))
 
     # Save hyperparams based on the signature of evaluate()
-    signature = inspect.signature(evaluate)
-    logger.save_config(signature, locals())
+    if not is_resumed:
+        signature = inspect.signature(evaluate)
+        logger.save_config(signature, locals())
 
     # Load the tools and verify if they are allowed
     tools = initialize_tools(tools_config, logger=logger)
@@ -66,14 +77,33 @@ def evaluate(
         benchmark.shuffle()
 
     if n_samples:
-        samples_to_evaluate = benchmark[:n_samples]
+        samples = benchmark[:n_samples]
+    elif sample_ids:
+        samples = [benchmark.get_by_id(i) for i in sample_ids]
     else:
-        if sample_ids:
-            samples_to_evaluate = [benchmark.get_by_id(i) for i in sample_ids]
-            n_samples = len(sample_ids)
-        else:
-            samples_to_evaluate = benchmark
-            n_samples = len(benchmark)
+        samples = benchmark
+
+    # Exclude already existing samples (relevant if evaluation is resumed)
+    if is_resumed:
+        samples_to_evaluate = []
+        # Retrieve the IDs of already checked claims
+        predictions_path = continue_experiment_dir + "/predictions.csv"
+        df = pd.read_csv(predictions_path)
+        checked_claim_ids = df["sample_index"].to_numpy()
+
+        # Only keep samples that haven't been checked yet
+        for sample in samples:
+            if sample["id"] not in checked_claim_ids:
+                samples_to_evaluate.append(sample)
+
+    else:
+        samples_to_evaluate = samples
+
+    # Update number of to-be-checked samples
+    n_samples = len(samples_to_evaluate)
+
+    if n_samples == 0:
+        raise RuntimeError("Nothing to evaluate.")
 
     is_averitec = isinstance(benchmark, AVeriTeC)
 
@@ -91,12 +121,13 @@ def evaluate(
     ))
 
     n_workers = torch.cuda.device_count()
-    print(f"Running evaluation using {n_workers} workers...")
+    print(f"Evaluating {n_samples} samples using {n_workers} workers...")
 
     worker_args = (llm, llm_kwargs, mllm, mllm_kwargs, fact_checker_kwargs,
                    tools_config, logger, is_averitec, input_queue, output_queue, devices_queue)
 
     with Pool(n_workers, fact_check, worker_args):
+        # Initialize workers by assigning them a GPU device
         for d in range(n_workers):
             devices_queue.put(d)
 
@@ -106,80 +137,139 @@ def evaluate(
             input_queue.put(content)
 
         # Gather worker results by reading the output queue
-        predictions, averitec_out = [], []
         for _ in tqdm(range(n_samples)):
-            doc, q_and_a = output_queue.get()
-            instance = doc.claim.original_context
-            claim_id = instance.id_number
+            try:
+                doc, q_and_a = output_queue.get(timeout=30 * 60)  # 30 minutes timeout
+            except Empty as e:
+                # Happens if some worker died during execution, causing an
+                # incomplete number of instances
+                break
+            content = doc.claim.original_context
+            claim_id = content.id_number
             instance = benchmark.get_by_id(claim_id)
             prediction = doc.verdict
 
-            if is_averitec and prediction == Label.CHERRY_PICKING:  # Needed for Averitec
-                prediction = Label.CONFLICTING
+            if is_averitec:
+                if prediction == Label.CHERRY_PICKING:
+                    # Merge cherry-picking and conflicting label
+                    prediction = Label.CONFLICTING
 
-            pred_label = benchmark.get_class_name(prediction)
-            averitec_out_instance = {
-                "claim_id": claim_id,
-                "claim": instance["content"].text,
-                "evidence": q_and_a,
-                "pred_label": pred_label
-            }
-            averitec_out.append(averitec_out_instance)
+                pred_label = benchmark.get_class_name(prediction)
+                averitec_out_instance = {
+                    "claim_id": claim_id,
+                    "claim": content.text,
+                    "evidence": q_and_a,
+                    "pred_label": pred_label
+                }
+
+                logger.save_next_averitec_out(averitec_out_instance)
+
+            logger.save_next_prediction(
+                sample_index=claim_id,
+                claim=doc.claim.text,
+                target=instance.get("label"),
+                justification=doc.justification,
+                predicted=prediction,
+                gt_justification=instance.get("justification")
+            )
+            logger.save_fc_doc(doc, instance['id'])
 
             if not is_test:
-                logger.save_next_prediction(
-                    sample_index=instance['id'],
-                    claim=doc.claim.text,
-                    target=instance["label"],
-                    justification=doc.justification,
-                    predicted=prediction,
-                    gt_justification=instance["justification"]
-                )
-                logger.save_fc_doc(doc, instance['id'])
-
                 prediction_is_correct = instance["label"] == prediction
                 if prediction_is_correct:
                     logger.log(bold(green("CORRECT\n")))
                 else:
                     logger.log(bold(red("WRONG - Ground truth: " + instance["label"].value + "\n")))
 
-            predictions.append(prediction)
+    end_time = time.time()
 
-    if is_averitec:
-        logger.save_averitec_out(averitec_out)
+    return finalize_evaluation(logger.target_dir, benchmark, duration=end_time - start_time)
 
-    search_summary = {
-        name: searcher.total_searches
-        for tool in tools if isinstance(tool, Searcher)  # TODO: Not updated anymore due to multiprocessing
-        for name, searcher in tool.search_apis.items()
-    }
+
+def finalize_evaluation(experiment_dir: str,
+                        benchmark: Benchmark,
+                        duration: float):
+    is_averitec = isinstance(benchmark, AVeriTeC)
+    is_test = benchmark.variant == "test"
+
+    # search_summary = {
+    #     name: searcher.total_searches
+    #     for tool in tools if isinstance(tool, Searcher)  # TODO: Not updated anymore due to multiprocessing
+    #     for name, searcher in tool.search_apis.items()
+    # }
+
+    # Retrieve predictions and ground truth
+    df = pd.read_csv(experiment_dir + "predictions.csv")
+    predicted_labels = df["predicted"].to_numpy()
+    ground_truth_labels = None if is_test else df["target"].to_numpy()
 
     benchmark_classes = benchmark.get_classes()
     if is_averitec:
         benchmark_classes.remove(Label.CHERRY_PICKING)
 
-    end_time = time.time()
-
-    ground_truth = None if is_test else [s["label"] for s in samples_to_evaluate]
-
-    accuracy = logger.save_results(predictions=predictions, ground_truth=ground_truth,
-                                   duration=end_time - start_time,
-                                   search_summary=search_summary)
+    accuracy = save_final_summary(predicted_labels=predicted_labels,
+                                  ground_truth_labels=ground_truth_labels,
+                                  duration=duration,
+                                  # search_summary=search_summary,
+                                  experiment_dir=experiment_dir)
 
     if not is_test:
-        plot_confusion_matrix(predictions,
-                              ground_truth,
+        plot_confusion_matrix(predicted_labels,
+                              ground_truth_labels,
                               benchmark_classes,
                               benchmark_name=benchmark.name,
-                              save_dir=logger.target_dir)
+                              save_dir=experiment_dir)
 
         if is_averitec:
-            scores = compute_averitec_score(benchmark.file_path, logger.averitec_out)
-            scores_path = logger.target_dir + "averitec_scores.yaml"
+            averitec_out_path = experiment_dir + "/" + EvaluationLogger.averitec_out_filename
+            scores = compute_averitec_score(benchmark.file_path, averitec_out_path)
+            scores_path = experiment_dir + "averitec_scores.yaml"
             with open(scores_path, "w") as f:
                 yaml.dump(scores, f, sort_keys=False)
 
         return accuracy
+
+
+def save_final_summary(predicted_labels: Sequence[Label],
+                       duration: float,
+                       # search_summary: dict,
+                       experiment_dir: str,
+                       ground_truth_labels: Sequence[Label] = None,
+                       print_summary: bool = True) -> Optional[float]:
+    n_samples = len(predicted_labels)
+    n_refused = np.count_nonzero(np.array(predicted_labels) == Label.REFUSED_TO_ANSWER)
+    # search_summary = ", ".join(f"{searcher}: {n_searches}" for searcher, n_searches in search_summary.items())
+
+    result_summary = {
+        "Total samples": n_samples,
+        "Refused predictions": int(n_refused),
+        "Run duration": sec2hhmmss(duration),
+        # "Total searches": search_summary,
+    }
+
+    if ground_truth_labels is not None:
+        correct_predictions = np.asarray(np.array(predicted_labels) == np.array(ground_truth_labels))
+        n_correct_predictions = np.sum(correct_predictions)
+        n_wrong_predictions = n_samples - n_correct_predictions - n_refused
+        accuracy = n_correct_predictions / (n_samples - n_refused)
+
+        result_summary.update({
+            "Correct predictions": int(n_correct_predictions),
+            "Wrong predictions": int(n_wrong_predictions),
+            "Accuracy": f"{accuracy * 100:.1f} %",
+        })
+
+    else:
+        accuracy = None
+
+    with open(experiment_dir + 'results.yaml', "w") as f:
+        yaml.dump(result_summary, f, sort_keys=False)
+
+    if print_summary:
+        print("Results:")
+        bold_print_dict(result_summary)
+
+    return accuracy
 
 
 def fact_check(llm: str, llm_kwargs: dict, mllm: str, mllm_kwargs: dict,
@@ -218,6 +308,7 @@ def fact_check(llm: str, llm_kwargs: dict, mllm: str, mllm_kwargs: dict,
         if is_averitec:
             # Restrict the KB to the current claim's resources
             kb.current_claim_id = content.id_number
+        logger.set_current_fc_id(content.id_number)
         _, docs, q_and_a = fc.check(content)
         doc = docs[0]
         output_queue.put((doc, q_and_a))
@@ -267,3 +358,8 @@ def naive_evaluate(model: str, model_kwargs: dict = None, benchmark_name: str = 
     accuracy = np.average(predictions)
 
     return accuracy, eval_log
+
+
+def bold_print_dict(dictionary: dict):
+    for key, value in dictionary.items():
+        print(f"\t{bold(str(key))}: {value}")
