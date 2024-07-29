@@ -10,10 +10,10 @@ import orjsonl
 import pandas as pd
 from PIL import Image
 
+from config.globals import path_to_data
+from src.common.action import Action, WebSearch, WikiDumpLookup
 from src.common.content import Content
 from src.common.label import Label
-from src.common.action import Action, WebSearch, WikiDumpLookup
-from config.globals import path_to_data
 
 
 class Benchmark(ABC, Iterable):
@@ -91,20 +91,22 @@ class AVeriTeC(Benchmark):
     }
 
     class_definitions = {
-        Label.SUPPORTED: "The knowledge from the fact-check supports or at least strongly implies the Claim. "
-                         "Mere plausibility is not enough for this decision.",
-        Label.NEI: "The fact-check does not contain sufficient information to come to a conclusion. For example, "
-                   "there is substantial lack of evidence. In this case, state which information exactly "
-                   "is missing. In particular, if no RESULTS or sources are available, pick this decision.",
-        Label.REFUTED: "The knowledge from the fact-check explicitly and clearly refutes the Claim. The mere "
-                       "absence or lack of supporting evidence is not enough for being refuted (argument "
-                       "from ignorance).",
-        Label.CONFLICTING: "The knowledge from the fact-check contains conflicting evidence from multiple "
-                           "reliable, up-to-date, non-refuted sources, even after extensive fact-checking research.",
-        Label.CHERRY_PICKING: "The Claim is supported or refuted, however it ignores important facts that, "
-                              "when added to the Claim, create a significantly different impression. Pick this "
-                              "decision also in the case if the Claim is not universally true but true under "
-                              "certain conditions.",
+        Label.SUPPORTED:
+            """The knowledge from the fact-check supports or at least strongly implies the Claim.
+            Mere plausibility is not enough for this decision.""",
+        Label.NEI:
+            """The fact-check does not contain sufficient information to come to a conclusion. In particular,
+            there is substantial lack of both supporting and refuting evidence.""",
+        Label.REFUTED:
+            """The knowledge from the fact-check explicitly and clearly refutes at least substantial parts
+            if not even the whole the Claim.""",
+        Label.CONFLICTING:
+            """The Claim has both supporting and refuting evidence from multiple sources.""",
+        Label.CHERRY_PICKING:
+            """The Claim is technically true but misleads by excluding important context. Including
+            that context would create a significantly different impression. Pick this
+            decision also in the case if the Claim is not universally true but true under
+            certain conditions.""",
     }
 
     extra_judge_rules = """* **Do not commit the "argument from ignorance" fallacy**: The absence of evidence

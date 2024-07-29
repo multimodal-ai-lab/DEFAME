@@ -51,65 +51,57 @@ def ensure_triple_ticks(input_string: str) -> str:
     return input_string
 
 
-def extract_first_code_block(
-        input_string: str,
-        ignore_language: bool = False,
-) -> str:
+def extract_first_code_block(input_string: str) -> str:
     """Extracts the contents of the first Markdown code block (enclosed with ``` ```)
      appearing in the given string. If no code block is found, returns ''."""
-    matches = find_code_blocks(input_string, ignore_language)
+    matches = find_code_blocks(input_string)
     return strip_string(matches[0]) if matches else ''
 
 
-def extract_last_code_block(
-        input_string: str,
-        ignore_language: bool = False,
-) -> str:
+def extract_last_code_block(text: str) -> str:
     """Extracts the contents of the last Markdown code block (enclosed with ``` ```)
      appearing in the given string. If no code block is found, returns ''."""
-    matches = find_code_blocks(input_string, ignore_language)
+    matches = find_code_blocks(text)
     return strip_string(matches[-1]) if matches else ''
 
 
-def extract_last_code_span(
-        input_string: str,
-        ignore_language: bool = False,
-) -> str:
+def extract_last_code_span(text: str) -> str:
     """Extracts the contents of the last Markdown code span (enclosed with ` `)
      appearing in the given string. If no code block is found, returns ''."""
-    matches = find_code_span(input_string, ignore_language)
+    matches = find_code_span(text)
     return strip_string(matches[-1]) if matches else ''
 
 
-def find_code_blocks(
-        input_string: str,
-        ignore_language: bool = False,
-):
-    # input_string = ensure_triple_ticks(input_string)
-    if ignore_language:
-        pattern = re.compile(r'```(?:\w+\n)?(.*?)```', re.DOTALL)
-    else:
-        pattern = re.compile(r'```(.*?)```', re.DOTALL)
-    matches = pattern.findall(input_string)
+def extract_last_enclosed_horizontal_line(text: str) -> str:
+    matches = find_enclosed_through_horizontal_line(text)
+    return strip_string(matches[-1]) if matches else ''
+
+
+def find_code_blocks(text: str):
+    return find(text, "```")
+
+
+def find_code_span(text: str):
+    return find(text, "`")
+
+
+def find_enclosed_through_horizontal_line(text: str):
+    return find(text, "---")
+
+
+def find(text: str, delimiter: str):
+    pattern = re.compile(f'{delimiter}(.*?){delimiter}', re.DOTALL)
+    matches = pattern.findall(text)
     return matches
+
+
+def extract_last_paragraph(text: str) -> str:
+    return strip_string(text.split("\n")[-1])
 
 
 def remove_code_blocks(input_string: str) -> str:
     pattern = re.compile(r'```(.*?)```', re.DOTALL)
     return pattern.sub('', input_string)
-
-
-def find_code_span(
-        input_string: str,
-        ignore_language: bool = False,
-):
-    # input_string = ensure_triple_ticks(input_string)
-    if ignore_language:
-        pattern = re.compile(r'`(?:\w+\n)?(.*?)`', re.DOTALL)
-    else:
-        pattern = re.compile(r'`(.*?)`', re.DOTALL)
-    matches = pattern.findall(input_string)
-    return matches
 
 
 def replace(text: str, replacements: dict):

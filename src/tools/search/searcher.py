@@ -32,6 +32,7 @@ class Searcher(Tool):
                  summarize: bool = True,
                  max_searches: int = 5,
                  limit_per_search: int = 5,
+                 max_result_len: int = None,  # chars
                  do_debug: bool = False,
                  **kwargs):
         super().__init__(**kwargs)
@@ -60,6 +61,7 @@ class Searcher(Tool):
         self.summarize = summarize
         self.max_searches = max_searches
         self.limit_per_search = limit_per_search
+        self.max_result_len = max_result_len  # chars
 
         self.debug = do_debug
 
@@ -116,11 +118,13 @@ class Searcher(Tool):
     def _postprocess_results(self, results: list[SearchResult]) -> list[SearchResult]:
         """Modifies the results text to avoid jinja errors when used in prompt."""
         for result in results:
-            result.text = postprocess_result(result.text)
+            result.text = self.postprocess_result(result.text)
         return results
 
-
-def postprocess_result(result: str):
-    """Removes all double curly braces to avoid conflicts with Jinja."""
-    result = re.sub(r"\{\{.*}}", "", result)
-    return result
+    def postprocess_result(self, result: str):
+        """Removes all double curly braces to avoid conflicts with Jinja and optionally truncates
+        the result text to a maximum length."""
+        result = re.sub(r"\{\{.*}}", "", result)
+        if self.max_result_len is not None:
+            result = result[self.max_result_len:]
+        return result
