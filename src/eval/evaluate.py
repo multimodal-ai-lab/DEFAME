@@ -37,6 +37,7 @@ def evaluate(
         random_sampling: bool = False,
         verbose: bool = False,
         continue_experiment_dir: str = None,
+        n_workers: int = None,
 ) -> Optional[float]:
     assert not n_samples or not sample_ids
 
@@ -120,7 +121,8 @@ def evaluate(
         extra_judge_rules=benchmark.extra_judge_rules,
     ))
 
-    n_workers = torch.cuda.device_count()
+    if n_workers is None:
+        n_workers = torch.cuda.device_count()
     print(f"Evaluating {n_samples} samples using {n_workers} workers...")
 
     worker_args = (llm, llm_kwargs, mllm, mllm_kwargs, fact_checker_kwargs,

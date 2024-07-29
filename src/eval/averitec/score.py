@@ -7,7 +7,7 @@ import scipy
 import sklearn
 from nltk import word_tokenize
 
-nltk.download("wordnet")
+nltk.download("wordnet", quiet=True)
 
 
 def pairwise_meteor(candidate, reference):
