@@ -2,7 +2,6 @@ import torch
 
 from src.common.action import FaceRecognition
 from src.common.results import Result
-from src.eval.logger import EvaluationLogger
 from src.tools.tool import Tool
 
 

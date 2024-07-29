@@ -4,7 +4,7 @@ import re
 from src.common.document import FCDocument
 from src.common.label import Label
 from src.common.modeling import LLM
-from src.eval.logger import EvaluationLogger
+from src.common.logger import Logger
 from src.prompts.prompt import JudgePrompt
 from src.utils.console import orange
 from src.utils.parsing import extract_last_code_span, is_guardrail_hit, GUARDRAIL_WARNING
@@ -21,7 +21,7 @@ class Judge:
 
     def __init__(self,
                  llm: LLM,
-                 logger: EvaluationLogger,
+                 logger: Logger,
                  classes: list[Label],
                  class_definitions: dict[Label, str] = None,
                  extra_rules: str = None,
@@ -43,11 +43,11 @@ class Judge:
             n_tries += 1
             if n_tries > self.max_retries:
                 ####################### AVeriTeC Specific #######################
-                self.logger.log(orange(f"Model refused to answer. Fallback to REFUTED Label."))
+                self.logger.warning(f"Model refused to answer. Fallback to REFUTED Label.")
                 verdict = Label.REFUTED
                 #################################################################
                 break
-            self.logger.log(orange("WARNING: Verdict generation did not contain any valid label. Retrying..."))
+            self.logger.warning("WARNING: Verdict generation did not contain any valid label. Retrying...")
         return verdict
 
     def _generate_verdict(self, prompt: str) -> Label:

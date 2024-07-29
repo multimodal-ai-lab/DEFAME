@@ -1,9 +1,10 @@
 import csv
 import inspect
 import time
-from multiprocessing import Pool, Queue, set_start_method
+from multiprocessing import Pool, Queue
 from queue import Empty
 from typing import Optional, Sequence
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -15,7 +16,7 @@ from src.common.label import Label
 from src.common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS, MLLM, LLM
 from src.eval.averitec.compute_score import compute_averitec_score
 from src.eval.benchmark import load_benchmark, AVeriTeC, Benchmark
-from src.eval.logger import EvaluationLogger
+from src.common.logger import Logger
 from src.fact_checker import FactChecker
 from src.tools import initialize_tools, Searcher
 from src.tools.search.knowledge_base import KnowledgeBase
@@ -35,7 +36,7 @@ def evaluate(
         n_samples: int = None,
         sample_ids: list[int] = None,
         random_sampling: bool = False,
-        verbose: bool = False,
+        print_log_level: str = False,
         continue_experiment_dir: str = None,
         n_workers: int = None,
 ) -> Optional[float]:
@@ -50,10 +51,10 @@ def evaluate(
     is_test = benchmark.variant == "test"
 
     llm = model_full_name_to_shorthand(llm) if llm not in AVAILABLE_MODELS["Shorthand"].values else llm
-    logger = EvaluationLogger(benchmark.shorthand,
-                              llm,
-                              verbose=verbose,
-                              target_dir=continue_experiment_dir)
+    logger = Logger(benchmark.shorthand,
+                    llm,
+                    print_log_level=print_log_level,
+                    target_dir=continue_experiment_dir)
 
     is_resumed = continue_experiment_dir is not None
 
@@ -125,8 +126,13 @@ def evaluate(
         n_workers = torch.cuda.device_count()
     print(f"Evaluating {n_samples} samples using {n_workers} workers...")
 
+    logger_kwargs = dict(
+        print_log_level=print_log_level,
+        target_dir=logger.target_dir
+    )
+
     worker_args = (llm, llm_kwargs, mllm, mllm_kwargs, fact_checker_kwargs,
-                   tools_config, logger, is_averitec, input_queue, output_queue, devices_queue)
+                   tools_config, logger_kwargs, is_averitec, input_queue, output_queue, devices_queue)
 
     with Pool(n_workers, fact_check, worker_args):
         # Initialize workers by assigning them a GPU device
@@ -188,9 +194,10 @@ def evaluate(
     return finalize_evaluation(logger.target_dir, benchmark, duration=end_time - start_time)
 
 
-def finalize_evaluation(experiment_dir: str,
+def finalize_evaluation(experiment_dir: str | Path,
                         benchmark: Benchmark,
                         duration: float):
+    experiment_dir = Path(experiment_dir)
     is_averitec = isinstance(benchmark, AVeriTeC)
     is_test = benchmark.variant == "test"
 
@@ -201,7 +208,7 @@ def finalize_evaluation(experiment_dir: str,
     # }
 
     # Retrieve predictions and ground truth
-    df = pd.read_csv(experiment_dir + "predictions.csv")
+    df = pd.read_csv(experiment_dir / "predictions.csv")
     predicted_labels = df["predicted"].to_numpy()
     ground_truth_labels = None if is_test else df["target"].to_numpy()
 
@@ -223,9 +230,9 @@ def finalize_evaluation(experiment_dir: str,
                               save_dir=experiment_dir)
 
         if is_averitec:
-            averitec_out_path = experiment_dir + "/" + EvaluationLogger.averitec_out_filename
+            averitec_out_path = experiment_dir / Logger.averitec_out_filename
             scores = compute_averitec_score(benchmark.file_path, averitec_out_path)
-            scores_path = experiment_dir + "averitec_scores.yaml"
+            scores_path = experiment_dir / "averitec_scores.yaml"
             with open(scores_path, "w") as f:
                 yaml.dump(scores, f, sort_keys=False)
 
@@ -235,7 +242,7 @@ def finalize_evaluation(experiment_dir: str,
 def save_final_summary(predicted_labels: Sequence[Label],
                        duration: float,
                        # search_summary: dict,
-                       experiment_dir: str,
+                       experiment_dir: Path,
                        ground_truth_labels: Sequence[Label] = None,
                        print_summary: bool = True) -> Optional[float]:
     n_samples = len(predicted_labels)
@@ -264,7 +271,7 @@ def save_final_summary(predicted_labels: Sequence[Label],
     else:
         accuracy = None
 
-    with open(experiment_dir + 'results.yaml', "w") as f:
+    with open(experiment_dir / 'results.yaml', "w") as f:
         yaml.dump(result_summary, f, sort_keys=False)
 
     if print_summary:
@@ -275,9 +282,11 @@ def save_final_summary(predicted_labels: Sequence[Label],
 
 
 def fact_check(llm: str, llm_kwargs: dict, mllm: str, mllm_kwargs: dict,
-               fact_checker_kwargs: dict, tools_config: dict, logger: EvaluationLogger,
+               fact_checker_kwargs: dict, tools_config: dict, logger_kwargs: dict,
                is_averitec: bool, input_queue: Queue, output_queue: Queue, devices_queue: Queue):
     device = f"cuda:{devices_queue.get()}"
+
+    logger = Logger(**logger_kwargs)
 
     tools = initialize_tools(tools_config, logger=logger, device=device)
 

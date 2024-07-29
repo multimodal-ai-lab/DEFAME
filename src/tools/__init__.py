@@ -1,5 +1,5 @@
 from src.tools.credibility_checker import CredibilityChecker
-from src.eval.logger import EvaluationLogger
+from src.common.logger import Logger
 from src.tools.face_recognizer import FaceRecognizer
 from src.tools.geolocator import Geolocator
 from src.tools.object_detector import ObjectDetector
@@ -24,7 +24,7 @@ def get_tool_by_name(name: str):
     raise ValueError(f'Tool with name "{name}" does not exist.')
 
 
-def initialize_tools(config: dict[str, dict], logger: EvaluationLogger, device=None) -> list[Tool]:
+def initialize_tools(config: dict[str, dict], logger: Logger, device=None) -> list[Tool]:
     tools = []
     for tool_name, kwargs in config.items():
         tool_class = get_tool_by_name(tool_name)

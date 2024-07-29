@@ -13,7 +13,7 @@ from transformers import BitsAndBytesConfig, pipeline
 from transformers.pipelines import Pipeline
 
 from config.globals import api_keys
-from src.eval.logger import EvaluationLogger
+from src.common.logger import Logger
 from src.utils import modeling
 from src.utils.console import cyan, magenta, orange
 from src.utils.parsing import is_guardrail_hit, GUARDRAIL_WARNING
@@ -182,7 +182,7 @@ class LanguageModel(ABC):
 
     def __init__(self,
                  name: str,
-                 logger: EvaluationLogger = None,
+                 logger: Logger = None,
                  temperature: float = 0.01,
                  max_response_len: int = 2048,
                  top_k: int = 50,
@@ -337,8 +337,8 @@ class LLM(LanguageModel):
                         top_p=top_p,  # TODO: Handle missing top_k
                     )
                 except openai.RateLimitError as e:
-                    self.logger.log((orange(f"OpenAI rate limit hit! {e}")), important=True)
-                    self.logger.log("Waiting for rate limit increase.")
+                    self.logger.warning(f"OpenAI rate limit hit! {e}")
+                    self.logger.debug("Waiting for rate limit increase.")
                     time.sleep(60)
                 else:
                     num_attempts += 1

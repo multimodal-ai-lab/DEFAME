@@ -3,7 +3,6 @@ from PIL import Image
 from transformers import AutoProcessor, AutoModelForObjectDetection
 
 from src.common.results import ObjectDetectionResult, Evidence
-from src.eval.logger import EvaluationLogger
 from src.tools.tool import Tool
 from src.common.action import DetectObjects
 

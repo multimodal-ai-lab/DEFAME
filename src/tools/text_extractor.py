@@ -4,7 +4,6 @@ import numpy as np
 
 from src.common.action import OCR
 from src.common.results import OCRResult, Result
-from src.eval.logger import EvaluationLogger
 from src.tools.tool import Tool
 
 

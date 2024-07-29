@@ -1,7 +1,7 @@
 from src.common.claim import Claim
 from src.common.content import Content
 from src.common.modeling import LLM, MLLM
-from src.eval.logger import EvaluationLogger
+from src.common.logger import Logger
 from src.prompts.prompt import FilterCheckWorthyPrompt, DecontextualizePrompt, SYMBOL, NOT_SYMBOL
 from third_party.factscore.atomic_facts import AtomicFactGenerator
 from src.utils.console import light_blue
@@ -15,7 +15,7 @@ class ClaimExtractor:
                  decompose: bool = False,
                  decontextualize: bool = False,
                  filter_check_worthy: bool = False,
-                 logger: EvaluationLogger = None,
+                 logger: Logger = None,
                  do_debug: bool = False):
         self.llm = llm
         self.mllm = mllm
