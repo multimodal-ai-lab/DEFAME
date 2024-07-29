@@ -19,7 +19,8 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
             decompose=False,
             decontextualize=False,
             filter_check_worthy=False,
-            max_iterations=2,
+            max_iterations=3,
+            max_result_len=64_000,  # characters
         ),
         llm_kwargs=dict(temperature=0.01),
         benchmark_name="averitec",
@@ -28,4 +29,5 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         # n_samples=8,
         random_sampling=False,
         verbose=False,
+        # n_workers=1,
     )
