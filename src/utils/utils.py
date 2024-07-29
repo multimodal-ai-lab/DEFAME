@@ -6,6 +6,8 @@ import shutil
 import string
 from typing import Any
 from tqdm import tqdm
+from pathlib import Path
+import yaml
 
 from src.utils.console import green, red
 from src.utils.parsing import strip_string
@@ -88,3 +90,10 @@ def my_hook(pbar: tqdm):
         pbar.update(n_blocks * block_size - pbar.n)
 
     return update_to
+
+
+def load_experiment_parameters(from_dir: str | Path):
+    config_path = Path(from_dir) / "config.yaml"
+    with open(config_path, "r") as f:
+        experiment_params = yaml.safe_load(f)
+    return experiment_params
