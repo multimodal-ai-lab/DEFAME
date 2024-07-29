@@ -17,6 +17,6 @@ evaluate(
     benchmark_name="fever",
     benchmark_kwargs=dict(version=1, variant="dev"),
     # sample_ids=[2],
-    verbose=True,
+    print_log_level="warning",
     random_sampling=False,
 )

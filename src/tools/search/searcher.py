@@ -2,7 +2,6 @@ import re
 
 from src.common.action import WebSearch, WikiDumpLookup, Search
 from src.common.results import SearchResult
-from src.eval.logger import EvaluationLogger
 from src.tools.search.duckduckgo import DuckDuckGo
 from src.tools.search.knowledge_base import KnowledgeBase
 from src.tools.search.query_serper import SerperAPI

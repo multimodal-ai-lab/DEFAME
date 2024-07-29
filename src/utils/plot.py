@@ -1,4 +1,5 @@
 from typing import Sequence
+from pathlib import Path
 
 import matplotlib as mpl
 import numpy as np
@@ -11,7 +12,7 @@ def plot_confusion_matrix(predictions: Sequence[Label],
                           ground_truth: Sequence[Label],
                           classes: Sequence[Label],
                           benchmark_name: str,
-                          save_dir: str = None):
+                          save_dir: Path = None):
     class_conversion = {c: v for v, c in enumerate(classes)}
 
     # Construct confusion matrix
@@ -45,8 +46,8 @@ def plot_confusion_matrix(predictions: Sequence[Label],
     plt.title(f"{benchmark_name} Confusion Matrix")
     fig.tight_layout()
     if save_dir:
-        plt.savefig(save_dir + "confusion.pdf")
-        plt.savefig(save_dir + "confusion.png")
+        plt.savefig(save_dir / "confusion.pdf")
+        plt.savefig(save_dir / "confusion.png")
     plt.show()
 
 

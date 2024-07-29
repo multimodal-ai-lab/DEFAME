@@ -34,18 +34,18 @@ class FactChecker:
                  filter_check_worthy: bool = False,
                  max_iterations: int = 5,
                  max_result_len: int = None,
-                 logger: EvaluationLogger = None,
+                 logger: Logger = None,
                  classes: Sequence[Label] = None,
                  class_definitions: dict[Label, str] = None,
                  extra_prepare_rules: str = None,
                  extra_plan_rules: str = None,
                  extra_judge_rules: str = None,
-                 verbose: bool = True,
+                 print_log_level: str = "warning",
                  ):
         assert not tools or not search_engines, \
             "You are allowed to specify either tools or search engines."
 
-        self.logger = logger or EvaluationLogger(verbose=verbose)
+        self.logger = logger or Logger(print_log_level=print_log_level)
 
         self.llm = LLM(llm, self.logger) if isinstance(llm, str) else llm
         self.mllm = MLLM(mllm, self.logger) if (isinstance(mllm, str)) else mllm
@@ -126,7 +126,7 @@ class FactChecker:
         if content.is_multimodal():
             assert self.mllm is not None, "Multimodal content provided but no multimodal model specified."
 
-        self.logger.log(bold(f"Content to be checked:\n'{light_blue(str(content))}'"), important=True)
+        self.logger.info(bold(f"Content to be checked:\n'{light_blue(str(content))}'"))
 
         claims = self.claim_extractor.extract_claims(content)
 
@@ -141,7 +141,7 @@ class FactChecker:
         overall_veracity = aggregate_predictions([doc.verdict for doc in docs])
         self.logger.log(bold(f"So, the overall veracity is: {overall_veracity.value}"))
         fc_duration = time.time() - start
-        self.logger.log(f"Fact-check took {sec2mmss(fc_duration)}.", important=True)
+        self.logger.info(f"Fact-check took {sec2mmss(fc_duration)}.")
         return overall_veracity, docs, q_and_a
 
     def perform_q_and_a(self, doc: FCDocument) -> (Label, list):
@@ -251,8 +251,8 @@ class FactChecker:
             # label = Label.REFUTED
         else:
             doc.justification = self.doc_summarizer.summarize(doc)
-            self.logger.log(bold(f"The claim '{light_blue(str(claim.text))}' is {label.value}."), important=True)
-            self.logger.log(f'Justification: {gray(doc.justification)}', important=True)
+            self.logger.info(bold(f"The claim '{light_blue(str(claim.text))}' is {label.value}."))
+            self.logger.info(f'Justification: {gray(doc.justification)}')
         doc.verdict = label
 
         return doc, q_and_a

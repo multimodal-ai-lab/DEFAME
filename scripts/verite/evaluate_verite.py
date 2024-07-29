@@ -20,6 +20,6 @@ evaluate(
     benchmark_name="verite",
     benchmark_kwargs=dict(variant="dev"),
     n_samples=20,
-    verbose=True,
+    print_log_level="warning",
     random_sampling=False,
 )

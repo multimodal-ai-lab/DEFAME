@@ -8,7 +8,7 @@ from src.common.action import (Action, ACTION_REGISTRY, IMAGE_ACTIONS, WebSearch
 from src.common.content import Content
 from src.common.document import FCDocument
 from src.common.modeling import LLM
-from src.eval.logger import EvaluationLogger
+from src.common.logger import Logger
 from src.prompts.prompt import PlanPrompt, ProposeQueries
 from src.utils.parsing import extract_last_code_block, remove_code_blocks, find_code_span, strip_string
 
@@ -20,7 +20,7 @@ class Planner:
     def __init__(self,
                  valid_actions: Collection[type[Action]],
                  llm: LLM,
-                 logger: EvaluationLogger,
+                 logger: Logger,
                  extra_rules: str,
                  fall_back: str):
         assert len(valid_actions) > 0

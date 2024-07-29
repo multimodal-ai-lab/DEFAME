@@ -4,7 +4,7 @@ from openai import APIError
 from src.common.document import FCDocument
 from src.common.modeling import LLM
 from src.common.results import Result, SearchResult
-from src.eval.logger import EvaluationLogger
+from src.common.logger import Logger
 from src.prompts.prompt import SummarizeResultPrompt, SelectionPrompt
 from src.utils.console import gray, orange, num2text
 from src.utils.parsing import extract_answer_and_url
@@ -14,7 +14,7 @@ class ResultSummarizer:
     """Summarizes any collection of (search etc.) results w.r.t. the current
     fact-checking document."""
 
-    def __init__(self, model: LLM, logger: EvaluationLogger):
+    def __init__(self, model: LLM, logger: Logger):
         self.model = model
         self.logger = logger
 

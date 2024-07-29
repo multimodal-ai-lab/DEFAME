@@ -28,6 +28,6 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         # sample_ids=[381],
         # n_samples=8,
         random_sampling=False,
-        verbose=False,
-        # n_workers=1,
+        print_log_level="warning",
+        # n_workers=2,
     )

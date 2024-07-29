@@ -4,15 +4,16 @@ import logging
 import os.path
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
-from typing import Sequence, Optional
+from pathlib import Path
+from typing import Optional
+import sys
 
-import numpy as np
 import yaml
 
 from config.globals import path_to_result
 from src.common.document import FCDocument
 from src.common.label import Label
-from src.utils.console import remove_string_formatters, bold, sec2hhmmss
+from src.utils.console import remove_string_formatters, bold, red, orange, yellow
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('openai').setLevel(logging.ERROR)
@@ -28,68 +29,62 @@ logging.getLogger('httpcore').setLevel(logging.ERROR)
 logging.getLogger('httpx').setLevel(logging.ERROR)
 
 
-class EvaluationLogger:
-    """Used to permanently save any information related to an evaluation run."""
+class Logger:
+    """Takes care of saving any information (logs, results etc.) related to an evaluation run.
+
+    Args:
+        benchmark_name: The shorthand name of the benchmark being evaluated. Used
+            to name the directory.
+        model_name: The shorthand name of the model used for evaluation. Also used
+            to name the directory.
+        print_log_level: Pick any of "critical", "error", "warning", "info", "debug"
+        target_dir: If specified, re-uses an existing directory, i.e., it appends logs
+            and results to existing files."""
 
     averitec_out_filename = 'averitec_out.json'
+    config_filename = 'config.yaml'
 
     def __init__(self,
-                 dataset_abbr: str = None,
-                 model_abbr: str = None,
-                 verbose: bool = True,
-                 target_dir: str = None):
-        """Initializes the files used to track evaluation."""
-        log_date = datetime.now().strftime("%Y-%m-%d_%H-%M")
-
-        # Determine the target dir
-        if target_dir is None:
-            target_dir = path_to_result
-            if dataset_abbr:
-                target_dir += f'{dataset_abbr}/'
-            target_dir += log_date
-            if model_abbr:
-                target_dir += f'_{model_abbr}'
-
-            # Increment target dir name if it exists
-            target_dir_tmp = target_dir
-            i = 1
-            while os.path.exists(target_dir_tmp):
-                target_dir_tmp = target_dir + f'_{i}'
-                i += 1
-            target_dir = target_dir_tmp
-
-        self.target_dir = target_dir + '/'
+                 benchmark_name: str = None,
+                 model_name: str = None,
+                 print_log_level: str = "warning",
+                 target_dir: str | Path = None):
+        # Set up the target directory storing all logs and results
+        self.target_dir = _determine_target_dir(benchmark_name, model_name) \
+            if target_dir is None else Path(target_dir)
         os.makedirs(self.target_dir, exist_ok=True)
 
-        # Define file and directory paths
-        self.fc_docs_dic = self.target_dir + 'docs/'
-        os.makedirs(self.fc_docs_dic, exist_ok=True)
-        self.logs_dir = self.target_dir + 'logs/'
+        # Define any other file and directory paths
+        self.fc_docs_dir = self.target_dir / 'docs'
+        os.makedirs(self.fc_docs_dir, exist_ok=True)
+        self.logs_dir = self.target_dir / 'logs'
         os.makedirs(self.logs_dir, exist_ok=True)
 
-        self.config_path = self.target_dir + 'config.yaml'
-        self.predictions_path = self.target_dir + 'predictions.csv'
-        self.averitec_out = self.target_dir + self.averitec_out_filename
+        self.config_path = self.target_dir / self.config_filename
+        self.predictions_path = self.target_dir / 'predictions.csv'
+        self.averitec_out = self.target_dir / self.averitec_out_filename
 
         logging.basicConfig(level=logging.DEBUG)
 
         self._current_fact_check_id = None
-        self.verbose = verbose
 
-        self.logger = logging.getLogger('print')
+        # Initialize logging module for both console printing and file logging
+        self.logger = logging.getLogger('mafc')
         self.logger.propagate = False  # Disable propagation to avoid duplicate logs
-        # self.logger.setLevel(verbose * 10)  TODO
+        stdout_handler = logging.StreamHandler(sys.stdout)
+        stdout_handler.setLevel(print_log_level.upper())
+        self.logger.addHandler(stdout_handler)
         self._update_file_handler()
 
-        # Initialize result files (might exist if this logger is resumed)
-        if dataset_abbr and not os.path.exists(self.predictions_path):
+        # Initialize result files (skip if logger is resumed)
+        if not os.path.exists(self.predictions_path):
             self._init_predictions_csv()
-
         if not os.path.exists(self.averitec_out):
             self._init_averitec_out()
 
     def set_current_fc_id(self, index: int):
         self._current_fact_check_id = index
+        self._update_file_handler()
 
     def _update_file_handler(self):
         """If a fact-check ID is set, writes to logs/<fc_id>.txt, otherwise to log.txt."""
@@ -100,14 +95,17 @@ class EvaluationLogger:
                 handler.close()  # release the file
 
         if self._current_fact_check_id is None:
-            log_path = self.target_dir + 'log.txt'
+            log_path = self.target_dir / 'log.txt'
         else:
-            log_path = self.logs_dir + f'{self._current_fact_check_id}.txt'
+            log_path = self.logs_dir / f'{self._current_fact_check_id}.txt'
 
         # Create and add the new file handler
         log_to_file_handler = RotatingFileHandler(log_path,
                                                   maxBytes=10 * 1024 * 1024,
                                                   backupCount=5)
+        log_to_file_handler.setLevel(logging.DEBUG)
+        formatter = RemoveStringFormattingFormatter()
+        log_to_file_handler.setFormatter(formatter)
         self.logger.addHandler(log_to_file_handler)
 
     def save_config(self, signature, local_scope, print_summary: bool = True):
@@ -130,10 +128,23 @@ class EvaluationLogger:
                                     "correct",
                                     "gt_justification"))
 
-    def log(self, text: str, important: bool = False):
-        if self.verbose or important:
-            print("--> " + text)
-        self.logger.info("--> " + remove_string_formatters(text))
+    def critical(self, msg: str):
+        self.logger.critical(bold(red(msg)))
+
+    def error(self, msg: str):
+        self.logger.error(red(msg))
+
+    def warning(self, msg: str):
+        self.logger.warning(orange(msg))
+
+    def info(self, msg: str):
+        self.logger.info(yellow(msg))
+
+    def debug(self, msg: str):
+        self.logger.debug(msg)
+
+    def log(self, msg: str):
+        self.debug(msg)
 
     def save_next_prediction(self,
                              sample_index: int,
@@ -154,7 +165,7 @@ class EvaluationLogger:
                                     gt_justification))
 
     def save_fc_doc(self, doc: FCDocument, claim_id: int):
-        with open(self.fc_docs_dic + f"{claim_id}.md", "w") as f:
+        with open(self.fc_docs_dir / f"{claim_id}.md", "w") as f:
             f.write(str(doc))
 
     def _init_averitec_out(self):
@@ -165,5 +176,29 @@ class EvaluationLogger:
         with open(self.averitec_out, "r") as f:
             current_outs = json.load(f)
         current_outs.append(next_out)
+        current_outs.sort(key=lambda x: x["claim_id"])  # Score computation requires sorted output
         with open(self.averitec_out, "w") as f:
             json.dump(current_outs, f, indent=4)
+
+
+class RemoveStringFormattingFormatter(logging.Formatter):
+    """Logging formatter that removes any string formatting symbols from the message."""
+    def format(self, record):
+        msg = record.getMessage()
+        return remove_string_formatters(msg)
+
+
+def _determine_target_dir(benchmark_name: str, model_name: str = None) -> Path:
+    assert benchmark_name is not None
+    log_date = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    folder_name = log_date
+    if model_name:
+        folder_name += f'_{model_name}'
+
+    # Increment target dir name if it exists
+    folder_name_tmp = folder_name
+    i = 1
+    while os.path.exists(Path(path_to_result) / benchmark_name / folder_name_tmp):
+        folder_name_tmp = folder_name + f'_{i}'
+        i += 1
+    return Path(path_to_result) / benchmark_name / folder_name_tmp

@@ -6,7 +6,7 @@ from transformers import AutoProcessor, AutoModel
 
 from src.common.action import Geolocate
 from src.common.results import GeolocationResult, Result
-from src.eval.logger import EvaluationLogger
+from src.common.logger import Logger
 from src.tools.tool import Tool
 
 
@@ -18,7 +18,7 @@ class Geolocator(Tool):
     def __init__(self,
                  model_name: str = "geolocal/StreetCLIP",
                  top_k=10,
-                 logger: EvaluationLogger = None, **kwargs):
+                 logger: Logger = None, **kwargs):
         super().__init__(**kwargs)
         """
         Initialize the GeoLocator with a pretrained model from Hugging Face.

@@ -174,7 +174,7 @@ class KnowledgeBase(LocalSearchAPI):
             distances, indices = knn.kneighbors(query_embedding, limit)
             return self._indices_to_search_results(indices[0], query)
         except Exception as e:
-            self.logger.log(orange(f"Resource retrieval from kNN failed: {e}"), important=True)
+            self.logger.warning(f"Resource retrieval from kNN failed: {e}")
             return []
 
     def _download(self):

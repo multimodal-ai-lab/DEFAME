@@ -2,7 +2,6 @@ from src.common.action import CredibilityCheck
 from src.common.modeling import LLM
 from src.common.results import Result
 from src.utils.parsing import is_url
-from src.eval.logger import EvaluationLogger
 from src.tools.tool import Tool
 
 
