@@ -5,6 +5,8 @@ import numpy as np
 
 from src.eval.averitec.score import AVeriTeCEvaluator, print_with_space
 
+import matplotlib.pyplot as plt
+
 scorer = AVeriTeCEvaluator()
 metric = scorer.metric
 
@@ -20,9 +22,29 @@ def compute_averitec_score(dataset_path: str | Path, results_path: str | Path) -
         results = json.load(f_res)
 
     # Question-only score
-    q_only_score = scorer.evaluate_questions_only(results, dataset)
+    q_only_score, all_q_scores = scorer.evaluate_questions_only(results, dataset)
     print(f"\nQuestion-only score (HU-{metric}): {q_only_score:.4f}")
     scores["Question-only score"] = float(np.round(q_only_score, 4))
+
+    # Visualize metric distribution
+    plt.hist(all_q_scores, bins=20)
+    plt.axvline(x=0.25, linestyle='dashed', color='orange')
+    plt.xlim(0, 1)
+    plt.title("Hungarian Meteor score distribution for answers")
+    plt.show()
+
+    # Show 5 worst scored questions (and the corresponding ground truth)
+    print("\nWorst scored instances:")
+    q_scores_sorted = np.argsort(all_q_scores)
+    for i in q_scores_sorted[:5]:
+        print(f"\nClaim {i}: {all_q_scores[i]:.4f}")
+        print(results[i]["claim"])
+        print("Generated questions:")
+        for evidence in results[i]["evidence"]:
+            print("\t" + evidence["question"])
+        print("Gold questions:")
+        for evidence in dataset[i]["questions"]:
+            print("\t" + evidence["question"])
 
     # Q&A score
     q_and_a_score = scorer.evaluate_questions_and_answers(results, dataset)

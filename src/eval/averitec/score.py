@@ -128,7 +128,7 @@ class AVeriTeCEvaluator:
 
             all_utils.append(assignment_utility)
 
-        return np.mean(all_utils)
+        return np.mean(all_utils), all_utils
 
     def get_n_best_qau(self, srcs, tgts, n=3):
         all_utils = []
