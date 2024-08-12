@@ -158,4 +158,4 @@ def extract_answer_and_url(response: str) -> tuple[Optional[str], Optional[str]]
     return generated_answer, url
 
 
-GUARDRAIL_WARNING = orange("Model hit the safety guardrails -.-'. Defaulting to REFUSED")
+GUARDRAIL_WARNING = orange("Model hit the safety guardrails.")
