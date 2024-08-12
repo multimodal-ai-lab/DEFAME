@@ -30,7 +30,7 @@ def compute_averitec_score(dataset_path: str | Path, results_path: str | Path) -
     plt.hist(all_q_scores, bins=20)
     plt.axvline(x=0.25, linestyle='dashed', color='orange')
     plt.xlim(0, 1)
-    plt.title("Hungarian Meteor score distribution for answers")
+    plt.title("Hungarian Meteor score distribution for questions only")
     plt.show()
 
     # Show 5 worst scored questions (and the corresponding ground truth)
@@ -47,9 +47,16 @@ def compute_averitec_score(dataset_path: str | Path, results_path: str | Path) -
             print("\t" + evidence["question"])
 
     # Q&A score
-    q_and_a_score = scorer.evaluate_questions_and_answers(results, dataset)
+    q_and_a_score, all_qa_scores = scorer.evaluate_questions_and_answers(results, dataset)
     print(f"Question-answer score (HU-{metric}): {q_and_a_score:.4f}")
     scores["Question-answer score"] = float(np.round(q_and_a_score, 4))
+
+    # Visualize metric distribution
+    plt.hist(all_qa_scores, bins=20)
+    plt.axvline(x=0.25, linestyle='dashed', color='orange')
+    plt.xlim(0, 1)
+    plt.title("Hungarian Meteor score distribution for Q&A")
+    plt.show()
 
     # Veracity F1 score
     veracity_scores = scorer.evaluate_veracity(results, dataset)

@@ -6,4 +6,4 @@ experiment_dir = ""
 
 experiment_params = load_experiment_parameters(experiment_dir)
 averitec = AVeriTeC(**experiment_params["benchmark_kwargs"])
-finalize_evaluation(experiment_dir, benchmark=averitec, duration=0)
+finalize_evaluation(experiment_dir, benchmark=averitec)
