@@ -13,7 +13,7 @@ from src.modules.claim_extractor import ClaimExtractor
 from src.modules.doc_summarizer import DocSummarizer
 from src.modules.judge import Judge
 from src.modules.planner import Planner
-from src.prompts.prompt import PoseQuestionsPrompt, ReiteratePrompt, AnswerPrompt, InterpretPrompt
+from src.prompts.prompt import PoseQuestionsPrompt, ReiteratePrompt, AnswerPrompt, InterpretPrompt, AnswerPromptSimple
 from src.tools import *
 from src.utils.console import gray, light_blue, bold, sec2mmss, orange
 from src.utils.parsing import find_code_span, extract_last_code_span, extract_last_paragraph
@@ -27,7 +27,7 @@ class FactChecker:
                  mllm: Optional[str | MLLM] = None,
                  tools: list[Tool] = None,
                  search_engines: dict[str, dict] = None,
-                 stop_after_q_and_a: bool = False,
+                 procedure_variant: str = None,
                  interpret: bool = False,
                  decompose: bool = False,
                  decontextualize: bool = False,
@@ -89,9 +89,9 @@ class FactChecker:
         self.doc_summarizer = DocSummarizer(self.llm, self.logger)
 
         self.extra_prepare_rules = extra_prepare_rules
-        self.stop_after_q_and_a = stop_after_q_and_a
         self.max_iterations = max_iterations
         self.max_result_len = max_result_len
+        self.procedure_variant = procedure_variant
 
     def _initialize_tools(self, search_engines: dict[str, dict]) -> list[Tool]:
         """Loads a default collection of tools."""
@@ -143,6 +143,26 @@ class FactChecker:
         fc_duration = time.time() - start
         self.logger.log(f"Fact-check took {sec2mmss(fc_duration)}.")
         return overall_veracity, docs, q_and_a
+
+    def perform_naive(self, doc: FCDocument) -> (Label, list):
+        verdict = self.judge.judge_naively(doc)
+        return verdict, []
+
+    def perform_simple_q_and_a(self, doc: FCDocument) -> (Label, list):
+        """Asks 10 questions and tries to answer them (required by AVeriTeC challenge)."""
+        questions = self._pose_questions(no_of_questions=10, doc=doc)
+        q_and_a = []
+        for question in questions:
+            qa_instance = self.approach_question_simple(question)
+            if qa_instance is not None:
+                q_and_a.append(qa_instance)
+                qa_string = (f"### {question}\n"
+                             f"Answer: {qa_instance['answer']}\n"
+                             f"Source URL: {qa_instance['url']}")
+                doc.add_reasoning(qa_string)
+        label = self.judge.judge(doc)
+
+        return label, q_and_a
 
     def perform_q_and_a(self, doc: FCDocument) -> (Label, list):
         """Asks 10 questions and tries to answer them (required by AVeriTeC challenge)."""
@@ -212,11 +232,32 @@ class FactChecker:
                                "scraped_text": relevant_result.text}
                 return qa_instance
 
+    def approach_question_simple(self, question: str) -> Optional[dict]:
+        """Tries to answer the given question. If unanswerable, returns None."""
+        self.logger.log(light_blue(f"Answering question: {question}"))
+        self.actor.reset()
+        search_action = self.planner.propose_queries_for_question_simple(question)
+
+        evidence = self.actor.perform([search_action], summarize=False)[0]
+        result = evidence.results[0]
+        assert isinstance(result, SearchResult)
+
+        answer = self.answer_question_simple(question, result)
+
+        if answer:
+            self.logger.log(f"Got answer: {answer}")
+            qa_instance = {"question": question,
+                           "answer": answer,
+                           "url": result.source,
+                           "scraped_text": result.text}
+            return qa_instance
+        else:
+            self.logger.log("Got no answer.")
+
     def perform_open_verification(self, doc: FCDocument) -> (Label, list):
         n_iterations = 0
         while ((label := self.judge.judge(doc)) == Label.NEI
-               and n_iterations < self.max_iterations
-               and not self.stop_after_q_and_a):
+               and n_iterations < self.max_iterations):
             self.logger.log("Not enough information yet. Continuing fact-check...")
             n_iterations += 1
             actions, reasoning = self.planner.plan_next_actions(doc)
@@ -237,10 +278,12 @@ class FactChecker:
         self.actor.reset()  # remove all past search evidences
         doc = FCDocument(claim)
 
-        label, q_and_a = self.perform_q_and_a(doc)
-
-        if not self.stop_after_q_and_a:
-            label, _ = self.perform_open_verification(doc)
+        # Depending on the specified procedure variant, perform the fact-check
+        match self.procedure_variant:
+            case "naive": label, q_and_a = self.perform_naive(doc)
+            case "unstructured": label, q_and_a = self.perform_open_verification(doc)
+            case "simple_qa": label, q_and_a = self.perform_simple_q_and_a(doc)
+            case _: label, q_and_a = self.perform_q_and_a(doc)  # default FC method
 
         # Finalize the fact-check
         doc.add_reasoning("## Final Judgement\n" + self.judge.get_latest_reasoning())
@@ -283,6 +326,18 @@ class FactChecker:
             except:
                 pass
         return None, None
+
+    def answer_question_simple(self, question: str, result: SearchResult) -> Optional[str]:
+        """Generates an answer to the given question."""
+        prompt = AnswerPromptSimple(question, result)
+        response = self.llm.generate(str(prompt), max_attempts=3)
+        # Extract answer from response
+        if "`NONE`" not in response:
+            try:
+                answer = extract_last_paragraph(response)
+                return answer
+            except:
+                pass
 
     def _consolidate_knowledge(self, doc: FCDocument, evidences: Collection[Evidence]):
         """Analyzes the currently available information and states new questions, adds them

@@ -14,7 +14,7 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
             limit_per_search=5
         )),
         fact_checker_kwargs=dict(
-            stop_after_q_and_a=True,
+            procedure_variant="simple_qa",
             interpret=False,
             decompose=False,
             decontextualize=False,
