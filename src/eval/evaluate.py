@@ -20,7 +20,7 @@ from src.common.logger import Logger
 from src.fact_checker import FactChecker
 from src.tools import initialize_tools, Searcher
 from src.tools.search.knowledge_base import KnowledgeBase
-from src.utils.console import green, red, bold, sec2hhmmss
+from src.utils.console import green, red, bold, sec2hhmmss, sec2mmss
 from src.utils.plot import plot_confusion_matrix
 
 
@@ -60,6 +60,13 @@ def evaluate(
 
     status_verb = "Resuming" if is_resumed else "Starting"
     print(bold(f"{status_verb} evaluation for {benchmark.name}."))
+
+    n_devices = torch.cuda.device_count()
+    if n_workers is None:
+        match llm:
+            case "llama3_8b": n_workers = 8
+            case "llama3_70b": n_workers = 3  # only 3 copies fit on 8 A100 GPUs
+            case _: n_workers = n_devices * 2  # 2 workers per GPU
 
     # Save hyperparams based on the signature of evaluate()
     if not is_resumed:
@@ -122,10 +129,6 @@ def evaluate(
         extra_judge_rules=benchmark.extra_judge_rules,
     ))
 
-    if n_workers is None:
-        n_workers = torch.cuda.device_count()
-    print(f"Evaluating {n_samples} samples using {n_workers} workers...")
-
     logger_kwargs = dict(
         print_log_level=print_log_level,
         target_dir=logger.target_dir
@@ -134,10 +137,12 @@ def evaluate(
     worker_args = (llm, llm_kwargs, mllm, mllm_kwargs, fact_checker_kwargs,
                    tools_config, logger_kwargs, is_averitec, input_queue, output_queue, devices_queue)
 
+    print(f"Evaluating {n_samples} samples using {n_workers} workers...")
+
     with Pool(n_workers, fact_check, worker_args):
         # Initialize workers by assigning them a GPU device
         for d in range(n_workers):
-            devices_queue.put(d)
+            devices_queue.put(d % n_devices)
 
         # Fill the input queue with benchmark instances
         for instance in samples_to_evaluate:
@@ -145,7 +150,7 @@ def evaluate(
             input_queue.put(content)
 
         # Gather worker results by reading the output queue
-        for _ in tqdm(range(n_samples)):
+        for _ in tqdm(range(n_samples), smoothing=0.02):
             try:
                 doc, q_and_a = output_queue.get(timeout=30 * 60)  # 30 minutes timeout
             except Empty as e:
@@ -191,12 +196,13 @@ def evaluate(
 
     end_time = time.time()
 
-    return finalize_evaluation(logger.target_dir, benchmark, duration=end_time - start_time)
+    return finalize_evaluation(logger.target_dir, benchmark, duration=end_time - start_time, n_workers=n_workers)
 
 
 def finalize_evaluation(experiment_dir: str | Path,
                         benchmark: Benchmark,
-                        duration: float):
+                        duration: float = None,
+                        n_workers: int = None):
     experiment_dir = Path(experiment_dir)
     is_averitec = isinstance(benchmark, AVeriTeC)
     is_test = benchmark.variant == "test"
@@ -216,9 +222,12 @@ def finalize_evaluation(experiment_dir: str | Path,
     if is_averitec:
         benchmark_classes.remove(Label.CHERRY_PICKING)
 
+    time_per_claim = n_workers * duration / len(predicted_labels) if duration and n_workers else None
+
     accuracy = save_final_summary(predicted_labels=predicted_labels,
                                   ground_truth_labels=ground_truth_labels,
                                   duration=duration,
+                                  time_per_claim=time_per_claim,
                                   # search_summary=search_summary,
                                   experiment_dir=experiment_dir)
 
@@ -240,9 +249,10 @@ def finalize_evaluation(experiment_dir: str | Path,
 
 
 def save_final_summary(predicted_labels: Sequence[Label],
-                       duration: float,
                        # search_summary: dict,
                        experiment_dir: Path,
+                       duration: float = None,
+                       time_per_claim: float = None,
                        ground_truth_labels: Sequence[Label] = None,
                        print_summary: bool = True) -> Optional[float]:
     n_samples = len(predicted_labels)
@@ -252,7 +262,8 @@ def save_final_summary(predicted_labels: Sequence[Label],
     result_summary = {
         "Total samples": n_samples,
         "Refused predictions": int(n_refused),
-        "Run duration": sec2hhmmss(duration),
+        "Total run duration (h)": sec2hhmmss(duration),
+        "Time per claim (min)": sec2mmss(time_per_claim),
         # "Total searches": search_summary,
     }
 
