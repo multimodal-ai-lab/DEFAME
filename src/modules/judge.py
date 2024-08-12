@@ -5,7 +5,7 @@ from src.common.document import FCDocument
 from src.common.label import Label
 from src.common.modeling import LLM
 from src.common.logger import Logger
-from src.prompts.prompt import JudgePrompt
+from src.prompts.prompt import JudgePrompt, JudgeNaively
 from src.utils.console import orange
 from src.utils.parsing import extract_last_code_span, is_guardrail_hit, GUARDRAIL_WARNING
 
@@ -37,9 +37,16 @@ class Judge:
         self.logger = logger
 
     def judge(self, doc: FCDocument) -> Label:
-        judge_prompt = JudgePrompt(doc, self.classes, self.class_definitions, self.extra_rules)
+        prompt = JudgePrompt(doc, self.classes, self.class_definitions, self.extra_rules)
+        return self._get_verdict(str(prompt))
+
+    def judge_naively(self, doc: FCDocument) -> Label:
+        prompt = JudgeNaively(doc.claim, self.classes, self.class_definitions)
+        return self._get_verdict(str(prompt))
+
+    def _get_verdict(self, prompt: str) -> Label:
         n_tries = 0
-        while (verdict := self._generate_verdict(str(judge_prompt))) == Label.REFUSED_TO_ANSWER:
+        while (verdict := self._generate_verdict(str(prompt))) == Label.REFUSED_TO_ANSWER:
             n_tries += 1
             if n_tries > self.max_retries:
                 ####################### AVeriTeC Specific #######################
@@ -67,12 +74,12 @@ class Judge:
             return Label.REFUSED_TO_ANSWER
 
         # Extract the verdict
-        verdict = self._extract_verdict(response)
+        verdict = self.extract_verdict(response)
         if verdict == Label.REFUSED_TO_ANSWER:
             self.logger.log(orange(f"WARNING: Ill-formatted verdict in response:\n{response}"))
         return verdict
 
-    def _extract_verdict(self, response: str) -> Label:
+    def extract_verdict(self, response: str) -> Label:
         """Extract label from response"""
         answer = extract_last_code_span(response)
         answer = re.sub(r'[^\w\-\s]', '', answer).strip().lower()

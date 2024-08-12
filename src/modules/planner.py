@@ -9,7 +9,7 @@ from src.common.content import Content
 from src.common.document import FCDocument
 from src.common.modeling import LLM
 from src.common.logger import Logger
-from src.prompts.prompt import PlanPrompt, ProposeQueries
+from src.prompts.prompt import PlanPrompt, ProposeQueries, ProposeQuerySimple
 from src.utils.parsing import extract_last_code_block, remove_code_blocks, find_code_span, strip_string
 
 
@@ -78,7 +78,7 @@ class Planner:
 
             self.logger.log("WARNING: No new actions were found. Retrying...")
 
-    def propose_queries_for_question(self, question: str, doc: FCDocument) -> (list[Action], str):
+    def propose_queries_for_question(self, question: str, doc: FCDocument) -> list[Action]:
         prompt = ProposeQueries(question, doc)
 
         n_tries = 0
@@ -89,6 +89,20 @@ class Planner:
                 
             if len(queries) > 0 or n_tries == self.max_tries:
                 return queries
+
+            self.logger.log("WARNING: No new actions were found. Retrying...")
+
+    def propose_queries_for_question_simple(self, question: str) -> Action:
+        prompt = ProposeQuerySimple(question)
+
+        n_tries = 0
+        while True:
+            n_tries += 1
+            response = self.llm.generate(str(prompt))
+            queries = self._extract_queries(response)
+
+            if len(queries) > 0 or n_tries == self.max_tries:
+                return queries[0]
 
             self.logger.log("WARNING: No new actions were found. Retrying...")
 
