@@ -141,7 +141,7 @@ class FactChecker:
         overall_veracity = aggregate_predictions([doc.verdict for doc in docs])
         self.logger.log(bold(f"So, the overall veracity is: {overall_veracity.value}"))
         fc_duration = time.time() - start
-        self.logger.info(f"Fact-check took {sec2mmss(fc_duration)}.")
+        self.logger.log(f"Fact-check took {sec2mmss(fc_duration)}.")
         return overall_veracity, docs, q_and_a
 
     def perform_q_and_a(self, doc: FCDocument) -> (Label, list):
@@ -247,7 +247,7 @@ class FactChecker:
 
         if label == Label.REFUSED_TO_ANSWER:
             # This part of the code cannot be reached as the judge catches Refused to Answer labels.
-            self.logger.log(orange("The model refused to answer."))
+            self.logger.warning("The model refused to answer.")
             # label = Label.REFUTED
         else:
             doc.justification = self.doc_summarizer.summarize(doc)
