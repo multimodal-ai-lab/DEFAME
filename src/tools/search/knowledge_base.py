@@ -261,7 +261,8 @@ class KnowledgeBase(LocalSearchAPI):
     def _restore(self):
         with open(self.embedding_knns_path, "rb") as f:
             self.embedding_knns = pickle.load(f)
-        self.logger.log(f"Successfully restored knowledge base.")
+        if self.logger is not None:
+            self.logger.log(f"Successfully restored knowledge base.")
 
 
 def get_contents(file_path) -> list[dict]:

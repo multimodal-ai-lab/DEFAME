@@ -238,6 +238,10 @@ class FactChecker:
         self.actor.reset()
         search_action = self.planner.propose_queries_for_question_simple(question)
 
+        if search_action is None:
+            self.logger.log("Got no search query, dropping this question.")
+            return None
+
         evidence = self.actor.perform([search_action], summarize=False)[0]
         result = evidence.results[0]
         assert isinstance(result, SearchResult)

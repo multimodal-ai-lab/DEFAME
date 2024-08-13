@@ -92,7 +92,7 @@ class Planner:
 
             self.logger.log("WARNING: No new actions were found. Retrying...")
 
-    def propose_queries_for_question_simple(self, question: str) -> Action:
+    def propose_queries_for_question_simple(self, question: str) -> Optional[Action]:
         prompt = ProposeQuerySimple(question)
 
         n_tries = 0
@@ -101,8 +101,10 @@ class Planner:
             response = self.llm.generate(str(prompt))
             queries = self._extract_queries(response)
 
-            if len(queries) > 0 or n_tries == self.max_tries:
+            if len(queries) > 0:
                 return queries[0]
+            elif n_tries == self.max_tries:
+                return None
 
             self.logger.log("WARNING: No new actions were found. Retrying...")
 
