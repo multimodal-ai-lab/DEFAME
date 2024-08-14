@@ -2,7 +2,6 @@ import re
 
 from src.common.action import WebSearch, WikiDumpLookup, Search
 from src.common.results import SearchResult
-from src.eval.logger import EvaluationLogger
 from src.tools.search.duckduckgo import DuckDuckGo
 from src.tools.search.knowledge_base import KnowledgeBase
 from src.tools.search.query_serper import SerperAPI
@@ -28,32 +27,40 @@ class Searcher(Tool):
     search_apis: dict[str, SearchAPI]
 
     def __init__(self,
-                 search_engines: list[str] = None,
-                 logger: EvaluationLogger = None,
+                 search_engine_config: dict[str, dict] = None,
                  summarize: bool = True,
                  max_searches: int = 5,
                  limit_per_search: int = 5,
-                 do_debug: bool = False):
-        self.logger = logger or EvaluationLogger()
+                 max_result_len: int = None,  # chars
+                 do_debug: bool = False,
+                 **kwargs):
+        super().__init__(**kwargs)
 
-        if search_engines is None:
+        if search_engine_config is None:
             self.logger.log("No search engine specified. Falling back to DuckDuckGo.")
-            search_engines = ["duckduckgo"]
+            search_engine_config = {"duckduckgo": {}}
+
+        # Add device to knowledge base kwargs
+        if "averitec_kb" in search_engine_config:
+            search_engine_config["averitec_kb"].update(dict(device=self.device))
 
         # Setup search APIs
-        self.search_apis = {se: SEARCH_APIS[se](logger=self.logger) for se in search_engines}
+        self.search_apis = {se: SEARCH_APIS[se](logger=self.logger, **kwargs)
+                            for se, kwargs in search_engine_config.items()}
 
         # Register available tools
         actions = []
-        if "wiki_dump" in search_engines:
+        available_apis = self.search_apis.keys()
+        if "wiki_dump" in available_apis:
             actions.append(WikiDumpLookup)
-        if "google" in search_engines or "duckduckgo" in search_engines or "averitec_kb" in search_engines:
+        if "google" in available_apis or "duckduckgo" in available_apis or "averitec_kb" in available_apis:
             actions.append(WebSearch)
         self.actions = actions
 
         self.summarize = summarize
         self.max_searches = max_searches
         self.limit_per_search = limit_per_search
+        self.max_result_len = max_result_len  # chars
 
         self.debug = do_debug
 
@@ -110,11 +117,13 @@ class Searcher(Tool):
     def _postprocess_results(self, results: list[SearchResult]) -> list[SearchResult]:
         """Modifies the results text to avoid jinja errors when used in prompt."""
         for result in results:
-            result.text = postprocess_result(result.text)
+            result.text = self.postprocess_result(result.text)
         return results
 
-
-def postprocess_result(result: str):
-    """Removes all double curly braces to avoid conflicts with Jinja."""
-    result = re.sub(r"\{\{.*}}", "", result)
-    return result
+    def postprocess_result(self, result: str):
+        """Removes all double curly braces to avoid conflicts with Jinja and optionally truncates
+        the result text to a maximum length."""
+        result = re.sub(r"\{\{.*}}", "", result)
+        if self.max_result_len is not None:
+            result = result[self.max_result_len:]
+        return result

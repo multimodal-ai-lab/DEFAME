@@ -4,7 +4,6 @@ import numpy as np
 
 from src.common.action import OCR
 from src.common.results import OCRResult, Result
-from src.eval.logger import EvaluationLogger
 from src.tools.tool import Tool
 
 
@@ -24,7 +23,8 @@ class TextExtractor(Tool):
     name = "text_extractor"
     actions = [OCR]
 
-    def __init__(self, use_gpu: bool = True, logger: EvaluationLogger = None):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         """
         Initialize the OCR tool with EasyOCR.
 
@@ -32,7 +32,6 @@ class TextExtractor(Tool):
         """
         self.model = None  # TODO: Later we could have a trainable OCR model here
         # self.reader = easyocr.Reader(['en'], gpu=use_gpu)
-        self.logger = logger
 
     def perform(self, action: OCR) -> list[Result]:
         return [self.extract_text(action.image)]

@@ -20,6 +20,8 @@ class Content:
 
     interpretation: str = None  # Added during claim extraction
 
+    id_number: int = None  # Used by some benchmarks to identify contents
+
     def is_multimodal(self) -> bool:
         return self.images is not None or self.videos is not None or self.audios is not None
 

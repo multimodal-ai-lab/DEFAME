@@ -3,12 +3,12 @@ import os.path
 import pickle
 import zipfile
 from datetime import datetime
+from multiprocessing import Pool, Queue
 from pathlib import Path
-from queue import Queue
-from threading import Thread
 from urllib.request import urlretrieve
-import langdetect
 
+import langdetect
+import torch
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
@@ -17,6 +17,7 @@ from src.common.embedding import EmbeddingModel
 from src.common.results import SearchResult
 from src.tools.search.local_search_api import LocalSearchAPI
 from src.utils.utils import my_hook
+from src.utils.console import orange
 
 DOWNLOAD_URLS = {
     "dev": [
@@ -49,7 +50,8 @@ class KnowledgeBase(LocalSearchAPI):
     embedding_knns: dict[int, NearestNeighbors]
     embedding_model: EmbeddingModel = None
 
-    def __init__(self, variant: str = "dev", logger=None):
+    def __init__(self, variant, logger=None,
+                 device: str | torch.device = None):
         super().__init__(logger=logger)
         self.variant = variant
 
@@ -65,6 +67,8 @@ class KnowledgeBase(LocalSearchAPI):
         # For speeding up data loading
         self.cached_resources = None
         self.cached_resources_claim_id = None
+
+        self.device = device
 
         self._load()
 
@@ -132,7 +136,7 @@ class KnowledgeBase(LocalSearchAPI):
         return self.embedding_model.embed_many(*args, batch_size=32, **kwargs)
 
     def _setup_embedding_model(self):
-        self.embedding_model = EmbeddingModel(embedding_model)
+        self.embedding_model = EmbeddingModel(embedding_model, device=self.device)
 
     def retrieve(self, idx: int) -> (str, str, datetime):
         resources = self._get_resources()
@@ -159,10 +163,19 @@ class KnowledgeBase(LocalSearchAPI):
         if self.current_claim_id is None:
             raise RuntimeError("No claim ID specified. You must set the current_claim_id to the "
                                "ID of the currently fact-checked claim.")
+
         knn = self.embedding_knns[self.current_claim_id]
+        if knn is None:
+            return []
+
         query_embedding = self._embed(query).reshape(1, -1)
-        distances, indices = knn.kneighbors(query_embedding, limit)
-        return self._indices_to_search_results(indices[0], query)
+        limit = min(limit, knn.n_samples_fit_)  # account for very small resource sets
+        try:
+            distances, indices = knn.kneighbors(query_embedding, limit)
+            return self._indices_to_search_results(indices[0], query)
+        except Exception as e:
+            self.logger.warning(f"Resource retrieval from kNN failed: {e}")
+            return []
 
     def _download(self):
         print("Downloading knowledge base...")
@@ -201,54 +214,42 @@ class KnowledgeBase(LocalSearchAPI):
         else:
             print("Found extracted resource files.")
 
-        print("Constructing kNNs for embeddings...")
+        n_workers = torch.cuda.device_count()
+
+        print(f"Constructing kNNs for embeddings using {n_workers} workers...")
 
         # Initialize and run the KB building pipeline
-        self.read_queue = Queue()
-        self.train_queue = Queue()
+        self.resource_queue = Queue()
+        self.embedding_queue = Queue()
+        devices_queue = Queue()
 
-        reader = Thread(target=self._read)
-        processor = Thread(target=self._process_and_embed)
-        trainer = Thread(target=self._train_embedding_knn)
-
-        reader.start()
-        processor.start()
-        trainer.start()
-
-        reader.join()
-        processor.join()
-        trainer.join()
+        with Pool(n_workers, embed, (self.resource_queue, self.embedding_queue, devices_queue)):
+            for d in range(n_workers):
+                devices_queue.put(d)
+            self._read()
+            self._train_embedding_knn()
 
     def _read(self):
-        for claim_id in range(self.get_num_claims()):
+        print("Reading and preparing resource files...")
+        for claim_id in tqdm(range(self.get_num_claims())):
             resources = self._get_resources(claim_id)
-            self.read_queue.put(resources)
-        self.read_queue.put("done")
-
-    def _process_and_embed(self):
-        while (resources := self.read_queue.get()) != "done":
-            # Embed all the resources at once
-            texts = [resource["url2text"] for resource in resources]
-            embeddings = self._embed_many(texts)
-            claim_id = int(resources[0]["claim_id"])
-
-            # Send the processed data to the next worker
-            self.train_queue.put((claim_id, embeddings))
-
-        self.train_queue.put("done")
+            self.resource_queue.put((claim_id, resources))
 
     def _train_embedding_knn(self):
+        print("Fitting the k nearest neighbor learners...")
+
         # Re-initialize connections (threads need to do that for any SQLite object anew)
         embedding_knns = dict()
 
         # As long as there comes data from the queue, insert it into the DB
-        pbar = tqdm(total=self.get_num_claims(), smoothing=0.01)
-        while (out := self.train_queue.get()) != "done":
+        for _ in tqdm(range(self.get_num_claims()), smoothing=0.01):
+            out = self.embedding_queue.get()
             claim_id, embeddings = out
-            embedding_knn = NearestNeighbors(n_neighbors=10).fit(embeddings)
+            if len(embeddings) > 0:
+                embedding_knn = NearestNeighbors(n_neighbors=10).fit(embeddings)
+            else:
+                embedding_knn = None
             embedding_knns[claim_id] = embedding_knn
-            pbar.update()
-        pbar.close()
 
         with open(self.embedding_knns_path, "wb") as f:
             pickle.dump(embedding_knns, f)
@@ -260,7 +261,7 @@ class KnowledgeBase(LocalSearchAPI):
     def _restore(self):
         with open(self.embedding_knns_path, "rb") as f:
             self.embedding_knns = pickle.load(f)
-        print("Successfully restored knowledge base.")
+        self.logger.log(f"Successfully restored knowledge base.")
 
 
 def get_contents(file_path) -> list[dict]:
@@ -276,3 +277,18 @@ def get_contents(file_path) -> list[dict]:
             # Add the document
             searches.append(doc)
     return searches
+
+
+def embed(in_queue: Queue, out_queue: Queue, devices_queue: Queue):
+    device = devices_queue.get()
+    em = EmbeddingModel(embedding_model, device=f"cuda:{device}")
+
+    while True:
+        claim_id, resources = in_queue.get()
+
+        # Embed all the resources at once
+        texts = [resource["url2text"] for resource in resources]
+        embeddings = em.embed_many(texts, batch_size=32)
+
+        # Send the processed data to the next worker
+        out_queue.put((claim_id, embeddings))
