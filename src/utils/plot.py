@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Sequence
 
 import matplotlib as mpl
@@ -6,17 +7,35 @@ from matplotlib import pyplot as plt
 
 from src.common.label import Label
 
+COLOR_PALETTE = {
+    "light-gray": "#DDDDDD",
+    "mid-gray": "#888888",
+    "dark-gray": "#333333",
+    "1b": "#005AA9",  # dark-blue
+    "dark-blue": "#005AA9",
+    "2b": "#0083CC",  # blue
+    "blue": "#0083CC",
+    "2a": "#009CDA",  # light-blue
+    "light-blue": "#009CDA",
+    "3b": "#009D81",  # turquoise
+    "turquoise": "#009D81",
+    "8b": "#EC6500",  # orange
+    "orange": "#EC6500",
+    "7b": "#F5A300",  # yellow-orange
+    "yellow-orange": "#F5A300",
+}
+
 
 def plot_confusion_matrix(predictions: Sequence[Label],
                           ground_truth: Sequence[Label],
                           classes: Sequence[Label],
                           benchmark_name: str,
-                          save_dir: str = None):
+                          save_dir: Path = None):
     class_conversion = {c: v for v, c in enumerate(classes)}
 
     # Construct confusion matrix
     confusion_matrix = np.zeros((len(classes), len(classes)), dtype="float")
-    for i, (pred, gt) in enumerate(zip(predictions, ground_truth)):
+    for pred, gt in zip(predictions, ground_truth):
         if isinstance(pred, str):
             pred = Label[pred]
             gt = Label[gt]
@@ -45,8 +64,8 @@ def plot_confusion_matrix(predictions: Sequence[Label],
     plt.title(f"{benchmark_name} Confusion Matrix")
     fig.tight_layout()
     if save_dir:
-        plt.savefig(save_dir + "confusion.pdf")
-        plt.savefig(save_dir + "confusion.png")
+        plt.savefig(save_dir / "confusion.pdf")
+        plt.savefig(save_dir / "confusion.png")
     plt.show()
 
 
@@ -105,8 +124,8 @@ def heatmap(data, row_labels, col_labels, show_cbar=True, ax=None,
     # Turn spines off and create white grid.
     ax.spines[:].set_visible(False)
 
-    ax.set_xticks(np.arange(data.shape[1]+1)-.5, minor=True)
-    ax.set_yticks(np.arange(data.shape[0]+1)-.5, minor=True)
+    ax.set_xticks(np.arange(data.shape[1] + 1) - .5, minor=True)
+    ax.set_yticks(np.arange(data.shape[0] + 1) - .5, minor=True)
     ax.grid(which="minor", color="w", linestyle='-', linewidth=3)
     ax.tick_params(which="minor", bottom=False, left=False)
 
@@ -148,7 +167,7 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
     if threshold is not None:
         threshold = im.norm(threshold)
     else:
-        threshold = im.norm(data.max())/2.
+        threshold = im.norm(data.max()) / 2.
 
     # Set default alignment to center, but allow it to be
     # overwritten by textkw.
@@ -171,3 +190,113 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
                 texts.append(text)
 
     return texts
+
+
+def plot_grouped_bar_chart(x_labels: list,
+                           values: dict,
+                           title: str,
+                           x_label: str,
+                           y_label: str,
+                           show_values: bool = True,
+                           colors: list = None,
+                           save_path: str = None):
+    if colors is not None:
+        assert len(colors) == len(values)
+
+    x = np.arange(len(x_labels))  # the label locations
+    width = 0.15  # the width of the bars
+    multiplier = 0
+
+    fig, ax = plt.subplots(layout='constrained')
+
+    for i, (attribute, measurement) in enumerate(values.items()):
+        offset = width * multiplier
+        color = colors[i] if colors is not None else None
+        rects = ax.bar(x + offset, measurement, width, label=attribute, color=color)
+        if show_values:
+            ax.bar_label(rects, padding=3)
+        multiplier += 1
+
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    ax.set_ylabel(y_label)
+    ax.set_xlabel(x_label)
+    ax.set_title(title)
+    ax.set_xticks(x + width, x_labels)
+    ax.legend()
+
+    if save_path is not None:
+        plt.savefig(save_path)
+
+    plt.show()
+
+
+def plot_histogram_comparison(data_rows: list,
+                              title: str,
+                              labels: list[str],
+                              y_label: str,
+                              x_label: str = None,
+                              n_bins: int = 20,
+                              h_line_at: float = None,
+                              secondary_labels: list[str] = None,
+                              hist_range: (float, float) = None,
+                              colors: list = None,
+                              save_path: str = None):
+    n_data_rows = len(data_rows)
+    assert len(labels) == n_data_rows
+    if colors is not None:
+        assert len(colors) == n_data_rows
+
+    data_rows = np.array(data_rows)
+
+    if hist_range is None:
+        hist_range = (np.min(data_rows), np.max(data_rows))
+
+    binned_data_sets = [
+        np.histogram(d, range=hist_range, bins=n_bins)[0]
+        for d in data_rows
+    ]
+    binned_maximums = np.max(binned_data_sets, axis=1)
+    x_locations = np.arange(0, sum(binned_maximums), np.max(binned_maximums))
+
+    # The bin_edges are the same for all the histograms
+    bin_edges = np.linspace(hist_range[0], hist_range[1], n_bins + 1)
+    heights = np.diff(bin_edges)
+    centers = bin_edges[:-1] + heights / 2
+
+    # Cycle through and plot each histogram
+    fig, ax = plt.subplots(layout="constrained")
+    for i, (x_loc, binned_data) in enumerate(zip(x_locations, binned_data_sets)):
+        color = colors[i] if colors is not None else None
+        lefts = x_loc - 0.5 * binned_data
+        ax.barh(centers, binned_data, height=heights, left=lefts, color=color)
+
+    # Plot horizontal line
+    if h_line_at is not None:
+        plt.axhline(y=h_line_at, linestyle='dashed', color='gray')
+
+    # Plot higher-level labels
+    if secondary_labels is not None:
+        ticks = ax.get_xticks()
+        left = ticks[1]
+        right = ticks[-1]
+        width = right - left
+        n_secondary_labels = len(secondary_labels)
+        distance = width // n_secondary_labels
+        secondary_ax = ax.secondary_xaxis(location=-0.06)
+        secondary_ax.tick_params(axis=u'both', which=u'both', length=0)
+        secondary_ax.spines[['bottom']].set_visible(False)
+        secondary_ax.set_xticks([(i + 0.25) * distance for i in range(n_secondary_labels)], labels=secondary_labels)
+
+    ax.set_xticks(x_locations, labels)
+
+    ax.set_title(title)
+    ax.set_ylabel(y_label)
+    if x_label is not None:
+        ax.set_xlabel(x_label)
+    # plt.xticks(rotation=45)
+    # plt.tight_layout()
+
+    if save_path is not None:
+        plt.savefig(save_path)
+
+    plt.show()

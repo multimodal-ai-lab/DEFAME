@@ -10,10 +10,10 @@ import orjsonl
 import pandas as pd
 from PIL import Image
 
+from config.globals import path_to_data
+from src.common.action import Action, WebSearch, WikiDumpLookup
 from src.common.content import Content
 from src.common.label import Label
-from src.common.action import Action, WebSearch, WikiDumpLookup
-from config.globals import path_to_data
 
 
 class Benchmark(ABC, Iterable):
@@ -34,8 +34,9 @@ class Benchmark(ABC, Iterable):
     extra_plan_rules: str = None  # Additional, benchmark-specific instructions to guide LLM's action planning
     extra_judge_rules: str = None  # Additional, benchmark-specific instructions to guide LLM's verdict prediction
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, variant: str):
         self.name = name
+        self.variant = variant  # 'train', 'dev' or 'test'
 
     def get_labels(self) -> list[Label]:
         """Returns the ground truth labels of this dataset as a list."""
@@ -90,30 +91,32 @@ class AVeriTeC(Benchmark):
     }
 
     class_definitions = {
-        Label.SUPPORTED: "The knowledge from the fact-check supports or at least strongly implies the Claim. "
-                         "Mere plausibility is not enough for this decision.",
-        Label.NEI: "The fact-check does not contain sufficient information to come to a conclusion. For example, "
-                   "there is substantial lack of evidence. In this case, state which information exactly "
-                   "is missing. In particular, if no RESULTS or sources are available, pick this decision.",
-        Label.REFUTED: "The knowledge from the fact-check explicitly and clearly refutes the Claim. The mere "
-                       "absence or lack of supporting evidence is not enough for being refuted (argument "
-                       "from ignorance).",
-        Label.CONFLICTING: "The knowledge from the fact-check contains conflicting evidence from multiple "
-                           "reliable, up-to-date, non-refuted sources, even after extensive fact-checking research.",
-        Label.CHERRY_PICKING: "The Claim is supported or refuted, however it ignores important facts that, "
-                              "when added to the Claim, create a significantly different impression. Pick this "
-                              "decision also in the case if the Claim is not universally true but true under "
-                              "certain conditions.",
+        Label.SUPPORTED:
+            """The knowledge from the fact-check supports or at least strongly implies the Claim.
+            Mere plausibility is not enough for this decision.""",
+        Label.NEI:
+            """The fact-check does not contain sufficient information to come to a conclusion. In particular,
+            there is substantial lack of both supporting and refuting evidence.""",
+        Label.REFUTED:
+            """The knowledge from the fact-check explicitly and clearly refutes at least substantial parts
+            if not even the whole the Claim.""",
+        Label.CONFLICTING:
+            """The Claim has both supporting and refuting evidence from multiple sources.""",
+        Label.CHERRY_PICKING:
+            """The Claim is technically true but misleads by excluding important context. Including
+            that context would create a significantly different impression. Pick this
+            decision also in the case if the Claim is not universally true but true under
+            certain conditions.""",
     }
 
     extra_judge_rules = """* **Do not commit the "argument from ignorance" fallacy**: The absence of evidence
-    for claim `X` does NOT prove that `X` is false. Instead, `X` is simply unsupported--which is different
-    to `X` being refuted. Unsupported yet not refuted claims are of the category `not enough information`."""
+    for the Claim does NOT prove that the Claim is refuted. Instead, the Claim is simply unsupported--which is a case of 
+    'not enough information'."""
 
     available_actions = [WebSearch]
 
     def __init__(self, variant="dev"):
-        super().__init__(f"AVeriTeC ({variant})")
+        super().__init__(f"AVeriTeC ({variant})", variant)
         self.file_path = Path(path_to_data + f"AVeriTeC/{variant}.json")
 
         # Load the data
@@ -122,11 +125,13 @@ class AVeriTeC(Benchmark):
 
         data = []
         for i, d in enumerate(data_raw):
+            date = d["claim_date"]
             content = Content(
                 text=d["claim"],
                 author=d["speaker"],
-                date=datetime.strptime(d["claim_date"], "%d-%m-%Y"),
-                origin=d["original_claim_url"]
+                date=datetime.strptime(date, "%d-%m-%Y") if date else None,
+                origin=d["original_claim_url"],
+                id_number=i
             )
             label = self.class_mapping[d["label"]] if variant in ["train", "dev"] else None
             justification = d["justification"] if variant in ["train", "dev"] else None
@@ -203,7 +208,7 @@ class FEVER(Benchmark):
     available_actions = [WikiDumpLookup]
 
     def __init__(self, version=1, variant="dev"):
-        super().__init__(f"FEVER V{version} ({variant})")
+        super().__init__(f"FEVER V{version} ({variant})", variant)
         self.file_path = Path(path_to_data + f"FEVER/fever{version}_{variant}.jsonl")
         self.justifications_file_path = Path(path_to_data + f"FEVER/gt_justification_fever{version}_{variant}.jsonl")
 
@@ -288,7 +293,7 @@ class VERITE(Benchmark):
     available_actions = None
 
     def __init__(self, variant="dev"):
-        super().__init__(f"VERITE ({variant})")
+        super().__init__(f"VERITE ({variant})", variant)
         self.file_path = Path(path_to_data + "VERITE/VERITE.csv")
         self.data = self.load_data()
 

@@ -7,6 +7,8 @@ import scipy
 import sklearn
 from nltk import word_tokenize
 
+nltk.download("wordnet", quiet=True)
+
 
 def pairwise_meteor(candidate, reference):
     return nltk.translate.meteor_score.single_meteor_score(
@@ -96,7 +98,7 @@ class AVeriTeCEvaluator:
         f1["acc"] = acc
         return f1
 
-    def evaluate_questions_only(self, srcs, tgts):
+    def get_questions_only_meteor(self, srcs, tgts):
         all_utils = []
         for src, tgt in zip(srcs, tgts):
             if "evidence" not in src:
@@ -126,7 +128,11 @@ class AVeriTeCEvaluator:
 
             all_utils.append(assignment_utility)
 
-        return np.mean(all_utils)
+        return all_utils
+
+    def evaluate_questions_only(self, srcs, tgts):
+        meteors = self.get_questions_only_meteor(srcs, tgts)
+        return np.mean(meteors), meteors
 
     def get_n_best_qau(self, srcs, tgts, n=3):
         all_utils = []
@@ -220,7 +226,7 @@ class AVeriTeCEvaluator:
 
             all_utils.append(assignment_utility)
 
-        return np.mean(all_utils)
+        return np.mean(all_utils), all_utils
 
     def extract_full_comparison_strings(self, example, is_target=True):
         example_strings = []

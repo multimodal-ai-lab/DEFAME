@@ -1,8 +1,10 @@
 """Colors and formatting for console text"""
 
+import re
+from typing import Optional
+
 import numpy as np
 from sty import fg, Style, RgbFg
-import re
 
 fg.orange = Style(RgbFg(255, 150, 50))
 
@@ -74,10 +76,19 @@ def num2text(num):
         return "%.0fM" % millions
 
 
-def sec2hhmmss(s):
+def sec2hhmmss(s: float) -> Optional[str]:
+    if s is None:
+        return None
     m = s // 60
     h = m // 60
     return "%d:%02d:%02d h" % (h, m % 60, s % 60)
+
+
+def sec2mmss(s: float) -> Optional[str]:
+    if s is None:
+        return None
+    m = s // 60
+    return "%d:%02d min" % (m % 60, s % 60)
 
 
 def remove_string_formatters(text: str) -> str:

@@ -1,7 +1,7 @@
 from abc import ABC
 
 from src.common.results import SearchResult
-from src.eval.logger import EvaluationLogger
+from src.common.logger import Logger
 from src.utils.console import yellow
 
 
@@ -11,7 +11,7 @@ class SearchAPI(ABC):
     is_free: bool
     is_local: bool
 
-    def __init__(self, logger: EvaluationLogger = None):
+    def __init__(self, logger: Logger = None):
         self.logger = logger
         self.total_searches = 0
 

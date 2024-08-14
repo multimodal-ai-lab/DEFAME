@@ -43,7 +43,6 @@ class Prompt(ABC):
 
 
 class JudgePrompt(Prompt):
-    # TODO: Add ICL
     def __init__(self, doc: FCDocument,
                  classes: list[Label],
                  class_definitions: dict[Label, str] = None,
@@ -168,11 +167,11 @@ class PlanPrompt(Prompt):
         return read_md_file("src/prompts/plan.md")
 
 
-class PoseQuestionsPrompt(Prompt):  # TODO: rework this prompt
-    def __init__(self, claim: Claim, n_questions: int = 10):
+class PoseQuestionsPrompt(Prompt):
+    def __init__(self, doc: FCDocument, n_questions: int = 10):
         placeholder_targets = {
-            "[CLAIM]": claim,
-            "[NUMBER_OF_QUESTIONS]": n_questions
+            "[DOC]": doc,
+            "[N_QUESTIONS]": n_questions
         }
         super().__init__(placeholder_targets)
 
@@ -193,18 +192,46 @@ class ProposeQueries(Prompt):
         return read_md_file("src/prompts/propose_queries.md")
 
 
+class ProposeQuerySimple(Prompt):
+    """Used to generate queries to answer AVeriTeC questions."""
+    def __init__(self, question: str):
+        placeholder_targets = {
+            "[QUESTION]": question,
+        }
+        super().__init__(placeholder_targets)
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("src/prompts/propose_query_simple.md")
+
+
 class AnswerPrompt(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
-    def __init__(self, question: str, result: SearchResult, doc: FCDocument):
+    def __init__(self, question: str, results: list[SearchResult], doc: FCDocument):
+        result_strings = [f"## Result `{i}`\n{str(result)}" for i, result in enumerate(results)]
+        results_str = "\n\n".join(result_strings)
+
         placeholder_targets = {
             "[DOC]": doc,
+            "[QUESTION]": question,
+            "[RESULTS]": results_str,
+        }
+        super().__init__(placeholder_targets)
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("src/prompts/answer_question.md")
+
+
+class AnswerPromptSimple(Prompt):
+    """Used to generate answers to the AVeriTeC questions."""
+    def __init__(self, question: str, result: SearchResult):
+        placeholder_targets = {
             "[QUESTION]": question,
             "[RESULT]": result,
         }
         super().__init__(placeholder_targets)
 
     def assemble_prompt(self) -> str:
-        return read_md_file("src/prompts/answer_question.md")
+        return read_md_file("src/prompts/answer_question_simple.md")
 
 
 class ReiteratePrompt(Prompt):  # TODO: Summarize each evidence instead of collection of all results
@@ -221,6 +248,35 @@ class ReiteratePrompt(Prompt):  # TODO: Summarize each evidence instead of colle
 
     def assemble_prompt(self) -> str:
         return read_md_file("src/prompts/consolidate.md")
+
+
+class InterpretPrompt(Prompt):
+    def __init__(self, claim: Claim):
+        placeholder_targets = {
+            "[CLAIM]": claim,
+        }
+        super().__init__(placeholder_targets)
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("src/prompts/interpret.md")
+
+
+class JudgeNaively(Prompt):
+    def __init__(self, claim: Claim,
+                 classes: list[Label],
+                 class_definitions: dict[Label, str] = None):
+        if class_definitions is None:
+            class_definitions = DEFAULT_LABEL_DEFINITIONS
+        class_str = '\n'.join([f"* `{cls.value}`: {remove_non_symbols(class_definitions[cls])}"
+                               for cls in classes])
+        placeholder_targets = {
+            "[CLAIM]": claim,
+            "[CLASSES]": class_str,
+        }
+        super().__init__(placeholder_targets)
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("src/prompts/judge_naive.md")
 
 
 def read_md_file(file_path: str) -> str:

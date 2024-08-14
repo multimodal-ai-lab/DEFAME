@@ -1,13 +1,20 @@
 from abc import ABC
 
+import torch
+
 from src.common.action import Action
 from src.common.results import Result
+from src.common.logger import Logger
 
 
 class Tool(ABC):
     """Base class for all tools."""
     name: str
     actions: list[type(Action)]  # (classes of the) available actions this tool offers
+
+    def __init__(self, logger: Logger = None, device: str | torch.device = None):
+        self.logger = logger or Logger()
+        self.device = device
 
     def perform(self, action: Action) -> list[Result]:
         raise NotImplementedError

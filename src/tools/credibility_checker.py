@@ -2,7 +2,6 @@ from src.common.action import CredibilityCheck
 from src.common.modeling import LLM
 from src.common.results import Result
 from src.utils.parsing import is_url
-from src.eval.logger import EvaluationLogger
 from src.tools.tool import Tool
 
 
@@ -11,9 +10,9 @@ class CredibilityChecker(Tool):
     name = "credibility_checker"
     actions = [CredibilityCheck]
 
-    def __init__(self, llm: LLM = None, logger: EvaluationLogger = None):
+    def __init__(self, llm: LLM = None, **kwargs):
+        super().__init__(**kwargs)
         self.llm = llm
-        self.logger = logger
 
     def perform(self, action: CredibilityCheck) -> list[Result]:
         return [self.check_credibility(action.source)]
