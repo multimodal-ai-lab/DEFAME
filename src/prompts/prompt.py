@@ -170,7 +170,7 @@ class PlanPrompt(Prompt):
 class PoseQuestionsPrompt(Prompt):
     def __init__(self, doc: FCDocument, n_questions: int = 10):
         placeholder_targets = {
-            "[DOC]": doc,
+            "[CLAIM]": doc.claim,
             "[N_QUESTIONS]": n_questions
         }
         super().__init__(placeholder_targets)
@@ -235,8 +235,9 @@ class AnswerCollectively(Prompt):
 
 class AnswerQuestion(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
-    def __init__(self, question: str, result: SearchResult):
+    def __init__(self, question: str, result: SearchResult, doc: FCDocument):
         placeholder_targets = {
+            "[DOC]": doc,
             "[QUESTION]": question,
             "[RESULT]": result,
         }

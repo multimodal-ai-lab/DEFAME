@@ -254,9 +254,10 @@ class AVeriTeCEvaluator:
         else:
             if "evidence" in example:
                 for evidence in example["evidence"]:
-                    example_strings.append(
-                        evidence["question"] + " " + evidence["answer"]
-                    )
+                    if evidence["answer"] is not None:
+                        example_strings.append(
+                            evidence["question"] + " " + evidence["answer"]
+                        )
 
         if "string_evidence" in example:
             for full_string_evidence in example["string_evidence"]:
