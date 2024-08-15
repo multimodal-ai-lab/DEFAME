@@ -322,6 +322,14 @@ class FactChecker:
                 #              f"Answer: {qa_instance['answer']}\n"
                 #              f"Source URL: {qa_instance['url']}")
                 # doc.add_reasoning(qa_string)
+
+        # Add Q&A to doc reasoning
+        q_and_a_strings = [(f"### {triplet['question']}\n"
+                            f"Answer: {triplet['answer']}\n\n"
+                            f"Source URL: {triplet['url']}") for triplet in q_and_a]
+        q_and_a_string = "## Initial Q&A\n" + "\n\n".join(q_and_a_strings)
+        doc.add_reasoning(q_and_a_string)
+
         return q_and_a
 
     def generate_search_queries(self, doc: FCDocument, question: str = None) -> list[WebSearch]:
@@ -434,13 +442,6 @@ class FactChecker:
                 label, q_and_a = self.perform_q_and_a_advanced(doc)  # default FC method
             case _:
                 raise ValueError(f"Unknown procedure specified: {self.procedure_variant}")
-
-        # Add Q&A to doc reasoning
-        q_and_a_strings = [(f"### {triplet['question']}\n"
-                            f"Answer: {triplet['answer']}\n\n"
-                            f"Source URL: {triplet['url']}") for triplet in q_and_a]
-        q_and_a_string = "## Initial Q&A\n" + "\n\n".join(q_and_a_strings)
-        doc.add_reasoning(q_and_a_string)
 
         # Finalize the fact-check
         doc.add_reasoning("## Final Judgement\n" + self.judge.get_latest_reasoning())
