@@ -9,7 +9,7 @@ from src.common.content import Content
 from src.common.document import FCDocument
 from src.common.modeling import LLM
 from src.common.logger import Logger
-from src.prompts.prompt import PlanPrompt, ProposeQueries, ProposeQuerySimple
+from src.prompts.prompt import PlanPrompt, ProposeQueries, ProposeQuerySimple, ProposeQueriesNoQuestions
 from src.utils.parsing import extract_last_code_block, remove_code_blocks, find_code_span, strip_string
 
 
@@ -78,8 +78,11 @@ class Planner:
 
             self.logger.log("WARNING: No new actions were found. Retrying...")
 
-    def propose_queries_for_question(self, question: str, doc: FCDocument) -> list[Action]:
-        prompt = ProposeQueries(question, doc)
+    def propose_queries_for_question(self, doc: FCDocument, question: str = None) -> list[Action]:
+        if question is not None:
+            prompt = ProposeQueries(question, doc)
+        else:
+            prompt = ProposeQueriesNoQuestions(doc)
 
         n_tries = 0
         while True:

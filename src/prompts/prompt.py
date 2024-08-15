@@ -204,7 +204,19 @@ class ProposeQuerySimple(Prompt):
         return read_md_file("src/prompts/propose_query_simple.md")
 
 
-class AnswerPrompt(Prompt):
+class ProposeQueriesNoQuestions(Prompt):
+    """Used to generate queries to answer AVeriTeC questions."""
+    def __init__(self, doc: FCDocument):
+        placeholder_targets = {
+            "[DOC]": doc,
+        }
+        super().__init__(placeholder_targets)
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("src/prompts/propose_queries_no_questions.md")
+
+
+class AnswerCollectively(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
     def __init__(self, question: str, results: list[SearchResult], doc: FCDocument):
         result_strings = [f"## Result `{i}`\n{str(result)}" for i, result in enumerate(results)]
@@ -218,10 +230,10 @@ class AnswerPrompt(Prompt):
         super().__init__(placeholder_targets)
 
     def assemble_prompt(self) -> str:
-        return read_md_file("src/prompts/answer_question.md")
+        return read_md_file("src/prompts/answer_question_collectively.md")
 
 
-class AnswerPromptSimple(Prompt):
+class AnswerQuestion(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
     def __init__(self, question: str, result: SearchResult):
         placeholder_targets = {
@@ -231,7 +243,20 @@ class AnswerPromptSimple(Prompt):
         super().__init__(placeholder_targets)
 
     def assemble_prompt(self) -> str:
-        return read_md_file("src/prompts/answer_question_simple.md")
+        return read_md_file("src/prompts/answer_question.md")
+
+
+class AnswerQuestionNoEvidence(Prompt):
+    """Used to generate answers to the AVeriTeC questions."""
+    def __init__(self, question: str, doc: FCDocument):
+        placeholder_targets = {
+            "[DOC]": doc,
+            "[QUESTION]": question,
+        }
+        super().__init__(placeholder_targets)
+
+    def assemble_prompt(self) -> str:
+        return read_md_file("src/prompts/answer_question_no_evidence.md")
 
 
 class ReiteratePrompt(Prompt):  # TODO: Summarize each evidence instead of collection of all results

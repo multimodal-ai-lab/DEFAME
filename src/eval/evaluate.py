@@ -51,8 +51,10 @@ def evaluate(
     is_test = benchmark.variant == "test"
 
     llm = model_full_name_to_shorthand(llm) if llm not in AVAILABLE_MODELS["Shorthand"].values else llm
-    logger = Logger(benchmark.shorthand,
-                    llm,
+    procedure_variant = None if fact_checker_kwargs is None else fact_checker_kwargs.get("procedure_variant")
+    logger = Logger(benchmark_name=benchmark.shorthand,
+                    procedure_name=procedure_variant,
+                    model_name=llm,
                     print_log_level=print_log_level,
                     target_dir=continue_experiment_dir)
 

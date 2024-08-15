@@ -13,9 +13,10 @@ from src.modules.claim_extractor import ClaimExtractor
 from src.modules.doc_summarizer import DocSummarizer
 from src.modules.judge import Judge
 from src.modules.planner import Planner
-from src.prompts.prompt import PoseQuestionsPrompt, ReiteratePrompt, AnswerPrompt, InterpretPrompt, AnswerPromptSimple
+from src.prompts.prompt import (PoseQuestionsPrompt, ReiteratePrompt, AnswerCollectively, InterpretPrompt,
+                                AnswerQuestion, AnswerQuestionNoEvidence)
 from src.tools import *
-from src.utils.console import gray, light_blue, bold, sec2mmss, orange
+from src.utils.console import gray, light_blue, bold, sec2mmss
 from src.utils.parsing import find_code_span, extract_last_code_span, extract_last_paragraph
 
 
@@ -27,7 +28,7 @@ class FactChecker:
                  mllm: Optional[str | MLLM] = None,
                  tools: list[Tool] = None,
                  search_engines: dict[str, dict] = None,
-                 procedure_variant: str = None,
+                 procedure_variant: str = "infact",
                  interpret: bool = False,
                  decompose: bool = False,
                  decontextualize: bool = False,
@@ -144,32 +145,146 @@ class FactChecker:
         self.logger.log(f"Fact-check took {sec2mmss(fc_duration)}.")
         return overall_veracity, docs, q_and_a
 
+    # --- Procedures starting here ---
+
+    def interpret(self, doc: FCDocument) -> None:
+        """Stage 0: Interprets the claim and adds the generated interpretation to the document."""
+        prompt = InterpretPrompt(doc.claim)
+        response = self.llm.generate(str(prompt))
+        doc.add_reasoning(f"## Interpretation\n{response}")
+
     def perform_naive(self, doc: FCDocument) -> (Label, list):
         verdict = self.judge.judge_naively(doc)
         return verdict, []
 
     def perform_simple_q_and_a(self, doc: FCDocument) -> (Label, list):
-        """Asks 10 questions and tries to answer them (required by AVeriTeC challenge)."""
+        """InFact but without interpretation and takes first search result."""
+        # Stage 1: Question posing
         questions = self._pose_questions(no_of_questions=10, doc=doc)
+
+        # Stages 2 & 3: Search query generation and question answering
+        q_and_a = self.approach_question_batch(questions, doc)
+
+        # Stage 4: Veracity prediction
+        label = self.judge.judge(doc)
+
+        return label, q_and_a
+
+    def perform_no_interpretation(self, doc: FCDocument) -> (Label, list):
+        """InFact but without interpretation."""
+        # Stage 1: Question posing
+        questions = self._pose_questions(no_of_questions=10, doc=doc)
+
+        # Stages 2 & 3: Search query generation and question answering
+        q_and_a = self.approach_question_batch(questions, doc)
+
+        # Stage 4: Veracity prediction
+        label = self.judge.judge(doc)
+
+        return label, q_and_a
+
+    def perform_no_evidence(self, doc: FCDocument) -> (Label, list):
+        """InFact but without any evidence retrieval."""
+        # Stage 0: Interpretation generation
+        self.interpret(doc)
+
+        # Stage 1: Question posing
+        questions = self._pose_questions(no_of_questions=10, doc=doc)
+
+        # Stage 3*: Question answering (modified)
         q_and_a = []
+        doc.add_reasoning("## Research Q&A")
         for question in questions:
-            qa_instance = self.approach_question_simple(question)
-            if qa_instance is not None:
-                q_and_a.append(qa_instance)
-                qa_string = (f"### {question}\n"
-                             f"Answer: {qa_instance['answer']}\n"
-                             f"Source URL: {qa_instance['url']}")
-                doc.add_reasoning(qa_string)
+            prompt = AnswerQuestionNoEvidence(question, doc)
+            response = self.llm.generate(str(prompt))
+            qa_string = (f"### {question}\n"
+                         f"Answer: {response}")
+            doc.add_reasoning(qa_string)
+            qa_instance = {
+                "question": question,
+                "answer": response,
+                "url": "",
+                "scraped_text": "",
+            }
+            q_and_a.append(qa_instance)
+
+        # Stage 4: Veracity prediction
+        label = self.judge.judge(doc)
+
+        return label, q_and_a
+
+    def perform_first_result(self, doc: FCDocument) -> (Label, list):
+        """InFact but using always the first result."""
+        # Stage 0: Interpretation generation
+        self.interpret(doc)
+
+        # Stage 1: Question posing
+        questions = self._pose_questions(no_of_questions=10, doc=doc)
+
+        # Stages 2 & 3: Search query generation and question answering
+        q_and_a = self.approach_question_batch(questions, doc)  # TODO: modify to accept additional parameter
+
+        # Stage 4: Veracity prediction
+        label = self.judge.judge(doc)
+
+        return label, q_and_a
+
+    def perform_no_qa(self, doc: FCDocument) -> (Label, list):
+        """InFact but omitting posing any questions."""
+        # Stage 0: Interpretation generation
+        self.interpret(doc)
+
+        # Stage 2*: Search query generation (modified)
+        queries = self.generate_search_queries(doc)
+
+        # Stage 3*: Evidence retrieval (modified)
+        results = self.retrieve_search_results(queries, summarize=True, doc=doc)
+        doc.add_reasoning("## Web Search")
+        for result in results[:10]:
+            summary_str = f"### Search Result\n{result}"
+            doc.add_reasoning(summary_str)
+
+        # Stage 4: Veracity prediction
+        label = self.judge.judge(doc)
+
+        return label, []
+
+    def perform_no_query_generation(self, doc: FCDocument) -> (Label, list):
+        """InFact but skipping the generation of search queries."""
+        # Stage 0: Interpretation generation
+        self.interpret(doc)
+
+        # Stage 1: Question posing
+        questions = self._pose_questions(no_of_questions=10, doc=doc)
+
+        # Stage 3: Evidence retrieval and question answering
+        q_and_a = self.approach_question_batch(questions, doc)
+
+        # Stage 4: Veracity prediction
         label = self.judge.judge(doc)
 
         return label, q_and_a
 
     def perform_q_and_a(self, doc: FCDocument) -> (Label, list):
-        """Asks 10 questions and tries to answer them (required by AVeriTeC challenge)."""
-        # Interpret the claim
-        prompt = InterpretPrompt(doc.claim)
-        response = self.llm.generate(str(prompt))
-        doc.add_reasoning(response)
+        """The procedure as implemented by InFact, using all six stages (stage 5, justification
+        generation, follows outside of this method)."""
+        # Stage 0: Interpretation generation
+        self.interpret(doc)
+
+        # Stage 1: Question posing
+        questions = self._pose_questions(no_of_questions=10, doc=doc)
+
+        # Stages 2 & 3: Search query generation and question answering
+        q_and_a = self.approach_question_batch(questions, doc)
+
+        # Stage 4: Veracity prediction
+        label = self.judge.judge(doc)
+
+        return label, q_and_a
+
+    def perform_q_and_a_advanced(self, doc: FCDocument) -> (Label, list):
+        """The former "dynamic" or "multi iteration" approach."""
+        self.interpret(doc)  # stage 0
 
         # Run iterative Q&A as long as there is NEI
         q_and_a = []
@@ -198,6 +313,7 @@ class FactChecker:
         """Tries to answer the given list of questions. Unanswerable questions are dropped."""
         # Answer each question, one after another
         q_and_a = []
+        doc.add_reasoning("## Research Q&A")
         for question in questions:
             qa_instance = self.approach_question(question, doc)
             if qa_instance is not None:
@@ -208,52 +324,62 @@ class FactChecker:
                 doc.add_reasoning(qa_string)
         return q_and_a
 
-    def approach_question(self, question: str, doc: FCDocument) -> Optional[dict]:
+    def generate_search_queries(self, doc: FCDocument, question: str = None) -> list[WebSearch]:
+        return self.planner.propose_queries_for_question(question=question, doc=doc)
+
+    def retrieve_search_results(
+            self,
+            search_queries: list[WebSearch],
+            doc: FCDocument = None,
+            summarize: bool = False
+    ) -> list[SearchResult]:
+        search_results = []
+        for query in search_queries:
+            evidence = self.actor.perform([query], doc=doc, summarize=summarize)[0]
+            search_results.extend(evidence.results)
+        return search_results
+
+    def approach_question(self, question: str, doc: FCDocument = None) -> Optional[dict]:
         """Tries to answer the given question. If unanswerable, returns None."""
         self.logger.log(light_blue(f"Answering question: {question}"))
         self.actor.reset()
-        search_actions = self.planner.propose_queries_for_question(question, doc)
+
+        # Stage 2: Generate search queries
+        match self.procedure_variant:
+            case "simple":
+                query = self.planner.propose_queries_for_question_simple(question)
+                if query is None:
+                    self.logger.log("Got no search query, dropping this question.")
+                    return None
+                queries = [query]
+            case "no_query_generation":
+                queries = [WebSearch(f'"{question}"')]
+            case _:
+                queries = self.generate_search_queries(question=question, doc=doc)
 
         # Execute searches and gather all results
-        search_results = []
-        for search_action in search_actions:
-            evidence = self.actor.perform([search_action], doc, summarize=False)[0]
-            search_results.extend(evidence.results)
+        search_results = self.retrieve_search_results(queries)
 
-        # Try to answer the question by using a batch of 5 results
-        for i in range(0, len(search_results), 5):
-            results = search_results[i:i + 5]
-            answer, relevant_result = self.answer_question(question, results, doc)
-            if relevant_result:
-                self.logger.log(f"Got answer: {answer}")
-                qa_instance = {"question": question,
-                               "answer": answer,
-                               "url": relevant_result.source,
-                               "scraped_text": relevant_result.text}
-                return qa_instance
+        # Step 3: Answer generation
+        if len(search_results) > 0:
+            return self.generate_answer(question, search_results, doc)
 
-    def approach_question_simple(self, question: str) -> Optional[dict]:
-        """Tries to answer the given question. If unanswerable, returns None."""
-        self.logger.log(light_blue(f"Answering question: {question}"))
-        self.actor.reset()
-        search_action = self.planner.propose_queries_for_question_simple(question)
+    def generate_answer(self, question: str, results: list[SearchResult], doc: FCDocument) -> Optional[dict]:
+        match self.procedure_variant:
+            case "advanced":
+                answer, relevant_result = self.answer_question_collectively(question, results, doc)
+            case "first_result" | "simple":
+                relevant_result = results[0]
+                answer = self.answer_question(question, relevant_result)
+            case _:
+                answer, relevant_result = self.answer_question_individually(question, results)
 
-        if search_action is None:
-            self.logger.log("Got no search query, dropping this question.")
-            return None
-
-        evidence = self.actor.perform([search_action], summarize=False)[0]
-        result = evidence.results[0]
-        assert isinstance(result, SearchResult)
-
-        answer = self.answer_question_simple(question, result)
-
-        if answer:
+        if relevant_result:
             self.logger.log(f"Got answer: {answer}")
             qa_instance = {"question": question,
                            "answer": answer,
-                           "url": result.source,
-                           "scraped_text": result.text}
+                           "url": relevant_result.source,
+                           "scraped_text": relevant_result.text}
             return qa_instance
         else:
             self.logger.log("Got no answer.")
@@ -273,7 +399,9 @@ class FactChecker:
             evidences = self.actor.perform(actions, doc)
             doc.add_evidence(evidences)  # even if no evidence, add empty evidence block for the record
             self._consolidate_knowledge(doc, evidences)
-        return label, None  # TODO
+        return label, []
+
+    # --- Procedures ending here ---
 
     def verify_claim(self, claim: Claim) -> (FCDocument, dict):
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it.
@@ -284,10 +412,28 @@ class FactChecker:
 
         # Depending on the specified procedure variant, perform the fact-check
         match self.procedure_variant:
-            case "naive": label, q_and_a = self.perform_naive(doc)
-            case "unstructured": label, q_and_a = self.perform_open_verification(doc)
-            case "simple_qa": label, q_and_a = self.perform_simple_q_and_a(doc)
-            case _: label, q_and_a = self.perform_q_and_a(doc)  # default FC method
+            case "naive":
+                label, q_and_a = self.perform_naive(doc)
+            case "no_interpretation":
+                label, q_and_a = self.perform_no_interpretation(doc)
+            case "no_evidence":
+                label, q_and_a = self.perform_no_evidence(doc)
+            case "first_result":
+                label, q_and_a = self.perform_first_result(doc)
+            case "no_qa":
+                label, q_and_a = self.perform_no_qa(doc)
+            case "no_query_generation":
+                label, q_and_a = self.perform_no_query_generation(doc)
+            case "infact":
+                label, q_and_a = self.perform_q_and_a(doc)
+            case "unstructured":
+                label, q_and_a = self.perform_open_verification(doc)
+            case "simple_qa":
+                label, q_and_a = self.perform_simple_q_and_a(doc)
+            case "advanced":
+                label, q_and_a = self.perform_q_and_a_advanced(doc)  # default FC method
+            case _:
+                raise ValueError(f"Unknown procedure specified: {self.procedure_variant}")
 
         # Finalize the fact-check
         doc.add_reasoning("## Final Judgement\n" + self.judge.get_latest_reasoning())
@@ -312,31 +458,49 @@ class FactChecker:
         questions = find_code_span(response)
         return questions
 
-    def answer_question(self,
-                        question: str,
-                        results: list[SearchResult],
-                        doc: FCDocument) -> (Optional[str], Optional[SearchResult]):
-        """Generates an answer to the given question."""
-        prompt = AnswerPrompt(question, results, doc)
-        response = self.llm.generate(str(prompt), max_attempts=3)
-        # Extract result ID and answer to the question from response
-        if "`NONE`" not in response:
-            try:
-                result_id = extract_last_code_span(response)
-                if result_id != "":
-                    result_id = int(result_id)
-                    answer = extract_last_paragraph(response)
-                    return answer, results[result_id]
-            except:
-                pass
+    def answer_question_collectively(
+            self,
+            question: str,
+            results: list[SearchResult],
+            doc: FCDocument
+    ) -> (Optional[str], Optional[SearchResult]):
+        """Generates an answer to the given question by considering batches of 5 search results at once."""
+        for i in range(0, len(results), 5):
+            results_batch = results[i:i + 5]
+            prompt = AnswerCollectively(question, results_batch, doc)
+            response = self.llm.generate(str(prompt), max_attempts=3)
+
+            # Extract result ID and answer to the question from response
+            if "NONE" not in response and "None" not in response:
+                try:
+                    result_id = extract_last_code_span(response)
+                    if result_id != "":
+                        result_id = int(result_id)
+                        answer = extract_last_paragraph(response)
+                        return answer, results_batch[result_id]
+                except:
+                    pass
         return None, None
 
-    def answer_question_simple(self, question: str, result: SearchResult) -> Optional[str]:
+    def answer_question_individually(
+            self,
+            question: str,
+            results: list[SearchResult]
+    ) -> (Optional[str], Optional[SearchResult]):
+        """Generates an answer to the given question by iterating over the search results
+        and using them individually to answer the question."""
+        for result in results:
+            answer = self.answer_question(question, result)
+            if answer is not None:
+                return answer, result
+        return None, None
+
+    def answer_question(self, question: str, result: SearchResult) -> Optional[str]:
         """Generates an answer to the given question."""
-        prompt = AnswerPromptSimple(question, result)
+        prompt = AnswerQuestion(question, result)
         response = self.llm.generate(str(prompt), max_attempts=3)
         # Extract answer from response
-        if "`NONE`" not in response:
+        if "NONE" not in response and "None" not in response:
             try:
                 answer = extract_last_paragraph(response)
                 return answer

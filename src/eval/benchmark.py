@@ -10,7 +10,7 @@ import orjsonl
 import pandas as pd
 from PIL import Image
 
-from config.globals import path_to_data
+from config.globals import data_base_dir
 from src.common.action import Action, WebSearch, WikiDumpLookup
 from src.common.content import Content
 from src.common.label import Label
@@ -117,7 +117,7 @@ class AVeriTeC(Benchmark):
 
     def __init__(self, variant="dev"):
         super().__init__(f"AVeriTeC ({variant})", variant)
-        self.file_path = Path(path_to_data + f"AVeriTeC/{variant}.json")
+        self.file_path = Path(data_base_dir + f"AVeriTeC/{variant}.json")
 
         # Load the data
         with open(self.file_path, 'r') as f:
@@ -209,8 +209,8 @@ class FEVER(Benchmark):
 
     def __init__(self, version=1, variant="dev"):
         super().__init__(f"FEVER V{version} ({variant})", variant)
-        self.file_path = Path(path_to_data + f"FEVER/fever{version}_{variant}.jsonl")
-        self.justifications_file_path = Path(path_to_data + f"FEVER/gt_justification_fever{version}_{variant}.jsonl")
+        self.file_path = Path(data_base_dir + f"FEVER/fever{version}_{variant}.jsonl")
+        self.justifications_file_path = Path(data_base_dir + f"FEVER/gt_justification_fever{version}_{variant}.jsonl")
 
         self.data = self.load_data(variant)
 
@@ -294,7 +294,7 @@ class VERITE(Benchmark):
 
     def __init__(self, variant="dev"):
         super().__init__(f"VERITE ({variant})", variant)
-        self.file_path = Path(path_to_data + "VERITE/VERITE.csv")
+        self.file_path = Path(data_base_dir + "VERITE/VERITE.csv")
         self.data = self.load_data()
 
     def load_data(self) -> list[dict]:
@@ -302,7 +302,7 @@ class VERITE(Benchmark):
 
         data = []
         for i, row in df.iterrows():
-            image_path = Path(path_to_data + f"VERITE/{row['image_path']}")
+            image_path = Path(data_base_dir + f"VERITE/{row['image_path']}")
             if os.path.exists(image_path):
                 image = Image.open(image_path)
             else:

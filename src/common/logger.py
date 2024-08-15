@@ -10,7 +10,7 @@ import sys
 
 import yaml
 
-from config.globals import path_to_result
+from config.globals import result_base_dir
 from src.common.document import FCDocument
 from src.common.label import Label
 from src.utils.console import remove_string_formatters, bold, red, orange, yellow
@@ -46,11 +46,14 @@ class Logger:
 
     def __init__(self,
                  benchmark_name: str = None,
+                 procedure_name: str = None,
                  model_name: str = None,
                  print_log_level: str = "warning",
                  target_dir: str | Path = None):
+        # TODO: Enable Logger to have NO target dir
+
         # Set up the target directory storing all logs and results
-        self.target_dir = _determine_target_dir(benchmark_name, model_name) \
+        self.target_dir = _determine_target_dir(benchmark_name, procedure_name, model_name) \
             if target_dir is None else Path(target_dir)
         os.makedirs(self.target_dir, exist_ok=True)
 
@@ -188,17 +191,23 @@ class RemoveStringFormattingFormatter(logging.Formatter):
         return remove_string_formatters(msg)
 
 
-def _determine_target_dir(benchmark_name: str, model_name: str = None) -> Path:
+def _determine_target_dir(benchmark_name: str, procedure_name: str = None, model_name: str = None) -> Path:
     assert benchmark_name is not None
-    log_date = datetime.now().strftime("%Y-%m-%d_%H-%M")
-    folder_name = log_date
-    if model_name:
-        folder_name += f'_{model_name}'
 
-    # Increment target dir name if it exists
-    folder_name_tmp = folder_name
-    i = 1
-    while os.path.exists(Path(path_to_result) / benchmark_name / folder_name_tmp):
-        folder_name_tmp = folder_name + f'_{i}'
-        i += 1
-    return Path(path_to_result) / benchmark_name / folder_name_tmp
+    # Construct target directory path
+    target_dir = Path(result_base_dir) / benchmark_name
+
+    if procedure_name:
+        target_dir /= procedure_name
+
+    if model_name:
+        target_dir /= model_name
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    target_dir /= timestamp
+
+    # Increment dir name if it exists
+    while target_dir.exists():
+        target_dir = target_dir.with_stem(timestamp + "'")
+
+    return target_dir
