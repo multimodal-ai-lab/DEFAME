@@ -1,5 +1,5 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
-from config.globals import path_to_data
+from config.globals import data_base_dir
 
 model_name = "./question_generator_model"
 tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)

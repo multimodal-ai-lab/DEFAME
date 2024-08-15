@@ -6,7 +6,7 @@ variant = "dev"
 if __name__ == '__main__':  # evaluation uses multiprocessing
     set_start_method("spawn")
     evaluate(
-        llm="llama3_70b",
+        llm="gpt_4o_mini",
         tools_config=dict(searcher=dict(
             search_engine_config=dict(
                 averitec_kb=dict(variant=variant),
@@ -14,7 +14,7 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
             limit_per_search=5
         )),
         fact_checker_kwargs=dict(
-            procedure_variant="simple_qa",
+            procedure_variant="first_result",
             interpret=False,
             decompose=False,
             decontextualize=False,
