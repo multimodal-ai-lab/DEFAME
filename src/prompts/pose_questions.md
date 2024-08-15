@@ -11,10 +11,11 @@ IMPORTANT: Follow these rules:
 # Examples
 Claim: "New Zealand’s new Food Bill bans gardening"
 Good Question: "Did New Zealand's government pass a food bill that restricted gardening activities for its citizen?"
+Good Question. "Where was the claim first published?"
 Bad Question: "Did the government pass a bill?"
 Bad Question: "Did the bill restrict activities?"
 
-# Record
-[DOC]
+# The Claim
+[CLAIM]
 
 ## Analysis
