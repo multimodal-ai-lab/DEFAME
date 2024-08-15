@@ -186,7 +186,7 @@ class FactChecker:
     def perform_no_evidence(self, doc: FCDocument) -> (Label, list):
         """InFact but without any evidence retrieval."""
         # Stage 0: Interpretation generation
-        self.interpret(doc)
+        # self.interpret(doc)
 
         # Stage 1: Question posing
         questions = self._pose_questions(no_of_questions=10, doc=doc)
@@ -216,7 +216,7 @@ class FactChecker:
     def perform_first_result(self, doc: FCDocument) -> (Label, list):
         """InFact but using always the first result."""
         # Stage 0: Interpretation generation
-        self.interpret(doc)
+        # self.interpret(doc)
 
         # Stage 1: Question posing
         questions = self._pose_questions(no_of_questions=10, doc=doc)
@@ -232,7 +232,7 @@ class FactChecker:
     def perform_no_qa(self, doc: FCDocument) -> (Label, list):
         """InFact but omitting posing any questions."""
         # Stage 0: Interpretation generation
-        self.interpret(doc)
+        # self.interpret(doc)
 
         # Stage 2*: Search query generation (modified)
         queries = self.generate_search_queries(doc)
@@ -252,7 +252,7 @@ class FactChecker:
     def perform_no_query_generation(self, doc: FCDocument) -> (Label, list):
         """InFact but skipping the generation of search queries."""
         # Stage 0: Interpretation generation
-        self.interpret(doc)
+        # self.interpret(doc)
 
         # Stage 1: Question posing
         questions = self._pose_questions(no_of_questions=10, doc=doc)
@@ -269,7 +269,7 @@ class FactChecker:
         """The procedure as implemented by InFact, using all six stages (stage 5, justification
         generation, follows outside of this method)."""
         # Stage 0: Interpretation generation
-        self.interpret(doc)
+        # self.interpret(doc)
 
         # Stage 1: Question posing
         questions = self._pose_questions(no_of_questions=10, doc=doc)
@@ -284,7 +284,7 @@ class FactChecker:
 
     def perform_q_and_a_advanced(self, doc: FCDocument) -> (Label, list):
         """The former "dynamic" or "multi iteration" approach."""
-        self.interpret(doc)  # stage 0
+        # self.interpret(doc)  # stage 0
 
         # Run iterative Q&A as long as there is NEI
         q_and_a = []
@@ -313,15 +313,15 @@ class FactChecker:
         """Tries to answer the given list of questions. Unanswerable questions are dropped."""
         # Answer each question, one after another
         q_and_a = []
-        doc.add_reasoning("## Research Q&A")
+        # doc.add_reasoning("## Research Q&A")
         for question in questions:
             qa_instance = self.approach_question(question, doc)
             if qa_instance is not None:
                 q_and_a.append(qa_instance)
-                qa_string = (f"### {question}\n"
-                             f"Answer: {qa_instance['answer']}\n"
-                             f"Source URL: {qa_instance['url']}")
-                doc.add_reasoning(qa_string)
+                # qa_string = (f"### {question}\n"
+                #              f"Answer: {qa_instance['answer']}\n"
+                #              f"Source URL: {qa_instance['url']}")
+                # doc.add_reasoning(qa_string)
         return q_and_a
 
     def generate_search_queries(self, doc: FCDocument, question: str = None) -> list[WebSearch]:
@@ -370,11 +370,11 @@ class FactChecker:
                 answer, relevant_result = self.answer_question_collectively(question, results, doc)
             case "first_result" | "simple":
                 relevant_result = results[0]
-                answer = self.answer_question(question, relevant_result)
+                answer = self.answer_question(question, relevant_result, doc)
             case _:
-                answer, relevant_result = self.answer_question_individually(question, results)
+                answer, relevant_result = self.answer_question_individually(question, results, doc)
 
-        if relevant_result:
+        if relevant_result is not None and answer is not None:
             self.logger.log(f"Got answer: {answer}")
             qa_instance = {"question": question,
                            "answer": answer,
@@ -435,6 +435,13 @@ class FactChecker:
             case _:
                 raise ValueError(f"Unknown procedure specified: {self.procedure_variant}")
 
+        # Add Q&A to doc reasoning
+        q_and_a_strings = [(f"### {triplet['question']}\n"
+                            f"Answer: {triplet['answer']}\n\n"
+                            f"Source URL: {triplet['url']}") for triplet in q_and_a]
+        q_and_a_string = "## Initial Q&A\n" + "\n\n".join(q_and_a_strings)
+        doc.add_reasoning(q_and_a_string)
+
         # Finalize the fact-check
         doc.add_reasoning("## Final Judgement\n" + self.judge.get_latest_reasoning())
 
@@ -485,19 +492,20 @@ class FactChecker:
     def answer_question_individually(
             self,
             question: str,
-            results: list[SearchResult]
+            results: list[SearchResult],
+            doc: FCDocument
     ) -> (Optional[str], Optional[SearchResult]):
         """Generates an answer to the given question by iterating over the search results
         and using them individually to answer the question."""
         for result in results:
-            answer = self.answer_question(question, result)
+            answer = self.answer_question(question, result, doc)
             if answer is not None:
                 return answer, result
         return None, None
 
-    def answer_question(self, question: str, result: SearchResult) -> Optional[str]:
+    def answer_question(self, question: str, result: SearchResult, doc: FCDocument) -> Optional[str]:
         """Generates an answer to the given question."""
-        prompt = AnswerQuestion(question, result)
+        prompt = AnswerQuestion(question, result, doc)
         response = self.llm.generate(str(prompt), max_attempts=3)
         # Extract answer from response
         if "NONE" not in response and "None" not in response:
