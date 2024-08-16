@@ -241,8 +241,9 @@ class FactChecker:
         results = self.retrieve_search_results(queries, summarize=True, doc=doc)
         doc.add_reasoning("## Web Search")
         for result in results[:10]:
-            summary_str = f"### Search Result\n{result}"
-            doc.add_reasoning(summary_str)
+            if result.is_useful():
+                summary_str = f"### Search Result\n{result}"
+                doc.add_reasoning(summary_str)
 
         # Stage 4: Veracity prediction
         label = self.judge.judge(doc)
