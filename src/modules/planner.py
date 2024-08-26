@@ -89,7 +89,7 @@ class Planner:
             n_tries += 1
             response = self.llm.generate(str(prompt))
             queries = self._extract_queries(response)
-                
+
             if len(queries) > 0 or n_tries == self.max_tries:
                 return queries
 
@@ -129,6 +129,7 @@ class Planner:
                 candidates += pattern.findall(answer)
             actions_str = "\n".join(candidates)
         if not actions_str:
+            # Potentially prompt LLM to correct format: Exprected format: action_name("query")
             return []
         raw_actions = actions_str.split('\n')
         actions = []
@@ -171,22 +172,12 @@ class Planner:
                 if action_name == action.name:
                     return action(arguments)
 
-            raise ValueError(f'Invalid action format. Fallback to {self.fallback_action.name} with argument: {arguments}')
+            raise ValueError(f'Invalid action format: {raw_action} . Expected format: action_name("query")')
 
         except Exception as e:
             self.logger.log(f"WARNING: Failed to parse '{raw_action}':\n{e}")
 
-        # Try fallback parsing
-        try:
-            if not isinstance(arguments, str):
-                return None
-            elif not (arguments[0] == arguments[-1] == '"'):
-                arguments = f'"{arguments}"'
-
-            return self.fallback_action(arguments)
-
-        except Exception as e:
-            self.logger.log(f"WARNING: Failed to parse '{raw_action}' even during fallback parsing:\n{e}")
+        return None
 
 
 def _process_answer(answer: str) -> str:
