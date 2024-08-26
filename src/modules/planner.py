@@ -85,6 +85,7 @@ class Planner:
                 candidates += pattern.findall(answer)
             actions_str = "\n".join(candidates)
         if not actions_str:
+            # Potentially prompt LLM to correct format: Exprected format: action_name("query")
             return []
         raw_actions = actions_str.split('\n')
         actions = []
@@ -97,8 +98,7 @@ class Planner:
     def _extract_reasoning(self, answer: str) -> str:
         return remove_code_blocks(answer).strip()
 
-    def _parse_single_action(self, raw_action: str, images: Optional[list[Image.Image]] = None,
-                             fallback='wiki_dump_lookup') -> Optional[Action]:
+    def _parse_single_action(self, raw_action: str, images: Optional[list[Image.Image]] = None) -> Optional[Action]:
         arguments = None
 
         try:
@@ -124,23 +124,12 @@ class Planner:
                 if action_name == action.name:
                     return action(arguments)
 
-            raise ValueError(f'Invalid action format. Fallback to {fallback} with argument: {arguments}')
+            raise ValueError(f'Invalid action format: {raw_action} . Expected format: action_name("query")')
 
         except Exception as e:
             self.logger.log(f"WARNING: Failed to parse '{raw_action}':\n{e}")
 
-        # Try fallback parsing
-        try:
-            fallback_action = next((action for action in ACTION_REGISTRY if fallback == action.name), None)
-            if not isinstance(arguments, str):
-                return None
-            elif not (arguments[0] == arguments[-1] == '"'):
-                arguments = f'"{arguments}"'
-
-            return fallback_action(arguments)
-
-        except Exception as e:
-            self.logger.log(f"WARNING: Failed to parse '{raw_action}' even during fallback parsing:\n{e}")
+        return None
 
 
 def _process_answer(answer: str) -> str:
