@@ -6,13 +6,13 @@ import pandas as pd
 
 from src.common.label import Label
 from src.common.modeling import model_full_name_to_shorthand, AVAILABLE_MODELS, MLLM
-from src.eval.averitec.benchmark import AVeriTeC
 from src.eval.benchmark import load_benchmark
 from src.eval.logger import EvaluationLogger
 from src.fact_checker import FactChecker
 from src.tools import initialize_tools
 from src.utils.console import green, red, bold
 from src.utils.plot import plot_confusion_matrix
+from src.eval.averitec.benchmark import AVeriTeC
 
 
 def evaluate(

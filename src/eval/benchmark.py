@@ -5,9 +5,6 @@ from typing import MutableSequence, Iterable
 
 from src.common.action import Action
 from src.common.label import Label
-from .averitec.benchmark import AVeriTeC
-from .fever.benchmark import FEVER
-from .verite.benchmark import VERITE
 
 
 class Benchmark(ABC, Iterable):
@@ -63,6 +60,10 @@ class Benchmark(ABC, Iterable):
         for instance in self.data:
             yield instance
 
+
+from .averitec.benchmark import AVeriTeC
+from .fever.benchmark import FEVER
+from .verite.benchmark import VERITE
 
 BENCHMARK_REGISTRY = {
     AVeriTeC,
