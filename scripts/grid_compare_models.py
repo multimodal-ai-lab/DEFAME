@@ -1,6 +1,6 @@
 from itertools import product
-from src.eval.benchmark import AVeriTeC
-from src.eval.evaluate import evaluate
+from infact.eval.benchmark import AVeriTeC
+from infact.eval.evaluate import evaluate
 
 
 hyperparameters = {'model': ["huggingface:meta-llama/Meta-Llama-3-70B-Instruct"],

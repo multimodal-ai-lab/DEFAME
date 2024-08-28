@@ -1,4 +1,4 @@
-from src.common.logger import Logger
+from infact.common.logger import Logger
 from pathlib import Path
 import json
 

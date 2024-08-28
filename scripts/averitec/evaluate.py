@@ -1,4 +1,4 @@
-from src.eval.evaluate import evaluate
+from infact.eval.evaluate import evaluate
 from multiprocessing import set_start_method
 
 variant = "dev"
@@ -6,7 +6,7 @@ variant = "dev"
 if __name__ == '__main__':  # evaluation uses multiprocessing
     set_start_method("spawn")
     evaluate(
-        llm="gpt_4o_mini",
+        llm="gpt_4o",
         tools_config=dict(searcher=dict(
             search_engine_config=dict(
                 averitec_kb=dict(variant=variant),

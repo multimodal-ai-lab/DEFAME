@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from src.eval.evaluate import compute_accuracy
+from infact.eval.evaluate import compute_accuracy
 
 predictions_prev_path = ""
 predictions_new_path = ""

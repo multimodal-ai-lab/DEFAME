@@ -1,6 +1,6 @@
 import yaml
 
-from src.eval.averitec.compute_score import compute_averitec_score
+from infact.eval.averitec.compute_score import compute_averitec_score
 
 dataset_path = ""
 experiment_dir = ""

@@ -5,8 +5,8 @@ from pathlib import Path
 import yaml
 import json
 
-from src.utils.plot import plot_grouped_bar_chart, COLOR_PALETTE, plot_histogram_comparison
-from src.eval.averitec.score import AVeriTeCEvaluator
+from infact.utils.plot import plot_grouped_bar_chart, COLOR_PALETTE, plot_histogram_comparison
+from infact.eval.averitec.score import AVeriTeCEvaluator
 from tqdm import tqdm
 
 to_compare = [

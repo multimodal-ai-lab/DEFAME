@@ -26,9 +26,9 @@ import spacy
 #from absl import app
 from nltk import tokenize
 
-from src.utils.utils import open_file_wrapped
-from src.utils.parsing import replace
-from src.common import modeling
+from infact.utils.utils import open_file_wrapped
+from infact.utils.parsing import replace
+from infact.common import modeling
 from config.globals import api_keys
 
 
@@ -75,7 +75,7 @@ class AtomicFactGenerator(object):
             api_key: str,
             demon_dir: Optional[str] = DEMON_DIR,
             gpt3_cache_file: Optional[str] = None,
-            other_lm: Optional[modeling.LLM] = None,
+            other_lm: Optional[modeling.Model] = None,
     ):
         self.nlp = SPACY_MODEL
         self.is_bio = True

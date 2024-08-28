@@ -4,10 +4,10 @@
 import pandas as pd
 from tqdm import tqdm
 
-from src.common.modeling import LLM
+from infact.common.modeling import Model
 from config.globals import data_base_dir
 
-llm = LLM("gpt_4o")
+llm = Model("gpt_4o")
 verite_path = data_base_dir + "VERITE/VERITE.csv"
 df = pd.read_csv(verite_path)
 

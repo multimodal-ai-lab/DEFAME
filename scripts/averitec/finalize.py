@@ -1,6 +1,6 @@
-from src.eval.benchmark import AVeriTeC
-from src.eval.evaluate import finalize_evaluation
-from src.utils.utils import load_experiment_parameters
+from infact.eval.benchmark import AVeriTeC
+from infact.eval.evaluate import finalize_evaluation
+from infact.utils.utils import load_experiment_parameters
 
 experiment_dir = ""
 
