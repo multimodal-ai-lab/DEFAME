@@ -1,8 +1,8 @@
-from src.fact_checker import FactChecker
+from infact.fact_checker import FactChecker
 
 
-model = "OPENAI:gpt-4o-2024-05-13"
-fc = FactChecker(llm=model, search_engines=["google"])
+model = "gpt_4o_mini"
+fc = FactChecker(llm=model)
 
 for i in range(1000):
     content = input("Enter a claim to be fact-checked: ")

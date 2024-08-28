@@ -1,4 +1,4 @@
-from src.tools.search.wiki_dump import WikiDumpAPI
+from infact.tools.search.wiki_dump import WikiDumpAPI
 
 search_engine = WikiDumpAPI()
 
