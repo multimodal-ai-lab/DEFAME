@@ -9,7 +9,7 @@ from infact.common.content import Content
 from infact.common.document import FCDocument
 from infact.common.modeling import Model
 from infact.common.logger import Logger
-from infact.prompts.prompt import PlanPrompt, ProposeQueries, ProposeQuerySimple, ProposeQueriesNoQuestions
+from infact.prompts.prompt import PlanPrompt, ProposeQuerySimple
 from infact.utils.parsing import extract_last_code_block, remove_code_blocks, find_code_span, strip_string
 
 
@@ -77,48 +77,6 @@ class Planner:
                 return actions, reasoning
 
             self.logger.log("WARNING: No new actions were found. Retrying...")
-
-    def propose_queries_for_question(self, doc: FCDocument, question: str = None) -> list[Action]:
-        if question is not None:
-            prompt = ProposeQueries(question, doc)
-        else:
-            prompt = ProposeQueriesNoQuestions(doc)
-
-        n_tries = 0
-        while True:
-            n_tries += 1
-            response = self.llm.generate(prompt)
-            queries = self._extract_queries(response)
-
-            if len(queries) > 0 or n_tries == self.max_tries:
-                return queries
-
-            self.logger.log("WARNING: No new actions were found. Retrying...")
-
-    def propose_queries_for_question_simple(self, question: str) -> Optional[Action]:
-        prompt = ProposeQuerySimple(question)
-
-        n_tries = 0
-        while True:
-            n_tries += 1
-            response = self.llm.generate(prompt)
-            queries = self._extract_queries(response)
-
-            if len(queries) > 0:
-                return queries[0]
-            elif n_tries == self.max_tries:
-                return None
-
-            self.logger.log("WARNING: No new actions were found. Retrying...")
-
-    def _extract_queries(self, response: str) -> list[Action]:
-        matches = find_code_span(response)
-        actions = []
-        for match in matches:
-            query = strip_string(match)
-            action = WebSearch(f'"{query}"')
-            actions.append(action)
-        return actions
 
     def _extract_actions(self, answer: str, context: Content = None) -> list[Action]:
         actions_str = extract_last_code_block(answer).replace("markdown","")

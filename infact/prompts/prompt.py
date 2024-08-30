@@ -180,13 +180,15 @@ class PlanPrompt(Prompt):
 
 
 class PoseQuestionsPrompt(Prompt):
-    template_file_path = "infact/prompts/pose_questions.md"
-
-    def __init__(self, doc: FCDocument, n_questions: int = 10):
+    def __init__(self, doc: FCDocument, n_questions: int = 10, interpret: bool = True):
         placeholder_targets = {
             "[CLAIM]": doc.claim,
             "[N_QUESTIONS]": n_questions
         }
+        if interpret:
+            self.template_file_path = "infact/prompts/pose_questions.md"
+        else:
+            self.template_file_path = "infact/prompts/pose_questions_no_interpretation.md"
         super().__init__(placeholder_targets)
 
 
