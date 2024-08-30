@@ -82,7 +82,7 @@ def evaluate(
             for action in tool.actions:
                 assert action in benchmark.available_actions, \
                     f"Action {action} not available for benchmark {benchmark.name}."
-    # del tools
+    del tools
 
     if random_sampling:
         benchmark.shuffle()
@@ -154,7 +154,7 @@ def evaluate(
         # Gather worker results by reading the output queue
         for _ in tqdm(range(n_samples), smoothing=0.02):
             try:
-                doc, q_and_a = output_queue.get(timeout=30 * 60)  # 30 minutes timeout
+                doc, meta = output_queue.get(timeout=30 * 60)  # 30 minutes timeout
             except Empty as e:
                 # Happens if some worker died during execution, causing an
                 # incomplete number of instances
@@ -173,7 +173,7 @@ def evaluate(
                 averitec_out_instance = {
                     "claim_id": claim_id,
                     "claim": content.text,
-                    "evidence": q_and_a,
+                    "evidence": meta["q_and_a"],
                     "pred_label": pred_label
                 }
 
@@ -333,9 +333,10 @@ def fact_check(llm: str, llm_kwargs: dict, mllm: str, mllm_kwargs: dict,
             # Restrict the KB to the current claim's resources
             kb.current_claim_id = content.id_number
         logger.set_current_fc_id(content.id_number)
-        _, docs, q_and_a = fc.check(content)
+        _, docs, metas = fc.check_content(content)
         doc = docs[0]
-        output_queue.put((doc, q_and_a))
+        meta = metas[0]
+        output_queue.put((doc, meta))
 
 
 def load_results(path: str):

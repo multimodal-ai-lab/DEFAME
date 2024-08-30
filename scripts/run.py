@@ -14,5 +14,5 @@ for i in range(1000):
     #            "due to a large-scale election fraud incited by "
     #            "Democrats, he unlawfully lost the elections.")
 
-    doc = fc.check(content)
+    doc = fc.check_content(content)
     fc.logger.save_fc_doc(doc, claim_id=i)
