@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import torch
 import yaml
+import json
 from tqdm import tqdm
 
 from infact.common.label import Label
@@ -20,8 +21,9 @@ from infact.common.logger import Logger
 from infact.fact_checker import FactChecker
 from infact.tools import initialize_tools, Searcher
 from infact.tools.search.knowledge_base import KnowledgeBase
-from infact.utils.console import green, red, bold, sec2hhmmss, sec2mmss
+from infact.utils.console import green, red, bold, sec2hhmmss, sec2mmss, num2text
 from infact.utils.plot import plot_confusion_matrix
+from infact.utils.utils import flatten_dict, unroll_dict
 
 
 def evaluate(
@@ -39,7 +41,7 @@ def evaluate(
         print_log_level: str = False,
         continue_experiment_dir: str = None,
         n_workers: int = None,
-) -> Optional[float]:
+):
     assert not n_samples or not sample_ids
 
     if llm_kwargs is None:
@@ -118,6 +120,8 @@ def evaluate(
 
     is_averitec = isinstance(benchmark, AVeriTeC)
 
+    all_instance_stats = pd.DataFrame()
+
     start_time = time.time()
 
     input_queue = Queue()
@@ -164,6 +168,12 @@ def evaluate(
             instance = benchmark.get_by_id(claim_id)
             prediction = doc.verdict
 
+            # Handle statistics
+            instance_stats = flatten_dict(meta["Statistics"])
+            instance_stats["ID"] = claim_id
+            instance_stats = pd.DataFrame([instance_stats])
+            all_instance_stats = pd.concat([all_instance_stats, instance_stats], ignore_index=True)
+
             if is_averitec:
                 if prediction == Label.CHERRY_PICKING:
                     # Merge cherry-picking and conflicting label
@@ -173,9 +183,11 @@ def evaluate(
                 averitec_out_instance = {
                     "claim_id": claim_id,
                     "claim": content.text,
-                    "evidence": meta["q_and_a"],
                     "pred_label": pred_label
                 }
+
+                if "q_and_a" in meta:
+                    averitec_out_instance["evidence"] = meta["q_and_a"]
 
                 logger.save_next_averitec_out(averitec_out_instance)
 
@@ -197,43 +209,64 @@ def evaluate(
                     logger.log(bold(red("WRONG - Ground truth: " + instance["label"].value + "\n")))
 
     end_time = time.time()
+    duration = end_time - start_time
 
-    return finalize_evaluation(logger.target_dir, benchmark, duration=end_time - start_time, n_workers=n_workers)
+    all_instance_stats.index = all_instance_stats["ID"]
+    all_instance_stats.to_csv(logger.target_dir / "instance_stats.csv")
+
+    time_per_claim = n_workers * duration / len(all_instance_stats) if duration and n_workers else None
+
+    stats = {
+        "Number of workers": n_workers,
+        "Total run duration": duration,
+        "Time per claim": all_instance_stats["Duration"].mean(),
+    }
+    stats.update(aggregate_stats(all_instance_stats, category="Model"))
+    stats.update(aggregate_stats(all_instance_stats, category="Tools"))
+
+    finalize_evaluation(stats, logger.target_dir, benchmark)
 
 
-def finalize_evaluation(experiment_dir: str | Path,
-                        benchmark: Benchmark,
-                        duration: float = None,
-                        n_workers: int = None):
+def aggregate_stats(instance_stats: pd.DataFrame, category: str) -> dict[str, float]:
+    """Sums the values for all instances for all the columns the name of
+    which begin with 'category'."""
+    aggregated_stats = dict()
+    columns = list(instance_stats.columns)
+    for column in columns:
+        if column.startswith(category):
+            aggregated = instance_stats[column].sum()
+            if isinstance(aggregated, np.integer):
+                aggregated = int(aggregated)
+            elif isinstance(aggregated, np.floating):
+                aggregated = float(aggregated)
+            aggregated_stats[column] = aggregated
+    return unroll_dict(aggregated_stats)
+
+
+def finalize_evaluation(stats: dict,
+                        experiment_dir: str | Path,
+                        benchmark: Benchmark):
+    """Takes a dictionary of experiment statistics, computes experiment metrics, and saves
+    all the values in a YAML file. Also plots a confusion matrix if ground truth is available."""
     experiment_dir = Path(experiment_dir)
     is_averitec = isinstance(benchmark, AVeriTeC)
     is_test = benchmark.variant == "test"
-
-    # search_summary = {
-    #     name: searcher.total_searches
-    #     for tool in tools if isinstance(tool, Searcher)  # TODO: Not updated anymore due to multiprocessing
-    #     for name, searcher in tool.search_apis.items()
-    # }
 
     # Retrieve predictions and ground truth
     df = pd.read_csv(experiment_dir / "predictions.csv")
     predicted_labels = df["predicted"].to_numpy()
     ground_truth_labels = None if is_test else df["target"].to_numpy()
 
-    benchmark_classes = benchmark.get_classes()
-    if is_averitec:
-        benchmark_classes.remove(Label.CHERRY_PICKING)
-
-    time_per_claim = n_workers * duration / len(predicted_labels) if duration and n_workers else None
-
-    accuracy = save_final_summary(predicted_labels=predicted_labels,
-                                  ground_truth_labels=ground_truth_labels,
-                                  duration=duration,
-                                  time_per_claim=time_per_claim,
-                                  # search_summary=search_summary,
-                                  experiment_dir=experiment_dir)
+    # Compute metrics and save them along with the other stats
+    metric_stats = compute_metrics(predicted_labels, ground_truth_labels)
+    stats["Predictions"] = metric_stats
+    save_stats(stats, target_dir=experiment_dir)
 
     if not is_test:
+        benchmark_classes = benchmark.get_classes()
+        if is_averitec:
+            benchmark_classes.remove(Label.CHERRY_PICKING)
+
         plot_confusion_matrix(predicted_labels,
                               ground_truth_labels,
                               benchmark_classes,
@@ -247,26 +280,15 @@ def finalize_evaluation(experiment_dir: str | Path,
             with open(scores_path, "w") as f:
                 yaml.dump(scores, f, sort_keys=False)
 
-        return accuracy
 
-
-def save_final_summary(predicted_labels: Sequence[Label],
-                       # search_summary: dict,
-                       experiment_dir: Path,
-                       duration: float = None,
-                       time_per_claim: float = None,
-                       ground_truth_labels: Sequence[Label] = None,
-                       print_summary: bool = True) -> Optional[float]:
+def compute_metrics(predicted_labels: Sequence[Label],
+                    ground_truth_labels: Sequence[Label] = None):
     n_samples = len(predicted_labels)
     n_refused = np.count_nonzero(np.array(predicted_labels) == Label.REFUSED_TO_ANSWER)
-    # search_summary = ", ".join(f"{searcher}: {n_searches}" for searcher, n_searches in search_summary.items())
 
-    result_summary = {
-        "Total samples": n_samples,
-        "Refused predictions": int(n_refused),
-        "Total run duration (h)": sec2hhmmss(duration),
-        "Time per claim (min)": sec2mmss(time_per_claim),
-        # "Total searches": search_summary,
+    metric_summary = {
+        "Total": n_samples,
+        "Refused": int(n_refused),
     }
 
     if ground_truth_labels is not None:
@@ -275,23 +297,43 @@ def save_final_summary(predicted_labels: Sequence[Label],
         n_wrong_predictions = n_samples - n_correct_predictions - n_refused
         accuracy = n_correct_predictions / (n_samples - n_refused)
 
-        result_summary.update({
-            "Correct predictions": int(n_correct_predictions),
-            "Wrong predictions": int(n_wrong_predictions),
-            "Accuracy": f"{accuracy * 100:.1f} %",
+        metric_summary.update({
+            "Correct": int(n_correct_predictions),
+            "Wrong": int(n_wrong_predictions),
+            "Accuracy": accuracy,
         })
 
-    else:
-        accuracy = None
+    return metric_summary
 
-    with open(experiment_dir / 'results.yaml', "w") as f:
-        yaml.dump(result_summary, f, sort_keys=False)
 
-    if print_summary:
-        print("Results:")
-        bold_print_dict(result_summary)
+def save_stats(stats: dict, target_dir: Path):
+    """Writes two files: one machine-readable file 'stats.json' and one
+    human-readable file 'stats.yaml'."""
+    # Save machine-readable stats
+    with open(target_dir / 'results.json', "w") as f:
+        json.dump(stats, f, sort_keys=False)
 
-    return accuracy
+    # Create a human-readable version
+    stats_human_readable = stats.copy()
+    stats_human_readable["Total run duration"] = sec2hhmmss(stats["Total run duration"])
+    stats_human_readable["Time per claim"] = sec2mmss(stats["Time per claim"])
+    acc = stats["Predictions"].get("Accuracy")
+    if acc is not None:
+        stats_human_readable["Predictions"]["Accuracy"] = f"{acc * 100:.1f} %"
+    model = stats_human_readable["Model"].copy()
+    model["Input tokens"] = num2text(model["Input tokens"])
+    model["Output tokens"] = num2text(model["Output tokens"])
+    model["Input tokens cost"] = "$" + num2text(model["Input tokens cost"])
+    model["Output tokens cost"] = "$" + num2text(model["Output tokens cost"])
+    model["Total cost"] = "$" + num2text(model["Total cost"])
+    stats_human_readable["Model"] = model
+
+    # Save the human-readable statistics and print them
+    with open(target_dir / 'results.yaml', "w") as f:
+        stats_str = yaml.dump(stats_human_readable, sort_keys=False)
+        f.write(stats_str)
+
+    print("Results:\n" + stats_str)
 
 
 def fact_check(llm: str, llm_kwargs: dict, mllm: str, mllm_kwargs: dict,

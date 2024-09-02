@@ -1,4 +1,7 @@
 import re
+from typing import Any
+
+import numpy as np
 
 from infact.common.action import WebSearch, WikiDumpLookup, Search
 from infact.common.results import SearchResult
@@ -25,6 +28,7 @@ class Searcher(Tool):
     # TODO: Rank or annotate the websites according to their credibility, like MUSE
     name = "searcher"
     search_apis: dict[str, SearchAPI]
+    stats: dict[str, int]
 
     def __init__(self,
                  search_engine_config: dict[str, dict] = None,
@@ -68,6 +72,8 @@ class Searcher(Tool):
         # Cut the result text, maintaining a little buffer for the summary prompt
         self.past_search_results = set()
 
+        self.reset()
+
     def perform(self, action: Search) -> list[SearchResult]:
         return self.search(action.query)
 
@@ -75,6 +81,9 @@ class Searcher(Tool):
         """Searches for evidence using the search APIs according to their precedence."""
         for search_engine in list(self.search_apis.values()):
             results = self._retrieve_search_results(query, search_engine)
+
+            # Track search engine call
+            self.stats[search_engine.name] += 1
 
             # Log search results info
             self.logger.log(f"Got {len(results)} new result(s):")
@@ -99,8 +108,9 @@ class Searcher(Tool):
         self.past_search_results |= set(results)
 
     def reset(self):
-        """Removes all known search results."""
+        """Removes all known search results and resets the statistics."""
         self.past_search_results = set()
+        self.stats = {s.name: 0 for s in self.search_apis.values()}
 
     def _retrieve_search_results(
             self,
@@ -127,3 +137,10 @@ class Searcher(Tool):
         if self.max_result_len is not None:
             result = result[self.max_result_len:]
         return result
+
+    def get_stats(self) -> dict[str, Any]:
+        total_searches = np.sum([n for n in self.stats.values()])
+        return {
+            "Total searches": total_searches,
+            "Search engine calls": self.stats,
+        }

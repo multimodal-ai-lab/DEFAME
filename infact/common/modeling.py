@@ -47,6 +47,16 @@ def get_model_context_window(name: str) -> int:
     return int(AVAILABLE_MODELS["Context window"][AVAILABLE_MODELS["Shorthand"] == name].iloc[0])
 
 
+def get_model_api_pricing(name: str) -> (float, float):
+    """Returns the cost per 1M input tokens and the cost per 1M output tokens for the
+    specified model."""
+    if name not in AVAILABLE_MODELS["Shorthand"].to_list():
+        name = model_specifier_to_shorthand(name)
+    input_cost = float(AVAILABLE_MODELS["Cost per 1M input tokens"][AVAILABLE_MODELS["Shorthand"] == name].iloc[0])
+    output_cost = float(AVAILABLE_MODELS["Cost per 1M output tokens"][AVAILABLE_MODELS["Shorthand"] == name].iloc[0])
+    return input_cost, output_cost
+
+
 class OpenAIAPI:
     def __init__(self, model: str):
         self.model = model
@@ -97,12 +107,19 @@ class Model(ABC):
         assert max_response_len < self.context_window
         self.max_response_len = max_response_len  # tokens
         self.max_prompt_len = self.context_window - max_response_len  # tokens
+        self.input_pricing, self.output_pricing = get_model_api_pricing(shorthand)
+
         self.top_k = top_k
         self.top_p = top_p
         self.repetition_penalty = repetition_penalty
         self.device = device
 
         self.api = self.load(specifier.split(":")[1])
+
+        # Statistics
+        self.n_calls = 0
+        self.n_input_tokens = 0
+        self.n_output_tokens = 0
 
     def load(self, model_name: str) -> Callable[..., str]:
         """Initializes the API wrapper used to call generations."""
@@ -142,8 +159,11 @@ class Model(ABC):
                                   f"tokens. Truncating the prompt.")
                 prompt.text = prompt.text[:self.context_window - len(system_prompt)]
 
+            self.n_calls += 1
+            self.n_input_tokens += self.count_tokens(prompt)
             response = self._generate(prompt, temperature=temperature, top_p=top_p, top_k=top_k,
                                       system_prompt=system_prompt)
+            self.n_output_tokens += self.count_tokens(response)
 
             # Handle guardrail hits
             if is_guardrail_hit(response):
@@ -164,6 +184,23 @@ class Model(ABC):
     def count_tokens(self, prompt: Prompt | str) -> int:
         """Returns the number of tokens in the given text string."""
         raise NotImplementedError
+
+    def reset_stats(self):
+        self.n_calls = 0
+        self.n_input_tokens = 0
+        self.n_output_tokens = 0
+
+    def get_stats(self) -> dict:
+        input_cost = self.input_pricing * self.n_input_tokens / 1e6
+        output_cost = self.output_pricing * self.n_output_tokens / 1e6
+        return {
+            "Calls": self.n_calls,
+            "Input tokens": self.n_input_tokens,
+            "Output tokens": self.n_output_tokens,
+            "Input tokens cost": input_cost,
+            "Output tokens cost": output_cost,
+            "Total cost": input_cost + output_cost,
+        }
 
 
 class GPTModel(Model):

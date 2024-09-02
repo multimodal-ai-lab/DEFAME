@@ -1,4 +1,5 @@
 from abc import ABC
+from typing import Any
 
 import torch
 
@@ -20,8 +21,12 @@ class Tool(ABC):
         raise NotImplementedError
 
     def reset(self) -> None:
-        """Resets the tool to its initial state (if applicable)."""
+        """Resets the tool to its initial state (if applicable) and sets all stats to zero."""
         pass
+
+    def get_stats(self) -> dict[str, Any]:
+        """Returns the tool's usage statistics as a dictionary."""
+        return {}
 
 
 def get_available_actions(tools: list[Tool]) -> set[type[Action]]:

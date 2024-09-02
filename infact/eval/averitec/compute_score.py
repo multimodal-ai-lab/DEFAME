@@ -37,11 +37,13 @@ def compute_averitec_score(dataset_path: str | Path, results_path: str | Path) -
     print("\nWorst scored instances:")
     q_scores_sorted = np.argsort(all_q_scores)
     for i in q_scores_sorted[:5]:
+        result = results[i]
         print(f"\nClaim {i}: {all_q_scores[i]:.4f}")
-        print(results[i]["claim"])
+        print(result["claim"])
         print("Generated questions:")
-        for evidence in results[i]["evidence"]:
-            print("\t" + evidence["question"])
+        if "evidence" in result:
+            for evidence in result["evidence"]:
+                print("\t" + evidence["question"])
         print("Gold questions:")
         for evidence in dataset[i]["questions"]:
             print("\t" + evidence["question"])

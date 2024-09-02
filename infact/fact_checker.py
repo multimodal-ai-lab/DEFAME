@@ -46,10 +46,8 @@ class FactChecker:
         self.logger = logger or Logger(print_log_level=print_log_level)
 
         self.llm = make_model(llm, logger=self.logger) if isinstance(llm, str) else llm
-        self.mllm = make_model(mllm, logger=self.logger) if isinstance(mllm, str) else mllm
 
         self.claim_extractor = ClaimExtractor(llm=self.llm,
-                                              mllm=self.mllm,
                                               interpret=interpret,
                                               decompose=decompose,
                                               decontextualize=decontextualize,
@@ -100,20 +98,20 @@ class FactChecker:
 
     def _initialize_tools(self, search_engines: dict[str, dict]) -> list[Tool]:
         """Loads a default collection of tools."""
+        # Unimodal tools
         tools = [
             Searcher(search_engines, max_result_len=self.max_result_len, logger=self.logger),
             CredibilityChecker(logger=self.logger)
         ]
 
-        multimodal = self.mllm is not None
-        if multimodal:
-            tools.extend([
-                ObjectDetector(logger=self.logger),
-                Geolocator(top_k=10, logger=self.logger),
-                #  TODO: add an image reverse searcher
-                FaceRecognizer(logger=self.logger),
-                TextExtractor(logger=self.logger)
-            ])
+        # Multimodal tools
+        tools.extend([
+            ObjectDetector(logger=self.logger),
+            Geolocator(top_k=10, logger=self.logger),
+            #  TODO: add an image reverse searcher
+            FaceRecognizer(logger=self.logger),
+            TextExtractor(logger=self.logger)
+        ])
 
         return tools
 
@@ -126,10 +124,6 @@ class FactChecker:
         start = time.time()
 
         content = Content(content) if isinstance(content, str) else content
-
-        # Input validation
-        if content.is_multimodal():
-            assert self.mllm is not None, "Multimodal content provided but no multimodal model specified."
 
         self.logger.info(bold(f"Content to be checked:\n'{light_blue(str(content))}'"))
 
@@ -154,7 +148,11 @@ class FactChecker:
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it.
         This is the core of the fact-checking implementation. Here, the fact-checking
         document is constructed incrementally."""
+        stats = {}
         self.actor.reset()  # remove all past search evidences
+        self.llm.reset_stats()
+
+        start = time.time()
         doc = FCDocument(claim)
 
         # Depending on the specified procedure variant, perform the fact-check
@@ -172,6 +170,10 @@ class FactChecker:
             self.logger.info(f'Justification: {gray(doc.justification)}')
         doc.verdict = label
 
+        stats["Duration"] = time.time() - start
+        stats["Model"] = self.llm.get_stats()
+        stats["Tools"] = self.actor.get_tool_stats()
+        meta["Statistics"] = stats
         return doc, meta
 
 

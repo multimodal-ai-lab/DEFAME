@@ -101,7 +101,7 @@ class AVeriTeCEvaluator:
     def get_questions_only_meteor(self, srcs, tgts):
         all_utils = []
         for src, tgt in zip(srcs, tgts):
-            if "evidence" not in src:
+            if "evidence" not in src or src["evidence"] is None:
                 # If there was no evidence, use the string evidence
                 src_questions = self.extract_full_comparison_strings(
                     src, is_target=False
@@ -252,7 +252,7 @@ class AVeriTeCEvaluator:
                             evidence["question"] + " No answer could be found."
                         )
         else:
-            if "evidence" in example:
+            if "evidence" in example and example["evidence"] is not None:
                 for evidence in example["evidence"]:
                     if evidence["answer"] is not None:
                         example_strings.append(
