@@ -6,7 +6,7 @@ from infact.common.document import FCDocument
 from infact.common.label import Label, DEFAULT_LABEL_DEFINITIONS
 from infact.common.results import Evidence, SearchResult
 from infact.utils.parsing import strip_string, remove_non_symbols
-from utils.parsing import read_md_file
+from infact.utils.parsing import read_md_file
 from PIL.Image import Image
 
 SYMBOL = 'Check-worthy'

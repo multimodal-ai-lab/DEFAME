@@ -1,4 +1,4 @@
-from procedure.procedure import Procedure
+from .procedure import Procedure
 from .variants.qa_based.advanced import AdvancedQA
 from .variants.qa_based.first_result import FirstResult
 from .variants.qa_based.infact import InFact

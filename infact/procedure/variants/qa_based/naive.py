@@ -1,6 +1,6 @@
 from typing import Any
 
-from common import FCDocument, Label
+from infact.common import FCDocument, Label
 from infact.procedure.variants.qa_based.base import QABased
 
 

@@ -1,9 +1,9 @@
 from typing import Any, Optional
 
-from common import FCDocument, Label, SearchResult
+from infact.common import FCDocument, Label, SearchResult
 from infact.procedure.variants.qa_based.base import QABased
 from infact.prompts.prompt import AnswerCollectively
-from utils.parsing import extract_last_code_span, extract_last_paragraph
+from infact.utils.parsing import extract_last_code_span, extract_last_paragraph
 
 
 class AdvancedQA(QABased):

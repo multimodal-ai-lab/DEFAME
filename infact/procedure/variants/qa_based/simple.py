@@ -1,9 +1,9 @@
 from typing import Optional
 
-from common import FCDocument, SearchResult, Action
+from infact.common import FCDocument, SearchResult, Action
 from infact.procedure.variants.qa_based.infact import InFact
 from infact.prompts.prompt import ProposeQuerySimple
-from procedure.variants.qa_based.base import extract_queries
+from infact.procedure.variants.qa_based.base import extract_queries
 
 
 class SimpleQA(InFact):

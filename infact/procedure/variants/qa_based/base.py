@@ -7,8 +7,8 @@ from infact.procedure.procedure import Procedure
 from infact.prompts.prompt import AnswerQuestion
 from infact.prompts.prompt import PoseQuestionsPrompt
 from infact.prompts.prompt import ProposeQueries, ProposeQueriesNoQuestions
-from utils.console import light_blue
-from utils.parsing import extract_last_paragraph, find_code_span, strip_string
+from infact.utils.console import light_blue
+from infact.utils.parsing import extract_last_paragraph, find_code_span, strip_string
 
 
 class QABased(Procedure, ABC):
