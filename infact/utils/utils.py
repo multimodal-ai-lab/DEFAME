@@ -81,3 +81,35 @@ def load_experiment_parameters(from_dir: str | Path):
     with open(config_path, "r") as f:
         experiment_params = yaml.safe_load(f)
     return experiment_params
+
+
+def flatten_dict(to_flatten: dict[str, Any]) -> dict[str, Any]:
+    """Flattens a nested dictionary which has string keys. Renames the keys using
+    the scheme "<outer_key>/<inner_key>/..."."""
+    flat_dict = {}
+    for outer_key, outer_value in to_flatten.items():
+        if isinstance(outer_value, dict):
+            flat_dict_inner = flatten_dict(outer_value)
+            for inner_key, inner_value in flat_dict_inner.items():
+                flat_dict[f"{outer_key}/{inner_key}"] = inner_value
+        else:
+            flat_dict[outer_key] = outer_value
+    return flat_dict
+
+
+def unroll_dict(flat_dict: dict[str, Any]) -> dict[str, Any]:
+    """Inverse function of flatten_dict()."""
+    unrolled_dict = {}
+    for key, value in flat_dict.items():
+        key_parts = key.split("/")
+        tmp_dict = unrolled_dict
+        for i, key_part in enumerate(key_parts):
+            if i == len(key_parts) - 1:  # Deepest dict layer reached
+                tmp_dict[key_part] = value
+            else:  # Go down one nested layer
+                if key_part in tmp_dict:  # Use existing dict
+                    tmp_dict = tmp_dict[key_part]
+                else:  # Create new dict
+                    tmp_dict[key_part] = dict()
+                    tmp_dict = tmp_dict[key_part]
+    return unrolled_dict

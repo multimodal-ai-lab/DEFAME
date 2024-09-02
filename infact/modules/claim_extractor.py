@@ -10,14 +10,12 @@ from infact.utils.parsing import extract_first_square_brackets, extract_first_co
 
 class ClaimExtractor:
     def __init__(self, llm: Model,
-                 mllm: Model = None,
                  interpret: bool = False,
                  decompose: bool = False,
                  decontextualize: bool = False,
                  filter_check_worthy: bool = False,
                  logger: Logger = None):
         self.llm = llm
-        self.mllm = mllm
 
         self.do_interpretation = interpret
         self.do_decomposition = decompose

@@ -40,4 +40,7 @@ class Actor:
         """Resets all tools (if applicable)."""
         for tool in self.tools:
             tool.reset()
+
+    def get_tool_stats(self):
+        return {t.name: t.get_stats() for t in self.tools}
     
