@@ -325,6 +325,11 @@ class HuggingFaceModel(Model, ABC):
 
         # The function continues processing with either the formatted or original prompt
         return formatted_prompt
+    
+
+    def count_tokens(self, prompt: Prompt | str) -> int:
+        tokens = self.api.tokenizer.encode(str(prompt))
+        return len(tokens)
 
 
 class LlamaModel(HuggingFaceModel):
