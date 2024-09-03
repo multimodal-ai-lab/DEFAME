@@ -26,7 +26,9 @@ setuptools>=68.2.2
 spacy==3.7.4
 sty>=1.0.6
 tiktoken~=0.7.0
+timm==1.0.9
 torch==2.3.1
 transformers>=4.44.2
 tqdm>=4.64.0
 tweepy~=4.14.0
+yacs==0.1.8
