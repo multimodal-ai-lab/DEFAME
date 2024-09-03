@@ -1,8 +1,8 @@
 from abc import ABC
 from typing import Any
 
-from common import SearchResult
-from common.action import WebSearch
+from infact.common import SearchResult
+from infact.common.action import WebSearch
 from infact.common import FCDocument, Label, Model, Logger
 from infact.modules import Judge, Actor, Planner
 

@@ -7,7 +7,7 @@ from infact.procedure.procedure import Procedure
 from infact.prompts.prompt import AnswerQuestion
 from infact.prompts.prompt import PoseQuestionsPrompt
 from infact.prompts.prompt import ProposeQueries
-from utils.console import light_blue
+from infact.utils.console import light_blue
 
 
 class QABased(Procedure, ABC):

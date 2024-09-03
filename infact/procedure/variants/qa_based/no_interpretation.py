@@ -1,7 +1,7 @@
+from infact.common.document import FCDocument
 from infact.procedure.variants.qa_based.infact import InFact
-from common.document import FCDocument
-from utils.parsing import find_code_span
-from prompts.prompt import PoseQuestionsPrompt
+from infact.prompts.prompt import PoseQuestionsPrompt
+from infact.utils.parsing import find_code_span
 
 
 class NoInterpretation(InFact):

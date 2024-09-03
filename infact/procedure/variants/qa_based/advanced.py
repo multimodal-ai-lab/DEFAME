@@ -1,14 +1,14 @@
-from typing import Any, Optional
+from typing import Any
 
-from common import FCDocument, Label, SearchResult
+from infact.common import FCDocument, Label, SearchResult
 from infact.procedure.variants.qa_based.base import QABased
 from infact.prompts.prompt import AnswerCollectively
-from utils.parsing import extract_last_code_span, extract_last_paragraph
 
 
 class AdvancedQA(QABased):
     """The former "dynamic" or "multi iteration" approach. Intended as improvement over
     InFact but turned out to have worse performance on AVeriTeC."""
+
     def __init__(self, max_iterations: int = 3, **kwargs):
         super().__init__(**kwargs)
         self.max_iterations = max_iterations

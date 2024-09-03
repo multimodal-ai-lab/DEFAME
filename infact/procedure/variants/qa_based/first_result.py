@@ -1,4 +1,4 @@
-from common import FCDocument, SearchResult
+from infact.common import FCDocument, SearchResult
 from infact.procedure.variants.qa_based.infact import InFact
 
 

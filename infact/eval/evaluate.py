@@ -16,8 +16,10 @@ from tqdm import tqdm
 from infact.common.label import Label
 from infact.common.logger import Logger
 from infact.common.modeling import model_specifier_to_shorthand, AVAILABLE_MODELS, make_model
+from infact.eval import load_benchmark
+from infact.eval.averitec.benchmark import AVeriTeC
 from infact.eval.averitec.compute_score import compute_averitec_score
-from infact.eval.benchmark import load_benchmark, AVeriTeC, Benchmark
+from infact.eval.benchmark import Benchmark
 from infact.fact_checker import FactChecker
 from infact.tools import initialize_tools, Searcher
 from infact.tools.search.knowledge_base import KnowledgeBase
