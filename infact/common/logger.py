@@ -2,18 +2,20 @@ import csv
 import json
 import logging
 import os.path
+import sys
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
-import sys
 
 import yaml
+import pandas as pd
 
 from config.globals import result_base_dir
 from infact.common.document import FCDocument
 from infact.common.label import Label
 from infact.utils.console import remove_string_formatters, bold, red, orange, yellow
+from infact.utils.utils import flatten_dict
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('openai').setLevel(logging.ERROR)
@@ -43,6 +45,8 @@ class Logger:
 
     averitec_out_filename = 'averitec_out.json'
     config_filename = 'config.yaml'
+    predictions_filename = 'predictions.csv'
+    instance_stats_filename = 'instance_stats.csv'
 
     def __init__(self,
                  benchmark_name: str = None,
@@ -64,7 +68,8 @@ class Logger:
         os.makedirs(self.logs_dir, exist_ok=True)
 
         self.config_path = self.target_dir / self.config_filename
-        self.predictions_path = self.target_dir / 'predictions.csv'
+        self.predictions_path = self.target_dir / self.predictions_filename
+        self.instance_stats_path = self.target_dir / self.instance_stats_filename
         self.averitec_out = self.target_dir / self.averitec_out_filename
 
         logging.basicConfig(level=logging.DEBUG)
@@ -167,6 +172,27 @@ class Logger:
                                     is_correct,
                                     gt_justification))
 
+    def save_next_instance_stats(self, stats: dict, claim_id: int):
+        all_instance_stats = self._load_stats_df()
+
+        # Convert statistics dict to Pandas dataframe
+        instance_stats = flatten_dict(stats)
+        instance_stats["ID"] = claim_id
+        instance_stats = pd.DataFrame([instance_stats])
+        instance_stats.set_index("ID", inplace=True)
+
+        # Append instance stats and save
+        all_instance_stats = pd.concat([all_instance_stats, instance_stats])
+        all_instance_stats.to_csv(self.instance_stats_path)
+
+    def _load_stats_df(self):
+        if os.path.exists(self.instance_stats_path):
+            df = pd.read_csv(self.instance_stats_path)
+            df.set_index("ID", inplace=True)
+            return df
+        else:
+            return pd.DataFrame()
+
     def save_fc_doc(self, doc: FCDocument, claim_id: int):
         with open(self.fc_docs_dir / f"{claim_id}.md", "w") as f:
             f.write(str(doc))
@@ -186,6 +212,7 @@ class Logger:
 
 class RemoveStringFormattingFormatter(logging.Formatter):
     """Logging formatter that removes any string formatting symbols from the message."""
+
     def format(self, record):
         msg = record.getMessage()
         return remove_string_formatters(msg)

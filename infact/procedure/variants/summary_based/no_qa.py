@@ -3,7 +3,6 @@ from typing import Any
 from infact.common import FCDocument, Label
 from infact.common.action import WebSearch
 from infact.procedure.procedure import Procedure
-from infact.procedure.variants.qa_based.base import extract_queries
 from infact.prompts.prompt import ProposeQueriesNoQuestions
 
 
@@ -29,13 +28,20 @@ class StaticSummary(Procedure):
     def generate_search_queries(self, doc: FCDocument) -> list[WebSearch]:
         prompt = ProposeQueriesNoQuestions(doc)
 
-        n_tries = 0
-        while True:
-            n_tries += 1
+        n_attempts = 0
+        while n_attempts < self.max_attempts:
+            n_attempts += 1
             response = self.llm.generate(prompt)
-            queries = extract_queries(response)
 
-            if len(queries) > 0 or n_tries == self.max_attempts:
+            if response is None:
+                continue
+
+            queries: list = response["queries"]
+
+            if len(queries) > 0:
                 return queries
 
-            self.logger.log("WARNING: No new actions were found. Retrying...")
+            self.logger.log("No new actions were found. Retrying...")
+
+        self.logger.warning("Got no search query, dropping this question.")
+        return []

@@ -14,5 +14,5 @@ class DocSummarizer:
 
     def summarize(self, doc: FCDocument) -> str:
         summarize_doc_prompt = SummarizeDocPrompt(doc)
-        summary = self.llm.generate(str(summarize_doc_prompt))
+        summary = self.llm.generate(summarize_doc_prompt)
         return summary

@@ -1,11 +1,13 @@
-from typing import Collection, Any, Sequence
+from typing import Collection, Any, Sequence, Optional
+import re
 
 from infact.common.action import *
 from infact.common.claim import Claim
 from infact.common.document import FCDocument
 from infact.common.label import Label, DEFAULT_LABEL_DEFINITIONS
 from infact.common.results import Evidence, SearchResult
-from infact.utils.parsing import strip_string, remove_non_symbols
+from infact.utils.parsing import strip_string, remove_non_symbols, extract_last_code_span, remove_code_blocks, \
+    extract_last_code_block, find_code_span, extract_last_paragraph
 from utils.parsing import read_md_file
 from PIL.Image import Image
 
@@ -56,6 +58,11 @@ class Prompt:
     def is_multimodal(self):
         return isinstance(self.images, Sequence) and len(self.images) > 0
 
+    def extract(self, response: str) -> dict | str | None:
+        """Takes the model's output string and extracts the expected data.
+        Returns the data as a dictionary."""
+        return response  # default implementation
+
     def __str__(self):
         return self.text
 
@@ -72,6 +79,7 @@ class JudgePrompt(Prompt):
                  extra_rules: str = None):
         if class_definitions is None:
             class_definitions = DEFAULT_LABEL_DEFINITIONS
+        self.classes = classes
         class_str = '\n'.join([f"* `{cls.value}`: {remove_non_symbols(class_definitions[cls])}"
                                for cls in classes])
         placeholder_targets = {
@@ -80,6 +88,34 @@ class JudgePrompt(Prompt):
             "[EXTRA_RULES]": "" if extra_rules is None else remove_non_symbols(extra_rules),
         }
         super().__init__(placeholder_targets)
+
+    def extract(self, response: str) -> dict | str | None:
+        verdict = extract_verdict(response, classes=self.classes)
+        if verdict is None:
+            return None
+        else:
+            return dict(verdict=verdict, response=response)
+
+
+def extract_verdict(response:str, classes: list[Label]) -> Optional[Label]:
+    answer = extract_last_code_span(response)
+    answer = re.sub(r'[^\w\-\s]', '', answer).strip().lower()
+
+    if not answer:
+        pattern = re.compile(r'\*\*(.*)\*\*', re.DOTALL)
+        matches = pattern.findall(response) or ['']
+        answer = matches[0]
+
+    try:
+        return Label(answer)
+
+    except ValueError:
+        # Maybe the label is a substring of the response
+        for c in classes:
+            if c.value in response:
+                return c
+
+    return None
 
 
 class DecontextualizePrompt(Prompt):
@@ -144,6 +180,7 @@ class PlanPrompt(Prompt):
     def __init__(self, doc: FCDocument,
                  valid_actions: list[type[Action]],
                  extra_rules: str = None):
+        self.context = doc.claim.original_context
         valid_action_str = "\n\n".join([f"* `{a.name}`\n"
                                         f"   * Description: {remove_non_symbols(a.description)}\n"
                                         f"   * How to use: {remove_non_symbols(a.how_to)}\n"
@@ -178,6 +215,75 @@ class PlanPrompt(Prompt):
         else:
             return read_md_file("infact/prompts/plan_exemplars/default.md")
 
+    def extract(self, response: str) -> dict | str | None:
+        actions = self._extract_actions(response)
+        reasoning = self._extract_reasoning(response)
+        return dict(
+            actions=actions,
+            reasoning=reasoning,
+            response=response,
+        )
+
+    def _extract_actions(self, answer: str) -> list[Action]:
+        actions_str = extract_last_code_block(answer).replace("markdown","")
+        if not actions_str:
+            candidates = []
+            for action in ACTION_REGISTRY:
+                pattern = re.compile(f'{action.name}("(.*?)")', re.DOTALL)
+                candidates += pattern.findall(answer)
+            actions_str = "\n".join(candidates)
+        if not actions_str:
+            # Potentially prompt LLM to correct format: Exprected format: action_name("query")
+            return []
+        raw_actions = actions_str.split('\n')
+        actions = []
+        for raw_action in raw_actions:
+            action = self._parse_single_action(raw_action)
+            if action:
+                actions.append(action)
+        return actions
+
+    def _extract_reasoning(self, answer: str) -> str:
+        return remove_code_blocks(answer).strip()
+
+    def _parse_single_action(self, raw_action: str) -> Optional[Action]:
+        if not raw_action:
+            return None
+        elif raw_action[0] == '"':
+            raw_action = raw_action[1:]
+
+        try:
+            # Use regular expression to match action and argument in the form action(argument)
+            match = re.match(r'(\w+)\((.*)\)', raw_action)
+
+            # Extract action name and arguments
+            if match:
+                action_name, arguments = match.groups()
+                arguments = arguments.strip()
+            else:
+                # self.logger.log(f"Invalid action format: {raw_action}")
+                match = re.search(r'"(.*?)"', raw_action)
+                arguments = f'"{match.group(1)}"' if match else f'"{raw_action}"'
+                first_part = raw_action.split(' ')[0]
+                action_name = re.sub(r'[^a-zA-Z0-9_]', '', first_part)
+
+            if "image" in arguments:
+                images = self.context.images
+                # TODO: implement multi image argument
+                arguments = images[0]
+
+            for action in ACTION_REGISTRY:
+                if action_name == action.name:
+                    return action(arguments)
+
+            raise ValueError(f'Invalid action format: {raw_action} . Expected format: action_name("query")')
+
+        except Exception as e:
+            # self.logger.log(f"WARNING: Failed to parse '{raw_action}':\n{e}")
+            pass
+
+        return None
+
 
 class PoseQuestionsPrompt(Prompt):
     def __init__(self, doc: FCDocument, n_questions: int = 10, interpret: bool = True):
@@ -191,6 +297,13 @@ class PoseQuestionsPrompt(Prompt):
             self.template_file_path = "infact/prompts/pose_questions_no_interpretation.md"
         super().__init__(placeholder_targets)
 
+    def extract(self, response: str) -> dict | str | None:
+        questions = find_code_span(response)
+        return dict(
+            questions=questions,
+            response=response,
+        )
+
 
 class ProposeQueries(Prompt):
     """Used to generate queries to answer AVeriTeC questions."""
@@ -203,6 +316,23 @@ class ProposeQueries(Prompt):
         }
         super().__init__(placeholder_targets)
 
+    def extract(self, response: str) -> dict | str | None:
+        queries = extract_queries(response)
+        return dict(
+            queries=queries,
+            response=response,
+        )
+
+
+def extract_queries(response: str) -> list[WebSearch]:
+    matches = find_code_span(response)
+    queries = []
+    for match in matches:
+        query = strip_string(match)
+        action = WebSearch(f'"{query}"')
+        queries.append(action)
+    return queries
+
 
 class ProposeQuerySimple(Prompt):
     """Used to generate queries to answer AVeriTeC questions."""
@@ -214,6 +344,13 @@ class ProposeQuerySimple(Prompt):
         }
         super().__init__(placeholder_targets)
 
+    def extract(self, response: str) -> dict | str | None:
+        queries = extract_queries(response)
+        return dict(
+            queries=queries,
+            response=response,
+        )
+
 
 class ProposeQueriesNoQuestions(Prompt):
     """Used to generate queries to answer AVeriTeC questions."""
@@ -224,6 +361,13 @@ class ProposeQueriesNoQuestions(Prompt):
             "[DOC]": doc,
         }
         super().__init__(placeholder_targets)
+
+    def extract(self, response: str) -> dict | str | None:
+        queries = extract_queries(response)
+        return dict(
+            queries=queries,
+            response=response,
+        )
 
 
 class AnswerCollectively(Prompt):
@@ -241,6 +385,27 @@ class AnswerCollectively(Prompt):
         }
         super().__init__(placeholder_targets)
 
+    def extract(self, response: str) -> dict | str | None:
+        """Extract result ID and answer to the question from response"""
+        answered = "NONE" not in response and "None" not in response
+
+        out = dict(
+            answered=answered,
+            response=response,
+        )
+
+        if answered:
+            result_id = extract_last_code_span(response)
+            if result_id != "":
+                result_id = int(result_id)
+                answer = extract_last_paragraph(response)
+                out.update(dict(
+                    answer=answer,
+                    result_id=result_id,
+                ))
+
+        return out
+
 
 class AnswerQuestion(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
@@ -253,6 +418,21 @@ class AnswerQuestion(Prompt):
             "[RESULT]": result,
         }
         super().__init__(placeholder_targets)
+
+    def extract(self, response: str) -> dict | str | None:
+        """Extract result ID and answer to the question from response"""
+        answered = "NONE" not in response and "None" not in response
+
+        out = dict(
+            answered=answered,
+            response=response,
+        )
+
+        if answered:
+            answer = extract_last_paragraph(response)
+            out.update(dict(answer=answer))
+
+        return out
 
 
 class AnswerQuestionNoEvidence(Prompt):
@@ -298,6 +478,7 @@ class JudgeNaively(Prompt):
     def __init__(self, claim: Claim,
                  classes: list[Label],
                  class_definitions: dict[Label, str] = None):
+        self.classes = classes
         if class_definitions is None:
             class_definitions = DEFAULT_LABEL_DEFINITIONS
         class_str = '\n'.join([f"* `{cls.value}`: {remove_non_symbols(class_definitions[cls])}"
@@ -307,3 +488,10 @@ class JudgeNaively(Prompt):
             "[CLASSES]": class_str,
         }
         super().__init__(placeholder_targets)
+
+    def extract(self, response: str) -> dict | str | None:
+        verdict = extract_verdict(response, classes=self.classes)
+        if verdict is None:
+            return None
+        else:
+            return dict(verdict=verdict, response=response)

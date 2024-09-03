@@ -1,14 +1,13 @@
 from abc import ABC
 from typing import Optional
 
-from infact.common.action import WebSearch
 from infact.common import FCDocument, SearchResult
+from infact.common.action import WebSearch
 from infact.procedure.procedure import Procedure
 from infact.prompts.prompt import AnswerQuestion
 from infact.prompts.prompt import PoseQuestionsPrompt
-from infact.prompts.prompt import ProposeQueries, ProposeQueriesNoQuestions
+from infact.prompts.prompt import ProposeQueries
 from utils.console import light_blue
-from utils.parsing import extract_last_paragraph, find_code_span, strip_string
 
 
 class QABased(Procedure, ABC):
@@ -18,9 +17,10 @@ class QABased(Procedure, ABC):
         """Generates some questions that needs to be answered during the fact-check."""
         prompt = PoseQuestionsPrompt(doc, n_questions=no_of_questions)
         response = self.llm.generate(prompt)
-        # Extract the questions
-        questions = find_code_span(response)
-        return questions
+        if response is None:
+            return []
+        else:
+            return response["questions"]
 
     def approach_question_batch(self, questions: list[str], doc: FCDocument) -> list:
         """Tries to answer the given list of questions. Unanswerable questions are dropped."""
@@ -43,16 +43,23 @@ class QABased(Procedure, ABC):
     def propose_queries_for_question(self, question: str, doc: FCDocument) -> list[WebSearch]:
         prompt = ProposeQueries(question, doc)
 
-        n_tries = 0
-        while True:
-            n_tries += 1
+        n_attempts = 0
+        while n_attempts < self.max_attempts:
+            n_attempts += 1
             response = self.llm.generate(prompt)
-            queries = extract_queries(response)
 
-            if len(queries) > 0 or n_tries == self.max_attempts:
+            if response is None:
+                continue
+
+            queries: list = response["queries"]
+
+            if len(queries) > 0:
                 return queries
 
-            self.logger.log("WARNING: No new actions were found. Retrying...")
+            self.logger.log("No new actions were found. Retrying...")
+
+        self.logger.warning("Got no search query, dropping this question.")
+        return []
 
     def approach_question(self, question: str, doc: FCDocument = None) -> Optional[dict]:
         """Tries to answer the given question. If unanswerable, returns None."""
@@ -109,21 +116,6 @@ class QABased(Procedure, ABC):
     def attempt_answer_question(self, question: str, result: SearchResult, doc: FCDocument) -> Optional[str]:
         """Generates an answer to the given question."""
         prompt = AnswerQuestion(question, result, doc)
-        response = self.llm.generate(prompt, max_attempts=3)
-        # Extract answer from response
-        if "NONE" not in response and "None" not in response:
-            try:
-                answer = extract_last_paragraph(response)
-                return answer
-            except:
-                pass
-
-
-def extract_queries(response: str) -> list[WebSearch]:
-    matches = find_code_span(response)
-    actions = []
-    for match in matches:
-        query = strip_string(match)
-        action = WebSearch(f'"{query}"')
-        actions.append(action)
-    return actions
+        out = self.llm.generate(prompt, max_attempts=3)
+        if out is not None and out["answered"]:
+            return out["answer"]
