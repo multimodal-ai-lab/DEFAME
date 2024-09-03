@@ -1,5 +1,5 @@
 from itertools import product
-from infact.eval.benchmark import AVeriTeC
+from eval.averitec.benchmark import AVeriTeC
 from infact.eval.evaluate import evaluate
 
 

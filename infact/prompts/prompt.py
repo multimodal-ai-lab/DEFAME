@@ -1,15 +1,16 @@
-from typing import Collection, Any, Sequence, Optional
 import re
+from typing import Collection, Any, Sequence, Optional
 
-from infact.common.action import *
+from PIL.Image import Image
+
+from infact.common.action import (OCR, ACTION_REGISTRY, FaceRecognition, WebSearch, WikiDumpLookup, DetectObjects,
+                                  Geolocate, Action, CredibilityCheck, ReverseSearch)
 from infact.common.claim import Claim
 from infact.common.document import FCDocument
 from infact.common.label import Label, DEFAULT_LABEL_DEFINITIONS
 from infact.common.results import Evidence, SearchResult
-from infact.utils.parsing import strip_string, remove_non_symbols, extract_last_code_span, remove_code_blocks, \
-    extract_last_code_block, find_code_span, extract_last_paragraph
-from utils.parsing import read_md_file
-from PIL.Image import Image
+from infact.utils.parsing import (strip_string, remove_non_symbols, extract_last_code_span, remove_code_blocks,
+                                  extract_last_code_block, find_code_span, extract_last_paragraph, read_md_file)
 
 SYMBOL = 'Check-worthy'
 NOT_SYMBOL = 'Unimportant'
@@ -97,7 +98,7 @@ class JudgePrompt(Prompt):
             return dict(verdict=verdict, response=response)
 
 
-def extract_verdict(response:str, classes: list[Label]) -> Optional[Label]:
+def extract_verdict(response: str, classes: list[Label]) -> Optional[Label]:
     answer = extract_last_code_span(response)
     answer = re.sub(r'[^\w\-\s]', '', answer).strip().lower()
 
@@ -225,7 +226,7 @@ class PlanPrompt(Prompt):
         )
 
     def _extract_actions(self, answer: str) -> list[Action]:
-        actions_str = extract_last_code_block(answer).replace("markdown","")
+        actions_str = extract_last_code_block(answer).replace("markdown", "")
         if not actions_str:
             candidates = []
             for action in ACTION_REGISTRY:

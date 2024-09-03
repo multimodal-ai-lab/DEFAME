@@ -1,6 +1,6 @@
 from typing import Any
 
-from common import FCDocument, Label
+from infact.common import FCDocument, Label
 from infact.procedure.procedure import Procedure
 
 

@@ -1,4 +1,4 @@
-from common import FCDocument, SearchResult, Action
+from infact.common import FCDocument, SearchResult, Action
 from infact.procedure.variants.qa_based.infact import InFact
 from infact.prompts.prompt import ProposeQuerySimple
 

@@ -1,4 +1,4 @@
-from common import FCDocument
+from infact.common import FCDocument
 from infact.procedure.variants.qa_based.infact import InFact
 from infact.prompts.prompt import AnswerQuestionNoEvidence
 

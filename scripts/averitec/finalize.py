@@ -1,4 +1,4 @@
-from infact.eval.benchmark import AVeriTeC
+from eval.averitec.benchmark import AVeriTeC
 from infact.eval.evaluate import finalize_evaluation
 from infact.utils.utils import load_experiment_parameters
 
