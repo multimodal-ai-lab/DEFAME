@@ -1,10 +1,10 @@
 from typing import Any
 
 from common import FCDocument, Label
-from infact.procedure.variants.qa_based.base import QABased
+from infact.procedure.procedure import Procedure
 
 
-class NaiveQA(QABased):
+class NaiveQA(Procedure):
     """The naivest-possible approach where the claim veracity is
     predicted right away from the claim."""
 

@@ -12,8 +12,8 @@ class DynamicSummary(Procedure):
 
     def apply_to(self, doc: FCDocument) -> (Label, dict[str, Any]):
         n_iterations = 0
-        while ((label := self.judge.judge(doc)) == Label.NEI
-               and n_iterations < self.max_iterations):
+        label = Label.NEI
+        while label == Label.NEI and n_iterations < self.max_iterations:
             self.logger.log("Not enough information yet. Continuing fact-check...")
             n_iterations += 1
             actions, reasoning = self.planner.plan_next_actions(doc)
@@ -25,11 +25,12 @@ class DynamicSummary(Procedure):
             evidences = self.actor.perform(actions, doc)
             doc.add_evidence(evidences)  # even if no evidence, add empty evidence block for the record
             self._consolidate_knowledge(doc, evidences)
+            label = self.judge.judge(doc)
         return label, {}
 
     def _consolidate_knowledge(self, doc: FCDocument, evidences: Collection[Evidence]):
         """Analyzes the currently available information and states new questions, adds them
         to the FCDoc."""
         prompt = ReiteratePrompt(doc, evidences)
-        answer = self.llm.generate(prompt)
-        doc.add_reasoning(answer)
+        response = self.llm.generate(prompt)
+        doc.add_reasoning(response)

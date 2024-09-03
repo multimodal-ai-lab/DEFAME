@@ -1,5 +1,5 @@
 import time
-from typing import Sequence, Optional, Any
+from typing import Sequence, Any
 
 from infact.common.action import *
 from infact.common.claim import Claim
@@ -22,7 +22,6 @@ class FactChecker:
 
     def __init__(self,
                  llm: str | Model = "gpt_4o_mini",
-                 mllm: Optional[str | Model] = None,
                  tools: list[Tool] = None,
                  search_engines: dict[str, dict] = None,
                  procedure_variant: str = "infact",

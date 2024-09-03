@@ -27,7 +27,7 @@ class Planner:
         self.valid_actions = valid_actions
         self.llm = llm
         self.logger = logger
-        self.max_tries = 5
+        self.max_attempts = 5
         self.extra_rules = extra_rules
         self.fallback_action = fall_back
 
@@ -62,80 +62,24 @@ class Planner:
 
         self.valid_actions = new_valid_actions
         prompt = PlanPrompt(doc, self.valid_actions, self.extra_rules)
-        n_tries = 0
+        n_attempts = 0
 
-        while True:
-            n_tries += 1
-            answer = self.llm.generate(prompt)
-            actions = self._extract_actions(answer, doc.claim.original_context)
-            reasoning = self._extract_reasoning(answer)
+        while n_attempts < self.max_attempts:
+            n_attempts += 1
+
+            response = self.llm.generate(prompt)
+            if response is None:
+                self.logger.warning("No new actions were found.")
+                return [], ""
+
+            actions = response["actions"]
+            reasoning = response["reasoning"]
 
             # Filter out actions that have been performed before
             actions = [action for action in actions if action not in performed_actions]
 
-            if len(actions) > 0 or n_tries == self.max_tries:
+            if len(actions) > 0:
                 return actions, reasoning
-
-            self.logger.log("WARNING: No new actions were found. Retrying...")
-
-    def _extract_actions(self, answer: str, context: Content = None) -> list[Action]:
-        actions_str = extract_last_code_block(answer).replace("markdown","")
-        if not actions_str:
-            candidates = []
-            for action in ACTION_REGISTRY:
-                pattern = re.compile(f'{action.name}("(.*?)")', re.DOTALL)
-                candidates += pattern.findall(answer)
-            actions_str = "\n".join(candidates)
-        if not actions_str:
-            # Potentially prompt LLM to correct format: Exprected format: action_name("query")
-            return []
-        raw_actions = actions_str.split('\n')
-        actions = []
-        for raw_action in raw_actions:
-            action = self._parse_single_action(raw_action, context.images)
-            if action:
-                actions.append(action)
-        return actions
-
-    def _extract_reasoning(self, answer: str) -> str:
-        return remove_code_blocks(answer).strip()
-
-    def _parse_single_action(self, raw_action: str, images: Optional[list[Image.Image]] = None) -> Optional[Action]:
-        arguments = None
-        if not raw_action:
-            return None
-        elif raw_action[0] == '"':
-            raw_action = raw_action[1:]
-
-        try:
-            # Use regular expression to match action and argument in the form action(argument)
-            match = re.match(r'(\w+)\((.*)\)', raw_action)
-
-            # Extract action name and arguments
-            if match:
-                action_name, arguments = match.groups()
-                arguments = arguments.strip()
-            else:
-                self.logger.log(f"Invalid action format: {raw_action}")
-                match = re.search(r'"(.*?)"', raw_action)
-                arguments = f'"{match.group(1)}"' if match else f'"{raw_action}"'
-                first_part = raw_action.split(' ')[0]
-                action_name = re.sub(r'[^a-zA-Z0-9_]', '', first_part)
-
-            if "image" in arguments:
-                # TODO: implement multi image argument
-                arguments = images[0]
-
-            for action in ACTION_REGISTRY:
-                if action_name == action.name:
-                    return action(arguments)
-
-            raise ValueError(f'Invalid action format: {raw_action} . Expected format: action_name("query")')
-
-        except Exception as e:
-            self.logger.log(f"WARNING: Failed to parse '{raw_action}':\n{e}")
-
-        return None
 
 
 def _process_answer(answer: str) -> str:

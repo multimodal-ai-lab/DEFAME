@@ -1,29 +1,29 @@
 import csv
 import inspect
+import json
 import time
 from multiprocessing import Pool, Queue
-from queue import Empty
-from typing import Optional, Sequence
 from pathlib import Path
+from queue import Empty
+from typing import Sequence
 
 import numpy as np
 import pandas as pd
 import torch
 import yaml
-import json
 from tqdm import tqdm
 
 from infact.common.label import Label
-from infact.common.modeling import model_specifier_to_shorthand, AVAILABLE_MODELS, Model, make_model
+from infact.common.logger import Logger
+from infact.common.modeling import model_specifier_to_shorthand, AVAILABLE_MODELS, make_model
 from infact.eval.averitec.compute_score import compute_averitec_score
 from infact.eval.benchmark import load_benchmark, AVeriTeC, Benchmark
-from infact.common.logger import Logger
 from infact.fact_checker import FactChecker
 from infact.tools import initialize_tools, Searcher
 from infact.tools.search.knowledge_base import KnowledgeBase
 from infact.utils.console import green, red, bold, sec2hhmmss, sec2mmss, num2text
 from infact.utils.plot import plot_confusion_matrix
-from infact.utils.utils import flatten_dict, unroll_dict
+from infact.utils.utils import unroll_dict
 
 
 def evaluate(
@@ -68,9 +68,12 @@ def evaluate(
     n_devices = torch.cuda.device_count()
     if n_workers is None:
         match llm:
-            case "llama3_8b": n_workers = 8
-            case "llama3_70b": n_workers = 3  # only 3 copies fit on 8 A100 GPUs
-            case _: n_workers = n_devices * 2  # 2 workers per GPU
+            case "llama3_8b":
+                n_workers = 8
+            case "llama3_70b":
+                n_workers = 3  # only 3 copies fit on 8 A100 GPUs
+            case _:
+                n_workers = n_devices * 2  # 2 workers per GPU
 
     # Save hyperparams based on the signature of evaluate()
     if not is_resumed:
@@ -120,8 +123,6 @@ def evaluate(
 
     is_averitec = isinstance(benchmark, AVeriTeC)
 
-    all_instance_stats = pd.DataFrame()
-
     start_time = time.time()
 
     input_queue = Queue()
@@ -168,12 +169,6 @@ def evaluate(
             instance = benchmark.get_by_id(claim_id)
             prediction = doc.verdict
 
-            # Handle statistics
-            instance_stats = flatten_dict(meta["Statistics"])
-            instance_stats["ID"] = claim_id
-            instance_stats = pd.DataFrame([instance_stats])
-            all_instance_stats = pd.concat([all_instance_stats, instance_stats], ignore_index=True)
-
             if is_averitec:
                 if prediction == Label.CHERRY_PICKING:
                     # Merge cherry-picking and conflicting label
@@ -200,6 +195,7 @@ def evaluate(
                 gt_justification=instance.get("justification")
             )
             logger.save_fc_doc(doc, instance['id'])
+            logger.save_next_instance_stats(meta["Statistics"], instance['id'])
 
             if not is_test:
                 prediction_is_correct = instance["label"] == prediction
@@ -211,18 +207,10 @@ def evaluate(
     end_time = time.time()
     duration = end_time - start_time
 
-    all_instance_stats.index = all_instance_stats["ID"]
-    all_instance_stats.to_csv(logger.target_dir / "instance_stats.csv")
-
-    time_per_claim = n_workers * duration / len(all_instance_stats) if duration and n_workers else None
-
     stats = {
         "Number of workers": n_workers,
         "Total run duration": duration,
-        "Time per claim": all_instance_stats["Duration"].mean(),
     }
-    stats.update(aggregate_stats(all_instance_stats, category="Model"))
-    stats.update(aggregate_stats(all_instance_stats, category="Tools"))
 
     finalize_evaluation(stats, logger.target_dir, benchmark)
 
@@ -252,8 +240,15 @@ def finalize_evaluation(stats: dict,
     is_averitec = isinstance(benchmark, AVeriTeC)
     is_test = benchmark.variant == "test"
 
+    instance_stats = pd.read_csv(experiment_dir / Logger.instance_stats_filename)
+
+    # Add aggregated statistics from individual claims
+    stats.update({"Time per claim": instance_stats["Duration"].mean()})
+    stats.update(aggregate_stats(instance_stats, category="Model"))
+    stats.update(aggregate_stats(instance_stats, category="Tools"))
+
     # Retrieve predictions and ground truth
-    df = pd.read_csv(experiment_dir / "predictions.csv")
+    df = pd.read_csv(experiment_dir / Logger.predictions_filename)
     predicted_labels = df["predicted"].to_numpy()
     ground_truth_labels = None if is_test else df["target"].to_numpy()
 
@@ -347,13 +342,10 @@ def fact_check(llm: str, llm_kwargs: dict, mllm: str, mllm_kwargs: dict,
 
     # Initialize model(s)
     llm = make_model(llm, logger=logger, device=device, **llm_kwargs)
-    if mllm is not None:
-        mllm = make_model(specifier=mllm, logger=logger, device=device, **mllm_kwargs)
 
     # Setup fact-checker
     fc = FactChecker(
         llm=llm,
-        mllm=mllm,
         tools=tools,
         logger=logger,
         **fact_checker_kwargs,

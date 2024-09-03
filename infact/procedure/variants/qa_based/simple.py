@@ -1,9 +1,6 @@
-from typing import Optional
-
 from common import FCDocument, SearchResult, Action
 from infact.procedure.variants.qa_based.infact import InFact
 from infact.prompts.prompt import ProposeQuerySimple
-from procedure.variants.qa_based.base import extract_queries
 
 
 class SimpleQA(InFact):
@@ -17,7 +14,11 @@ class SimpleQA(InFact):
         while n_tries < self.max_attempts:
             n_tries += 1
             response = self.llm.generate(prompt)
-            queries = extract_queries(response)
+
+            if response is None:
+                continue
+
+            queries: list = response["queries"]
 
             if len(queries) > 0:
                 return [queries[0]]

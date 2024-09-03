@@ -45,16 +45,13 @@ class AdvancedQA(QABased):
         for i in range(0, len(results), 5):
             results_batch = results[i:i + 5]
             prompt = AnswerCollectively(question, results_batch, doc)
-            response = self.llm.generate(prompt, max_attempts=3)
+            out = self.llm.generate(prompt, max_attempts=3)
+            if out is not None:
+                if out["answered"]:
+                    answer = out["answer"]
+                    result_id = out["result_id"]
+                    result = results_batch[result_id]
+                    return answer, result
 
-            # Extract result ID and answer to the question from response
-            if "NONE" not in response and "None" not in response:
-                try:
-                    result_id = extract_last_code_span(response)
-                    if result_id != "":
-                        result_id = int(result_id)
-                        answer = extract_last_paragraph(response)
-                        return answer, results_batch[result_id]
-                except:
-                    pass
+        # No search result helpful to answer the question
         return None, None
