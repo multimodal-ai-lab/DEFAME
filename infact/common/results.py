@@ -26,7 +26,7 @@ class Evidence(ABC):
 @dataclass
 class SearchResult(Result):
     """Detailed information piece retrieved by performing an action."""
-    source: str
+    url: str
     text: str
     date: datetime = None
     summary: str = None
@@ -48,13 +48,13 @@ class SearchResult(Result):
         Differentiates between direct citation (original text) and
         indirect citation (if summary is available)."""
         text = self.summary or f'"{self.text}"'
-        return f'From [Source]({self.source}):\n{text}'
+        return f'From [Source]({self.url}):\n{text}'
 
     def __eq__(self, other):
-        return self.source == other.source
+        return self.url == other.url
 
     def __hash__(self):
-        return hash(self.source)
+        return hash(self.url)
 
 
 class GeolocationResult(Result):

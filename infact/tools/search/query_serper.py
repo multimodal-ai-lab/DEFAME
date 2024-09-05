@@ -133,6 +133,6 @@ class SerperAPI(RemoteSearchAPI):
                 else:
                     text = f"{result['title']}: {result['snippet']}"
                 url = result["link"]
-                results.append(SearchResult(url, text, query, i))
+                results.append(SearchResult(url, text, query=query, rank=i))
 
         return results

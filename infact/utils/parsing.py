@@ -1,8 +1,13 @@
 import re
-from typing import Optional
+from typing import Optional, Any
 import os
 
 from infact.utils.console import orange
+
+
+MEDIA_REF_REGEX = r"(<(?:image|video|audio):[0-9]+>)"
+MEDIA_ID_REGEX = r"(?:<(?:image|video|audio):([0-9]+)>)"
+MEDIA_SPECIFIER_REGEX = r"(?:<(image|video|audio):([0-9]+)>)"
 
 
 def strip_string(s: str) -> str:
@@ -168,3 +173,34 @@ def read_md_file(file_path: str) -> str:
         raise FileNotFoundError(f"No Markdown file found at '{file_path}'.")
     with open(file_path, 'r') as f:
         return f.read()
+
+
+def get_media_id(text: str) -> int:
+    return int(extract_by_regex(text, MEDIA_ID_REGEX))
+
+
+def get_medium_refs(text: str) -> list[str]:
+    """Extracts all media references from the text."""
+    pattern = re.compile(MEDIA_REF_REGEX, re.DOTALL)
+    matches = pattern.findall(text)
+    return matches
+
+
+def parse_media_ref(reference: str) -> Optional[tuple[str, int]]:
+    pattern = re.compile(MEDIA_SPECIFIER_REGEX, re.DOTALL)
+    result = pattern.findall(reference)
+    if len(result) > 0:
+        match = result[0]
+        return match[0], int(match[1])
+    else:
+        return None
+
+
+def fill_placeholders(text: str, placeholder_targets: dict[str, Any]) -> str:
+    """Replaces all specified placeholders in placeholder_targets with the
+    respective target content."""
+    for placeholder, target in placeholder_targets.items():
+        if placeholder not in text:
+            raise ValueError(f"Placeholder '{placeholder}' not found in prompt template:\n{text}")
+        text = text.replace(placeholder, str(target))
+    return text
