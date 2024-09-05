@@ -7,6 +7,7 @@ from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
+import shutil
 
 import yaml
 import pandas as pd
@@ -16,6 +17,7 @@ from infact.common.document import FCDocument
 from infact.common.label import Label
 from infact.utils.console import remove_string_formatters, bold, red, orange, yellow
 from infact.utils.utils import flatten_dict
+from infact.common.medium import media_registry
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('openai').setLevel(logging.ERROR)
@@ -61,12 +63,6 @@ class Logger:
             if target_dir is None else Path(target_dir)
         os.makedirs(self.target_dir, exist_ok=True)
 
-        # Define any other file and directory paths
-        self.fc_docs_dir = self.target_dir / 'docs'
-        os.makedirs(self.fc_docs_dir, exist_ok=True)
-        self.logs_dir = self.target_dir / 'logs'
-        os.makedirs(self.logs_dir, exist_ok=True)
-
         self.config_path = self.target_dir / self.config_filename
         self.predictions_path = self.target_dir / self.predictions_filename
         self.instance_stats_path = self.target_dir / self.instance_stats_filename
@@ -92,6 +88,7 @@ class Logger:
 
     def set_current_fc_id(self, index: int):
         self._current_fact_check_id = index
+        self.claim_dir.mkdir(exist_ok=True)
         self._update_file_handler()
 
     def _update_file_handler(self):
@@ -105,7 +102,7 @@ class Logger:
         if self._current_fact_check_id is None:
             log_path = self.target_dir / 'log.txt'
         else:
-            log_path = self.logs_dir / f'{self._current_fact_check_id}.txt'
+            log_path = self.log_path
 
         # Create and add the new file handler
         log_to_file_handler = RotatingFileHandler(log_path,
@@ -193,9 +190,39 @@ class Logger:
         else:
             return pd.DataFrame()
 
-    def save_fc_doc(self, doc: FCDocument, claim_id: int):
-        with open(self.fc_docs_dir / f"{claim_id}.md", "w") as f:
-            f.write(str(doc))
+    @property
+    def claim_dir(self) -> Path:
+        if self._current_fact_check_id is None:
+            raise RuntimeError("Must set a valid fact-checking ID before accessing its directory.")
+        return self.target_dir / "fact-checks" / str(self._current_fact_check_id)
+
+    @property
+    def fc_doc_path(self) -> Path:
+        return self.claim_dir / "doc.md"
+
+    @property
+    def log_path(self) -> Path:
+        return self.claim_dir / "log.txt"
+
+    def save_fc_doc(self, doc: FCDocument):
+        doc_str = str(doc)
+
+        # Replace all media references with actual file paths for human-readability
+        media = media_registry.get_media_from_text(doc_str)
+        for medium in media:
+            markdown_ref = f"![{medium.data_type} {medium.id}](media/{medium.path_to_file.name})"
+            doc_str = doc_str.replace(medium.reference, markdown_ref)
+
+        # Save the markdown file
+        with open(self.fc_doc_path, "w") as f:
+            f.write(doc_str)
+
+        # Save all associated media in separate media dir
+        media_dir = self.claim_dir / "media"
+        media_dir.mkdir(exist_ok=True)
+        for medium in media:
+            medium_copy_path = media_dir / medium.path_to_file.name
+            shutil.copy(medium.path_to_file, medium_copy_path)
 
     def _init_averitec_out(self):
         with open(self.averitec_out, "w") as f:

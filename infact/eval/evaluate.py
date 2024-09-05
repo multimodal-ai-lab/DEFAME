@@ -212,7 +212,6 @@ def process_output(doc: FCDocument, meta: dict, benchmark: Benchmark, logger: Lo
         predicted=prediction,
         gt_justification=instance.get("justification")
     )
-    logger.save_fc_doc(doc, instance['id'])
     logger.save_next_instance_stats(meta["Statistics"], instance['id'])
 
     if not is_test:
