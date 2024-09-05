@@ -12,6 +12,7 @@ from transformers.pipelines import Pipeline
 
 from config.globals import api_keys
 from infact.common.logger import Logger
+from infact.common.medium import Image
 from infact.prompts.prompt import Prompt
 from infact.utils.parsing import is_guardrail_hit, GUARDRAIL_WARNING
 from infact.utils.console import bold
@@ -66,11 +67,32 @@ class OpenAIAPI:
             raise ValueError("No OpenAI API key provided. Add it to config/api_keys.yaml")
         self.client = OpenAI(api_key=api_keys["openai_api_key"])
 
-    def __call__(self, prompt: str, **kwargs):
+    def __call__(self, prompt: Prompt, **kwargs):
+        text = str(prompt)
+        content = [{
+            "type": "text",
+            "text": text
+        }]
+
+        for image in prompt.images:
+            image_encoded = image.get_base64_encoded()
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{image_encoded}"
+                }}
+            )
+
+        if prompt.has_videos():
+            raise ValueError(f"{self.model} does not support videos.")
+
+        if prompt.has_audios():
+            raise ValueError(f"{self.model} does not support audios.")
+
         completion = self.client.chat.completions.create(
             model=self.model,
-            messages=[  # TODO: May add a system prompt, add images
-                {"role": "user", "content": prompt}
+            messages=[  # TODO: May add a system prompt
+                {"role": "user", "content": content}
             ],
             **kwargs
         )
@@ -182,7 +204,7 @@ class Model(ABC):
                 response = prompt.extract(response)
             except Exception as e:
                 self.logger.warning("Unable to extract contents from response:\n" + response)
-                self.logger.warning(str(e))
+                self.logger.warning(repr(e))
                 response = None
 
         if response is None:
@@ -225,23 +247,32 @@ class GPTModel(Model):
 
     def _generate(self, prompt: Prompt, temperature: float, top_p: float, top_k: int,
                   system_prompt: Prompt = None) -> str:
-        # TODO: include system prompt
         try:
             return self.api(
-                str(prompt),
+                prompt,
                 temperature=temperature,
                 top_p=top_p,
             )
         except openai.RateLimitError as e:
             self.logger.critical(f"OpenAI rate limit hit!")
-            print(e)
+            self.logger.critical(repr(e))
             quit()
         except Exception as e:
-            self.logger.warning(str(e))
+            self.logger.warning(repr(e))
         return ""
 
     def count_tokens(self, prompt: Prompt | str) -> int:
-        return len(self.encoding.encode(str(prompt)))  # TODO: Handle image tokens
+        n_text_tokens = len(self.encoding.encode(str(prompt)))
+        n_image_tokens = 0
+        if isinstance(prompt, Prompt) and prompt.has_images():
+            for image in prompt.images:
+                n_image_tokens += self.count_image_tokens(image)
+        return n_text_tokens + n_image_tokens
+
+    def count_image_tokens(self, image: Image):
+        """See the formula here: https://openai.com/api/pricing/"""
+        n_tiles = np.ceil(image.width / 512) * np.ceil(image.height / 512)
+        return 85 + 170 * n_tiles
 
 
 class HuggingFaceModel(Model, ABC):

@@ -93,7 +93,7 @@ class QABased(Procedure, ABC):
             self.logger.log(f"Got answer: {answer}")
             qa_instance = {"question": question,
                            "answer": answer,
-                           "url": relevant_result.source,
+                           "url": relevant_result.url,
                            "scraped_text": relevant_result.text}
             return qa_instance
         else:
