@@ -143,6 +143,7 @@ class FactChecker:
             doc, meta = self.verify_claim(claim)
             docs.append(doc)
             metas.append(meta)
+            self.logger.save_fc_doc(doc)
 
         aggregated_veracity = aggregate_predictions([doc.verdict for doc in docs])
         self.logger.log(bold(f"So, the overall veracity is: {aggregated_veracity.value}"))

@@ -23,5 +23,5 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-out/*
+out/
 /Dockerfile

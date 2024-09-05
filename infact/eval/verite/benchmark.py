@@ -4,11 +4,10 @@ from typing import Iterator
 
 import pandas as pd
 
-from infact.common.medium import Image
+from infact.common.medium import Image, media_registry
 from config.globals import data_base_dir
 from infact.common import Label, Content
 from infact.eval.benchmark import Benchmark
-from infact.common.media_registry import media_registry
 
 
 class VERITE(Benchmark):
