@@ -88,7 +88,7 @@ class Searcher(Tool):
             # Log search results info
             self.logger.log(f"Got {len(results)} new result(s):")
             for i, result in enumerate(results):
-                self.logger.log(f"\t{i + 1}. {result.source}")
+                self.logger.log(f"\t{i + 1}. {result.url}")
 
             # Modify the results text to avoid jinja errors when used in prompt
             results = self._postprocess_results(results)

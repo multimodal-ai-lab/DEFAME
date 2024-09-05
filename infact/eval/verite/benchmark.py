@@ -3,11 +3,12 @@ from pathlib import Path
 from typing import Iterator
 
 import pandas as pd
-from PIL import Image
 
+from infact.common.medium import Image
 from config.globals import data_base_dir
 from infact.common import Label, Content
 from infact.eval.benchmark import Benchmark
+from infact.common.media_registry import media_registry
 
 
 class VERITE(Benchmark):
@@ -65,13 +66,15 @@ class VERITE(Benchmark):
         data = []
         for i, row in df.iterrows():
             image_path = Path(data_base_dir + f"VERITE/{row['image_path']}")
-            if os.path.exists(image_path):
-                image = Image.open(image_path)
-            else:
-                image = None
+            if not os.path.exists(image_path):
+                continue  # TODO: Complete all missing images
+            image = Image(image_path)
+            image_ref = media_registry.add(image)
+            assert isinstance(i, int)
+            claim_text = f"{image_ref} {row['caption']}"
             entry = {
                 "id": i,
-                "content": Content(text=row["caption"], images=[image]),
+                "content": Content(text=claim_text, id_number=i),
                 "label": self.class_mapping[row["label"]],
                 "justification": row.get("ground_truth_justification", "")
             }

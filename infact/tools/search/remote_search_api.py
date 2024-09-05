@@ -2,7 +2,6 @@ import json
 import os
 from dataclasses import asdict
 
-from config.globals import data_base_dir
 from infact.common import SearchResult
 from infact.common.logger import Logger
 from infact.tools.search.search_api import SearchAPI
@@ -10,17 +9,16 @@ from infact.tools.search.search_api import SearchAPI
 
 class RemoteSearchAPI(SearchAPI):
     is_local = False
+    file_name = "search_cache.json"
 
     def __init__(self, logger: Logger = None,
-                 path_to_data: str = data_base_dir,
                  activate_cache: bool = True,
                  **kwargs):
         super().__init__(logger=logger)
-        self.path_to_data = path_to_data
         self.search_cached_first = activate_cache
-        self.path_to_cache = os.path.join(self.path_to_data, "search_cache.json")
+        self.path_to_cache = os.path.join(logger.target_dir / self.file_name)
         self.cache_hit = 0
-        self.cache = []
+        self.cache: list[dict] = []
         self._initialize_cache()
 
     def _initialize_cache(self):
