@@ -5,8 +5,6 @@ from pathlib import Path
 import base64
 from io import BytesIO
 
-from infact.common.media_registry import media_registry
-
 
 class Medium:
     """Superclass of all images, videos, and audios."""
@@ -68,6 +66,7 @@ class MultimediaSnippet:
 
     def __post_init__ (self):
         # Verify if all medium references in the text are valid
+        from infact.common.media_registry import media_registry
         if not media_registry.validate(self.text):
             print("Warning: There are unresolvable media references.")
 
@@ -82,14 +81,17 @@ class MultimediaSnippet:
 
     @property
     def images(self) -> list[Image]:
+        from infact.common.media_registry import media_registry
         return media_registry.get_media_from_text(self.text, medium_type="image")
 
     @property
     def videos(self) -> list[Video]:
+        from infact.common.media_registry import media_registry
         return media_registry.get_media_from_text(self.text, medium_type="video")
 
     @property
     def audios(self) -> list[Audio]:
+        from infact.common.media_registry import media_registry
         return media_registry.get_media_from_text(self.text, medium_type="audio")
 
     def is_multimodal(self) -> bool:
