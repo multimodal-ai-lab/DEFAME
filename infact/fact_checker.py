@@ -22,11 +22,13 @@ from infact.utils.console import gray, light_blue, bold, sec2mmss
 class FactChecker:
     """The core class for end-to-end fact verification."""
 
+    default_procedure = "infact"
+
     def __init__(self,
                  llm: str | Model = "gpt_4o_mini",
                  tools: list[Tool] = None,
                  search_engines: dict[str, dict] = None,
-                 procedure_variant: str = "infact",
+                 procedure_variant: str = None,
                  interpret: bool = False,
                  decompose: bool = False,
                  decontextualize: bool = False,
@@ -88,6 +90,9 @@ class FactChecker:
         self.extra_prepare_rules = extra_prepare_rules
         self.max_iterations = max_iterations
         self.max_result_len = max_result_len
+
+        if procedure_variant is None:
+            procedure_variant = self.default_procedure
 
         self.procedure = get_procedure(procedure_variant,
                                        llm=self.llm,

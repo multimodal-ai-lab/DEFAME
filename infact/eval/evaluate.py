@@ -13,8 +13,7 @@ import torch
 import yaml
 from tqdm import tqdm
 
-from infact.common.label import Label
-from infact.common.logger import Logger
+from infact.common import Label, Logger, FCDocument
 from infact.common.modeling import model_specifier_to_shorthand, AVAILABLE_MODELS, make_model
 from infact.eval import load_benchmark
 from infact.eval.averitec.benchmark import AVeriTeC
@@ -35,12 +34,10 @@ def evaluate(
         fact_checker_kwargs: dict = None,
         llm_kwargs: dict = None,
         benchmark_kwargs: dict = None,
-        mllm: str = None,
-        mllm_kwargs: dict = None,
         n_samples: int = None,
         sample_ids: list[int] = None,
         random_sampling: bool = False,
-        print_log_level: str = False,
+        print_log_level: str = "info",
         continue_experiment_dir: str = None,
         n_workers: int = None,
 ):
@@ -48,14 +45,15 @@ def evaluate(
 
     if llm_kwargs is None:
         llm_kwargs = dict()
-    if mllm_kwargs is None:
-        mllm_kwargs = dict()
 
     benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
     is_test = benchmark.variant == "test"
 
     llm = model_specifier_to_shorthand(llm) if llm not in AVAILABLE_MODELS["Shorthand"].values else llm
-    procedure_variant = None if fact_checker_kwargs is None else fact_checker_kwargs.get("procedure_variant")
+    if fact_checker_kwargs is None or "procedure_variant" not in fact_checker_kwargs:
+        procedure_variant = FactChecker.default_procedure
+    else:
+        procedure_variant = fact_checker_kwargs["procedure_variant"]
     logger = Logger(benchmark_name=benchmark.shorthand,
                     procedure_name=procedure_variant,
                     model_name=llm,
@@ -145,8 +143,9 @@ def evaluate(
         target_dir=logger.target_dir
     )
 
-    worker_args = (llm, llm_kwargs, mllm, mllm_kwargs, fact_checker_kwargs,
-                   tools_config, logger_kwargs, is_averitec, input_queue, output_queue, devices_queue)
+    worker_args = (llm, llm_kwargs, fact_checker_kwargs,
+                   tools_config, logger_kwargs, is_averitec,
+                   input_queue, output_queue, devices_queue)
 
     print(f"Evaluating {n_samples} samples using {n_workers} workers...")
 
@@ -168,45 +167,7 @@ def evaluate(
                 # Happens if some worker died during execution, causing an
                 # incomplete number of instances
                 break
-            content = doc.claim.original_context
-            claim_id = content.id_number
-            instance = benchmark.get_by_id(claim_id)
-            prediction = doc.verdict
-
-            if is_averitec:
-                if prediction == Label.CHERRY_PICKING:
-                    # Merge cherry-picking and conflicting label
-                    prediction = Label.CONFLICTING
-
-                pred_label = benchmark.get_class_name(prediction)
-                averitec_out_instance = {
-                    "claim_id": claim_id,
-                    "claim": content.text,
-                    "pred_label": pred_label
-                }
-
-                if "q_and_a" in meta:
-                    averitec_out_instance["evidence"] = meta["q_and_a"]
-
-                logger.save_next_averitec_out(averitec_out_instance)
-
-            logger.save_next_prediction(
-                sample_index=claim_id,
-                claim=doc.claim.text,
-                target=instance.get("label"),
-                justification=doc.justification,
-                predicted=prediction,
-                gt_justification=instance.get("justification")
-            )
-            logger.save_fc_doc(doc, instance['id'])
-            logger.save_next_instance_stats(meta["Statistics"], instance['id'])
-
-            if not is_test:
-                prediction_is_correct = instance["label"] == prediction
-                if prediction_is_correct:
-                    logger.log(bold(green("CORRECT\n")))
-                else:
-                    logger.log(bold(red("WRONG - Ground truth: " + instance["label"].value + "\n")))
+            process_output(doc, meta, benchmark, logger, is_test)
 
     end_time = time.time()
     duration = end_time - start_time
@@ -217,6 +178,49 @@ def evaluate(
     }
 
     finalize_evaluation(stats, logger.target_dir, benchmark)
+
+
+def process_output(doc: FCDocument, meta: dict, benchmark: Benchmark, logger: Logger, is_test: bool):
+    content = doc.claim.original_context
+    claim_id = content.id_number
+    instance = benchmark.get_by_id(claim_id)
+    prediction = doc.verdict
+
+    # Special output processing for AVeriTeC
+    if isinstance(benchmark, AVeriTeC):
+        if prediction == Label.CHERRY_PICKING:
+            # Merge cherry-picking and conflicting label
+            prediction = Label.CONFLICTING
+
+        pred_label = benchmark.get_class_name(prediction)
+        averitec_out_instance = {
+            "claim_id": claim_id,
+            "claim": content.text,
+            "pred_label": pred_label
+        }
+
+        if "q_and_a" in meta:
+            averitec_out_instance["evidence"] = meta["q_and_a"]
+
+        logger.save_next_averitec_out(averitec_out_instance)
+
+    logger.save_next_prediction(
+        sample_index=claim_id,
+        claim=doc.claim.text,
+        target=instance.get("label"),
+        justification=doc.justification,
+        predicted=prediction,
+        gt_justification=instance.get("justification")
+    )
+    logger.save_fc_doc(doc, instance['id'])
+    logger.save_next_instance_stats(meta["Statistics"], instance['id'])
+
+    if not is_test:
+        prediction_is_correct = instance["label"] == prediction
+        if prediction_is_correct:
+            logger.log(bold(green("CORRECT\n")))
+        else:
+            logger.log(bold(red("WRONG - Ground truth: " + instance["label"].value + "\n")))
 
 
 def aggregate_stats(instance_stats: pd.DataFrame, category: str) -> dict[str, float]:
@@ -335,7 +339,7 @@ def save_stats(stats: dict, target_dir: Path):
     print("Results:\n" + stats_str)
 
 
-def fact_check(llm: str, llm_kwargs: dict, mllm: str, mllm_kwargs: dict,
+def fact_check(llm: str, llm_kwargs: dict,
                fact_checker_kwargs: dict, tools_config: dict, logger_kwargs: dict,
                is_averitec: bool, input_queue: Queue, output_queue: Queue, devices_queue: Queue):
     device = f"cuda:{devices_queue.get()}"

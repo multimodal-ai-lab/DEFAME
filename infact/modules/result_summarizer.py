@@ -32,17 +32,17 @@ class ResultSummarizer:
                 try:
                     result.summary = self.model.generate(prompt, max_attempts=3)
                 except APIError as e:
-                    self.logger.log(orange(f"APIError: {e} - Skipping the summary for {result.source}."))
+                    self.logger.log(orange(f"APIError: {e} - Skipping the summary for {result.url}."))
                     self.logger.log(orange(f"Used prompt:\n{str(prompt)}"))
                     result.summary = "NONE"
                 except TemplateSyntaxError as e:
-                    self.logger.log(orange(f"TemplateSyntaxError: {e} - Skipping the summary for {result.source}."))
+                    self.logger.log(orange(f"TemplateSyntaxError: {e} - Skipping the summary for {result.url}."))
                     result.summary = "NONE"
                 except ValueError as e:
-                    self.logger.log(orange(f"ValueError: {e} - Skipping the summary for {result.source}."))
+                    self.logger.log(orange(f"ValueError: {e} - Skipping the summary for {result.url}."))
                     result.summary = "NONE"
                 except Exception as e:
-                    self.logger.log(orange(f"Error while summarizing! {e} - Skipping the summary for {result.source}."))
+                    self.logger.log(orange(f"Error while summarizing! {e} - Skipping the summary for {result.url}."))
                     result.summary = "NONE"
 
                 if result.is_useful():

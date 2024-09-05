@@ -1,7 +1,7 @@
-from infact.eval.averitec.benchmark import AVeriTeC
-from infact.eval.benchmark import Benchmark
-from infact.eval.fever.benchmark import FEVER
-from infact.eval.verite.benchmark import VERITE
+from .averitec.benchmark import AVeriTeC
+from .benchmark import Benchmark
+from .fever.benchmark import FEVER
+from .verite.benchmark import VERITE
 
 BENCHMARK_REGISTRY = {
     AVeriTeC,

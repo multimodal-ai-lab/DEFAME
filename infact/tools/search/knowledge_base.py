@@ -148,7 +148,7 @@ class KnowledgeBase(LocalSearchAPI):
         for i, index in enumerate(indices):
             url, text, date = self.retrieve(index)
             result = SearchResult(
-                source=url,
+                url=url,
                 text=text,
                 query=query,
                 rank=i,

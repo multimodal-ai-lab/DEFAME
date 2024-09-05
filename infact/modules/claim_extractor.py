@@ -44,7 +44,7 @@ class ClaimExtractor:
             for atomic_fact in claims:
                 self.logger.log(light_blue(f"'{atomic_fact}'"))
         else:
-            claims = [Claim(content.text, content)]
+            claims = [Claim(content.text, original_context=content)]
 
         if self.do_decontextualization:
             self.logger.log("Decontextualizing...")

@@ -1,8 +1,7 @@
 import re
-from typing import Collection, Any, Sequence, Optional
+from typing import Collection, Any, Optional
 
-from PIL.Image import Image
-
+from infact.common.medium import MultimediaSnippet
 from infact.common.action import (OCR, ACTION_REGISTRY, FaceRecognition, WebSearch, WikiDumpLookup, DetectObjects,
                                   Geolocate, Action, CredibilityCheck, ReverseSearch)
 from infact.common.claim import Claim
@@ -10,54 +9,41 @@ from infact.common.document import FCDocument
 from infact.common.label import Label, DEFAULT_LABEL_DEFINITIONS
 from infact.common.results import Evidence, SearchResult
 from infact.utils.parsing import (strip_string, remove_non_symbols, extract_last_code_span, remove_code_blocks,
-                                  extract_last_code_block, find_code_span, extract_last_paragraph, read_md_file)
+                                  extract_last_code_block, find_code_span, extract_last_paragraph, read_md_file,
+                                  fill_placeholders)
 
 SYMBOL = 'Check-worthy'
 NOT_SYMBOL = 'Unimportant'
 
 
-class Prompt:
+class Prompt(MultimediaSnippet):
     template_file_path: str
 
     def __init__(self,
                  placeholder_targets: dict[str, Any] = None,
                  text: str = None,
-                 images: list[Image] = None,
                  template_file_path: str = None):
-        if template_file_path is not None:
-            self.template_file_path = template_file_path
+        if text is None:
+            text = self.compose_prompt(template_file_path, placeholder_targets)
+        super().__init__(text)
 
-        if placeholder_targets is not None:
-            self.text: str = self.compose_prompt(placeholder_targets)
-        else:
-            assert text is not None
-            self.text = text
-
-        self.images = images
-
-    def compose_prompt(self, placeholder_targets: dict[str, Any]) -> str:
+    def compose_prompt(self, template_file_path: str = None,
+                       placeholder_targets: dict[str, Any] = None) -> str:
         """Turns a template prompt into a ready-to-send prompt string."""
-        template = self.get_template()
-        text = self.insert_into_placeholders(template, placeholder_targets)
+        template = self.get_template(template_file_path)
+        if placeholder_targets is None:
+            text = template
+        else:
+            text = fill_placeholders(template, placeholder_targets)
         return strip_string(text)
 
-    def get_template(self) -> str:
+    def get_template(self, template_file_path: str = None) -> str:
         """Collects and combines all pieces to form a template prompt, optionally
         containing placeholders to be replaced."""
-        assert self.template_file_path is not None
-        return read_md_file(self.template_file_path)
-
-    def insert_into_placeholders(self, text: str, placeholder_targets: dict[str, Any]) -> str:
-        """Replaces all specified placeholders in placeholder_targets with the
-        respective target content."""
-        for placeholder, target in placeholder_targets.items():
-            if placeholder not in text:
-                raise ValueError(f"Placeholder '{placeholder}' not found in prompt template:\n{text}")
-            text = text.replace(placeholder, str(target))
-        return text
-
-    def is_multimodal(self):
-        return isinstance(self.images, Sequence) and len(self.images) > 0
+        if template_file_path is None:
+            assert self.template_file_path is not None
+            template_file_path = self.template_file_path
+        return read_md_file(template_file_path)
 
     def extract(self, response: str) -> dict | str | None:
         """Takes the model's output string and extracts the expected data.
