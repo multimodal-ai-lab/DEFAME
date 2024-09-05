@@ -81,6 +81,8 @@ def evaluate(
         logger.save_config(signature, locals())
 
     # Load the tools and verify if they are allowed
+    for engine, config_dict in tools_config['searcher']['search_engine_config'].items():
+        config_dict['cache_folder'] = benchmark.file_path.parent
     tools = initialize_tools(tools_config, logger=logger)
     if benchmark.available_actions is not None:
         for tool in tools:

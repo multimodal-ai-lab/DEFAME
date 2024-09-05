@@ -1,5 +1,7 @@
 import time
 from typing import Sequence, Any
+import sys
+import multiprocessing
 
 from infact.common.action import *
 from infact.common.claim import Claim
@@ -119,7 +121,7 @@ class FactChecker:
 
         return tools
 
-    def check_content(self, content: Content | str) -> (Label, list[FCDocument], list[dict[str, Any]]):
+    def check_content(self, content: Content | str) -> tuple[Label, list[FCDocument], list[dict[str, Any]]]:
         """
         Fact-checks the given content ent-to-end by first extracting all check-worthy claims and then
         verifying each claim individually. Returns the aggregated veracity and the list of corresponding
@@ -148,12 +150,16 @@ class FactChecker:
         self.logger.log(f"Fact-check took {sec2mmss(fc_duration)}.")
         return aggregated_veracity, docs, metas
 
-    def verify_claim(self, claim: Claim) -> (FCDocument, dict[str, Any]):
+    def verify_claim(self, claim: Claim) -> tuple[FCDocument, dict[str, Any]]:
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it.
         This is the core of the fact-checking implementation. Here, the fact-checking
         document is constructed incrementally."""
         stats = {}
         self.actor.reset()  # remove all past search evidences
+        if not self.llm:
+            worker_name = multiprocessing.current_process().name
+            print(f"No LLM was loaded. Stopping execution for {worker_name}.")
+            sys.exit(1)  # Exits the process for this worker
         self.llm.reset_stats()
 
         start = time.time()
