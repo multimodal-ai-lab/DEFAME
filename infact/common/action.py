@@ -192,6 +192,25 @@ class CredibilityCheck(Action):
 
     def __hash__(self):
         return hash((self.name, self.source))
+    
+class DetectManipulation(Action):
+    name = "detect_manipulation"
+    description = "Detects manipulations within an image."
+    how_to = "Provide an image and the model will analyze it for signs of manipulation."
+    format = 'manipulation_detection(image)'
+    is_multimodal = True
+
+    def __init__(self, image: Image.Image):
+        self.image = image
+
+    def __str__(self):
+        return f'{self.name}()'
+
+    def __eq__(self, other):
+        return isinstance(other, DetectManipulation) and np.array_equal(np.array(self.image), np.array(other.image))
+
+    def __hash__(self):
+        return hash((self.name, self.image.tobytes()))
 
 
 ACTION_REGISTRY = {
@@ -204,6 +223,7 @@ ACTION_REGISTRY = {
     FaceRecognition,
     CredibilityCheck,
     OCR,
+    DetectManipulation,
 }
 
 IMAGE_ACTIONS = {
@@ -211,4 +231,6 @@ IMAGE_ACTIONS = {
     Geolocate,
     FaceRecognition,
     OCR,
+    DetectManipulation,
+    DetectObjects,
 }

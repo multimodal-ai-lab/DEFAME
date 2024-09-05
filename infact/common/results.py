@@ -2,6 +2,7 @@ from abc import ABC
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, List
+import numpy as np
 
 
 class Result(ABC):
@@ -106,3 +107,25 @@ class ObjectDetectionResult(Result):
 
     def is_useful(self) -> Optional[bool]:
         return self.model_output is not None
+    
+@dataclass
+class ManipulationResult(Result):
+    score: Optional[float]
+    confidence_map: Optional[np.ndarray]
+    localization_map: np.ndarray
+    noiseprint: Optional[np.ndarray] = None
+
+    def is_useful(self) -> Optional[bool]:
+        """Determine if the result is useful based on the presence of a score or confidence map."""
+        return self.score is not None or self.confidence_map is not None
+
+    def __str__(self):
+        """Human-friendly string representation."""
+        score_str = f'Score: {self.score:.3f}' if self.score is not None else 'Score: N/A'
+        conf_str = 'Confidence map available' if self.confidence_map is not None else 'Confidence map: N/A'
+        loc_str = 'Localization map available' if self.localization_map is not None else 'Localization map: N/A'
+        noiseprint_str = 'Noiseprint++ available' if self.noiseprint is not None else 'Noiseprint++: N/A'
+
+        return f'From [Source]({self.source}):\n{score_str}\n{conf_str}\n{loc_str}\n{noiseprint_str}'
+
+

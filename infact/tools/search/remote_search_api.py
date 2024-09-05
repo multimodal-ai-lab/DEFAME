@@ -35,7 +35,12 @@ class RemoteSearchAPI(SearchAPI):
 
     def _add_to_cache(self, results: list[SearchResult]):
         """Adds the given search results to the cache."""
-        self.cache.extend([asdict(result) for result in results])
+        for result in results:
+            if result.query:
+                self.cache.extend([asdict(result)])
+            else:
+                print(results)
+                raise KeyError
 
         # Save cache file
         with open(self.path_to_cache, 'w') as f:
