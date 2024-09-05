@@ -18,7 +18,9 @@ class RemoteSearchAPI(SearchAPI):
         super().__init__(logger=logger)
         self.path_to_data = path_to_data
         self.search_cached_first = activate_cache
-        self.path_to_cache = os.path.join(self.path_to_data, "search_cache.json")
+        self.path_to_cache = os.path.join(kwargs["cache_folder"], "search_cache.json") if "cache_folder" in kwargs else None
+        if self.path_to_cache is None:
+            print("No Cache provided")
         self.cache_hit = 0
         self.cache = []
         self._initialize_cache()
@@ -37,7 +39,12 @@ class RemoteSearchAPI(SearchAPI):
 
     def _add_to_cache(self, results: list[SearchResult]):
         """Adds the given search results to the cache."""
-        self.cache.extend([asdict(result) for result in results])
+        for result in results:
+            if result.query:
+                self.cache.extend([asdict(result)])
+            else:
+                print(results)
+                raise KeyError
 
         # Save cache file
         with open(self.path_to_cache, 'w') as f:

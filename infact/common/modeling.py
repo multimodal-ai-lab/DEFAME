@@ -14,6 +14,7 @@ from config.globals import api_keys
 from infact.common.logger import Logger
 from infact.prompts.prompt import Prompt
 from infact.utils.parsing import is_guardrail_hit, GUARDRAIL_WARNING
+from infact.utils.console import bold
 
 AVAILABLE_MODELS = pd.read_csv("config/available_models.csv", skipinitialspace=True)
 
@@ -24,7 +25,8 @@ def model_specifier_to_shorthand(specifier: str) -> str:
         platform, model_name = specifier.split(':')
     except Exception as e:
         print(e)
-        raise ValueError(f'Invalid model specification "{specifier}". Must be in format "<PLATFORM>:<Specifier>".')
+        raise ValueError(f'Invalid model specification "{specifier}". Check "config/available_models.csv" for available\
+                          models. Standard format "<PLATFORM>:<Specifier>".')
 
     match = (AVAILABLE_MODELS["Platform"] == platform) & (AVAILABLE_MODELS["Name"] == model_name)
     if not np.any(match):
@@ -47,7 +49,7 @@ def get_model_context_window(name: str) -> int:
     return int(AVAILABLE_MODELS["Context window"][AVAILABLE_MODELS["Shorthand"] == name].iloc[0])
 
 
-def get_model_api_pricing(name: str) -> (float, float):
+def get_model_api_pricing(name: str) -> tuple[float, float]:
     """Returns the cost per 1M input tokens and the cost per 1M output tokens for the
     specified model."""
     if name not in AVAILABLE_MODELS["Shorthand"].to_list():
@@ -406,10 +408,17 @@ def make_model(name: str, **kwargs) -> Model:
         case "openai":
             return GPTModel(specifier, **kwargs)
         case "huggingface":
-            if "llama" in model_name:
-                return LlamaModel(specifier, **kwargs)
-            elif "llava" in model_name:
-                return LlavaModel(specifier, **kwargs)
+            print(bold("Loading open-source model. Adapt number n_workers if running out of memory."))
+            try:
+                if "llama" in model_name:
+                    return LlamaModel(specifier, **kwargs)
+                elif "llava" in model_name:
+                    return LlavaModel(specifier, **kwargs)
+            except torch.cuda.OutOfMemoryError as e:
+                print(f"CUDA out of memory error occurred: {e}")
+                print("Consider reducing n_workers or batch size, or freeing up GPU memory.")
+                torch.cuda.empty_cache()  # Optionally clear the cache to free up memory.
+                #raise  # Re-raise the exception or handle it as needed (e.g., fallback to CPU)
         case "google":
             raise NotImplementedError("Google models not integrated yet.")
         case "anthropic":
