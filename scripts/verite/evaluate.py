@@ -10,7 +10,8 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
     evaluate(
         llm="gpt_4o",
         tools_config=dict(searcher=dict(
-            search_engines=["duckduckgo"],
+            search_engine_config=dict(google={})
+            ,
             limit_per_search=3
         )),
         fact_checker_kwargs=dict(
@@ -23,7 +24,8 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         llm_kwargs=dict(temperature=0.01),
         benchmark_name="verite",
         benchmark_kwargs=dict(variant="dev"),
-        n_samples=10,
+        n_samples=2,
         print_log_level="warning",
         random_sampling=False,
+        n_workers=1
     )
