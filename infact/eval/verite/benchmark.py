@@ -73,7 +73,7 @@ class VERITE(Benchmark):
             claim_text = f"{image_ref} {row['caption']}"
             entry = {
                 "id": i,
-                "content": Content(text=claim_text, id_number=i),
+                "content": Content(text=row["caption"], id_number=i),
                 "label": self.class_mapping[row["label"]],
                 "justification": row.get("ground_truth_justification", "")
             }
