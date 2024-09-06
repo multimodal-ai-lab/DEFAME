@@ -1,20 +1,21 @@
+import base64
 import csv
+from abc import ABC
 from dataclasses import dataclass
+from io import BytesIO
+from pathlib import Path
 from typing import Optional
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
-
 from PIL.Image import Image as PillowImage, open as pillow_open
-from pathlib import Path
-import base64
-from io import BytesIO
 
 from config.globals import temp_dir
 from infact.utils.parsing import get_medium_refs, parse_media_ref
 
 
-class Medium:
+class Medium(ABC):
     """Superclass of all images, videos, and audios."""
     path_to_file: Path
     data_type: str
@@ -39,10 +40,21 @@ class Image(Medium):
     data_type = "image"
     image: PillowImage
 
-    def __init__(self, path_to_file: str | Path):
+    def __init__(self, path_to_file: str | Path = None, pillow_image: PillowImage = None):
+        assert path_to_file is not None or pillow_image is not None
+
+        if pillow_image is not None:
+            # Save the image in a temporary folder
+            path_to_file = Path(temp_dir) / "media" / (datetime.now().strftime("%Y-%m-%d_%H-%M-%s-%f") + ".jpg")
+            pillow_image.save(path_to_file)
+
         super().__init__(path_to_file)
-        # Pillow opens images lazily, so actual image read happens when accessing the image
-        self.image = pillow_open(self.path_to_file)
+
+        if pillow_image is not None:
+            self.image = pillow_image
+        else:
+            # Pillow opens images lazily, so actual image read only happens when accessing the image
+            self.image = pillow_open(self.path_to_file)
 
     def ensure_loaded(self) -> None:
         if self.image is None:
@@ -80,7 +92,7 @@ class MultimediaSnippet:
 
     text: str
 
-    def __post_init__ (self):
+    def __post_init__(self):
         # Verify if all medium references in the text are valid
         if not media_registry.validate(self.text):
             print("Warning: There are unresolvable media references.")
@@ -94,6 +106,9 @@ class MultimediaSnippet:
     def has_audios(self) -> bool:
         return len(self.audios) > 0
 
+    def is_multimodal(self) -> bool:
+        return self.has_images() or self.has_videos() or self.has_audios()
+
     @property
     def images(self) -> list[Image]:
         return media_registry.get_media_from_text(self.text, medium_type="image")
@@ -105,9 +120,6 @@ class MultimediaSnippet:
     @property
     def audios(self) -> list[Audio]:
         return media_registry.get_media_from_text(self.text, medium_type="audio")
-
-    def is_multimodal(self) -> bool:
-        return self.has_images() or self.has_videos() or self.has_audios()
 
     def __str__(self):
         string_representation = f"\"{self.text}\""
