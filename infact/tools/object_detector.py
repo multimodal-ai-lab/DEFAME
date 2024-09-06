@@ -10,6 +10,7 @@ from infact.common.action import DetectObjects
 class ObjectDetector(Tool):
     name = "object_detector"
     actions = [DetectObjects]
+    summarize = False
 
     def __init__(self, model_name: str = "facebook/detr-resnet-50", **kwargs):
         super().__init__(**kwargs)

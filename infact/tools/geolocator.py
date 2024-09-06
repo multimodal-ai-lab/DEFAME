@@ -14,6 +14,7 @@ class Geolocator(Tool):
     """Localizes a given photo."""
     name = "geolocator"
     actions = [Geolocate]
+    summarize = False
 
     def __init__(self,
                  model_name: str = "geolocal/StreetCLIP",

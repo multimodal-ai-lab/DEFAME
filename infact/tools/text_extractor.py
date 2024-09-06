@@ -22,6 +22,7 @@ class TextExtractor(Tool):
     """Employs OCR to get all the text visible in the image."""
     name = "text_extractor"
     actions = [OCR]
+    summarize = False
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

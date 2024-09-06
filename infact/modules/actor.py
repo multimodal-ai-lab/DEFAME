@@ -24,7 +24,7 @@ class Actor:
     def _perform_single(self, action: Action, doc: FCDocument = None, summarize: bool = True) -> Evidence:
         tool = self.get_corresponding_tool_for_action(action)
         results = tool.perform(action)
-        if summarize:
+        if summarize and tool.summarize:
             assert doc is not None
             results = self.result_summarizer.summarize(results, doc)
         summary = ""  # TODO: Summarize result summaries

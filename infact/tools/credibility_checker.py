@@ -9,6 +9,7 @@ class CredibilityChecker(Tool):
     """Evaluates the credibility of a given source (URL domain)."""
     name = "credibility_checker"
     actions = [CredibilityCheck]
+    summarize = False
 
     def __init__(self, llm: Model = None, **kwargs):
         super().__init__(**kwargs)

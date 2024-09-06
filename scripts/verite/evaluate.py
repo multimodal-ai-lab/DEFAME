@@ -14,7 +14,7 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
                 google=dict(),
             ),
             limit_per_search=3
-        )),
+        ), manipulation_detector=dict()),
         fact_checker_kwargs=dict(
             procedure_variant="summary",
             interpret=False,
@@ -30,4 +30,5 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         n_samples=10,
         print_log_level="info",
         random_sampling=False,
+        n_workers=1
     )
