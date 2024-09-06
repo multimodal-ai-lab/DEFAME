@@ -65,8 +65,6 @@ class FactChecker:
 
         if tools is None:
             tools = self._initialize_tools(search_engines)
-        self.fall_back_action = tools[0].actions[0]
-        logger.log(f"Selecting {self.fall_back_action.name} as fallback option if no action can be matched.")
 
         available_actions = get_available_actions(tools)
 
@@ -74,8 +72,8 @@ class FactChecker:
         self.planner = Planner(valid_actions=available_actions,
                                llm=self.llm,
                                logger=self.logger,
-                               extra_rules=extra_plan_rules,
-                               fall_back=self.fall_back_action)
+                               extra_rules=extra_plan_rules
+                               )
 
         self.actor = Actor(tools=tools, llm=self.llm, logger=self.logger)
 

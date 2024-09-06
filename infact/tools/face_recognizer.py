@@ -8,6 +8,7 @@ from infact.tools.tool import Tool
 class FaceRecognizer(Tool):
     name = "face_recognizer"
     actions = [FaceRecognition]
+    summarize = False
 
     def __init__(self, model_name: str = "face-recognition-model", **kwargs):
         super().__init__(**kwargs)

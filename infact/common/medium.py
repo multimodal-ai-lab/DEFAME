@@ -46,6 +46,7 @@ class Image(Medium):
         if pillow_image is not None:
             # Save the image in a temporary folder
             path_to_file = Path(temp_dir) / "media" / (datetime.now().strftime("%Y-%m-%d_%H-%M-%s-%f") + ".jpg")
+            path_to_file.parent.mkdir(parents=True, exist_ok=True)
             pillow_image.save(path_to_file)
 
         super().__init__(path_to_file)

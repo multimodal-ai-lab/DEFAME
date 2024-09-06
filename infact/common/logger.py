@@ -88,7 +88,7 @@ class Logger:
 
     def set_current_fc_id(self, index: int):
         self._current_fact_check_id = index
-        self.claim_dir.mkdir(exist_ok=True)
+        self.claim_dir.mkdir(parents=True, exist_ok=True)
         self._update_file_handler()
 
     def _update_file_handler(self):

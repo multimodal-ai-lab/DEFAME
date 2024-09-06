@@ -27,8 +27,10 @@ class Searcher(Tool):
     will be tried next."""
     # TODO: Rank or annotate the websites according to their credibility, like MUSE
     name = "searcher"
+    summarize = True
     search_apis: dict[str, SearchAPI]
     stats: dict[str, int]
+    
 
     def __init__(self,
                  search_engine_config: dict[str, dict] = None,

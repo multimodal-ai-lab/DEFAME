@@ -21,15 +21,14 @@ class Planner:
                  valid_actions: Collection[type[Action]],
                  llm: Model,
                  logger: Logger,
-                 extra_rules: str,
-                 fall_back: str):
+                 extra_rules: str
+                 ):
         assert len(valid_actions) > 0
         self.valid_actions = valid_actions
         self.llm = llm
         self.logger = logger
         self.max_attempts = 5
         self.extra_rules = extra_rules
-        self.fallback_action = fall_back
 
     def get_available_actions(self, doc: FCDocument):
         available_actions = []
@@ -71,6 +70,7 @@ class Planner:
             if response is None:
                 self.logger.warning("No new actions were found.")
                 return [], ""
+
 
             actions = response["actions"]
             reasoning = response["reasoning"]

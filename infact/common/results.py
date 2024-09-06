@@ -1,11 +1,13 @@
 from abc import ABC
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, List
 import numpy as np
 
+from infact.common.medium import MultimediaSnippet
 
-class Result(ABC):
+
+class Result(MultimediaSnippet, ABC):
     """Detailed information piece retrieved by performing an action."""
 
     def is_useful(self) -> Optional[bool]:
@@ -77,27 +79,17 @@ class GeolocationResult(Result):
         return self.model_output is not None
 
 
-class OCRResult(Result):
-    def __init__(self, source: str, text: str, model_output: Optional[any] = None):
-        self.text = text
-        self.source = source
-        self.model_output = model_output
-
-    def __str__(self):
-        """Human-friendly string representation in Markdown format."""
-        return f'From [Source]({self.source}):\nExtracted Text: {self.text}'
-
-    def is_useful(self) -> Optional[bool]:
-        return self.model_output is not None
-
-
+@dataclass
 class ObjectDetectionResult(Result):
-    def __init__(self, source: str, objects: List[str], bounding_boxes: List[List[float]],
-                 model_output: Optional[any] = None):
-        self.source = source
-        self.objects = objects
-        self.bounding_boxes = bounding_boxes
-        self.model_output = model_output
+    source: str
+    objects: List[str]
+    bounding_boxes: List[List[float]]
+    model_output: Optional[any] = None
+    text: str = field(init=False)  # This will be assigned in __post_init__
+
+    def __post_init__(self):
+        # After initialization, generate the text field using the string representation
+        self.text = str(self)
 
     def __str__(self):
         """Human-friendly string representation in Markdown format."""
@@ -107,25 +99,48 @@ class ObjectDetectionResult(Result):
 
     def is_useful(self) -> Optional[bool]:
         return self.model_output is not None
+
+
+@dataclass
+class OCRResult(Result):
+    source: str
+    extracted_text: str 
+    model_output: Optional[any] = None
+    text: str = field(init=False)  # This will be assigned in __post_init__
+
+    def __post_init__(self):
+        self.text = str(self)
+
+    def __str__(self):
+        """Human-friendly string representation in Markdown format."""
+        return f'From [Source]({self.source}):\nExtracted Text: {self.extracted_text}'
+
+    def is_useful(self) -> Optional[bool]:
+        return self.model_output is not None
     
 @dataclass
 class ManipulationResult(Result):
+    text: str = field(init=False)
     score: Optional[float]
     confidence_map: Optional[np.ndarray]
     localization_map: np.ndarray
+    ref_confidence_map: Optional[str]
+    ref_localization_map: Optional[str]
     noiseprint: Optional[np.ndarray] = None
+    
 
     def is_useful(self) -> Optional[bool]:
-        """Determine if the result is useful based on the presence of a score or confidence map."""
         return self.score is not None or self.confidence_map is not None
 
     def __str__(self):
-        """Human-friendly string representation."""
         score_str = f'Score: {self.score:.3f}' if self.score is not None else 'Score: N/A'
-        conf_str = 'Confidence map available' if self.confidence_map is not None else 'Confidence map: N/A'
-        loc_str = 'Localization map available' if self.localization_map is not None else 'Localization map: N/A'
+        conf_str = f'Confidence map available: {self.ref_confidence_map}' if self.confidence_map is not None else 'Confidence map: N/A'
+        loc_str = f'Localization map available: {self.ref_localization_map}' if self.localization_map is not None else 'Localization map: N/A'
         noiseprint_str = 'Noiseprint++ available' if self.noiseprint is not None else 'Noiseprint++: N/A'
 
-        return f'From [Source]({self.source}):\n{score_str}\n{conf_str}\n{loc_str}\n{noiseprint_str}'
+        return f'Manipulation Detection Resultswi\n{score_str}\n{conf_str}\n{loc_str}\n{noiseprint_str}'
+    
+    def __post_init__(self):
+        self.text = str(self)
 
 
