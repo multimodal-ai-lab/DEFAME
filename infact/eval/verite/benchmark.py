@@ -8,7 +8,7 @@ from infact.common.medium import Image, media_registry
 from config.globals import data_base_dir
 from infact.common import Label, Content
 from infact.eval.benchmark import Benchmark
-from infact.common.action import WebSearch, DetectManipulation
+from infact.common.action import WebSearch, DetectManipulation, DetectObjects, Geolocate
 
 
 class VERITE(Benchmark):
@@ -53,7 +53,7 @@ class VERITE(Benchmark):
     * **Reuse Previously Retrieved Knowledge**: Be prepared to reuse information and evidence gathered during
     previous verification steps to form a comprehensive judgment."""
 
-    available_actions = [WebSearch, DetectManipulation]
+    available_actions = [WebSearch, DetectManipulation, DetectObjects, Geolocate]
 
     def __init__(self, variant="dev"):
         super().__init__(f"VERITE ({variant})", variant)

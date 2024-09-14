@@ -114,7 +114,8 @@ class FactChecker:
             Geolocator(top_k=10, logger=self.logger),
             #  TODO: add an image reverse searcher
             FaceRecognizer(logger=self.logger),
-            TextExtractor(logger=self.logger)
+            TextExtractor(logger=self.logger),
+            Manipulation_Detector(logger=self.logger),
         ])
 
         return tools
