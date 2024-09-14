@@ -5,7 +5,9 @@ from infact.tools.geolocator import Geolocator
 from infact.tools.object_detector import ObjectDetector
 from infact.tools.search.searcher import Searcher
 from infact.tools.text_extractor import TextExtractor
+from infact.tools.manipulation_detector import Manipulation_Detector
 from infact.tools.tool import Tool, get_available_actions
+from infact.eval.benchmark import Benchmark
 
 TOOL_REGISTRY = [
     CredibilityChecker,
@@ -14,6 +16,7 @@ TOOL_REGISTRY = [
     ObjectDetector,
     Searcher,
     TextExtractor,
+    Manipulation_Detector,
 ]
 
 

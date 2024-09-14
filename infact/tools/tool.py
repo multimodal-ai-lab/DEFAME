@@ -14,7 +14,7 @@ class Tool(ABC):
     actions: list[type(Action)]  # (classes of the) available actions this tool offers
 
     def __init__(self, logger: Logger = None, device: str | torch.device = None):
-        self.logger = logger or Logger()
+        self.logger = logger
         self.device = device
 
     def perform(self, action: Action) -> list[Result]:

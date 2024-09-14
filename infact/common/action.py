@@ -153,7 +153,6 @@ class FaceRecognition(Action):
     def __hash__(self):
         return hash((self.name, self.image.tobytes()))
 
-
 class OCR(Action):
     name = "ocr"
     description = "Performs Optical Character Recognition to extract text from an image."
