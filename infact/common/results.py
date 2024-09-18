@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import Optional, List
 import numpy as np
 
-from infact.common.medium import MultimediaSnippet
+from infact.common.medium import MultimediaSnippet, Image
+
 
 
 class Result(MultimediaSnippet, ABC):
@@ -34,6 +35,7 @@ class SearchResult(Result):
     date: datetime = None
     summary: str = None
     query: str = None
+    image: Image = None
     rank: int = None
 
     def is_useful(self) -> Optional[bool]:

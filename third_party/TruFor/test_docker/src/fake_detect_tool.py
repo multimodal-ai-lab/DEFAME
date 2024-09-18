@@ -1,11 +1,13 @@
 import numpy as np
 import torch
 from torch.nn import functional as F
-from PIL import Image
+from PIL import Image as PillowImage
 import matplotlib.pyplot as plt
+from io import BytesIO
+from pathlib import Path
 
-import sys
-import os
+# import sys
+# import os
 
 # Add the project root to sys.path
 #project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..'))
@@ -16,8 +18,9 @@ import os
 from third_party.TruFor.test_docker.src.trufor_config import _C as config
 from third_party.TruFor.test_docker.src.trufor_config import update_config
 from config.globals import manipulation_detection_model
+from infact.common.medium import Image, media_registry
 
-def analyze_image(image: Image.Image):
+def analyze_image(image: PillowImage.Image):
 
     update_config(config, None)
 
@@ -78,6 +81,83 @@ def load_model(config, model_file, device):
     model = model.to(device)
     return model
 
+def create_visualizations(result: dict) -> dict:
+    """
+    Create visualizations for the localization map and confidence map and return them as Pillow images.
+    
+    :param result: A dictionary containing the results of the manipulation detection.
+    :return: A dictionary containing Pillow images for the localization and confidence maps.
+    """
+
+    # Visualization for the localization map
+    fig_loc, ax_loc = plt.subplots()
+    ax_loc.imshow(result['map'], cmap='RdBu_r', clim=[0, 1])
+    ax_loc.set_title('Localization map')
+    ax_loc.axis('off')
+
+    # Save the localization map to a buffer
+    buf_loc = BytesIO()
+    plt.savefig(buf_loc, format='png', bbox_inches='tight')
+    buf_loc.seek(0)
+    localization_map = Image(pillow_image=PillowImage.open(buf_loc).convert("RGB"))
+    plt.close(fig_loc)
+
+    # Visualization for the confidence map
+    fig_conf, ax_conf = plt.subplots()
+    ax_conf.imshow(result['conf'], cmap='gray', clim=[0, 1])
+    ax_conf.set_title('Confidence map')
+    ax_conf.axis('off')
+
+    # Save the confidence map to a buffer
+    buf_conf = BytesIO()
+    plt.savefig(buf_conf, format='png', bbox_inches='tight')
+    buf_conf.seek(0)
+    confidence_map = Image(pillow_image=PillowImage.open(buf_conf).convert("RGB"))
+    plt.close(fig_conf)
+
+    result["ref_localization_map"] = media_registry.add(localization_map)
+    result["ref_confidence_map"] = media_registry.add(confidence_map)
+
+
+    return result
+
+#def create_visualizations_and_save(result: dict) -> dict:
+#    """
+#    Create visualizations for the localization map and confidence map, save them as files, and return Image objects.
+#    
+#    :param result: A dictionary containing the results of the manipulation detection.
+#    :param temp_dir: A Path object specifying the directory to save the images.
+#    :return: A dictionary containing Image objects for the localization and confidence maps.
+#    """
+#
+#    # Save the localization map
+#    create_visualization_image(result['map'], 'Localization map', loc_map_path)
+#    result["ref_loc_map"] = 
+#
+#    # Save the confidence map
+#    conf_map_path = temp_dir / "confidence_map.png"
+#    create_visualization_image(result['conf'], 'Confidence map', conf_map_path)
+#    result["ref_conf_map"] = media_registry.add(Image(conf_map_path))
+#
+#    return result
+#
+#def create_visualization_image(data, title: str, output_path: Path):
+#    """
+#    Create a visualization image from data and save it to a file.
+#    
+#    :param data: The image data to visualize.
+#    :param title: Title of the plot.
+#    :param output_path: Path where the image will be saved.
+#    """
+#    fig, ax = plt.subplots()
+#    ax.imshow(data, cmap='RdBu_r' if title == 'Localization map' else 'gray', clim=[0, 1])
+#    ax.set_title(title)
+#    ax.axis('off')
+#
+#    # Save the plot as an image
+#    plt.savefig(output_path, format='png', bbox_inches='tight')
+#    plt.close(fig)
+#
 
 def save_visualization(image, result, output_plot_path, mask=None):
     cols = 3
@@ -137,19 +217,19 @@ def save_visualization(image, result, output_plot_path, mask=None):
     plt.close()
 
 
-def preprocess_image(image: Image.Image) -> torch.Tensor:
+def preprocess_image(image: Image) -> torch.Tensor:
     """ Converts a PIL Image to a tensor similar to the myDataset class.
         - Converts to RGB if necessary.
         - Normalizes to the range [0, 1] by dividing by 256.0.
         - Transposes the array to match (C, H, W) format expected by the model.
     """
-    img_RGB = np.array(image.convert("RGB"))
+    img_RGB = np.array(image) # image.convert("RGB")
     tensor = torch.tensor(img_RGB.transpose(2, 0, 1), dtype=torch.float) / 256.0
     return tensor.unsqueeze(0)  # Add batch dimension
 
 
 # Example:
-image = Image.open("/pfss/mlde/workspaces/mlde_wsp_Rohrbach/users/tb17xity/InFact/third_party/TruFor/test_docker/images/pristine1.jpg")
-result = analyze_image(image)
+# image = PillowImage.open("/pfss/mlde/workspaces/mlde_wsp_Rohrbach/users/tb17xity/InFact/third_party/TruFor/test_docker/images/pristine1.jpg")
+# result = analyze_image(image)
 
 # The 'result' variable contains the numeric vectors (e.g., 'map', 'score', 'conf', 'np++')

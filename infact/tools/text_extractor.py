@@ -35,7 +35,7 @@ class TextExtractor(Tool):
         # self.reader = easyocr.Reader(['en'], gpu=use_gpu)
 
     def perform(self, action: OCR) -> list[Result]:
-        return [self.extract_text(action.image)]
+        return [self.extract_text(action.image.image)]
 
     def extract_text(self, image: Image.Image) -> OCRResult:
         """
