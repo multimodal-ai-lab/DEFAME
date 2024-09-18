@@ -27,6 +27,7 @@ class Action(ABC):
 class Search(Action):
     api: str
     query: str
+    search_type='search'
 
     def __init__(self, query: str):
         assert (query[0] == '"' and query[-1] == '"')
@@ -49,6 +50,14 @@ class WebSearch(Search):
     If a previous web search did not yield any results, use a very different query."""
     format = """web_search("your web search query goes here")"""
     is_multimodal = False
+
+class ImageSearch(Search):
+    name = "image_search"
+    search_type='images'
+    description = """Run an image search on Google to retrieve related images for a given query."""
+    how_to = """Use this to retrieve images associated with a specific keyword or phrase. Ensure that the query is clear and specific to improve search accuracy. If no relevant images are found, refine the query or use more descriptive terms."""
+    format = """image_search("your image search query goes here")"""
+    is_multimodal = True
 
 
 class WikiDumpLookup(Search):

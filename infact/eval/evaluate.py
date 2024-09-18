@@ -81,8 +81,6 @@ def evaluate(
         logger.save_config(signature, locals())
 
     # Load the tools and verify if they are allowed
-    for engine, config_dict in tools_config['searcher']['search_engine_config'].items():
-        config_dict['cache_folder'] = benchmark.file_path.parent
     tools = initialize_tools(tools_config, logger=logger)
     if benchmark.available_actions is not None:
         for tool in tools:
@@ -362,15 +360,16 @@ def fact_check(llm: str, llm_kwargs: dict,
     if is_averitec:
         searcher = tools[0]
         assert isinstance(searcher, Searcher)
-        kb = searcher.search_apis["averitec_kb"]
-        assert isinstance(kb, KnowledgeBase)
+        if 'averitec_kb' in searcher.search_apis:
+            kb = searcher.search_apis["averitec_kb"]
+            assert isinstance(kb, KnowledgeBase)
     else:
         kb = None
 
     # Run fact-checks as long as there is work to do
     while True:
         content = input_queue.get()
-        if is_averitec:
+        if is_averitec and 'averitec_kb' in searcher.search_apis:
             # Restrict the KB to the current claim's resources
             kb.current_claim_id = content.id_number
         logger.set_current_fc_id(content.id_number)
