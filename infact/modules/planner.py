@@ -51,7 +51,6 @@ class Planner:
             for action in performed_actions:
                 if isinstance(action, action_class):
                     is_performed = True
-                    print("Crash Maybe?")
                     break
 
             if not action_class.is_multimodal or (action_class.is_multimodal and not is_performed):
@@ -81,13 +80,6 @@ class Planner:
             if len(actions) > 0:
                 return actions, reasoning
             else:
-                try:
-                    raise Exception("An error occurred")
-                except Exception as e:
-                    print("Escaped Loop with response:")
-                    print(response)
-                    print("Crash Maybe?")
-                    raise e
                 return [], ""
 
 
