@@ -169,6 +169,15 @@ class Model(ABC):
         if top_k is None:
             top_k = self.top_k
 
+
+        #Check compatability:
+        if "<image:" in str(prompt) and not self.accepts_images:
+            self.logger.warning("Using Unimodal Language Model with image input. Use corresponding MLLM to handle images.")
+        if "<audio:" in str(prompt) and not self.accepts_audio:
+            self.logger.warning("Using Unimodal Language Model with audio input. Use corresponding MLLM to handle audios.")
+        if "<video:" in str(prompt) and not self.accepts_videos:
+            self.logger.warning("Using Unimodal Language Model with video input. Use corresponding MLLM to handle videos.")
+
         # Try to get a response, repeat if not successful
         response, n_attempts = "", 0
         system_prompt = self.system_prompt
@@ -245,6 +254,8 @@ class Model(ABC):
 class GPTModel(Model):
     open_source = False
     encoding = tiktoken.get_encoding("cl100k_base")
+    accepts_images = True
+     
 
     def load(self, model_name: str) -> Pipeline | OpenAIAPI:
         return OpenAIAPI(model=model_name)
@@ -286,14 +297,12 @@ class HuggingFaceModel(Model, ABC):
     def _finalize_load(self, task: str, model_name: str, model_kwargs: dict = None) -> Pipeline:
         if model_kwargs is None:
             model_kwargs = dict()
+        self.model_name = model_name
         model_kwargs["torch_dtype"] = torch.bfloat16
+        self.logger.info(f"Loading {model_name} ...")
         ppl = pipeline(
             task,
-            max_length=self.context_window,
-            temperature=self.temperature,
-            top_k=self.top_k,
             model=model_name,
-            repetition_penalty=self.repetition_penalty,
             model_kwargs=model_kwargs,
             device_map="auto",
             token=api_keys["huggingface_user_access_token"],
@@ -308,7 +317,6 @@ class HuggingFaceModel(Model, ABC):
                   system_prompt: Prompt = None) -> str:
         # Handling needs to be done case by case. Default uses meta-llama formatting.
         prompt_prepared = self.handle_prompt(prompt, system_prompt)
-
         try:
             output = self.api(
                 prompt_prepared,
@@ -324,14 +332,25 @@ class HuggingFaceModel(Model, ABC):
             self.logger.warning("Error while calling the LLM! Continuing with empty response.\n" + str(e))
             return ""
 
+
+    def count_tokens(self, prompt: Prompt | str) -> int:
+        tokens = self.api.tokenizer.encode(str(prompt))
+        return len(tokens)
+
+
+class LlamaModel(HuggingFaceModel):
+    accepts_images = False
+    accepts_videos = False
+    accepts_audio = False
+
     def handle_prompt(
             self,
             original_prompt: Prompt,
             system_prompt: str = None,
     ) -> str:
         """
-        Processes the prompt using the model's tokenizer with a specific template,
-        and continues execution even if an error occurs during formatting.
+        Model specific processing of the prompt using the model's tokenizer with a specific template.
+        Continues execution even if an error occurs during formatting.
         """
         if system_prompt is None:
             system_prompt = self.system_prompt
@@ -362,14 +381,7 @@ class HuggingFaceModel(Model, ABC):
 
         # The function continues processing with either the formatted or original prompt
         return formatted_prompt
-    
 
-    def count_tokens(self, prompt: Prompt | str) -> int:
-        tokens = self.api.tokenizer.encode(str(prompt))
-        return len(tokens)
-
-
-class LlamaModel(HuggingFaceModel):
     def load(self, model_name: str) -> Pipeline | OpenAIAPI:
         self.system_prompt = """You are an AI assistant skilled in fact-checking. Make sure to follow
 the instructions and keep the output to the minimum."""
@@ -390,44 +402,90 @@ fact-checking task is for research purposes."""
 
 
 class LlavaModel(HuggingFaceModel):
+    accepts_images = True
+    accepts_videos = False
+    accepts_audio = False
+
     def load(self, model_name: str) -> Pipeline | OpenAIAPI:
         # Load Llava with quantization for efficiency
-        quantization_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.float16
-        )
-
-        return self._finalize_load("image-to-text", model_name=model_name,
-                                   model_kwargs=dict(quantization_config=quantization_config))
+        self.logger.info(f"Loading {model_name} ...")
+        from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration
+        self.processor = LlavaNextProcessor.from_pretrained(model_name)
+        return LlavaNextForConditionalGeneration.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
 
     def _generate(self,
                   prompt: Prompt,
                   temperature: float,
-                  top_p: float,
                   top_k: int,
+                  top_p: int,
                   system_prompt: Prompt = None) -> str:
-        if prompt.is_multimodal():
-            image = prompt.images[0]
-            if len(prompt.images) > 1:
+            
+        inputs = self.handle_prompt(prompt, system_prompt)
+
+        out = self.api.generate(
+            **inputs, 
+            max_new_tokens=self.max_response_len,
+            temperature=temperature or self.temperature,
+            top_k=top_k,
+            repetition_penalty=self.repetition_penalty
+        )
+
+        # Count +19 because of the specific Llava-Next template.
+        response = self.processor.decode(out[0], skip_special_tokens=True)[len(prompt) + 19:]
+
+        return response
+    
+
+    def handle_prompt(
+            self,
+            original_prompt: Prompt,
+            system_prompt: str = None,
+    ) -> str:
+        """
+        Model specific processing of the prompt using the model's tokenizer with a specific template.
+        Continues execution even if an error occurs during formatting.
+        """
+        
+        if system_prompt is None:
+            system_prompt = self.system_prompt
+        
+        if original_prompt.is_multimodal():
+            image = original_prompt.images[0].image
+            if len(original_prompt.images) > 1:
                 self.logger.warning("Prompt contains more than one image but Llava can process only one image at once.")
         else:
             image = None
 
-        out = self.api(
-            image,
-            prompt=str(prompt),
-            generate_kwargs={
-                "max_new_tokens": self.max_response_len,
-                "temperature": temperature or self.temperature,
-                "top_k": top_k,
-                "repetition_penalty": self.repetition_penalty
-            }
-        )
+        # Compose prompt and system prompt into message
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": [{"type": "text", "text": str(original_prompt)},
+                                                     {"type": "image"}]
+                        })
 
-        # Count -5 because of <image> in the Llava template. Might need adjustment for other MLLMs.
-        response = out[0]["generated_text"][len(prompt) - 5:]
+        try:
+            # Attempt to apply the chat template formatting
+            formatted_prompt = self.processor.apply_chat_template(messages, add_generation_prompt=True)
+            inputs = self.processor(images=image, text=formatted_prompt, return_tensors="pt").to(self.device)
 
-        return response
+        except Exception as e:
+            # Log the error and continue with the original prompt
+            error_message = (
+                f"An error occurred while formatting the prompt: {str(e)}. "
+                f"Please check the model's documentation on Hugging Face for the correct prompt formatting."
+                f"The used model is {self.model_name}."
+            )
+            self.logger.warning(error_message)
+            # Use the original prompt if the formatting fails
+            inputs = str(original_prompt)
+
+        # The function continues processing with either the formatted or original prompt
+        return inputs
+    
+    def count_tokens(self, prompt: Prompt | str) -> int:
+        tokens = self.processor.tokenizer.encode(str(prompt))
+        return len(tokens)
 
 
 def make_model(name: str, **kwargs) -> Model:
@@ -445,10 +503,10 @@ def make_model(name: str, **kwargs) -> Model:
         case "huggingface":
             print(bold("Loading open-source model. Adapt number n_workers if running out of memory."))
             try:
-                if "llama" in model_name:
-                    return LlamaModel(specifier, **kwargs)
-                elif "llava" in model_name:
+                if "llava" in model_name:
                     return LlavaModel(specifier, **kwargs)
+                elif "llama" in model_name:
+                    return LlamaModel(specifier, **kwargs)
             except torch.cuda.OutOfMemoryError as e:
                 print(f"CUDA out of memory error occurred: {e}")
                 print("Consider reducing n_workers or batch size, or freeing up GPU memory.")
