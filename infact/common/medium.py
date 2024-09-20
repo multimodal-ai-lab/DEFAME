@@ -23,8 +23,11 @@ class Medium(ABC):
 
     def __init__(self, path_to_file: str | Path):
         self.path_to_file = Path(path_to_file)
-        self.reference = None
-        self.id = None
+        self.id: int = media_registry.add(self)  # automatically add any (unknown) media
+
+    @property
+    def reference(self):
+        return f"<{self.data_type}:{self.id}>"
 
     def _load(self) -> None:
         """Loads the medium from the disk using the path."""
@@ -74,6 +77,12 @@ class Image(Medium):
     @property
     def height(self) -> int:
         return self.image.height
+
+    def __hash__(self):
+        return self.image.tobytes()
+
+    def __eq__(self, other):
+        return isinstance(other, Image) and np.array_equal(np.array(self.image), np.array(other.image))
 
 
 class Video(Medium):
@@ -154,7 +163,7 @@ class MediaRegistry:
             with open(self.path, "w") as f:
                 csv.writer(f).writerow(self.csv_headers)
 
-        self.cache = dict()
+        self.cache: dict[tuple, Medium] = dict()
 
     def get(self, reference: str) -> Optional[Medium]:
         """Gets the referenced media object by loading it from the cache or,
@@ -167,28 +176,25 @@ class MediaRegistry:
         if medium is None:
             # Load from disk
             medium = self._load(medium_type, medium_id)
-            if medium is not None:
-                self._add_to_cache(medium, medium_id)
+            # if medium is not None:
+            #     self._add_to_cache(medium, medium_id)
 
         # Add reference to medium
-        if medium is not None:
-            medium.reference = reference
-            medium.id = medium_id
+        # if medium is not None:
+        #     medium.reference = reference
+        #     medium.id = medium_id
 
         return medium
 
-    def add(self, medium: Medium) -> str:
+    def add(self, medium: Medium) -> int:
         """Adds a new medium to the registry, if not yet registered. In any case,
-        returns the corresponding reference."""
+        returns the corresponding medium ID."""
         if not self.contains(medium.path_to_file):
             medium_id = self._insert_into_registry(medium.path_to_file, medium.data_type)
-            if medium is not None:
-                self._add_to_cache(medium, medium_id)
+            self._add_to_cache(medium, medium_id)
         else:  # Just return the reference
             medium_id = self._get_id_by_path(medium.path_to_file)
-            assert medium_id is not None
-
-        return f"<{medium.data_type}:{medium_id}>"
+        return medium_id
 
     def validate(self, text: str) -> bool:
         """Verifies that each medium reference can be resolved to a registered medium."""
@@ -235,7 +241,7 @@ class MediaRegistry:
         return Path(media[matches]["path_to_file"].values[0])
 
     def _insert_into_registry(self, path_to_medium: Path, medium_type: str) -> int:
-        """Adds the new medium directly to the media.csv file."""
+        """Adds the new medium directly to the media.csv file and returns its assigned ID."""
         new_id = self.get_max_id(medium_type) + 1
         with open(self.path, "a") as f:
             csv.writer(f).writerow([medium_type, new_id, _normalize_path(path_to_medium)])
