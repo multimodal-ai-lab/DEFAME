@@ -8,7 +8,7 @@ from infact.common.medium import Image, media_registry
 from config.globals import data_base_dir
 from infact.common import Label, Content
 from infact.eval.benchmark import Benchmark
-from infact.common.action import WebSearch, DetectManipulation, DetectObjects, Geolocate, OCR
+from infact.common.action import WebSearch, DetectManipulation, DetectObjects, Geolocate, OCR, ImageSearch
 
 
 class VERITE(Benchmark):
@@ -24,23 +24,15 @@ class VERITE(Benchmark):
 
     class_definitions = {
         Label.SUPPORTED:
-            "The image and caption pair is truthful. This means the caption accurately "
-            "describes the content of the image, providing correct and factual information.",
+            "An image-caption pair is considered supported when the origin, content, and context of an image are accurately described in the accompanying caption.",
         Label.MISCAPTIONED:
-            "The image and caption pair is miscaptioned. This means the caption provides incorrect "
-            "information about the image content, misleading the viewer about what is depicted.",
+            "An image-caption pair is considered miscaptioned when an image is being paired with a misleading caption that misrepresents the origin, content, and/or meaning of the image.",
         Label.OUT_OF_CONTEXT:
-            "The image is used out of context. This means that while the caption may be factually correct, "
-            "the image does not relate to the caption or is used in a misleading way to convey a false narrative."
+            "The image is used out of context when the caption does not relate to the image, or is used in a misleading way to convey a false narrative."
     }
 
-    extra_prepare_rules = """* **Identify Modality Balance**: Ensure that both text and image modalities are
-    considered equally. Avoid unimodal bias by giving equal importance to the text and the associated image.
-    * **Context Verification**: Since the images are sourced from various articles and Google Images, verify
-    the context in which the image is used. This includes checking the source article and understanding the
-    original context of the image.
-    * **Prepare to Handle Real-World Data**: The data consists of real-world examples, so be prepared for
-    diverse and potentially complex scenarios that may not be straightforward to classify."""
+    extra_prepare_rules = """**Assess Alignment**: Assess the alignment between image and text in complex scenarios. Prepare for varied real-world images and captions.
+    **Verify Context**: Examine the source and context of each image to understand its relationship with the accompanying text."""
 
     extra_plan_rules = """* **Consider Both Modalities Equally**: Ensure that the verification process equally
     considers both the text and image modalities. Avoid focusing too much on one modality at the expense of the other.
@@ -53,7 +45,7 @@ class VERITE(Benchmark):
     * **Reuse Previously Retrieved Knowledge**: Be prepared to reuse information and evidence gathered during
     previous verification steps to form a comprehensive judgment."""
 
-    available_actions = [WebSearch, DetectManipulation, DetectObjects, Geolocate, OCR]
+    available_actions = [WebSearch, DetectManipulation, DetectObjects, Geolocate, ImageSearch]
 
     def __init__(self, variant="dev"):
         super().__init__(f"VERITE ({variant})", variant)
