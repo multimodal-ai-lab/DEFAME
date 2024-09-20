@@ -3,7 +3,7 @@ from typing import Collection, Any, Optional
 
 from infact.common.medium import MultimediaSnippet
 from infact.common.action import (OCR, ACTION_REGISTRY, FaceRecognition, WebSearch, WikiDumpLookup, DetectObjects,
-                                  Geolocate, Action, CredibilityCheck, ReverseSearch)
+                                  Geolocate, Action, CredibilityCheck, ReverseSearch, ImageSearch)
 from infact.common.claim import Claim
 from infact.common.document import FCDocument
 from infact.common.label import Label, DEFAULT_LABEL_DEFINITIONS
@@ -199,6 +199,8 @@ class PlanPrompt(Prompt):
             return read_md_file("infact/prompts/plan_exemplars/source_credibility_check.md")
         elif OCR in valid_actions:
             return read_md_file("infact/prompts/plan_exemplars/ocr.md")
+        elif ImageSearch in valid_actions:
+            return read_md_file("infact/prompts/plan_exemplars/image_search.md")
         else:
             return read_md_file("infact/prompts/plan_exemplars/default.md")
 
@@ -452,11 +454,23 @@ class ReiteratePrompt(Prompt):  # TODO: Summarize each evidence instead of colle
 class InterpretPrompt(Prompt):
     template_file_path = "infact/prompts/interpret.md"
 
-    def __init__(self, claim: Claim):
+    def __init__(self, claim: Claim, guidelines: str = ''):
         placeholder_targets = {
             "[CLAIM]": claim,
+            "[GUIDELINES]": guidelines,
         }
         super().__init__(placeholder_targets)
+
+    def extract(self, response: str) -> dict | str | None:
+        answer = extract_last_code_span(response)
+        answer = re.sub(r'[^\w\-\s]', '', answer).strip().lower()
+
+        if not answer:
+            pattern = re.compile(r'\*\*(.*)\*\*', re.DOTALL)
+            matches = pattern.findall(response) or ['']
+            answer = matches[0]
+
+        return [answer] if answer else [response]
 
 
 class JudgeNaively(Prompt):

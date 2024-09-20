@@ -3,7 +3,7 @@ from typing import Any
 
 import numpy as np
 
-from infact.common.action import WebSearch, WikiDumpLookup, Search
+from infact.common.action import WebSearch,ImageSearch, WikiDumpLookup, Search
 from infact.common.results import SearchResult
 from infact.tools.search.duckduckgo import DuckDuckGo
 from infact.tools.search.knowledge_base import KnowledgeBase
@@ -59,7 +59,9 @@ class Searcher(Tool):
         available_apis = self.search_apis.keys()
         if "wiki_dump" in available_apis:
             actions.append(WikiDumpLookup)
-        if "google" in available_apis or "duckduckgo" in available_apis or "averitec_kb" in available_apis:
+        if "google" in available_apis:
+            actions += [WebSearch, ImageSearch]
+        if "duckduckgo" in available_apis or "averitec_kb" in available_apis:
             actions.append(WebSearch)
         self.actions = actions
 
@@ -77,12 +79,13 @@ class Searcher(Tool):
         self.reset()
 
     def perform(self, action: Search) -> list[SearchResult]:
-        return self.search(action.query)
+            return self.search(action)
 
-    def search(self, query: str) -> list[SearchResult]:
+
+    def search(self, action: Search) -> list[SearchResult]:
         """Searches for evidence using the search APIs according to their precedence."""
         for search_engine in list(self.search_apis.values()):
-            results = self._retrieve_search_results(query, search_engine)
+            results = self._retrieve_search_results(action, search_engine)
 
             # Track search engine call
             self.stats[search_engine.name] += 1
@@ -115,15 +118,19 @@ class Searcher(Tool):
         self.stats = {s.name: 0 for s in self.search_apis.values()}
 
     def _retrieve_search_results(
-            self,
-            query: str,
-            search_engine: SearchAPI,
-    ) -> list[SearchResult]:
-        # Run the search
-        results = search_engine.search(query, self.limit_per_search)
-        self.past_queries_helpful[query] = True
+        self,
+        action: Search,
+        search_engine: SearchAPI,
+        ) -> list[SearchResult]:
 
-        # Remove already known results
+        if action.search_type == 'image':
+            assert isinstance(search_engine, SerperAPI), "Need SerperAPI for image search"
+            results = search_engine.search(action.query, limit=self.limit_per_search, search_type=action.search_type)
+        else:
+            results = search_engine.search(action.query, self.limit_per_search)
+
+        self.past_queries_helpful[action.query] = True
+
         return self._remove_known_search_results(results)
 
     def _postprocess_results(self, results: list[SearchResult]) -> list[SearchResult]:
