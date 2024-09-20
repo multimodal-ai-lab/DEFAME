@@ -51,6 +51,7 @@ class FactChecker:
         self.llm = make_model(llm, logger=self.logger) if isinstance(llm, str) else llm
 
         self.claim_extractor = ClaimExtractor(llm=self.llm,
+                                              prepare_rules=extra_prepare_rules,
                                               interpret=interpret,
                                               decompose=decompose,
                                               decontextualize=decontextualize,
