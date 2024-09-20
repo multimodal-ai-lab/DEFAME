@@ -1,67 +1,23 @@
 import re
-from typing import Collection, Any, Optional
+from pathlib import Path
+from typing import Collection, Optional
 
-from infact.common.medium import MultimediaSnippet
-from infact.common.action import (OCR, ACTION_REGISTRY, FaceRecognition, WebSearch, WikiDumpLookup, DetectObjects,
-                                  Geolocate, Action, CredibilityCheck, ReverseSearch, ImageSearch)
-from infact.common.claim import Claim
-from infact.common.document import FCDocument
-from infact.common.label import Label, DEFAULT_LABEL_DEFINITIONS
-from infact.common.results import Evidence, SearchResult
-from infact.utils.parsing import (strip_string, remove_non_symbols, extract_last_code_span, remove_code_blocks,
-                                  extract_last_code_block, find_code_span, extract_last_paragraph, read_md_file,
-                                  fill_placeholders)
+from infact.common import FCDocument, Label, Claim, Action, Evidence, Prompt
+from infact.common.label import DEFAULT_LABEL_DEFINITIONS
+from infact.common.misc import WebSource
+from infact.utils.parsing import (remove_non_symbols, extract_last_code_span, read_md_file,
+                                  find_code_span, extract_last_paragraph, extract_last_code_block,
+                                  strip_string, remove_code_blocks)
 
 SYMBOL = 'Check-worthy'
 NOT_SYMBOL = 'Unimportant'
-
-
-class Prompt(MultimediaSnippet):
-    template_file_path: str
-
-    def __init__(self,
-                 placeholder_targets: dict[str, Any] = None,
-                 text: str = None,
-                 template_file_path: str = None):
-        if text is None:
-            text = self.compose_prompt(template_file_path, placeholder_targets)
-        super().__init__(text)
-
-    def compose_prompt(self, template_file_path: str = None,
-                       placeholder_targets: dict[str, Any] = None) -> str:
-        """Turns a template prompt into a ready-to-send prompt string."""
-        template = self.get_template(template_file_path)
-        if placeholder_targets is None:
-            text = template
-        else:
-            text = fill_placeholders(template, placeholder_targets)
-        return strip_string(text)
-
-    def get_template(self, template_file_path: str = None) -> str:
-        """Collects and combines all pieces to form a template prompt, optionally
-        containing placeholders to be replaced."""
-        if template_file_path is None:
-            assert self.template_file_path is not None
-            template_file_path = self.template_file_path
-        return read_md_file(template_file_path)
-
-    def extract(self, response: str) -> dict | str | None:
-        """Takes the model's output string and extracts the expected data.
-        Returns the data as a dictionary."""
-        return response  # default implementation
-
-    def __str__(self):
-        return self.text
-
-    def __len__(self):
-        return len(self.__str__())
 
 
 class JudgePrompt(Prompt):
     template_file_path = "infact/prompts/judge.md"
 
     def __init__(self, doc: FCDocument,
-                 classes: list[Label],
+                 classes: Collection[Label],
                  class_definitions: dict[Label, str] = None,
                  extra_rules: str = None):
         if class_definitions is None:
@@ -82,27 +38,6 @@ class JudgePrompt(Prompt):
             return None
         else:
             return dict(verdict=verdict, response=response)
-
-
-def extract_verdict(response: str, classes: list[Label]) -> Optional[Label]:
-    answer = extract_last_code_span(response)
-    answer = re.sub(r'[^\w\-\s]', '', answer).strip().lower()
-
-    if not answer:
-        pattern = re.compile(r'\*\*(.*)\*\*', re.DOTALL)
-        matches = pattern.findall(response) or ['']
-        answer = matches[0]
-
-    try:
-        return Label(answer)
-
-    except ValueError:
-        # Maybe the label is a substring of the response
-        for c in classes:
-            if c.value in response:
-                return c
-
-    return None
 
 
 class DecontextualizePrompt(Prompt):
@@ -135,7 +70,7 @@ class FilterCheckWorthyPrompt(Prompt):
 class SummarizeResultPrompt(Prompt):
     template_file_path = "infact/prompts/summarize_result.md"
 
-    def __init__(self, search_result: SearchResult, doc: FCDocument):
+    def __init__(self, search_result: WebSource, doc: FCDocument):
         placeholder_targets = {
             "[SEARCH_RESULT]": str(search_result),
             "[DOC]": str(doc),
@@ -146,7 +81,7 @@ class SummarizeResultPrompt(Prompt):
 class SelectionPrompt(Prompt):
     template_file_path = "infact/prompts/select_evidence.md"
 
-    def __init__(self, question: str, evidences: list[SearchResult]):
+    def __init__(self, question: str, evidences: list[WebSource]):
         placeholder_targets = {
             "[QUESTION]": question,
             "[EVIDENCES]": "\n\n".join(str(evidence) for evidence in evidences),
@@ -176,102 +111,19 @@ class PlanPrompt(Prompt):
         placeholder_targets = {
             "[DOC]": doc,
             "[VALID_ACTIONS]": valid_action_str,
-            "[EXEMPLARS]": self.load_exemplars(valid_actions),
+            "[EXEMPLARS]": load_exemplars(valid_actions),
             "[EXTRA_RULES]": extra_rules,
         }
         super().__init__(placeholder_targets)
 
-    def load_exemplars(self, valid_actions) -> str:
-        # TODO: Check the Note files for the new actions
-        if WikiDumpLookup in valid_actions:
-            return read_md_file("infact/prompts/plan_exemplars/wiki_dump.md")
-        elif WebSearch in valid_actions:
-            return read_md_file("infact/prompts/plan_exemplars/web_search.md")
-        elif DetectObjects in valid_actions:
-            return read_md_file("infact/prompts/plan_exemplars/object_recognition.md")
-        elif ReverseSearch in valid_actions:
-            return read_md_file("infact/prompts/plan_exemplars/reverse_search.md")
-        elif Geolocate in valid_actions:
-            return read_md_file("infact/prompts/plan_exemplars/geo_location.md")
-        elif FaceRecognition in valid_actions:
-            return read_md_file("infact/prompts/plan_exemplars/face_recognition.md")
-        elif CredibilityCheck in valid_actions:
-            return read_md_file("infact/prompts/plan_exemplars/source_credibility_check.md")
-        elif OCR in valid_actions:
-            return read_md_file("infact/prompts/plan_exemplars/ocr.md")
-        elif ImageSearch in valid_actions:
-            return read_md_file("infact/prompts/plan_exemplars/image_search.md")
-        else:
-            return read_md_file("infact/prompts/plan_exemplars/default.md")
-
     def extract(self, response: str) -> dict | str | None:
-        actions = self._extract_actions(response)
-        reasoning = self._extract_reasoning(response)
+        actions = extract_actions(response)
+        reasoning = extract_reasoning(response)
         return dict(
             actions=actions,
             reasoning=reasoning,
             response=response,
         )
-
-    def _extract_actions(self, answer: str) -> list[Action]:
-        actions_str = extract_last_code_block(answer).replace("markdown", "")
-        if not actions_str:
-            candidates = []
-            for action in ACTION_REGISTRY:
-                pattern = re.compile(f'{action.name}("(.*?)")', re.DOTALL)
-                candidates += pattern.findall(answer)
-            actions_str = "\n".join(candidates)
-        if not actions_str:
-            # Potentially prompt LLM to correct format: Exprected format: action_name("query")
-            return []
-        raw_actions = actions_str.split('\n')
-        actions = []
-        for raw_action in raw_actions:
-            action = self._parse_single_action(raw_action)
-            if action:
-                actions.append(action)
-        return actions
-
-    def _extract_reasoning(self, answer: str) -> str:
-        return remove_code_blocks(answer).strip()
-
-    def _parse_single_action(self, raw_action: str) -> Optional[Action]:
-        if not raw_action:
-            return None
-        elif raw_action[0] == '"':
-            raw_action = raw_action[1:]
-
-        try:
-            # Use regular expression to match action and argument in the form action(argument)
-            match = re.match(r'(\w+)\((.*)\)', raw_action)
-
-            # Extract action name and arguments
-            if match:
-                action_name, arguments = match.groups()
-                arguments = arguments.strip()
-            else:
-                # self.logger.log(f"Invalid action format: {raw_action}")
-                match = re.search(r'"(.*?)"', raw_action)
-                arguments = f'"{match.group(1)}"' if match else f'"{raw_action}"'
-                first_part = raw_action.split(' ')[0]
-                action_name = re.sub(r'[^a-zA-Z0-9_]', '', first_part)
-
-            if "image" in arguments:
-                images = self.context.images
-                # TODO: implement multi image argument
-                arguments = images[0]
-
-            for action in ACTION_REGISTRY:
-                if action_name == action.name:
-                    return action(arguments)
-
-            raise ValueError(f'Invalid action format: {raw_action} . Expected format: action_name("query")')
-
-        except Exception as e:
-            # self.logger.log(f"WARNING: Failed to parse '{raw_action}':\n{e}")
-            pass
-
-        return None
 
 
 class PoseQuestionsPrompt(Prompt):
@@ -311,16 +163,6 @@ class ProposeQueries(Prompt):
             queries=queries,
             response=response,
         )
-
-
-def extract_queries(response: str) -> list[WebSearch]:
-    matches = find_code_span(response)
-    queries = []
-    for match in matches:
-        query = strip_string(match)
-        action = WebSearch(f'"{query}"')
-        queries.append(action)
-    return queries
 
 
 class ProposeQuerySimple(Prompt):
@@ -363,7 +205,7 @@ class AnswerCollectively(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
     template_file_path = "infact/prompts/answer_question_collectively.md"
 
-    def __init__(self, question: str, results: list[SearchResult], doc: FCDocument):
+    def __init__(self, question: str, results: list[WebSource], doc: FCDocument):
         result_strings = [f"## Result `{i}`\n{str(result)}" for i, result in enumerate(results)]
         results_str = "\n\n".join(result_strings)
 
@@ -400,7 +242,7 @@ class AnswerQuestion(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
     template_file_path = "infact/prompts/answer_question.md"
 
-    def __init__(self, question: str, result: SearchResult, doc: FCDocument):
+    def __init__(self, question: str, result: WebSource, doc: FCDocument):
         placeholder_targets = {
             "[DOC]": doc,
             "[QUESTION]": question,
@@ -436,17 +278,14 @@ class AnswerQuestionNoEvidence(Prompt):
         super().__init__(placeholder_targets)
 
 
-class ReiteratePrompt(Prompt):  # TODO: Summarize each evidence instead of collection of all results
+class ReiteratePrompt(Prompt):
     template_file_path = "infact/prompts/consolidate.md"
 
     def __init__(self, doc: FCDocument, evidences: Collection[Evidence]):
-        results = []
-        for evidence in evidences:
-            results.extend(evidence.get_useful_results())
-        results_str = "\n\n".join([str(r) for r in results])
+        evidence_str = "\n\n".join([str(e) for e in evidences])
         placeholder_targets = {
             "[DOC]": doc,
-            "[RESULTS]": results_str,
+            "[RESULTS]": evidence_str,
         }
         super().__init__(placeholder_targets)
 
@@ -454,30 +293,18 @@ class ReiteratePrompt(Prompt):  # TODO: Summarize each evidence instead of colle
 class InterpretPrompt(Prompt):
     template_file_path = "infact/prompts/interpret.md"
 
-    def __init__(self, claim: Claim, guidelines: str = ''):
+    def __init__(self, claim: Claim):
         placeholder_targets = {
             "[CLAIM]": claim,
-            "[GUIDELINES]": guidelines,
         }
         super().__init__(placeholder_targets)
-
-    def extract(self, response: str) -> dict | str | None:
-        answer = extract_last_code_span(response)
-        answer = re.sub(r'[^\w\-\s]', '', answer).strip().lower()
-
-        if not answer:
-            pattern = re.compile(r'\*\*(.*)\*\*', re.DOTALL)
-            matches = pattern.findall(response) or ['']
-            answer = matches[0]
-
-        return [answer] if answer else [response]
 
 
 class JudgeNaively(Prompt):
     template_file_path = "infact/prompts/judge_naive.md"
 
     def __init__(self, claim: Claim,
-                 classes: list[Label],
+                 classes: Collection[Label],
                  class_definitions: dict[Label, str] = None):
         self.classes = classes
         if class_definitions is None:
@@ -496,3 +323,113 @@ class JudgeNaively(Prompt):
             return None
         else:
             return dict(verdict=verdict, response=response)
+
+
+def load_exemplars(valid_actions: list[type[Action]]) -> str:
+    exemplars_dir = Path("infact/prompts/plan_exemplars")
+    exemplar_paths = []
+    for a in valid_actions:
+        exemplar_path = exemplars_dir / f"{a.name}.md"
+        if exemplar_path.exists():
+            exemplar_paths.append(exemplar_path)
+
+    if len(exemplar_paths) == 0:
+        return read_md_file(exemplars_dir / "default.md")
+    else:
+        return "\n\n".join([read_md_file(path) for path in exemplar_paths])
+
+
+def parse_single_action(raw_action: str) -> Optional[Action]:
+    from infact.tools import ACTION_REGISTRY
+
+    if not raw_action:
+        return None
+    elif raw_action[0] == '"':
+        raw_action = raw_action[1:]
+
+    try:
+        # Use regular expression to match action and argument in the form action(argument)
+        match = re.match(r'(\w+)\((.*)\)', raw_action)
+
+        # Extract action name and arguments
+        if match:
+            action_name, arguments = match.groups()
+            arguments = arguments.strip()
+        else:
+            # self.logger.log(f"Invalid action format: {raw_action}")
+            match = re.search(r'"(.*?)"', raw_action)
+            arguments = f'"{match.group(1)}"' if match else f'"{raw_action}"'
+            first_part = raw_action.split(' ')[0]
+            action_name = re.sub(r'[^a-zA-Z0-9_]', '', first_part)
+
+        for action in ACTION_REGISTRY:
+            if action_name == action.name:
+                return action(arguments)
+
+        raise ValueError(f'Invalid action: {raw_action}\nExpected format: action_name(<arg1>, <arg2>, ...)')
+
+    except Exception as e:
+        # TODO: Make logger global and enable the following log:
+        # self.logger.log(f"WARNING: Failed to parse '{raw_action}':\n{e}")
+        print("Problem")
+        pass
+
+    return None
+
+
+def extract_actions(answer: str) -> list[Action]:
+    from infact.tools import ACTION_REGISTRY
+
+    actions_str = extract_last_code_block(answer).replace("markdown", "")
+    if not actions_str:
+        candidates = []
+        for action in ACTION_REGISTRY:
+            pattern = re.compile(f'{action.name}("(.*?)")', re.DOTALL)
+            candidates += pattern.findall(answer)
+        actions_str = "\n".join(candidates)
+    if not actions_str:
+        # Potentially prompt LLM to correct format: Expected format: action_name("query")
+        return []
+    raw_actions = actions_str.split('\n')
+    actions = []
+    for raw_action in raw_actions:
+        action = parse_single_action(raw_action)
+        if action:
+            actions.append(action)
+    return actions
+
+
+def extract_verdict(response: str, classes: Collection[Label]) -> Optional[Label]:
+    answer = extract_last_code_span(response)
+    answer = re.sub(r'[^\w\-\s]', '', answer).strip().lower()
+
+    if not answer:
+        pattern = re.compile(r'\*\*(.*)\*\*', re.DOTALL)
+        matches = pattern.findall(response) or ['']
+        answer = matches[0]
+
+    try:
+        return Label(answer)
+
+    except ValueError:
+        # Maybe the label is a substring of the response
+        for c in classes:
+            if c.value in response:
+                return c
+
+    return None
+
+
+def extract_queries(response: str) -> list:
+    from infact.tools import WebSearch
+    matches = find_code_span(response)
+    queries = []
+    for match in matches:
+        query = strip_string(match)
+        action = WebSearch(f'"{query}"')
+        queries.append(action)
+    return queries
+
+
+def extract_reasoning(answer: str) -> str:
+    return remove_code_blocks(answer).strip()

@@ -1,9 +1,8 @@
 import re
+from pathlib import Path
 from typing import Optional, Any
-import os
 
 from infact.utils.console import orange
-
 
 MEDIA_REF_REGEX = r"(<(?:image|video|audio):[0-9]+>)"
 MEDIA_ID_REGEX = r"(?:<(?:image|video|audio):([0-9]+)>)"
@@ -167,33 +166,13 @@ def extract_answer_and_url(response: str) -> tuple[Optional[str], Optional[str]]
 GUARDRAIL_WARNING = orange("Model hit the safety guardrails.")
 
 
-def read_md_file(file_path: str) -> str:
+def read_md_file(file_path: str | Path) -> str:
     """Reads and returns the contents of the specified Markdown file."""
-    if not os.path.exists(file_path):
+    file_path = Path(file_path)
+    if not file_path.exists():
         raise FileNotFoundError(f"No Markdown file found at '{file_path}'.")
     with open(file_path, 'r') as f:
         return f.read()
-
-
-def get_media_id(text: str) -> int:
-    return int(extract_by_regex(text, MEDIA_ID_REGEX))
-
-
-def get_medium_refs(text: str) -> list[str]:
-    """Extracts all media references from the text."""
-    pattern = re.compile(MEDIA_REF_REGEX, re.DOTALL)
-    matches = pattern.findall(text)
-    return matches
-
-
-def parse_media_ref(reference: str) -> Optional[tuple[str, int]]:
-    pattern = re.compile(MEDIA_SPECIFIER_REGEX, re.DOTALL)
-    result = pattern.findall(reference)
-    if len(result) > 0:
-        match = result[0]
-        return match[0], int(match[1])
-    else:
-        return None
 
 
 def fill_placeholders(text: str, placeholder_targets: dict[str, Any]) -> str:

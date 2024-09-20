@@ -1,8 +1,29 @@
+import numpy as np
 import torch
 
-from infact.common.action import FaceRecognition
+from infact.common import MultimediaSnippet, Action, Image
 from infact.common.results import Result
 from infact.tools.tool import Tool
+
+
+class FaceRecognition(Action):
+    name = "recognize_faces"
+    description = "Identifies and recognizes faces within an image."
+    how_to = "Provide an image and the model will recognize faces in it."
+    format = 'recognize_faces(image_patch)'
+    is_multimodal = True
+
+    def __init__(self, image_ref: str):
+        self.image: Image = MultimediaSnippet(image_ref).images[0]
+
+    def __str__(self):
+        return f'{self.name}()'
+
+    def __eq__(self, other):
+        return isinstance(other, FaceRecognition) and np.array_equal(np.array(self.image), np.array(other.image))
+
+    def __hash__(self):
+        return hash((self.name, self.image.image.tobytes()))
 
 
 class FaceRecognizer(Tool):
@@ -15,8 +36,8 @@ class FaceRecognizer(Tool):
         # self.model = pipeline("image-classification", model=model_name, device=device)
         self.model = None
 
-    def perform(self, action: FaceRecognition) -> list[Result]:
-        return [self.recognize_faces(action.image)]
+    def _perform(self, action: FaceRecognition) -> Result:
+        return self.recognize_faces(action.image)
 
     def recognize_faces(self, image: torch.Tensor) -> Result:
         # TODO: Implement this method
@@ -27,3 +48,6 @@ class FaceRecognizer(Tool):
         self.logger.log(str(text))
         result = Result()
         return result
+
+    def _summarize(self, result: Result, **kwargs) -> MultimediaSnippet:
+        raise NotImplementedError

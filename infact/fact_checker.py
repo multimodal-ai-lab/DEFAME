@@ -1,9 +1,10 @@
+import multiprocessing
+import sys
 import time
 from typing import Sequence, Any
-import sys
-import multiprocessing
 
-from infact.common.action import *
+import numpy as np
+
 from infact.common.claim import Claim
 from infact.common.content import Content
 from infact.common.document import FCDocument
@@ -35,14 +36,14 @@ class FactChecker:
                  filter_check_worthy: bool = False,
                  max_iterations: int = 5,
                  max_result_len: int = None,
+                 restrict_results_to_claim_date: bool = True,
                  logger: Logger = None,
                  classes: Sequence[Label] = None,
                  class_definitions: dict[Label, str] = None,
                  extra_prepare_rules: str = None,
                  extra_plan_rules: str = None,
                  extra_judge_rules: str = None,
-                 print_log_level: str = "warning",
-                 ):
+                 print_log_level: str = "warning"):
         assert not tools or not search_engines, \
             "You are allowed to specify either tools or search engines."
 
@@ -73,8 +74,7 @@ class FactChecker:
         self.planner = Planner(valid_actions=available_actions,
                                llm=self.llm,
                                logger=self.logger,
-                               extra_rules=extra_plan_rules
-                               )
+                               extra_rules=extra_plan_rules)
 
         self.actor = Actor(tools=tools, llm=self.llm, logger=self.logger)
 
@@ -89,6 +89,7 @@ class FactChecker:
         self.extra_prepare_rules = extra_prepare_rules
         self.max_iterations = max_iterations
         self.max_result_len = max_result_len
+        self.restrict_results_to_claim_date = restrict_results_to_claim_date
 
         if procedure_variant is None:
             procedure_variant = self.default_procedure
@@ -105,7 +106,7 @@ class FactChecker:
         """Loads a default collection of tools."""
         # Unimodal tools
         tools = [
-            Searcher(search_engines, max_result_len=self.max_result_len, logger=self.logger),
+            Searcher(search_engines, max_result_len=self.max_result_len, model=self.llm, logger=self.logger),
             CredibilityChecker(logger=self.logger)
         ]
 
@@ -116,7 +117,7 @@ class FactChecker:
             #  TODO: add an image reverse searcher
             FaceRecognizer(logger=self.logger),
             TextExtractor(logger=self.logger),
-            Manipulation_Detector(logger=self.logger),
+            ManipulationDetector(logger=self.logger),
         ])
 
         return tools
@@ -157,6 +158,8 @@ class FactChecker:
         document is constructed incrementally."""
         stats = {}
         self.actor.reset()  # remove all past search evidences
+        if self.restrict_results_to_claim_date:
+            self.actor.set_search_date_restriction(claim.date)
         if not self.llm:
             worker_name = multiprocessing.current_process().name
             print(f"No LLM was loaded. Stopping execution for {worker_name}.")
@@ -189,11 +192,14 @@ class FactChecker:
 
 
 def aggregate_predictions(veracities: Sequence[Label]) -> Label:
+    # If all predicted labels are the same label, return that label
+    if len(set(veracities)) == 1:
+        return veracities[0]
+
+    # Otherwise, apply this aggregation
     veracities = np.array(veracities)
     if np.any(veracities == Label.REFUSED_TO_ANSWER):
         return Label.REFUSED_TO_ANSWER
-    elif np.all(veracities == Label.SUPPORTED):
-        return Label.SUPPORTED
     elif np.any(veracities == Label.REFUTED):
         return Label.REFUTED
     elif np.any(veracities == Label.CONFLICTING):

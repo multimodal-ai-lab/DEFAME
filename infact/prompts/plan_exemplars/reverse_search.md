@@ -1,8 +1,7 @@
 # Example
 
 ## Claim
-Image: <image>
-Text: "This image shows a rare event of a solar eclipse with a double ring."
+Text: "<image:1> shows a rare event of a solar eclipse with a double ring."
 
 ## Interpretation of the CLAIM
 The claim suggests that:
@@ -14,7 +13,7 @@ To verify the CLAIM, we need to find similar images of solar eclipses to see if 
 
 ACTIONS:
 ```
-reverse_search(image)
+reverse_search(<image:1>)
 image_search("solar eclipse")
 image_search("solar eclipse with double ring")
 ```

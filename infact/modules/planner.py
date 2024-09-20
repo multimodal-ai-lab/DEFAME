@@ -1,16 +1,13 @@
-import re
-from typing import Optional, Collection
+from typing import Collection
 
 import pyparsing as pp
-from PIL import Image
 
-from infact.common.action import (Action, ACTION_REGISTRY, IMAGE_ACTIONS, WebSearch)
-from infact.common.content import Content
+from infact.common.action import (Action)
+from infact.tools import IMAGE_ACTIONS
 from infact.common.document import FCDocument
 from infact.common.modeling import Model
 from infact.common.logger import Logger
-from infact.prompts.prompt import PlanPrompt, ProposeQuerySimple
-from infact.utils.parsing import extract_last_code_block, remove_code_blocks, find_code_span, strip_string
+from infact.prompts.prompts import PlanPrompt
 
 
 class Planner:

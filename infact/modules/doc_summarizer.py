@@ -1,7 +1,7 @@
 from infact.common.document import FCDocument
 from infact.common.modeling import Model
 from infact.common.logger import Logger
-from infact.prompts.prompt import SummarizeDocPrompt
+from infact.prompts.prompts import SummarizeDocPrompt
 
 
 class DocSummarizer:

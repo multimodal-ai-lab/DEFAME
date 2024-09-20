@@ -1,6 +1,7 @@
-from infact.common import FCDocument, SearchResult, Action
+from infact.common import FCDocument, Action
+from infact.common.misc import WebSource
 from infact.procedure.variants.qa_based.infact import InFact
-from infact.prompts.prompt import ProposeQuerySimple
+from infact.prompts.prompts import ProposeQuerySimple
 
 
 class SimpleQA(InFact):
@@ -30,8 +31,8 @@ class SimpleQA(InFact):
 
     def answer_question(self,
                         question: str,
-                        results: list[SearchResult],
-                        doc: FCDocument = None) -> (str, SearchResult):
+                        results: list[WebSource],
+                        doc: FCDocument = None) -> (str, WebSource):
         relevant_result = results[0]
         answer = self.attempt_answer_question(question, relevant_result, doc)
         return answer, relevant_result

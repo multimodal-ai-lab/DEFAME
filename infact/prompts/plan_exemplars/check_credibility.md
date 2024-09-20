@@ -13,5 +13,5 @@ To verify the CLAIM, we need to evaluate the credibility of the source example-n
 
 ACTIONS:
 ```
-source_credibility_check("example-news.com")
+check_credibility("example-news.com")
 ```

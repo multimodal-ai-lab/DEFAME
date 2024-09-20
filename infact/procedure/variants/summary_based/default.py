@@ -2,7 +2,7 @@ from typing import Any, Collection
 
 from infact.common import FCDocument, Label, Evidence
 from infact.procedure.procedure import Procedure
-from infact.prompts.prompt import ReiteratePrompt
+from infact.prompts.prompts import ReiteratePrompt
 
 
 class DynamicSummary(Procedure):
@@ -20,12 +20,11 @@ class DynamicSummary(Procedure):
             if len(reasoning) > 32:  # Only keep substantial reasoning
                 doc.add_reasoning(reasoning)
             doc.add_actions(actions)
-            if not actions:
-                break  # the planner wasn't able to determine further useful actions, giving up
-            evidences = self.actor.perform(actions, doc)
-            doc.add_evidence(evidences)  # even if no evidence, add empty evidence block for the record
-            self._consolidate_knowledge(doc, evidences)
-            label = self.judge.judge(doc)
+            if actions:
+                evidences = self.actor.perform(actions, doc)
+                doc.add_evidence(evidences)  # even if no evidence, add empty evidence block for the record
+                self._consolidate_knowledge(doc, evidences)
+            label = self.judge.judge(doc, is_final=n_iterations == self.max_iterations or not actions)
         return label, {}
 
     def _consolidate_knowledge(self, doc: FCDocument, evidences: Collection[Evidence]):

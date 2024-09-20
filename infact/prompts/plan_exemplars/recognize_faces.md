@@ -1,7 +1,7 @@
 # Example
 
 ## Claim
-Text: "This image shows a famous celebrity attending a public event."
+Text: "<image:0> shows a famous celebrity attending a public event."
 
 ## Interpretation of the CLAIM
 The claim suggests that:
@@ -13,5 +13,5 @@ To verify the CLAIM, we need to identify the faces in the image and determine if
 
 ACTIONS:
 ```
-face_recognition(image_patch)
+recognize_faces(<image:0>)
 ```

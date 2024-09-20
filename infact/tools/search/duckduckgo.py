@@ -3,7 +3,7 @@ from typing import List, Dict
 
 from duckduckgo_search import DDGS
 
-from infact.common.results import SearchResult
+from infact.common.misc import Query, WebSource
 from infact.tools.search.remote_search_api import RemoteSearchAPI
 from infact.utils.console import red, bold
 
@@ -21,8 +21,9 @@ class DuckDuckGo(RemoteSearchAPI):
         self.backoff_factor = backoff_factor
         self.total_searches = 0
 
-    def _call_api(self, query: str, limit: int) -> list[SearchResult]:
+    def _call_api(self, query: Query) -> list[WebSource]:
         """Run a search query and return structured results."""
+        # TODO: Implement start and end date
         attempt = 0
         while attempt < self.max_retries:
             if attempt > 3:
@@ -31,7 +32,7 @@ class DuckDuckGo(RemoteSearchAPI):
                 time.sleep(wait_time)
             try:
                 self.total_searches += 1
-                response = DDGS().text(query, max_results=limit)
+                response = DDGS().text(query.text, max_results=query.limit)
                 if not response:
                     self.logger.log(bold(red("DuckDuckGo is having issues. Run duckduckgo.py "
                                              "and check https://duckduckgo.com/ for more information.")))
@@ -45,20 +46,11 @@ class DuckDuckGo(RemoteSearchAPI):
 
         return []
 
-    def _parse_results(self, response: List[Dict[str, str]], query: str) -> list[SearchResult]:
+    def _parse_results(self, response: List[Dict[str, str]], query: Query) -> list[WebSource]:
         """Parse results from DuckDuckGo search and return structured dictionary."""
         results = []
         for i, result in enumerate(response):
             url = result.get('href', '')
             text = f"{result.get('title', '')}: {result.get('body', '')}"
-            results.append(SearchResult(url, text, query=query, rank=i))
+            results.append(WebSource(url=url, text=text, query=query, rank=i))
         return results
-
-
-if __name__ == "__main__":
-    duckduckgo_api = DuckDuckGo(max_results=5)
-
-    query = "Sean Connery letter Steve Jobs"
-    results = duckduckgo_api.search(query, limit=5)
-
-    print("Search Results:", results)
