@@ -135,7 +135,7 @@ class ManipulationResult(Result):
         return self.score is not None or self.confidence_map is not None
 
     def __str__(self):
-        score_str = f'Score: {self.score:.3f}' if self.score is not None else 'Score: N/A'
+        score_str = f'Score: {self.score:.3f}. (Everything above 0.6 might suggest manipulation.)' if self.score is not None else 'Score: N/A'
         conf_str = f'Confidence map available: {self.ref_confidence_map}' if self.confidence_map is not None else 'Confidence map: N/A'
         loc_str = f'Localization map available: {self.ref_localization_map}' if self.localization_map is not None else 'Localization map: N/A'
         noiseprint_str = 'Noiseprint++ available' if self.noiseprint is not None else 'Noiseprint++: N/A'

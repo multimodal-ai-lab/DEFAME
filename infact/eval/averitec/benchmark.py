@@ -5,7 +5,7 @@ from typing import Iterator
 
 from config.globals import data_base_dir
 from infact.common import Label, Content
-from infact.common.action import WebSearch
+from infact.common.action import WebSearch, ImageSearch
 from infact.eval.benchmark import Benchmark
 
 
@@ -44,7 +44,7 @@ class AVeriTeC(Benchmark):
     for the Claim does NOT prove that the Claim is refuted. Instead, the Claim is simply unsupported--which is a case of 
     'not enough information'."""
 
-    available_actions = [WebSearch]
+    available_actions = [WebSearch, ImageSearch]
 
     def __init__(self, variant="dev"):
         super().__init__(f"AVeriTeC ({variant})", variant)
