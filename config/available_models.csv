@@ -18,5 +18,4 @@ llama3_70b,HUGGINGFACE,meta-llama/Meta-Llama-3-70B-Instruct, 8_000,0,0
 llama31_70b,HUGGINGFACE,meta-llama/Meta-Llama-3.1-70B-Instruct, 8_000,0,0
 mixtral_v0.1,HUGGINGFACE,mistralai/Mixtral-8x7B-Instruct-v0.1, 32_000,0,0
 ladybird,HUGGINGFACE,bobofrut/ladybird-base-7B-v8,8_000,0,0
-llava_16,HUGGINGFACE,liuhaotian/llava-v1.6-34b,4096,0,0
-llava_15,HUGGINGFACE, llava-hf/llava-1.5-7b-hf, 4096,0,0
+llava_next,HUGGINGFACE,llava-hf/llama3-llava-next-8b-hf,4096,0,0
