@@ -2,13 +2,15 @@
 
 import random
 import time
+from datetime import datetime
 from typing import Any, Optional, Literal
 
 from PIL import Image as PillowImage
 import requests
 from io import BytesIO
 
-from infact.common.results import SearchResult
+from config.globals import api_keys
+from infact.common.misc import Query, WebSource
 from infact.tools.search.remote_search_api import RemoteSearchAPI
 from config.globals import api_keys
 from infact.common.medium import Image
@@ -41,20 +43,26 @@ class SerperAPI(RemoteSearchAPI):
             'search': 'organic',
         }
 
-    def _call_api(self, query: str, limit: int, **kwargs: Any) -> list[SearchResult]:
+    def _call_api(self, query: Query) -> list[WebSource]:
         """Run query through GoogleSearch and parse result."""
         assert self.serper_api_key, 'Missing serper_api_key.'
         assert query, 'Searching Google with empty query'
 
-        search_type = kwargs["search_type"] if "search_type" in kwargs else self.search_type
+        search_type = query.search_type
+
+        if query.end_date is not None:
+            end_date = query.end_date.strftime('%d/%m/%Y')
+            tbs = f"cdr:1,cd_min:1/1/1900,cd_max:{end_date}"
+        else:
+            tbs = self.tbs
+
         results = self._call_serper_api(
-            query,
+            query.text,
             gl=self.gl,
             hl=self.hl,
-            num=limit,
-            tbs=self.tbs,
-            search_type=search_type,
-            **kwargs,
+            num=query.limit,
+            tbs=tbs,
+            search_type=query.search_type,
         )
         return self._parse_results(results, query)
 
@@ -98,7 +106,7 @@ class SerperAPI(RemoteSearchAPI):
         search_results = response.json()
         return search_results
 
-    def _parse_results(self, response: dict[Any, Any], query: str) -> list[SearchResult]:
+    def _parse_results(self, response: dict[Any, Any], query: Query) -> list[WebSource]:
         """Parse results from API response."""
 
         snippets = []
@@ -169,6 +177,10 @@ class SerperAPI(RemoteSearchAPI):
         #        else:
         #            text = f"{result['title']}: {result['snippet']}"
         #        url = result["link"]
-        #        results.append(SearchResult(url=url, text=text, query=query, rank=i))
+                try:
+                    result_date = datetime.strptime(result['date'], "%b %d, %Y").date()
+                except (ValueError, KeyError):
+                    result_date = None
+        #        results.append(WebSource(url=url, text=text, query=query, rank=i, date=result_date))
 
         return results

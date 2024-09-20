@@ -6,7 +6,8 @@ import tweepy
 
 from config.globals import api_keys
 from infact.utils.parsing import extract_by_regex
-from infact.tools.search.search_api import SearchAPI, SearchResult
+from infact.tools.search.search_api import SearchAPI
+from infact.common.misc import WebSource
 
 USERNAME_REGEX = r"((\w){1,15})"
 TWEET_ID_REGEX = r"([0-9]{15,22})"
@@ -25,7 +26,7 @@ class X(SearchAPI):
         super(X, self).__init__(logger=logger)
         self.client = tweepy.Client(bearer_token=api_keys["x_bearer_token"])
 
-    def _call_api(self, query: str, limit: int, start_time: datetime = None) -> list[SearchResult]:
+    def _call_api(self, query: str, limit: int, start_time: datetime = None) -> list[WebSource]:
         """Searches ALL of X for the given query."""
         if start_time is None:
             start_time = datetime.strptime("26-03-2006", "%d-%m-%Y")
@@ -36,14 +37,14 @@ class X(SearchAPI):
         )
         raise NotImplementedError
 
-    def get_tweet(self, url: str = None, tweet_id: str = None, num_replies: int = 0) -> SearchResult:
+    def get_tweet(self, url: str = None, tweet_id: str = None, num_replies: int = 0) -> WebSource:
         assert url is not None or tweet_id is not None
         if url is not None:
             tweet_id = extract_tweet_id_from_url(url)
         tweet = self.client.get_tweet(tweet_id)
         raise NotImplementedError
 
-    def get_user_page(self, url: str = None, username: str = None, num_recent_tweets: int = 0) -> SearchResult:
+    def get_user_page(self, url: str = None, username: str = None, num_recent_tweets: int = 0) -> WebSource:
         assert url is not None or username is not None
         if url is not None:
             username = extract_username_from_url(url)

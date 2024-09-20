@@ -14,9 +14,10 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
                 google=dict(),
             ),
             limit_per_search=3
-        ), manipulation_detector=dict(),
-        object_detector=dict(),
-        geolocator=dict()
+        ),
+            manipulation_detector=dict(),
+            object_detector=dict(),
+            geolocator=dict()
         ),
         fact_checker_kwargs=dict(
             procedure_variant="summary",
@@ -30,8 +31,8 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         llm_kwargs=dict(temperature=0.01),
         benchmark_name="verite",
         benchmark_kwargs=dict(variant="dev"),
-        n_samples=5,
+        n_samples=10,
         print_log_level="info",
         random_sampling=False,
-        n_workers=1
+        n_workers=1,
     )

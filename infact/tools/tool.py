@@ -3,9 +3,7 @@ from typing import Any
 
 import torch
 
-from infact.common.action import Action
-from infact.common.results import Result
-from infact.common.logger import Logger
+from infact.common import Action, Result, Evidence, Logger, MultimediaSnippet
 
 
 class Tool(ABC):
@@ -17,7 +15,19 @@ class Tool(ABC):
         self.logger = logger
         self.device = device
 
-    def perform(self, action: Action) -> list[Result]:
+    def perform(self, action: Action, summarize: bool = True, **kwargs) -> Evidence:
+        result = self._perform(action)
+        summary = self._summarize(result, **kwargs) if summarize else None
+        return Evidence(result, action, summary=summary)
+
+    def _perform(self, action: Action) -> Result:
+        """The actual function executing the action."""
+        raise NotImplementedError
+
+    def _summarize(self, result: Result, **kwargs) -> MultimediaSnippet:
+        """Turns the result into an LLM-friendly summary. May use additional
+        context for summarization. Returns None iff the result does not contain any
+        (potentially) helpful information."""
         raise NotImplementedError
 
     def reset(self) -> None:

@@ -1,12 +1,11 @@
 from abc import ABC
 from typing import Optional
 
-from infact.common import FCDocument, SearchResult
-from infact.common.action import WebSearch
+from infact.common import FCDocument
+from infact.tools import WebSearch
+from infact.common.misc import WebSource
 from infact.procedure.procedure import Procedure
-from infact.prompts.prompt import AnswerQuestion
-from infact.prompts.prompt import PoseQuestionsPrompt
-from infact.prompts.prompt import ProposeQueries
+from infact.prompts.prompts import PoseQuestionsPrompt, ProposeQueries, AnswerQuestion
 from infact.utils.console import light_blue
 
 
@@ -80,13 +79,13 @@ class QABased(Procedure, ABC):
 
     def answer_question(self,
                         question: str,
-                        results: list[SearchResult],
-                        doc: FCDocument = None) -> (str, SearchResult):
+                        results: list[WebSource],
+                        doc: FCDocument = None) -> (str, WebSource):
         """Answers the given question and returns the answer along with the ID of the most relevant result."""
         answer, relevant_result = self.answer_question_individually(question, results, doc)
         return answer, relevant_result
 
-    def generate_answer(self, question: str, results: list[SearchResult], doc: FCDocument) -> Optional[dict]:
+    def generate_answer(self, question: str, results: list[WebSource], doc: FCDocument) -> Optional[dict]:
         answer, relevant_result = self.answer_question(question, results, doc)
 
         if answer is not None:
@@ -102,9 +101,9 @@ class QABased(Procedure, ABC):
     def answer_question_individually(
             self,
             question: str,
-            results: list[SearchResult],
+            results: list[WebSource],
             doc: FCDocument
-    ) -> (Optional[str], Optional[SearchResult]):
+    ) -> (Optional[str], Optional[WebSource]):
         """Generates an answer to the given question by iterating over the search results
         and using them individually to answer the question."""
         for result in results:
@@ -113,7 +112,7 @@ class QABased(Procedure, ABC):
                 return answer, result
         return None, None
 
-    def attempt_answer_question(self, question: str, result: SearchResult, doc: FCDocument) -> Optional[str]:
+    def attempt_answer_question(self, question: str, result: WebSource, doc: FCDocument) -> Optional[str]:
         """Generates an answer to the given question."""
         prompt = AnswerQuestion(question, result, doc)
         out = self.llm.generate(prompt, max_attempts=3)

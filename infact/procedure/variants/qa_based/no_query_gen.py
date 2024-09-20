@@ -1,5 +1,5 @@
 from infact.common import FCDocument, Action
-from infact.common.action import WebSearch
+from infact.tools import WebSearch
 from infact.procedure.variants.qa_based.infact import InFact
 
 

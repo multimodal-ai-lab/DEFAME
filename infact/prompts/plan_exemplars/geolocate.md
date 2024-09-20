@@ -1,8 +1,7 @@
 # Example
 
 ## Claim
-Image: <image>
-Text: "This image shows a nuclear weapons facility in Usbekistan."
+Text: "<image:2> shows a nuclear weapons facility in Usbekistan."
 
 ## Interpretation of the CLAIM
 The claim suggests that:
@@ -14,5 +13,5 @@ To verify the CLAIM, we need to determine the location where the image was taken
 
 ACTIONS:
 ```
-geo_location(image)
+geolocate(<image:2>)
 ```
