@@ -1,10 +1,54 @@
+from dataclasses import dataclass, field
+from typing import List, Optional
+
+import numpy as np
 import torch
-from PIL import Image
+from PIL.Image import Image as PILImage
 from transformers import AutoProcessor, AutoModelForObjectDetection
 
-from infact.common.results import ObjectDetectionResult, Evidence
+from infact.common import Result, MultimediaSnippet, Action, Image
 from infact.tools.tool import Tool
-from infact.common.action import DetectObjects
+
+
+class DetectObjects(Action):
+    name = "detect_objects"
+    description = "Identifies objects within an image."
+    how_to = "Provide an image and the model will recognize objects in it."
+    format = "detect_objects(<image:n>), where `n` is the image's ID"
+    is_multimodal = True
+
+    def __init__(self, image_ref: str):
+        self.image: Image = MultimediaSnippet(image_ref).images[0]
+
+    def __str__(self):
+        return f'{self.name}()'
+
+    def __eq__(self, other):
+        return isinstance(other, DetectObjects) and np.array_equal(np.array(self.image), np.array(other.image))
+
+    def __hash__(self):
+        return hash((self.name, self.image.image.tobytes()))
+
+
+@dataclass
+class ObjectDetectionResult(Result):
+    source: str
+    objects: List[str]
+    bounding_boxes: List[List[float]]
+    model_output: Optional[any] = None
+    text: str = field(init=False)  # This will be assigned in __post_init__
+
+    def __post_init__(self):
+        # After initialization, generate the text field using the string representation
+        self.text = str(self)
+
+    def __str__(self):
+        objects_str = ', '.join(self.objects)
+        boxes_str = ', '.join([str(box) for box in self.bounding_boxes])
+        return f'From [Source]({self.source}):\nObjects: {objects_str}\nBounding boxes: {boxes_str}'
+
+    def is_useful(self) -> Optional[bool]:
+        return self.model_output is not None
 
 
 class ObjectDetector(Tool):
@@ -27,11 +71,10 @@ class ObjectDetector(Tool):
         self.device = torch.device(self.device if self.device else ('cuda' if torch.cuda.is_available() else 'cpu'))
         self.model.to(self.device)
 
-    def perform(self, action: DetectObjects) -> Evidence:
-        result = self.recognize_objects(action.image.image)
-        return [result]  # TODO: Add summary
+    def _perform(self, action: DetectObjects) -> ObjectDetectionResult:
+        return self.recognize_objects(action.image.image)
 
-    def recognize_objects(self, image: Image.Image) -> ObjectDetectionResult:
+    def recognize_objects(self, image: PILImage) -> ObjectDetectionResult:
         """
         Recognize objects in an image.
 
@@ -43,7 +86,7 @@ class ObjectDetector(Tool):
             outputs = self.model(**inputs)
             target_sizes = torch.tensor([image.size[::-1]]).to(self.device)
             results = self.processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=0.9)[0]
-    
+
             objects = [self.model.module.config.id2label[label.item()] if hasattr(self.model, 'module') else
                        self.model.config.id2label[label.item()] for label in results["labels"]]
             bounding_boxes = [box.tolist() for box in results["boxes"]]
@@ -56,3 +99,6 @@ class ObjectDetector(Tool):
 
         self.logger.log(str(result))
         return result
+
+    def _summarize(self, result: ObjectDetectionResult, **kwargs) -> MultimediaSnippet:
+        return MultimediaSnippet("Object Detector not fully implemented yet.")  # TODO: Implement the summary

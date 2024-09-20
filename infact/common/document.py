@@ -4,7 +4,7 @@ from typing import Collection
 from infact.common.action import Action
 from infact.common.claim import Claim
 from infact.common.label import Label
-from infact.common.results import Evidence
+from infact.common.evidence import Evidence
 
 
 @dataclass
@@ -29,25 +29,22 @@ class EvidenceBlock:
     evidences: Collection[Evidence]
 
     def __str__(self):
-        return f"## Results\nRetrieved {self.num_useful_results} new useful results."  # TODO: Rename to evidence
+        return f"## Results\nRetrieved {self.num_useful_evidences} new useful results."  # TODO: Rename to evidence
 
     @property
-    def num_useful_results(self):
+    def num_useful_evidences(self):
         n_useful = 0
         for e in self.evidences:
-            for r in e.results:
-                if r.is_useful():
-                    n_useful += 1
+            if e.is_useful():
+                n_useful += 1
         return n_useful
 
-    def get_useful_results_str(self) -> str:
-        if self.num_useful_results > 0:
-            useful_results = []
-            for e in self.evidences:
-                useful_results.extend([str(r) for r in e.results])
-            return "\n".join(useful_results)
+    def get_useful_evidences_str(self) -> str:
+        if self.num_useful_evidences > 0:
+            useful_evidences = [str(e) for e in self.evidences if e.is_useful()]
+            return "\n\n".join(useful_evidences)
         else:
-            return "No new useful results!"
+            return "No new useful evidence!"
 
 
 class FCDocument:

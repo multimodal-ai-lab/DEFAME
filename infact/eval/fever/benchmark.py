@@ -6,7 +6,7 @@ import orjsonl
 
 from config.globals import data_base_dir
 from infact.common import Label, Content
-from infact.common.action import WikiDumpLookup
+from infact.tools import WikiDumpLookup
 from infact.eval.benchmark import Benchmark
 
 

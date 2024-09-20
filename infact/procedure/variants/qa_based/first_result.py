@@ -1,4 +1,5 @@
-from infact.common import FCDocument, SearchResult
+from infact.common import FCDocument
+from infact.common.misc import WebSource
 from infact.procedure.variants.qa_based.infact import InFact
 
 
@@ -7,8 +8,8 @@ class FirstResult(InFact):
 
     def answer_question(self,
                         question: str,
-                        results: list[SearchResult],
-                        doc: FCDocument = None) -> (str, SearchResult):
+                        results: list[WebSource],
+                        doc: FCDocument = None) -> (str, WebSource):
         relevant_result = results[0]
         answer = self.attempt_answer_question(question, relevant_result, doc)
         return answer, relevant_result

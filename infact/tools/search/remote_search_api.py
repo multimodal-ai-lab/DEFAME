@@ -1,8 +1,7 @@
-import json
 import os
-from dataclasses import asdict
+import pickle
 
-from infact.common import SearchResult
+from infact.common.misc import Query, WebSource
 from infact.common.logger import Logger
 from infact.tools.search.search_api import SearchAPI
 
@@ -18,45 +17,42 @@ class RemoteSearchAPI(SearchAPI):
         self.search_cached_first = activate_cache
         self.path_to_cache = os.path.join(logger.target_dir / self.file_name)
         self.cache_hit = 0
-        self.cache: list[dict] = []
+        self.cache: dict[Query, list[WebSource]] = {}
         self._initialize_cache()
 
     def _initialize_cache(self):
         if not os.path.exists(self.path_to_cache):
             os.makedirs(os.path.dirname(self.path_to_cache), exist_ok=True)
-            with open(self.path_to_cache, 'w') as f:
-                json.dump([], f)
+            self._save_data()
         else:
             self._load_data()
 
     def _load_data(self):
-        with open(self.path_to_cache, 'r') as f:
-            self.cache = json.load(f)
+        with open(self.path_to_cache, 'rb') as f:
+            self.cache = pickle.load(f)
 
-    def _add_to_cache(self, results: list[SearchResult]):
-        """Adds the given search results to the cache."""
-        for result in results:
-            if result.query:
-                self.cache.extend([asdict(result)])
-            else:
-                print(results)
-                raise KeyError
+    def _save_data(self):
+        with open(self.path_to_cache, 'wb') as f:
+            pickle.dump(self.cache, f)
 
-        # Save cache file
-        with open(self.path_to_cache, 'w') as f:
-            json.dump(self.cache, f, indent=4)
+    def _add_to_cache(self, query: Query, results: list[WebSource]):
+        """Adds the given query-results pair to the cache."""
+        self.cache[query] = results
+        self._save_data()
 
-    def search(self, query: str, limit: int) -> list[SearchResult]:
+    def search(self, query: Query) -> list[WebSource]:
+        # Try to load from cache
         if self.search_cached_first:
             cache_results = self.search_cache(query)
             if cache_results:
                 self.cache_hit += 1
                 return cache_results
 
-        results = super().search(query, limit)
-        self._add_to_cache(results)
+        results = super().search(query)
+        self._add_to_cache(query, results)
         return results
 
-    def search_cache(self, query: str) -> list[SearchResult]:
+    def search_cache(self, query: Query) -> list[WebSource]:
         """Search the local in-memory data for matching results."""
-        return [SearchResult(**result) for result in self.cache if query.lower() in result['query'].lower()]
+        if query in self.cache:
+            return self.cache[query]

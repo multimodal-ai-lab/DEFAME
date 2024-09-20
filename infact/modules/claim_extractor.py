@@ -2,7 +2,7 @@ from infact.common.claim import Claim
 from infact.common.content import Content
 from infact.common.modeling import Model
 from infact.common.logger import Logger
-from infact.prompts.prompt import FilterCheckWorthyPrompt, DecontextualizePrompt, SYMBOL, NOT_SYMBOL
+from infact.prompts.prompts import SYMBOL, NOT_SYMBOL, DecontextualizePrompt, FilterCheckWorthyPrompt
 from third_party.factscore.atomic_facts import AtomicFactGenerator
 from infact.utils.console import light_blue
 from infact.utils.parsing import extract_first_square_brackets, extract_first_code_block

@@ -2,19 +2,19 @@ import os
 import pickle
 import sqlite3
 import struct
-from typing import Sequence
 from datetime import datetime
 from pathlib import Path
+from typing import Sequence
 
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
-from infact.common.embedding import EmbeddingModel
 from config.globals import embedding_model
+from infact.common.misc import Query, WebSource
+from infact.common.embedding import EmbeddingModel
 from infact.tools.search.local_search_api import LocalSearchAPI
-from infact.common.results import SearchResult
 
 
 class SemanticSearchDB(LocalSearchAPI):
@@ -56,9 +56,9 @@ class SemanticSearchDB(LocalSearchAPI):
         rows = self.cur.fetchall()
         return rows
 
-    def _call_api(self, query: str, limit: int) -> list[SearchResult]:
+    def _call_api(self, query: Query) -> list[WebSource]:
         query_embedding = self._embed(query).reshape(1, -1)
-        indices = self._search_semantically(query_embedding, limit)
+        indices = self._search_semantically(query_embedding, query.limit)
         return self._indices_to_search_results(indices, query)
 
     def _search_semantically(self, query_embedding, limit: int) -> list[int]:
@@ -71,11 +71,11 @@ class SemanticSearchDB(LocalSearchAPI):
         and the date of the selected row's source."""
         raise NotImplementedError()
 
-    def _indices_to_search_results(self, indices: list[int], query: str) -> list[SearchResult]:
+    def _indices_to_search_results(self, indices: list[int], query: Query) -> list[WebSource]:
         results = []
         for i, index in enumerate(indices):
             url, text, date = self.retrieve(index)
-            result = SearchResult(
+            result = WebSource(
                 url=url,
                 text=text,
                 query=query,

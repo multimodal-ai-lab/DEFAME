@@ -4,7 +4,6 @@ from torch.nn import functional as F
 from PIL import Image as PillowImage
 import matplotlib.pyplot as plt
 from io import BytesIO
-from pathlib import Path
 
 # import sys
 # import os
@@ -15,8 +14,8 @@ from pathlib import Path
 #    sys.path.append(project_root)
 
 
-from third_party.TruFor.test_docker.src.trufor_config import _C as config
-from third_party.TruFor.test_docker.src.trufor_config import update_config
+from third_party.TruFor.src.trufor_config import _C as config
+from third_party.TruFor.src.trufor_config import update_config
 from config.globals import manipulation_detection_model
 from infact.common.medium import Image, media_registry
 
@@ -72,7 +71,7 @@ def load_model(config, model_file, device):
     checkpoint = torch.load(model_file, map_location=device)
 
     if config.MODEL.NAME == 'detconfcmx':
-        from third_party.TruFor.test_docker.src.models.cmx.builder_np_conf import myEncoderDecoder as confcmx
+        from third_party.TruFor.src.models.cmx.builder_np_conf import myEncoderDecoder as confcmx
         model = confcmx(cfg=config)
     else:
         raise NotImplementedError('Model not implemented')

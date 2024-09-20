@@ -1,10 +1,11 @@
 import dataclasses
 
 from infact.common.document import FCDocument
-from infact.common.label import Label
+from infact.common.label import Label, DEFAULT_LABEL_DEFINITIONS
 from infact.common.logger import Logger
 from infact.common.modeling import Model
-from infact.prompts.prompt import JudgePrompt, JudgeNaively, Prompt
+from infact.common.prompt import Prompt
+from infact.prompts.prompts import JudgePrompt, JudgeNaively
 from infact.utils.console import orange
 
 
@@ -24,16 +25,27 @@ class Judge:
                  class_definitions: dict[Label, str] = None,
                  extra_rules: str = None):
         self.llm = llm
-        self.classes = classes
+        self.classes = set(classes)
+
+        if Label.NEI not in class_definitions:
+            class_definitions[Label.NEI] = DEFAULT_LABEL_DEFINITIONS[Label.NEI]
         self.class_definitions = class_definitions
+
         self.extra_rules = extra_rules
         self.max_retries = 5
         self.latest_reasoning = None
 
         self.logger = logger
 
-    def judge(self, doc: FCDocument) -> Label:
-        prompt = JudgePrompt(doc, self.classes, self.class_definitions, self.extra_rules)
+    def judge(self, doc: FCDocument, is_final: bool = True) -> Label:
+        classes = self.classes.copy()
+
+        # If this is a non-final judgement (i.e. there are follow-up retrievals/actions allowed)
+        # enable to predict NEI (otherwise fact-check would always end here)
+        if not is_final:
+            classes.add(Label.NEI)
+
+        prompt = JudgePrompt(doc, classes, self.class_definitions, self.extra_rules)
         return self._generate_verdict(prompt)
 
     def judge_naively(self, doc: FCDocument) -> Label:

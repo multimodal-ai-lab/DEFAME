@@ -13,8 +13,8 @@ from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
 from config.globals import data_base_dir, embedding_model
+from infact.common.misc import Query, WebSource
 from infact.common.embedding import EmbeddingModel
-from infact.common.results import SearchResult
 from infact.tools.search.local_search_api import LocalSearchAPI
 from infact.utils.utils import my_hook
 
@@ -143,11 +143,11 @@ class KnowledgeBase(LocalSearchAPI):
         url, text, date = resource["url"], resource["url2text"], None
         return url, text, date
 
-    def _indices_to_search_results(self, indices: list[int], query: str) -> list[SearchResult]:
+    def _indices_to_search_results(self, indices: list[int], query: Query) -> list[WebSource]:
         results = []
         for i, index in enumerate(indices):
             url, text, date = self.retrieve(index)
-            result = SearchResult(
+            result = WebSource(
                 url=url,
                 text=text,
                 query=query,
@@ -157,7 +157,7 @@ class KnowledgeBase(LocalSearchAPI):
             results.append(result)
         return results
 
-    def _call_api(self, query: str, limit: int) -> list[SearchResult]:
+    def _call_api(self, query: Query) -> list[WebSource]:
         """Performs a vector search on the text embeddings of the resources of the currently active claim."""
         if self.current_claim_id is None:
             raise RuntimeError("No claim ID specified. You must set the current_claim_id to the "
@@ -167,8 +167,8 @@ class KnowledgeBase(LocalSearchAPI):
         if knn is None:
             return []
 
-        query_embedding = self._embed(query).reshape(1, -1)
-        limit = min(limit, knn.n_samples_fit_)  # account for very small resource sets
+        query_embedding = self._embed(query.text).reshape(1, -1)
+        limit = min(query.limit, knn.n_samples_fit_)  # account for very small resource sets
         try:
             distances, indices = knn.kneighbors(query_embedding, limit)
             return self._indices_to_search_results(indices[0], query)

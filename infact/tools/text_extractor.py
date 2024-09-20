@@ -1,9 +1,12 @@
 # import easyocr
-from PIL import Image
+from dataclasses import dataclass, field
+from typing import Optional
+
+from PIL.Image import Image as PILImage
 import numpy as np
 
-from infact.common.action import OCR
-from infact.common.results import OCRResult, Result
+from infact.common import MultimediaSnippet, Result, Action, Image
+from infact.common.results import Result
 from infact.tools.tool import Tool
 
 
@@ -16,6 +19,43 @@ from infact.tools.tool import Tool
 #        results = self.model(image)
 #        text = results[0]['generated_text']
 #        return text
+
+
+class OCR(Action):
+    name = "ocr"
+    description = "Performs Optical Character Recognition to extract text from an image."
+    how_to = "Provide an image and the model will extract text from it."
+    format = "ocr(<image:n>), where `n` is the image's ID"
+    is_multimodal = True
+
+    def __init__(self, image_ref: str):
+        self.image: Image = MultimediaSnippet(image_ref).images[0]
+
+    def __str__(self):
+        return f'{self.name}()'
+
+    def __eq__(self, other):
+        return isinstance(other, OCR) and np.array_equal(np.array(self.image), np.array(other.image))
+
+    def __hash__(self):
+        return hash((self.name, self.image.image.tobytes()))
+
+
+@dataclass
+class OCRResult(Result):
+    source: str
+    extracted_text: str
+    model_output: Optional[any] = None
+    text: str = field(init=False)  # This will be assigned in __post_init__
+
+    def __post_init__(self):
+        self.text = str(self)
+
+    def __str__(self):
+        return f'From [Source]({self.source}):\nExtracted Text: {self.extracted_text}'
+
+    def is_useful(self) -> Optional[bool]:
+        return self.model_output is not None
 
 
 class TextExtractor(Tool):
@@ -34,10 +74,10 @@ class TextExtractor(Tool):
         self.model = None  # TODO: Later we could have a trainable OCR model here
         # self.reader = easyocr.Reader(['en'], gpu=use_gpu)
 
-    def perform(self, action: OCR) -> list[Result]:
-        return [self.extract_text(action.image.image)]
+    def _perform(self, action: OCR) -> Result:
+        return self.extract_text(action.image.image)
 
-    def extract_text(self, image: Image.Image) -> OCRResult:
+    def extract_text(self, image: PILImage) -> OCRResult:
         """
         Perform OCR on an image.
 
@@ -50,3 +90,7 @@ class TextExtractor(Tool):
         result = OCRResult(source="EasyOCR", text=extracted_text, model_output=results)
         self.logger.log(str(result))
         return result
+
+    def _summarize(self, result: OCRResult, **kwargs) -> MultimediaSnippet:
+        # TODO: Add image reference, summarize the output w.r.t. relevant content
+        return MultimediaSnippet(f"Extracted text: {result.text}")
