@@ -30,6 +30,7 @@ ACTION_REGISTRY = {
     CredibilityCheck,
     OCR,
     DetectManipulation,
+    ImageSearch,
 }
 
 IMAGE_ACTIONS = {
@@ -39,6 +40,7 @@ IMAGE_ACTIONS = {
     OCR,
     DetectManipulation,
     DetectObjects,
+    ImageSearch,
 }
 
 

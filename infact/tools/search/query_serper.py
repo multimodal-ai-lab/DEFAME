@@ -48,8 +48,6 @@ class SerperAPI(RemoteSearchAPI):
         assert self.serper_api_key, 'Missing serper_api_key.'
         assert query, 'Searching Google with empty query'
 
-        search_type = query.search_type
-
         if query.end_date is not None:
             end_date = query.end_date.strftime('%d/%m/%Y')
             tbs = f"cdr:1,cd_min:1/1/1900,cd_max:{end_date}"
@@ -139,36 +137,29 @@ class SerperAPI(RemoteSearchAPI):
                 snippets.append(f'{title} {attribute}: {value}.')
 
         results = []
-        result_key = self.result_key_for_type[self.search_type]
+        result_key = self.result_key_for_type[query.search_type]
         if result_key in response:
             for i, result in enumerate(response[result_key]):
                 text = result.get("snippet", "NONE")
                 url = result.get("link", "")
+                image_url = result.get("imageUrl", "")
+                image = None
+                if result_key == "image":
+                    # Handle image-specific fields and convert to Pillow Image
+                    try:
+                        # Download the image and convert to Pillow Image
+                        image_response = requests.get(image_url)
+                        image = Image(pillow_image=PillowImage.open(BytesIO(image_response.content)))
+                    except Exception as e:
+                        self.logger.log(f"Failed to download or open image: {e}")
 
-                # Handle image-specific fields and convert to Pillow Image
-                image_pillow = None
-                if self.search_type == "images" and "image" in result:
-                    image_url = result["image"].get("url")
-                    if image_url:
-                        try:
-                            # Download the image and convert to Pillow Image
-                            image_response = requests.get(image_url)
-                            image_pillow = Image(PillowImage.open(BytesIO(image_response.content)))
-                        except Exception as e:
-                            self.logger.log(f"Failed to download or open image: {e}")
+                try:
+                    result_date = datetime.strptime(result['date'], "%b %d, %Y").date()
+                except (ValueError, KeyError):
+                    result_date = None
+                results.append(WebSource(url=url, text=text, query=query, rank=i, date=result_date, image=image))
 
-                # Create a SearchResult with the Pillow Image
-                search_result = SearchResult(
-                    url=url,
-                    text=text,
-                    query=query,
-                    rank=i,
-                    image=image_pillow
-                )
-
-                results.append(search_result)
-
-        #if result_key in response:
+                        #if result_key in response:
         #    for i, result in enumerate(response[result_key]):
         #        if "snippet" not in result:
         #            text = "NONE"
@@ -177,10 +168,5 @@ class SerperAPI(RemoteSearchAPI):
         #        else:
         #            text = f"{result['title']}: {result['snippet']}"
         #        url = result["link"]
-                try:
-                    result_date = datetime.strptime(result['date'], "%b %d, %Y").date()
-                except (ValueError, KeyError):
-                    result_date = None
-        #        results.append(WebSource(url=url, text=text, query=query, rank=i, date=result_date))
 
         return results

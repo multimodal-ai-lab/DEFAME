@@ -292,12 +292,21 @@ class ReiteratePrompt(Prompt):
 
 class InterpretPrompt(Prompt):
     template_file_path = "infact/prompts/interpret.md"
-
-    def __init__(self, claim: Claim):
+    def __init__(self, claim: Claim, guidelines: str = ''):
         placeholder_targets = {
             "[CLAIM]": claim,
+            "[GUIDELINES]": guidelines,
         }
         super().__init__(placeholder_targets)
+
+    def extract(self, response: str) -> dict | str | None:
+        answer = extract_last_code_span(response)
+        answer = re.sub(r'[^\w\-\s]', '', answer).strip().lower()
+        if not answer:
+            pattern = re.compile(r'\*\*(.*)\*\*', re.DOTALL)
+            matches = pattern.findall(response) or ['']
+            answer = matches[0]
+        return [answer] if answer else [response]
 
 
 class JudgeNaively(Prompt):

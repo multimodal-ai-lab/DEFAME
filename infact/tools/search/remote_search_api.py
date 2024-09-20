@@ -47,7 +47,9 @@ class RemoteSearchAPI(SearchAPI):
             if cache_results:
                 self.cache_hit += 1
                 return cache_results
-
+        if query.search_type == 'image':
+            from infact.tools.search.query_serper import SerperAPI
+            assert isinstance(self, SerperAPI), "Need SerperAPI for image search"
         results = super().search(query)
         self._add_to_cache(query, results)
         return results

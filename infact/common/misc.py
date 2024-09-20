@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import date as Date
 from typing import Optional
 
-from infact.common import MultimediaSnippet
+from infact.common import MultimediaSnippet, Image
 
 
 @dataclass
@@ -11,6 +11,7 @@ class Query:
     limit: int = None
     start_date: Date = None
     end_date: Date = None
+    search_type: str = 'search'
 
     def __eq__(self, other):
         return (isinstance(other, Query) and
@@ -30,6 +31,7 @@ class WebSource(MultimediaSnippet):
     summary: MultimediaSnippet = None
     query: Query = None
     rank: int = None
+    image: Image = None
 
     def is_useful(self) -> Optional[bool]:
         """Returns true if the summary contains helpful information,
