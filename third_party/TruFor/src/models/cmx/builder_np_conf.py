@@ -76,7 +76,7 @@ class myEncoderDecoder(nn.Module):
         else:
             raise NotImplementedError('decoder not implemented')
 
-        from third_party.TruFor.test_docker.src.models.DnCNN import make_net
+        from third_party.TruFor.src.models.DnCNN import make_net
         num_levels = 17
         out_channel = 1
         self.dncnn = make_net(3, kernels=[3, ] * num_levels,

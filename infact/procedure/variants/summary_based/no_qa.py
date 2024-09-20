@@ -1,9 +1,9 @@
 from typing import Any
 
 from infact.common import FCDocument, Label
-from infact.common.action import WebSearch
+from infact.tools import WebSearch
 from infact.procedure.procedure import Procedure
-from infact.prompts.prompt import ProposeQueriesNoQuestions
+from infact.prompts.prompts import ProposeQueriesNoQuestions
 
 
 class StaticSummary(Procedure):

@@ -8,7 +8,11 @@ from infact.common.medium import Image, media_registry
 from config.globals import data_base_dir
 from infact.common import Label, Content
 from infact.eval.benchmark import Benchmark
-from infact.common.action import WebSearch, DetectManipulation, DetectObjects, Geolocate, OCR
+from infact.tools.manipulation_detector import DetectManipulation
+from infact.tools.text_extractor import OCR
+from infact.tools.geolocator import Geolocate
+from infact.tools.object_detector import DetectObjects
+from infact.tools import WebSearch
 
 
 class VERITE(Benchmark):

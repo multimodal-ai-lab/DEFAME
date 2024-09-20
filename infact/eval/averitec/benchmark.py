@@ -5,7 +5,7 @@ from typing import Iterator
 
 from config.globals import data_base_dir
 from infact.common import Label, Content
-from infact.common.action import WebSearch, ImageSearch
+from infact.tools import WebSearch, ImageSearch
 from infact.eval.benchmark import Benchmark
 
 

@@ -1,8 +1,8 @@
 from abc import ABC
 from typing import Any
 
-from infact.common import SearchResult
-from infact.common.action import WebSearch
+from infact.tools import WebSearch
+from infact.common.misc import WebSource
 from infact.common import FCDocument, Label, Model, Logger
 from infact.modules import Judge, Actor, Planner
 
@@ -30,9 +30,9 @@ class Procedure(ABC):
             search_queries: list[WebSearch],
             doc: FCDocument = None,
             summarize: bool = False
-    ) -> list[SearchResult]:
+    ) -> list[WebSource]:
         search_results = []
         for query in search_queries:
             evidence = self.actor.perform([query], doc=doc, summarize=summarize)[0]
-            search_results.extend(evidence.results)
+            search_results.extend(evidence.raw)
         return search_results

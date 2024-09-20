@@ -1,6 +1,6 @@
 from infact.common import FCDocument
 from infact.procedure.variants.qa_based.infact import InFact
-from infact.prompts.prompt import AnswerQuestionNoEvidence
+from infact.prompts.prompts import AnswerQuestionNoEvidence
 
 
 class NoEvidence(InFact):

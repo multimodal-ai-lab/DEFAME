@@ -1,8 +1,9 @@
 from typing import Any
 
-from infact.common import FCDocument, Label, SearchResult
+from infact.common import FCDocument, Label
+from infact.common.misc import WebSource
 from infact.procedure.variants.qa_based.base import QABased
-from infact.prompts.prompt import AnswerCollectively
+from infact.prompts.prompts import AnswerCollectively
 
 
 class AdvancedQA(QABased):
@@ -39,8 +40,8 @@ class AdvancedQA(QABased):
 
     def answer_question(self,
                         question: str,
-                        results: list[SearchResult],
-                        doc: FCDocument = None) -> (str, SearchResult):
+                        results: list[WebSource],
+                        doc: FCDocument = None) -> (str, WebSource):
         """Generates an answer to the given question by considering batches of 5 search results at once."""
         for i in range(0, len(results), 5):
             results_batch = results[i:i + 5]

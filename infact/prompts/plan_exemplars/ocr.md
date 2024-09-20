@@ -1,8 +1,7 @@
 # Example
 
 ## Claim
-Image: <image>
-Text: "The sign in the image says 'No Trespassing'."
+Text: "The sign in <image:3> says 'No Trespassing'."
 
 ## Interpretation of the CLAIM
 The claim suggests that:
@@ -14,5 +13,5 @@ To verify the CLAIM, we need to extract the text from the sign in the image.
 
 ACTIONS:
 ```
-ocr(image)
+ocr(<image:3>)
 ```

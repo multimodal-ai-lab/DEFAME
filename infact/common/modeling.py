@@ -13,7 +13,7 @@ from transformers.pipelines import Pipeline
 from config.globals import api_keys
 from infact.common.logger import Logger
 from infact.common.medium import Image
-from infact.prompts.prompt import Prompt
+from infact.common.prompt import Prompt
 from infact.utils.parsing import is_guardrail_hit, GUARDRAIL_WARNING
 from infact.utils.console import bold
 
@@ -169,14 +169,13 @@ class Model(ABC):
         if top_k is None:
             top_k = self.top_k
 
-
-        #Check compatability:
-        if "<image:" in str(prompt) and not self.accepts_images:
-            self.logger.warning("Using Unimodal Language Model with image input. Use corresponding MLLM to handle images.")
-        if "<audio:" in str(prompt) and not self.accepts_audio:
-            self.logger.warning("Using Unimodal Language Model with audio input. Use corresponding MLLM to handle audios.")
-        if "<video:" in str(prompt) and not self.accepts_videos:
-            self.logger.warning("Using Unimodal Language Model with video input. Use corresponding MLLM to handle videos.")
+        # Check compatability
+        if prompt.has_images() and not self.accepts_images:
+            self.logger.warning(f"Prompt contains images which cannot processed by {self.name}! Ignoring them...")
+        if prompt.has_videos() and not self.accepts_videos:
+            self.logger.warning(f"Prompt contains videos which cannot processed by {self.name}! Ignoring them...")
+        if prompt.has_audios() and not self.accepts_audio:
+            self.logger.warning(f"Prompt contains audios which cannot processed by {self.name}! Ignoring them...")
 
         # Try to get a response, repeat if not successful
         response, n_attempts = "", 0

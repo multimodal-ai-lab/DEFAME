@@ -1,13 +1,13 @@
-from infact.tools.credibility_checker import CredibilityChecker
 from infact.common.logger import Logger
-from infact.tools.face_recognizer import FaceRecognizer
-from infact.tools.geolocator import Geolocator
-from infact.tools.object_detector import ObjectDetector
-from infact.tools.search.searcher import Searcher
-from infact.tools.text_extractor import TextExtractor
-from infact.tools.manipulation_detector import Manipulation_Detector
-from infact.tools.tool import Tool, get_available_actions
-from infact.eval.benchmark import Benchmark
+from infact.tools.credibility_checker import CredibilityChecker, CredibilityCheck
+from .face_recognizer import FaceRecognizer, FaceRecognition
+from .geolocator import Geolocator, Geolocate
+from .manipulation_detector import ManipulationDetector, DetectManipulation
+from .object_detector import ObjectDetector, DetectObjects
+from .search.searcher import Searcher
+from .search.common import WebSearch, WikiDumpLookup, WikiLookup, ReverseSearch, ImageSearch
+from .text_extractor import TextExtractor, OCR
+from .tool import Tool, get_available_actions
 
 TOOL_REGISTRY = [
     CredibilityChecker,
@@ -16,8 +16,30 @@ TOOL_REGISTRY = [
     ObjectDetector,
     Searcher,
     TextExtractor,
-    Manipulation_Detector,
+    ManipulationDetector,
 ]
+
+ACTION_REGISTRY = {
+    WebSearch,
+    WikiDumpLookup,
+    DetectObjects,
+    WikiLookup,
+    ReverseSearch,
+    Geolocate,
+    FaceRecognition,
+    CredibilityCheck,
+    OCR,
+    DetectManipulation,
+}
+
+IMAGE_ACTIONS = {
+    ReverseSearch,
+    Geolocate,
+    FaceRecognition,
+    OCR,
+    DetectManipulation,
+    DetectObjects,
+}
 
 
 def get_tool_by_name(name: str):

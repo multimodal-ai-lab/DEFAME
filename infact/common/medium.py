@@ -1,5 +1,6 @@
 import base64
 import csv
+import re
 from abc import ABC
 from dataclasses import dataclass
 from io import BytesIO
@@ -12,7 +13,7 @@ import pandas as pd
 from PIL.Image import Image as PillowImage, open as pillow_open
 
 from config.globals import temp_dir
-from infact.utils.parsing import get_medium_refs, parse_media_ref
+from infact.utils.parsing import extract_by_regex, MEDIA_ID_REGEX, MEDIA_REF_REGEX, MEDIA_SPECIFIER_REGEX
 
 
 class Medium(ABC):
@@ -30,7 +31,7 @@ class Medium(ABC):
         raise NotImplementedError
 
     def __eq__(self, other):
-        return self.path_to_file == other.path_to_file
+        return isinstance(other, Medium) and self.path_to_file == other.path_to_file
 
     def __hash__(self):
         return self.path_to_file.__hash__()
@@ -290,3 +291,24 @@ def _normalize_path(path: Path | str) -> str:
 
 
 media_registry = MediaRegistry(temp_dir)
+
+
+def get_media_id(text: str) -> int:
+    return int(extract_by_regex(text, MEDIA_ID_REGEX))
+
+
+def get_medium_refs(text: str) -> list[str]:
+    """Extracts all media references from the text."""
+    pattern = re.compile(MEDIA_REF_REGEX, re.DOTALL)
+    matches = pattern.findall(text)
+    return matches
+
+
+def parse_media_ref(reference: str) -> Optional[tuple[str, int]]:
+    pattern = re.compile(MEDIA_SPECIFIER_REGEX, re.DOTALL)
+    result = pattern.findall(reference)
+    if len(result) > 0:
+        match = result[0]
+        return match[0], int(match[1])
+    else:
+        return None

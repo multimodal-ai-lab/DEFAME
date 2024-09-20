@@ -1,6 +1,6 @@
 from infact.common.document import FCDocument
 from infact.procedure.variants.qa_based.infact import InFact
-from infact.prompts.prompt import PoseQuestionsPrompt
+from infact.prompts.prompts import PoseQuestionsPrompt
 from infact.utils.parsing import find_code_span
 
 

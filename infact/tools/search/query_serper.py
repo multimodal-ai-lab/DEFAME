@@ -2,13 +2,14 @@
 
 import random
 import time
+from datetime import datetime
 from typing import Any, Optional, Literal
 
 import requests
 
-from infact.common.results import SearchResult
-from infact.tools.search.remote_search_api import RemoteSearchAPI
 from config.globals import api_keys
+from infact.common.misc import Query, WebSource
+from infact.tools.search.remote_search_api import RemoteSearchAPI
 
 _SERPER_URL = 'https://google.serper.dev'
 NO_RESULT_MSG = 'No good Google Search result was found'
@@ -38,18 +39,24 @@ class SerperAPI(RemoteSearchAPI):
             'search': 'organic',
         }
 
-    def _call_api(self, query: str, limit: int, **kwargs: Any) -> list[SearchResult]:
+    def _call_api(self, query: Query) -> list[WebSource]:
         """Run query through GoogleSearch and parse result."""
         assert self.serper_api_key, 'Missing serper_api_key.'
         assert query, 'Searching Google with empty query'
+
+        if query.end_date is not None:
+            end_date = query.end_date.strftime('%d/%m/%Y')
+            tbs = f"cdr:1,cd_min:1/1/1900,cd_max:{end_date}"
+        else:
+            tbs = self.tbs
+
         results = self._call_serper_api(
-            query,
+            query.text,
             gl=self.gl,
             hl=self.hl,
-            num=limit,
-            tbs=self.tbs,
+            num=query.limit,
+            tbs=tbs,
             search_type=self.search_type,
-            **kwargs,
         )
         return self._parse_results(results, query)
 
@@ -93,7 +100,7 @@ class SerperAPI(RemoteSearchAPI):
         search_results = response.json()
         return search_results
 
-    def _parse_results(self, response: dict[Any, Any], query: str) -> list[SearchResult]:
+    def _parse_results(self, response: dict[Any, Any], query: Query) -> list[WebSource]:
         """Parse results from API response."""
         # if response.get('answerBox'):
         #     answer_box = response.get('answerBox', {})
@@ -134,6 +141,10 @@ class SerperAPI(RemoteSearchAPI):
                 else:
                     text = f"{result['title']}: {result['snippet']}"
                 url = result["link"]
-                results.append(SearchResult(url=url, text=text, query=query, rank=i))
+                try:
+                    result_date = datetime.strptime(result['date'], "%b %d, %Y").date()
+                except (ValueError, KeyError):
+                    result_date = None
+                results.append(WebSource(url=url, text=text, query=query, rank=i, date=result_date))
 
         return results
