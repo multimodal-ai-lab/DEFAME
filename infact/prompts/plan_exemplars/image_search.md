@@ -9,10 +9,11 @@ The claim suggests that:
 
 ## Factuality Questions
 To verify the CLAIM, we need to answer the following factuality questions:
-1. Did China enforce quarantine rules in November 2022?
-2. Did Chinese officials carry away people in white protective suits for quarantine? 
+1. Are there images that show China enforce quarantine rules in November 2022?
+2. Do pictures of Chinese officials carrying away people in white protective suits exist? 
 
 ACTIONS:
 ```
-image_search("China officials white suits carry people COVID quarantine 2022 ")
+image_search("China officials white suits carry people")
+image_search("China officials carry people COVID quarantine 2022")
 ```

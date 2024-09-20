@@ -15,7 +15,7 @@ from infact.tools.search.search_api import SearchAPI
 from infact.tools.search.wiki_dump import WikiDumpAPI
 from infact.tools.tool import Tool
 from infact.utils.console import gray, orange
-from .common import SearchResult, Search, WebSearch, WikiDumpLookup
+from .common import SearchResult, Search, WebSearch, WikiDumpLookup, ImageSearch
 from ...common.misc import Query, WebSource
 
 SEARCH_APIS = {
@@ -95,6 +95,7 @@ class Searcher(Tool):
 
         # Prepare the query and run the search
         query = Query(text=action.query_string,
+                      search_type=action.search_type,
                       limit=self.limit_per_search,
                       start_date=action.start_date,
                       end_date=end_date)
@@ -106,7 +107,7 @@ class Searcher(Tool):
         """Searches for evidence using the search APIs according to their precedence."""
 
         for search_engine in list(self.search_apis.values()):
-            results = self._retrieve_search_results(action, search_engine)
+            results = self._retrieve_search_results(query, search_engine)
 
             # Track search engine call
             self.stats[search_engine.name] += 1
@@ -144,17 +145,13 @@ class Searcher(Tool):
 
     def _retrieve_search_results(
         self,
-        action: Search,
+        query: Query,
         search_engine: SearchAPI,
         ) -> list[SearchResult]:
 
-        if action.search_type == 'image':
-            assert isinstance(search_engine, SerperAPI), "Need SerperAPI for image search"
-            results = search_engine.search(action.query, limit=self.limit_per_search, search_type=action.search_type)
-        else:
-            results = search_engine.search(action.query, self.limit_per_search)
-
-        self.past_queries_helpful[action.query] = True
+    
+        results = search_engine.search(query)
+        self.past_queries_helpful[query.text] = True
 
         return self._remove_known_search_results(results)
 

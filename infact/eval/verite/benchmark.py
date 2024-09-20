@@ -32,23 +32,23 @@ class VERITE(Benchmark):
         Label.MISCAPTIONED:
             "An image-caption pair is considered miscaptioned when an image is being paired with a misleading caption that misrepresents the origin, content, and/or meaning of the image.",
         Label.OUT_OF_CONTEXT:
-            "The image is used out of context when the caption does not relate to the image, or is used in a misleading way to convey a false narrative."
+            "The image is used out of context. The caption is factual but the image is used in a misleading way to convey a false narrative."
     }
 
     extra_prepare_rules = """**Assess Alignment**: Assess the alignment between image and text in complex scenarios. Prepare for varied real-world images and captions.
     **Verify Context**: Examine the source and context of each image to understand its relationship with the accompanying text.
-    Formulate each claim as a question of the form: Does the image show ... ?"""
+    Start each claim with: The Claim is that the image show ... """
 
-    extra_plan_rules = """* **Consider Both Modalities Equally**: Ensure that the verification process equally
-    considers both the text and image modalities. Avoid focusing too much on one modality at the expense of the other.
-    * **Plan for Multimodal Verification**: Develop a plan that includes steps for verifying both the text and
-    the image. This might include object recognition, context checking, and text analysis.
-    * **Check for Context and Misleading Information**: Verify the context of the image and caption. Check for
+    extra_plan_rules = """* **Consider Both Modalities Equally**: Avoid focusing too much on one modality at the expense of the other.
+    * **Compare Image and Caption**: Verify the context of the image and caption. Check for
     any misleading information that might suggest the image is used out of context or the caption is miscaptioned.
-    * **Identify Key Elements**: Break down the claim into its key components and identify which parts require
-    verification. This includes identifying any potential asymmetry in the modalities.
-    * **Reuse Previously Retrieved Knowledge**: Be prepared to reuse information and evidence gathered during
-    previous verification steps to form a comprehensive judgment."""
+    * **Identify any potential asymmetry in the modalities**: Perform one image_search if the action is available to compare other images with the claim image."""
+
+
+    extra_judge_rules = """* **Focus on the alignment of Image and Claim**: The question is whether the image corresponds to the claim. 
+    Judge if there is any alignment issue between image and text. Does the image deliver any support for the claim or is it taken out of context?
+    If the claim is actually true but the image shows a different event, then the verdict is OUT OF CONTEXT. If the claim is false, then the verdict should be miscaptioned.
+    Lastly, if the image appears to show the event mentioned in the claim, then the verdict is out-of-context."""
 
     available_actions = [WebSearch, DetectManipulation, DetectObjects, Geolocate, ImageSearch]
 

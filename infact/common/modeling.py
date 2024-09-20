@@ -197,8 +197,8 @@ class Model(ABC):
                                       system_prompt=system_prompt)
             self.n_output_tokens += self.count_tokens(response)
             original_response = response
-            # Handle guardrail hits
-            if is_guardrail_hit(response):
+            
+            if is_guardrail_hit(response): # Handle guardrail hits
                 self.logger.warning(GUARDRAIL_WARNING)
                 self.logger.warning("-- USED PROMPT --\n" + str(prompt))
                 self.logger.warning("-- RECEIVED RESPONSE --\n" + response)
