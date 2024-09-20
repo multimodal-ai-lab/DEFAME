@@ -4,11 +4,14 @@ import random
 import time
 from typing import Any, Optional, Literal
 
+from PIL import Image as PillowImage
 import requests
+from io import BytesIO
 
 from infact.common.results import SearchResult
 from infact.tools.search.remote_search_api import RemoteSearchAPI
 from config.globals import api_keys
+from infact.common.medium import Image
 
 _SERPER_URL = 'https://google.serper.dev'
 NO_RESULT_MSG = 'No good Google Search result was found'
@@ -42,13 +45,15 @@ class SerperAPI(RemoteSearchAPI):
         """Run query through GoogleSearch and parse result."""
         assert self.serper_api_key, 'Missing serper_api_key.'
         assert query, 'Searching Google with empty query'
+
+        search_type = kwargs["search_type"] if "search_type" in kwargs else self.search_type
         results = self._call_serper_api(
             query,
             gl=self.gl,
             hl=self.hl,
             num=limit,
             tbs=self.tbs,
-            search_type=self.search_type,
+            search_type=search_type,
             **kwargs,
         )
         return self._parse_results(results, query)
@@ -95,45 +100,75 @@ class SerperAPI(RemoteSearchAPI):
 
     def _parse_results(self, response: dict[Any, Any], query: str) -> list[SearchResult]:
         """Parse results from API response."""
-        # if response.get('answerBox'):
-        #     answer_box = response.get('answerBox', {})
-        #     answer = answer_box.get('answer')
-        #     snippet = answer_box.get('snippet')
-        #     snippet_highlighted = answer_box.get('snippetHighlighted')
-        #
-        #     if answer and isinstance(answer, str):
-        #         snippets.append(answer)
-        #     if snippet and isinstance(snippet, str):
-        #         snippets.append(snippet.replace('\n', ' '))
-        #     if snippet_highlighted:
-        #         snippets.append(snippet_highlighted)
-        #
-        # if response.get('knowledgeGraph'):
-        #     kg = response.get('knowledgeGraph', {})
-        #     title = kg.get('title')
-        #     entity_type = kg.get('type')
-        #     description = kg.get('description')
-        #
-        #     if entity_type:
-        #         snippets.append(f'{title}: {entity_type}.')
-        #
-        #     if description:
-        #         snippets.append(description)
-        #
-        #     for attribute, value in kg.get('attributes', {}).items():
-        #         snippets.append(f'{title} {attribute}: {value}.')
+
+        snippets = []
+        if response.get('answerBox'):
+            answer_box = response.get('answerBox', {})
+            answer = answer_box.get('answer')
+            snippet = answer_box.get('snippet')
+            snippet_highlighted = answer_box.get('snippetHighlighted')
+    
+            if answer and isinstance(answer, str):
+                snippets.append(answer)
+            if snippet and isinstance(snippet, str):
+                snippets.append(snippet.replace('\n', ' '))
+            if snippet_highlighted:
+                snippets.append(snippet_highlighted)
+    
+        if response.get('knowledgeGraph'):
+            kg = response.get('knowledgeGraph', {})
+            title = kg.get('title')
+            entity_type = kg.get('type')
+            description = kg.get('description')
+    
+            if entity_type:
+                snippets.append(f'{title}: {entity_type}.')
+    
+            if description:
+                snippets.append(description)
+    
+            for attribute, value in kg.get('attributes', {}).items():
+                snippets.append(f'{title} {attribute}: {value}.')
 
         results = []
         result_key = self.result_key_for_type[self.search_type]
         if result_key in response:
             for i, result in enumerate(response[result_key]):
-                if "snippet" not in result:
-                    text = "NONE"
-                elif "title" not in result:
-                    text = f"{result['snippet']}"
-                else:
-                    text = f"{result['title']}: {result['snippet']}"
-                url = result["link"]
-                results.append(SearchResult(url=url, text=text, query=query, rank=i))
+                text = result.get("snippet", "NONE")
+                url = result.get("link", "")
+
+                # Handle image-specific fields and convert to Pillow Image
+                image_pillow = None
+                if self.search_type == "images" and "image" in result:
+                    image_url = result["image"].get("url")
+                    if image_url:
+                        try:
+                            # Download the image and convert to Pillow Image
+                            image_response = requests.get(image_url)
+                            image_pillow = Image(PillowImage.open(BytesIO(image_response.content)))
+                        except Exception as e:
+                            self.logger.log(f"Failed to download or open image: {e}")
+
+                # Create a SearchResult with the Pillow Image
+                search_result = SearchResult(
+                    url=url,
+                    text=text,
+                    query=query,
+                    rank=i,
+                    image=image_pillow
+                )
+
+                results.append(search_result)
+
+        #if result_key in response:
+        #    for i, result in enumerate(response[result_key]):
+        #        if "snippet" not in result:
+        #            text = "NONE"
+        #        elif "title" not in result:
+        #            text = f"{result['snippet']}"
+        #        else:
+        #            text = f"{result['title']}: {result['snippet']}"
+        #        url = result["link"]
+        #        results.append(SearchResult(url=url, text=text, query=query, rank=i))
 
         return results
