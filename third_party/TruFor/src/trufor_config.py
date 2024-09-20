@@ -49,9 +49,9 @@ _C.TEST = CN()
 _C.TEST.MODEL_FILE = ''
 
 
-def update_config(cfg, args):
+def update_config(cfg, args, path):
     cfg.defrost()
-    cfg.merge_from_file('/pfss/mlde/workspaces/mlde_wsp_Rohrbach/users/tb17xity/InFact/third_party/TruFor/test_docker/src/trufor.yaml')
+    cfg.merge_from_file(path)
     if args and args.opts:
         cfg.merge_from_list(args.opts)
     cfg.freeze()
