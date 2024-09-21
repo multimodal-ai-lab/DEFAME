@@ -116,7 +116,7 @@ class PlanPrompt(Prompt):
         }
         super().__init__(placeholder_targets)
 
-    def extract(self, response: str) -> dict | str | None:
+    def extract(self, response: str) -> dict:
         actions = extract_actions(response)
         reasoning = extract_reasoning(response)
         return dict(
@@ -397,7 +397,7 @@ def extract_actions(answer: str) -> list[Action]:
             candidates += pattern.findall(answer)
         actions_str = "\n".join(candidates)
     if not actions_str:
-        # Potentially prompt LLM to correct format: Expected format: action_name("query")
+        # Potentially prompt LLM to correct format: Expected format: action_name("arguments")
         return []
     raw_actions = actions_str.split('\n')
     actions = []
