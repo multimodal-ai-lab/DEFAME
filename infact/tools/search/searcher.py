@@ -40,7 +40,6 @@ class Searcher(Tool):
     def __init__(self,
                  search_engine_config: dict[str, dict] = None,
                  summarize: bool = True,
-                 model: Model = None,
                  max_searches: int = 5,
                  limit_per_search: int = 5,
                  max_result_len: int = None,  # chars
@@ -71,7 +70,6 @@ class Searcher(Tool):
             actions.append(WebSearch)
         self.actions = actions
 
-        self.model = model
         self.summarize = summarize
         self.max_searches = max_searches
         self.limit_per_search = limit_per_search
@@ -181,7 +179,7 @@ class Searcher(Tool):
         prompt = SummarizeResultPrompt(web_source, doc)
 
         try:
-            summary = self.model.generate(prompt, max_attempts=3)
+            summary = self.llm.generate(prompt, max_attempts=3)
         except APIError as e:
             self.logger.log(orange(f"APIError: {e} - Skipping the summary for {web_source.url}."))
             self.logger.log(orange(f"Used prompt:\n{str(prompt)}"))

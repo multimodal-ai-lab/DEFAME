@@ -5,6 +5,7 @@ from typing import Sequence, Any
 
 import numpy as np
 
+from infact.tools.tool import get_available_actions
 from infact.common.claim import Claim
 from infact.common.content import Content
 from infact.common.document import FCDocument

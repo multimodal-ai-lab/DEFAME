@@ -3,7 +3,7 @@ from typing import Any
 
 import torch
 
-from infact.common import Action, Result, Evidence, Logger, MultimediaSnippet
+from infact.common import Action, Result, Evidence, Logger, MultimediaSnippet, Model
 
 
 class Tool(ABC):
@@ -11,9 +11,10 @@ class Tool(ABC):
     name: str
     actions: list[type(Action)]  # (classes of the) available actions this tool offers
 
-    def __init__(self, logger: Logger = None, device: str | torch.device = None):
+    def __init__(self, logger: Logger = None, llm: Model = None, device: str | torch.device = None):
         self.logger = logger
         self.device = device
+        self.llm = llm
 
     def perform(self, action: Action, summarize: bool = True, **kwargs) -> Evidence:
         result = self._perform(action)
