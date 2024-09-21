@@ -13,7 +13,7 @@ from config.globals import api_keys
 from infact.common.misc import Query, WebSource
 from infact.tools.search.remote_search_api import RemoteSearchAPI
 from config.globals import api_keys
-from infact.common.medium import Image
+from infact.common.medium import Image, media_registry
 
 _SERPER_URL = 'https://google.serper.dev'
 NO_RESULT_MSG = 'No good Google Search result was found'
@@ -140,16 +140,22 @@ class SerperAPI(RemoteSearchAPI):
         result_key = self.result_key_for_type[query.search_type]
         if result_key in response:
             for i, result in enumerate(response[result_key]):
-                text = result.get("snippet", "NONE")
+                if i >= query.limit: #somehow the num param does not restrict requests.post image search results
+                    break
+                text = result.get("snippet", "")
                 url = result.get("link", "")
                 image_url = result.get("imageUrl", "")
                 image = None
-                if result_key == "image":
+                if result_key == "images":
                     # Handle image-specific fields and convert to Pillow Image
                     try:
                         # Download the image and convert to Pillow Image
                         image_response = requests.get(image_url)
                         image = Image(pillow_image=PillowImage.open(BytesIO(image_response.content)))
+                        if image:
+                            image_ref = media_registry.add(image)
+                            text += f"\n{image_ref}"
+
                     except Exception as e:
                         self.logger.log(f"Failed to download or open image: {e}")
 
@@ -157,16 +163,6 @@ class SerperAPI(RemoteSearchAPI):
                     result_date = datetime.strptime(result['date'], "%b %d, %Y").date()
                 except (ValueError, KeyError):
                     result_date = None
-                results.append(WebSource(url=url, text=text, query=query, rank=i, date=result_date, image=image))
-
-                        #if result_key in response:
-        #    for i, result in enumerate(response[result_key]):
-        #        if "snippet" not in result:
-        #            text = "NONE"
-        #        elif "title" not in result:
-        #            text = f"{result['snippet']}"
-        #        else:
-        #            text = f"{result['title']}: {result['snippet']}"
-        #        url = result["link"]
+                results.append(WebSource(url=url, text=text, query=query, rank=i, date=result_date))
 
         return results

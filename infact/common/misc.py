@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import date as Date
-from typing import Optional
+from typing import Optional, List
 
 from infact.common import MultimediaSnippet, Image
 
@@ -31,7 +31,6 @@ class WebSource(MultimediaSnippet):
     summary: MultimediaSnippet = None
     query: Query = None
     rank: int = None
-    image: Image = None
 
     def is_useful(self) -> Optional[bool]:
         """Returns true if the summary contains helpful information,
