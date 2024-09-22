@@ -4,10 +4,12 @@ import random
 import time
 from datetime import datetime
 from typing import Any, Optional, Literal
+import re
 
 from PIL import Image as PillowImage
 import requests
 from io import BytesIO
+from bs4 import BeautifulSoup
 
 from config.globals import api_keys
 from infact.common.misc import Query, WebSource
@@ -144,12 +146,22 @@ class SerperAPI(RemoteSearchAPI):
                     break
                 text = result.get("snippet", "")
                 url = result.get("link", "")
+                title = result.get("title","")
                 image_url = result.get("imageUrl", "")
                 image = None
-                if result_key == "images":
-                    # Handle image-specific fields and convert to Pillow Image
+
+                if result_key == "organic":
+                    scraped_text = self.scrape_text_from_url(url)
+                    if scraped_text:
+                        keywords = re.findall(r'\b\w+\b', query.text.lower()) or query.text
+                        relevant_content = filter_relevant_sentences(scraped_text, keywords)[:10]
+                        relevant_text = ' '.join(relevant_content)
+                        text = relevant_text or text
+                    else:
+                        continue
+
+                elif result_key == "images":
                     try:
-                        # Download the image and convert to Pillow Image
                         image_response = requests.get(image_url)
                         image = Image(pillow_image=PillowImage.open(BytesIO(image_response.content)))
                         if image:
@@ -166,3 +178,31 @@ class SerperAPI(RemoteSearchAPI):
                 results.append(WebSource(url=url, text=text, query=query, rank=i, date=result_date))
 
         return results
+
+    def scrape_text_from_url(self, url):
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        }
+        try:
+            page = requests.get(url, headers=headers)
+            page.raise_for_status()
+            soup = BeautifulSoup(page.content, 'html.parser')
+            text = soup.get_text(separator=' ', strip=True)
+            return text
+        except requests.exceptions.HTTPError as http_err:
+            self.logger.info(f"HTTP error occurred while scraping {url}: {http_err}")
+        except requests.exceptions.RequestException as req_err:
+            self.logger.info(f"Request exception occurred while scraping {url}: {req_err}")
+        except Exception as e:
+            self.logger.info(f"An unexpected error occurred while scraping {url}: {e}")
+        return ""
+
+def filter_relevant_sentences(text, keywords):
+    sentences = re.split(r'(?<=[.!?]) +', text)
+    relevant_sentences = []
+    for sentence in sentences:
+        score = sum(1 for word in keywords if word in sentence.lower())
+        if score > 0:
+            relevant_sentences.append((sentence, score))
+    relevant_sentences.sort(key=lambda x: x[1], reverse=True)
+    return [sentence for sentence, score in relevant_sentences]

@@ -20,6 +20,7 @@ from infact.utils.utils import flatten_dict
 from infact.common.medium import media_registry
 
 # Suppress unnecessary logging from other libraries
+logging.getLogger('PIL').setLevel(logging.WARNING)
 logging.getLogger('git').setLevel(logging.WARNING)
 logging.getLogger('wandb').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
