@@ -195,13 +195,13 @@ class Model(ABC):
             self.n_input_tokens += self.count_tokens(prompt)
             response = self._generate(prompt, temperature=temperature, top_p=top_p, top_k=top_k,
                                       system_prompt=system_prompt)
+            self.logger.log_model_conv(f"QUERY:\n{prompt}\n\n\n--> RESPONSE:\n{response}")
             self.n_output_tokens += self.count_tokens(response)
             original_response = response
             
             if is_guardrail_hit(response): # Handle guardrail hits
                 self.logger.warning(GUARDRAIL_WARNING)
-                self.logger.warning("-- USED PROMPT --\n" + str(prompt))
-                self.logger.warning("-- RECEIVED RESPONSE --\n" + response)
+                self.logger.warning(f"PROMPT: {str(prompt)}\nRESPONSE: {response}")
                 if isinstance(self, GPTModel):
                     return prompt.extract(response="")
                 elif self.guardrail_bypass_system_prompt is not None:
