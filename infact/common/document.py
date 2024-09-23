@@ -60,6 +60,8 @@ class FCDocument:
     def __init__(self, claim: Claim):
         self.claim = claim
         self.record = []
+        if claim.original_context.interpretation:
+            self.add_reasoning("## Interpretation" + claim.original_context.interpretation)
 
     def __str__(self):
         doc_str = f'## Claim\n{self.claim}'
