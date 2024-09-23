@@ -146,9 +146,7 @@ class SerperAPI(RemoteSearchAPI):
                     break
                 text = result.get("snippet", "")
                 url = result.get("link", "")
-                title = result.get("title","")
                 image_url = result.get("imageUrl", "")
-                image = None
 
                 if result_key == "organic":
                     scraped_text = self.scrape_text_from_url(url)
@@ -165,8 +163,7 @@ class SerperAPI(RemoteSearchAPI):
                         image_response = requests.get(image_url)
                         image = Image(pillow_image=PillowImage.open(BytesIO(image_response.content)))
                         if image:
-                            image_ref = media_registry.add(image)
-                            text += f"\n{image_ref}"
+                            text += f"\n{image.reference}"
 
                     except Exception as e:
                         self.logger.log(f"Failed to download or open image: {e}")

@@ -14,6 +14,7 @@ class SearchAPI(ABC):
     def __init__(self, logger: Logger = None):
         self.logger = logger
         self.total_searches = 0
+        assert self.name is not None
 
     def _before_search(self, query: Query):
         self.total_searches += 1
