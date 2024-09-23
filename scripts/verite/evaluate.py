@@ -21,7 +21,7 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         ),
         fact_checker_kwargs=dict(
             procedure_variant="summary",
-            interpret=False,
+            interpret=True,
             decompose=False,
             decontextualize=False,
             filter_check_worthy=False,
