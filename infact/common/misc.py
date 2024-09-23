@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from datetime import date as Date
-from typing import Optional
+from typing import Optional, List
 
-from infact.common import MultimediaSnippet
+from infact.common import MultimediaSnippet, Image
 
 
 @dataclass
@@ -11,6 +11,7 @@ class Query:
     limit: int = None
     start_date: Date = None
     end_date: Date = None
+    search_type: str = 'search'
 
     def __eq__(self, other):
         return (isinstance(other, Query) and
