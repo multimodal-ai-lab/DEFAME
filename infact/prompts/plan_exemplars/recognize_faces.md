@@ -5,7 +5,7 @@ Text: "<image:0> shows a famous celebrity attending a public event."
 
 ...
 
-ACTIONS:
+## Actions
 ```
 recognize_faces(<image:0>)
 ```

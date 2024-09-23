@@ -12,7 +12,7 @@ You are a fact-checker. Your overall motivation is to verify a given Claim. You 
 
 [EXEMPLARS]
 
-# Record
+# Your Task
 [DOC]
 
 ACTIONS:
