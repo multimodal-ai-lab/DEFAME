@@ -5,7 +5,7 @@ Text: "<image:0> shows a rare event of a solar eclipse with a double ring."
 
 ...
 
-ACTIONS:
+## Actions
 ```
 reverse_search(<image:0>)
 ```
