@@ -2,7 +2,7 @@ from infact.common.claim import Claim
 from infact.common.content import Content
 from infact.common.modeling import Model
 from infact.common.logger import Logger
-from infact.prompts.prompts import SYMBOL, NOT_SYMBOL, DecontextualizePrompt, FilterCheckWorthyPrompt
+from infact.prompts.prompts import SYMBOL, NOT_SYMBOL, DecontextualizePrompt, FilterCheckWorthyPrompt, InterpretPrompt
 from third_party.factscore.atomic_facts import AtomicFactGenerator
 from infact.utils.console import light_blue
 from infact.utils.parsing import extract_first_square_brackets, extract_first_code_block
@@ -10,13 +10,14 @@ from infact.utils.parsing import extract_first_square_brackets, extract_first_co
 
 class ClaimExtractor:
     def __init__(self, llm: Model,
+                 prepare_rules: str = '',
                  interpret: bool = False,
                  decompose: bool = False,
                  decontextualize: bool = False,
                  filter_check_worthy: bool = False,
                  logger: Logger = None):
         self.llm = llm
-
+        self.prepare_rules = prepare_rules
         self.do_interpretation = interpret
         self.do_decomposition = decompose
         self.do_decontextualization = decontextualize
@@ -33,10 +34,9 @@ class ClaimExtractor:
     def extract_claims(self, content: Content) -> list[Claim]:
         self.logger.log("Starting claim extraction.")
 
-        if self.do_interpretation:
+        if self.do_interpretation or self.prepare_rules:
             self.logger.log("Interpreting...")
-            # TODO: Implement
-            content.interpretation = ...
+            claims = self.interpret(content, self.prepare_rules)
 
         if self.do_decomposition:
             self.logger.log("Decomposing...")
@@ -59,6 +59,12 @@ class ClaimExtractor:
         for claim in claims:
             self.logger.log(light_blue(f"'{claim}'"))
 
+        return claims
+
+    def interpret(self, content: Content, prepare_rules: str = ""):
+        """Interprets the content"""
+        prompt = InterpretPrompt(content.text, prepare_rules)
+        claims = self.llm.generate(prompt)
         return claims
 
     def decompose(self, content: Content):

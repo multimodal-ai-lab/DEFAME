@@ -116,7 +116,7 @@ class PlanPrompt(Prompt):
         }
         super().__init__(placeholder_targets)
 
-    def extract(self, response: str) -> dict | str | None:
+    def extract(self, response: str) -> dict:
         actions = extract_actions(response)
         reasoning = extract_reasoning(response)
         return dict(
@@ -292,12 +292,21 @@ class ReiteratePrompt(Prompt):
 
 class InterpretPrompt(Prompt):
     template_file_path = "infact/prompts/interpret.md"
-
-    def __init__(self, claim: Claim):
+    def __init__(self, claim: Claim, guidelines: str = ''):
         placeholder_targets = {
             "[CLAIM]": claim,
+            "[GUIDELINES]": guidelines,
         }
         super().__init__(placeholder_targets)
+
+    def extract(self, response: str) -> dict | str | None:
+        answer = extract_last_code_span(response)
+        answer = re.sub(r'[^\w\-\s]', '', answer).strip().lower()
+        if not answer:
+            pattern = re.compile(r'\*\*(.*)\*\*', re.DOTALL)
+            matches = pattern.findall(response) or ['']
+            answer = matches[0]
+        return [answer] if answer else [response]
 
 
 class JudgeNaively(Prompt):
@@ -388,7 +397,7 @@ def extract_actions(answer: str) -> list[Action]:
             candidates += pattern.findall(answer)
         actions_str = "\n".join(candidates)
     if not actions_str:
-        # Potentially prompt LLM to correct format: Expected format: action_name("query")
+        # Potentially prompt LLM to correct format: Expected format: action_name("arguments")
         return []
     raw_actions = actions_str.split('\n')
     actions = []

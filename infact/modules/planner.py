@@ -77,6 +77,7 @@ class Planner:
             if len(actions) > 0:
                 return actions, reasoning
             else:
+                self.logger.warning(f'No actions were found in this response: {response["response"]}')
                 return [], ""
 
 

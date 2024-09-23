@@ -15,7 +15,7 @@ from infact.tools.search.search_api import SearchAPI
 from infact.tools.search.wiki_dump import WikiDumpAPI
 from infact.tools.tool import Tool
 from infact.utils.console import gray, orange
-from .common import SearchResult, Search, WebSearch, WikiDumpLookup
+from .common import SearchResult, Search, WebSearch, WikiDumpLookup, ImageSearch
 from ...common.misc import Query, WebSource
 
 SEARCH_APIS = {
@@ -40,7 +40,6 @@ class Searcher(Tool):
     def __init__(self,
                  search_engine_config: dict[str, dict] = None,
                  summarize: bool = True,
-                 model: Model = None,
                  max_searches: int = 5,
                  limit_per_search: int = 5,
                  max_result_len: int = None,  # chars
@@ -65,11 +64,12 @@ class Searcher(Tool):
         available_apis = self.search_apis.keys()
         if "wiki_dump" in available_apis:
             actions.append(WikiDumpLookup)
-        if "google" in available_apis or "duckduckgo" in available_apis or "averitec_kb" in available_apis:
+        if "google" in available_apis:
+            actions += [WebSearch, ImageSearch]
+        if "duckduckgo" in available_apis or "averitec_kb" in available_apis:
             actions.append(WebSearch)
         self.actions = actions
 
-        self.model = model
         self.summarize = summarize
         self.max_searches = max_searches
         self.limit_per_search = limit_per_search
@@ -93,6 +93,7 @@ class Searcher(Tool):
 
         # Prepare the query and run the search
         query = Query(text=action.query_string,
+                      search_type=action.search_type,
                       limit=self.limit_per_search,
                       start_date=action.start_date,
                       end_date=end_date)
@@ -141,15 +142,15 @@ class Searcher(Tool):
         self.stats = {s.name: 0 for s in self.search_apis.values()}
 
     def _retrieve_search_results(
-            self,
-            query: Query,
-            search_engine: SearchAPI,
-    ) -> list[WebSource]:
-        # Run the search
-        results = search_engine.search(query)
-        self.past_queries_helpful[query] = True
+        self,
+        query: Query,
+        search_engine: SearchAPI,
+        ) -> list[SearchResult]:
 
-        # Remove already known results
+    
+        results = search_engine.search(query)
+        self.past_queries_helpful[query.text] = True
+
         return self._remove_known_search_results(results)
 
     def _postprocess_results(self, results: list[WebSource]) -> list[WebSource]:
@@ -178,7 +179,7 @@ class Searcher(Tool):
         prompt = SummarizeResultPrompt(web_source, doc)
 
         try:
-            summary = self.model.generate(prompt, max_attempts=3)
+            summary = self.llm.generate(prompt, max_attempts=3)
         except APIError as e:
             self.logger.log(orange(f"APIError: {e} - Skipping the summary for {web_source.url}."))
             self.logger.log(orange(f"Used prompt:\n{str(prompt)}"))

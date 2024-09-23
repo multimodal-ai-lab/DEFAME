@@ -1,4 +1,5 @@
 from infact.common.logger import Logger
+from infact.common.modeling import Model
 from infact.tools.credibility_checker import CredibilityChecker, CredibilityCheck
 from .face_recognizer import FaceRecognizer, FaceRecognition
 from .geolocator import Geolocator, Geolocate
@@ -7,7 +8,7 @@ from .object_detector import ObjectDetector, DetectObjects
 from .search.searcher import Searcher
 from .search.common import WebSearch, WikiDumpLookup, WikiLookup, ReverseSearch, ImageSearch
 from .text_extractor import TextExtractor, OCR
-from .tool import Tool, get_available_actions
+from .tool import Tool
 
 TOOL_REGISTRY = [
     CredibilityChecker,
@@ -30,6 +31,7 @@ ACTION_REGISTRY = {
     CredibilityCheck,
     OCR,
     DetectManipulation,
+    ImageSearch,
 }
 
 IMAGE_ACTIONS = {
@@ -39,6 +41,7 @@ IMAGE_ACTIONS = {
     OCR,
     DetectManipulation,
     DetectObjects,
+    ImageSearch,
 }
 
 
@@ -49,10 +52,11 @@ def get_tool_by_name(name: str):
     raise ValueError(f'Tool with name "{name}" does not exist.')
 
 
-def initialize_tools(config: dict[str, dict], logger: Logger, device=None) -> list[Tool]:
+def initialize_tools(config: dict[str, dict], llm: Model, logger: Logger, device=None) -> list[Tool]:
     tools = []
     for tool_name, kwargs in config.items():
+        kwargs.update({"llm": llm, "logger": logger, "device": device})
         tool_class = get_tool_by_name(tool_name)
-        t = tool_class(**kwargs, logger=logger, device=device)
+        t = tool_class(**kwargs)
         tools.append(t)
     return tools

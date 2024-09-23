@@ -4,12 +4,18 @@ import random
 import time
 from datetime import datetime
 from typing import Any, Optional, Literal
+import re
 
+from PIL import Image as PillowImage
 import requests
+from io import BytesIO
+from bs4 import BeautifulSoup
 
 from config.globals import api_keys
 from infact.common.misc import Query, WebSource
 from infact.tools.search.remote_search_api import RemoteSearchAPI
+from config.globals import api_keys
+from infact.common.medium import Image, media_registry
 
 _SERPER_URL = 'https://google.serper.dev'
 NO_RESULT_MSG = 'No good Google Search result was found'
@@ -56,7 +62,7 @@ class SerperAPI(RemoteSearchAPI):
             hl=self.hl,
             num=query.limit,
             tbs=tbs,
-            search_type=self.search_type,
+            search_type=query.search_type,
         )
         return self._parse_results(results, query)
 
@@ -102,45 +108,69 @@ class SerperAPI(RemoteSearchAPI):
 
     def _parse_results(self, response: dict[Any, Any], query: Query) -> list[WebSource]:
         """Parse results from API response."""
-        # if response.get('answerBox'):
-        #     answer_box = response.get('answerBox', {})
-        #     answer = answer_box.get('answer')
-        #     snippet = answer_box.get('snippet')
-        #     snippet_highlighted = answer_box.get('snippetHighlighted')
-        #
-        #     if answer and isinstance(answer, str):
-        #         snippets.append(answer)
-        #     if snippet and isinstance(snippet, str):
-        #         snippets.append(snippet.replace('\n', ' '))
-        #     if snippet_highlighted:
-        #         snippets.append(snippet_highlighted)
-        #
-        # if response.get('knowledgeGraph'):
-        #     kg = response.get('knowledgeGraph', {})
-        #     title = kg.get('title')
-        #     entity_type = kg.get('type')
-        #     description = kg.get('description')
-        #
-        #     if entity_type:
-        #         snippets.append(f'{title}: {entity_type}.')
-        #
-        #     if description:
-        #         snippets.append(description)
-        #
-        #     for attribute, value in kg.get('attributes', {}).items():
-        #         snippets.append(f'{title} {attribute}: {value}.')
+
+        snippets = []
+        if response.get('answerBox'):
+            answer_box = response.get('answerBox', {})
+            answer = answer_box.get('answer')
+            snippet = answer_box.get('snippet')
+            snippet_highlighted = answer_box.get('snippetHighlighted')
+    
+            if answer and isinstance(answer, str):
+                snippets.append(answer)
+            if snippet and isinstance(snippet, str):
+                snippets.append(snippet.replace('\n', ' '))
+            if snippet_highlighted:
+                snippets.append(snippet_highlighted)
+    
+        if response.get('knowledgeGraph'):
+            kg = response.get('knowledgeGraph', {})
+            title = kg.get('title')
+            entity_type = kg.get('type')
+            description = kg.get('description')
+    
+            if entity_type:
+                snippets.append(f'{title}: {entity_type}.')
+    
+            if description:
+                snippets.append(description)
+    
+            for attribute, value in kg.get('attributes', {}).items():
+                snippets.append(f'{title} {attribute}: {value}.')
 
         results = []
-        result_key = self.result_key_for_type[self.search_type]
+        result_key = self.result_key_for_type[query.search_type]
         if result_key in response:
             for i, result in enumerate(response[result_key]):
-                if "snippet" not in result:
-                    text = "NONE"
-                elif "title" not in result:
-                    text = f"{result['snippet']}"
-                else:
-                    text = f"{result['title']}: {result['snippet']}"
-                url = result["link"]
+                if i >= query.limit: #somehow the num param does not restrict requests.post image search results
+                    break
+                text = result.get("snippet", "")
+                url = result.get("link", "")
+                title = result.get("title","")
+                image_url = result.get("imageUrl", "")
+                image = None
+
+                if result_key == "organic":
+                    scraped_text = self.scrape_text_from_url(url)
+                    if scraped_text:
+                        keywords = re.findall(r'\b\w+\b', query.text.lower()) or query.text
+                        relevant_content = filter_relevant_sentences(scraped_text, keywords)[:10]
+                        relevant_text = ' '.join(relevant_content)
+                        text = relevant_text or text
+                    else:
+                        continue
+
+                elif result_key == "images":
+                    try:
+                        image_response = requests.get(image_url)
+                        image = Image(pillow_image=PillowImage.open(BytesIO(image_response.content)))
+                        if image:
+                            image_ref = media_registry.add(image)
+                            text += f"\n{image_ref}"
+
+                    except Exception as e:
+                        self.logger.log(f"Failed to download or open image: {e}")
+
                 try:
                     result_date = datetime.strptime(result['date'], "%b %d, %Y").date()
                 except (ValueError, KeyError):
@@ -148,3 +178,31 @@ class SerperAPI(RemoteSearchAPI):
                 results.append(WebSource(url=url, text=text, query=query, rank=i, date=result_date))
 
         return results
+
+    def scrape_text_from_url(self, url):
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        }
+        try:
+            page = requests.get(url, headers=headers)
+            page.raise_for_status()
+            soup = BeautifulSoup(page.content, 'html.parser')
+            text = soup.get_text(separator=' ', strip=True)
+            return text
+        except requests.exceptions.HTTPError as http_err:
+            self.logger.info(f"HTTP error occurred while scraping {url}: {http_err}")
+        except requests.exceptions.RequestException as req_err:
+            self.logger.info(f"Request exception occurred while scraping {url}: {req_err}")
+        except Exception as e:
+            self.logger.info(f"An unexpected error occurred while scraping {url}: {e}")
+        return ""
+
+def filter_relevant_sentences(text, keywords):
+    sentences = re.split(r'(?<=[.!?]) +', text)
+    relevant_sentences = []
+    for sentence in sentences:
+        score = sum(1 for word in keywords if word in sentence.lower())
+        if score > 0:
+            relevant_sentences.append((sentence, score))
+    relevant_sentences.sort(key=lambda x: x[1], reverse=True)
+    return [sentence for sentence, score in relevant_sentences]

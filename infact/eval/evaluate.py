@@ -81,7 +81,7 @@ def evaluate(
         logger.save_config(signature, locals())
 
     # Load the tools and verify if they are allowed
-    tools = initialize_tools(tools_config, logger=logger)
+    tools = initialize_tools(tools_config, llm=None, logger=logger)
     if benchmark.available_actions is not None:
         for tool in tools:
             for action in tool.actions:
@@ -340,13 +340,12 @@ def fact_check(llm: str, llm_kwargs: dict,
                fact_checker_kwargs: dict, tools_config: dict, logger_kwargs: dict,
                is_averitec: bool, input_queue: Queue, output_queue: Queue, devices_queue: Queue):
     device = f"cuda:{devices_queue.get()}"
-
     logger = Logger(**logger_kwargs)
-
-    tools = initialize_tools(tools_config, logger=logger, device=device)
 
     # Initialize model(s)
     llm = make_model(llm, logger=logger, device=device, **llm_kwargs)
+
+    tools = initialize_tools(tools_config, llm, logger=logger, device=device)
 
     # Setup fact-checker
     fc = FactChecker(
