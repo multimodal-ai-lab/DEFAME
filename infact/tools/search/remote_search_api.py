@@ -3,6 +3,7 @@ import pickle
 from pathlib import Path
 from bs4 import BeautifulSoup
 import requests
+import re
 
 from config.globals import result_base_dir
 from infact.common.logger import Logger

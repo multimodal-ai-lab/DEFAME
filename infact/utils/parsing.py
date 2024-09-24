@@ -140,7 +140,7 @@ def is_url(string: str) -> bool:
 
 
 def is_guardrail_hit(response: str) -> bool:
-    return response.startswith("I cannot") or response.startswith("I'm sorry")
+    return response.startswith("I cannot") or response.startswith("I'm sorry") or response.startswith("I'm unable to assist")
 
 
 def extract_answer_and_url(response: str) -> tuple[Optional[str], Optional[str]]:
