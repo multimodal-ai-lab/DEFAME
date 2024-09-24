@@ -23,11 +23,12 @@ class Search(Action):
     start_date: date
     end_date: date
 
-    def __init__(self, query: str, start_date: date = None, end_date: date = None):
-        assert (query[0] == '"' and query[-1] == '"')
+    def __init__(self, query: str, search_type: str = None, start_date: date = None, end_date: date = None):
+        assert ((query[0] == '"' and query[-1] == '"') or (query[0] == '<' and query[-1] == '>'))
         self.query_string = query[1:-1]
         self.start_date = start_date
         self.end_date = end_date
+        self.search_type = search_type
 
     def __str__(self):
         return f'{self.name}("{self.query_string}")'
@@ -41,6 +42,7 @@ class Search(Action):
 
 class WebSearch(Search):
     name = "web_search"
+    search_type = 'search'
     description = """Run an open web search on Google or DuckDuckGO to retrieve any related webpage."""
     how_to = """Do not use this with a previously used or similar query from previous web searches.
     If a previous web search did not yield any results, use a very different query."""
@@ -61,6 +63,7 @@ class ImageSearch(Search):
 
 class WikiDumpLookup(Search):
     name = "wiki_dump_lookup"
+    search_type = 'search'
     description = """Look up something on the Wikipedia dump from 2017. Each article in the dump
     contains only the first few paragraphs of the article. In particular, the dump is incomplete
     and may miss much information. Use the dump to retrieve an article for a person, an entity, 
@@ -73,6 +76,7 @@ class WikiDumpLookup(Search):
 
 class WikiLookup(Search):
     name = "wiki_lookup"
+    search_type = 'search'
     description = """Look up something on Wikipedia to retrieve an article for a person, an 
     entity, an event etc."""
     how_to = """Do not use this with a previously used or similar query from previous wiki lookup. 
@@ -81,7 +85,7 @@ class WikiLookup(Search):
     is_multimodal = False
 
 
-class ReverseSearch(Action):
+class ReverseSearch(Search):
     name = "reverse_search"
     description = "Performs a reverse image search to find similar images on the web."
     how_to = "Provide an image and the model will perform a reverse search to find similar images."
@@ -89,6 +93,7 @@ class ReverseSearch(Action):
     is_multimodal = True
 
     def __init__(self, image_ref: str):
+        super().__init__(query=image_ref, search_type="reverse")
         self.image: Image = MultimediaSnippet(image_ref).images[0]
 
     def __str__(self):

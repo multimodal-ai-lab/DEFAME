@@ -101,7 +101,23 @@ To extend the Factchecker with additional tools, follow these steps:
     ]
     ```
 
-2. **Configure the Tool in `evaluate.py`**
+2. **Add an Exmaple Prompt in the plan_exemplars folder**
+   
+   Format:
+
+    # Example: action()
+
+    ## Claim
+    Text: "The sign in <image:3> says 'No Trespassing'."
+
+    ...
+
+    ACTIONS:
+    ```
+    action(<image:3>)
+    ```
+
+3. **Configure the Tool in `evaluate.py`**
    
    Add the tool's configuration to the `tools_config` dictionary in `evaluate.py`:
     ```python
@@ -122,7 +138,7 @@ To extend the Factchecker with additional tools, follow these steps:
     )
     ```
 
-3. **Update Registries in `__init__.py`**
+4. **Update Registries in `__init__.py`**
    
    Incorporate the new tool into the registries within the `tools` folder's `__init__.py`:
     ```python

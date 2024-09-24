@@ -8,7 +8,6 @@ from infact.common.medium import Image
 from config.globals import data_base_dir
 from infact.common import Label, Content
 from infact.eval.benchmark import Benchmark
-from infact.tools.manipulation_detector import DetectManipulation
 from infact.tools.text_extractor import OCR
 from infact.tools.geolocator import Geolocate
 from infact.tools.object_detector import DetectObjects
@@ -50,7 +49,7 @@ class VERITE(Benchmark):
     If the claim is actually true but the image shows a different event, then the verdict is OUT OF CONTEXT. If the claim is false, then the verdict should be miscaptioned.
     Lastly, if the image appears to show the event mentioned in the claim, then the verdict is out-of-context."""
 
-    available_actions = [WebSearch, DetectManipulation, DetectObjects, Geolocate, ImageSearch, ReverseSearch]
+    available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
 
     def __init__(self, variant="dev"):
         super().__init__(f"VERITE ({variant})", variant)
