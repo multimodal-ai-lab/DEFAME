@@ -9,12 +9,11 @@ import re
 from PIL import Image as PillowImage
 import requests
 from io import BytesIO
-from bs4 import BeautifulSoup
 
 from config.globals import api_keys
 from infact.common.misc import Query, WebSource
-from infact.tools.search.remote_search_api import RemoteSearchAPI
-from infact.common.medium import Image, media_registry
+from infact.tools.search.remote_search_api import RemoteSearchAPI, scrape_text_from_url, filter_relevant_sentences
+from infact.common.medium import Image
 
 _SERPER_URL = 'https://google.serper.dev'
 NO_RESULT_MSG = 'No good Google Search result was found'
@@ -148,7 +147,7 @@ class SerperAPI(RemoteSearchAPI):
                 image_url = result.get("imageUrl", "")
 
                 if result_key == "organic":
-                    scraped_text = self.scrape_text_from_url(url)
+                    scraped_text = scrape_text_from_url(url=url, logger=self.logger)
                     if scraped_text:
                         keywords = re.findall(r'\b\w+\b', query.text.lower()) or query.text
                         relevant_content = filter_relevant_sentences(scraped_text, keywords)[:10]
@@ -174,31 +173,3 @@ class SerperAPI(RemoteSearchAPI):
                 results.append(WebSource(url=url, text=text, query=query, rank=i, date=result_date))
 
         return results
-
-    def scrape_text_from_url(self, url):
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        }
-        try:
-            page = requests.get(url, headers=headers)
-            page.raise_for_status()
-            soup = BeautifulSoup(page.content, 'html.parser')
-            text = soup.get_text(separator=' ', strip=True)
-            return text
-        except requests.exceptions.HTTPError as http_err:
-            self.logger.info(f"HTTP error occurred while scraping {url}: {http_err}")
-        except requests.exceptions.RequestException as req_err:
-            self.logger.info(f"Request exception occurred while scraping {url}: {req_err}")
-        except Exception as e:
-            self.logger.info(f"An unexpected error occurred while scraping {url}: {e}")
-        return ""
-
-def filter_relevant_sentences(text, keywords):
-    sentences = re.split(r'(?<=[.!?]) +', text)
-    relevant_sentences = []
-    for sentence in sentences:
-        score = sum(1 for word in keywords if word in sentence.lower())
-        if score > 0:
-            relevant_sentences.append((sentence, score))
-    relevant_sentences.sort(key=lambda x: x[1], reverse=True)
-    return [sentence for sentence, score in relevant_sentences]

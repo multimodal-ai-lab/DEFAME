@@ -13,16 +13,18 @@ from infact.tools.search.knowledge_base import KnowledgeBase
 from infact.tools.search.query_serper import SerperAPI
 from infact.tools.search.search_api import SearchAPI
 from infact.tools.search.wiki_dump import WikiDumpAPI
+from infact.tools.search.google_vision_api import GoogleVisionAPI
 from infact.tools.tool import Tool
 from infact.utils.console import gray, orange
-from .common import SearchResult, Search, WebSearch, WikiDumpLookup, ImageSearch
-from ...common.misc import Query, WebSource
+from .common import SearchResult, Search, WebSearch, WikiDumpLookup, ImageSearch, ReverseSearch
+from ...common.misc import  WebSource, Query, ImageQuery, TextQuery
 
 SEARCH_APIS = {
     "google": SerperAPI,
     "duckduckgo": DuckDuckGo,
     "wiki_dump": WikiDumpAPI,
     "averitec_kb": KnowledgeBase,
+    "google_vision": GoogleVisionAPI
 }
 
 
@@ -68,6 +70,8 @@ class Searcher(Tool):
             actions += [WebSearch, ImageSearch]
         if "duckduckgo" in available_apis or "averitec_kb" in available_apis:
             actions.append(WebSearch)
+        if "google_vision" in available_apis:
+            actions.append(ReverseSearch)
         self.actions = actions
 
         self.summarize = summarize
@@ -91,12 +95,24 @@ class Searcher(Tool):
             if end_date is None or action.end_date < end_date:
                 end_date = action.end_date
 
-        # Prepare the query and run the search
-        query = Query(text=action.query_string,
-                      search_type=action.search_type,
-                      limit=self.limit_per_search,
-                      start_date=action.start_date,
-                      end_date=end_date)
+
+        if action.search_type == "reverse" and isinstance(action, ReverseSearch):
+            query = ImageQuery(
+                text="", #later on we can fill this to have keyword-guided scraping
+                image=action.image,
+                search_type=action.search_type,
+                limit=self.limit_per_search,
+                start_date=action.start_date,
+                end_date=end_date
+            )
+        else:
+            query = TextQuery(
+                text=action.query_string,
+                search_type=action.search_type,
+                limit=self.limit_per_search,
+                start_date=action.start_date,
+                end_date=end_date
+            )
         web_sources = self.search(query)
 
         return SearchResult(web_sources)
@@ -105,7 +121,15 @@ class Searcher(Tool):
         """Searches for evidence using the search APIs according to their precedence."""
 
         for search_engine in list(self.search_apis.values()):
-            results = self._retrieve_search_results(query, search_engine)
+            if isinstance(query, ImageQuery) and query.search_type == 'reverse' and isinstance(search_engine, GoogleVisionAPI):
+                results = search_engine._call_api(query)
+            elif isinstance(query, TextQuery) and (query.search_type == 'search' or query.search_type == 'images') :
+                results = search_engine._call_api(query)
+            else:
+                continue
+            
+            self.past_queries_helpful[query.get_query_content().reference] = True
+            results = self._remove_known_search_results(results)
 
             # Track search engine call
             self.stats[search_engine.name] += 1
@@ -140,18 +164,6 @@ class Searcher(Tool):
         """Removes all known search results and resets the statistics."""
         self.past_search_results = set()
         self.stats = {s.name: 0 for s in self.search_apis.values()}
-
-    def _retrieve_search_results(
-        self,
-        query: Query,
-        search_engine: SearchAPI,
-        ) -> list[SearchResult]:
-
-    
-        results = search_engine.search(query)
-        self.past_queries_helpful[query.text] = True
-
-        return self._remove_known_search_results(results)
 
     def _postprocess_results(self, results: list[WebSource]) -> list[WebSource]:
         """Modifies the results text to avoid jinja errors when used in prompt."""
