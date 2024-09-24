@@ -1,27 +1,27 @@
+from io import BytesIO
+
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.nn import functional as F
 from PIL import Image as PillowImage
-import matplotlib.pyplot as plt
-from io import BytesIO
+from torch.nn import functional as F
+
+from config.globals import manipulation_detection_model
+from infact.common.medium import Image
+from third_party.TruFor.src.trufor_config import _C as config
+from third_party.TruFor.src.trufor_config import update_config
+
 
 # import sys
 # import os
-
 # Add the project root to sys.path
-#project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..'))
-#if project_root not in sys.path:
+# project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..'))
+# if project_root not in sys.path:
 #    sys.path.append(project_root)
 
 
-from third_party.TruFor.src.trufor_config import _C as config
-from third_party.TruFor.src.trufor_config import update_config
-from config.globals import manipulation_detection_model
-from infact.common.medium import Image, media_registry
-
 def analyze_image(image: PillowImage.Image):
-
-    update_config(config, None)
+    update_config(config, None, path="third_party/TruFor/src/trufor.yaml")
 
     # Convert the PIL image to a tensor
     rgb = preprocess_image(image)
@@ -80,6 +80,7 @@ def load_model(config, model_file, device):
     model = model.to(device)
     return model
 
+
 def create_visualizations(result: dict) -> dict:
     """
     Create visualizations for the localization map and confidence map and return them as Pillow images.
@@ -114,13 +115,13 @@ def create_visualizations(result: dict) -> dict:
     confidence_map = Image(pillow_image=PillowImage.open(buf_conf).convert("RGB"))
     plt.close(fig_conf)
 
-    result["ref_localization_map"] = media_registry.add(localization_map)
-    result["ref_confidence_map"] = media_registry.add(confidence_map)
-
+    result["ref_localization_map"] = localization_map.reference
+    result["ref_confidence_map"] = confidence_map.reference
 
     return result
 
-#def create_visualizations_and_save(result: dict) -> dict:
+
+# def create_visualizations_and_save(result: dict) -> dict:
 #    """
 #    Create visualizations for the localization map and confidence map, save them as files, and return Image objects.
 #    
@@ -140,7 +141,7 @@ def create_visualizations(result: dict) -> dict:
 #
 #    return result
 #
-#def create_visualization_image(data, title: str, output_path: Path):
+# def create_visualization_image(data, title: str, output_path: Path):
 #    """
 #    Create a visualization image from data and save it to a file.
 #    
@@ -222,10 +223,9 @@ def preprocess_image(image: Image) -> torch.Tensor:
         - Normalizes to the range [0, 1] by dividing by 256.0.
         - Transposes the array to match (C, H, W) format expected by the model.
     """
-    img_RGB = np.array(image) # image.convert("RGB")
+    img_RGB = np.array(image)  # image.convert("RGB")
     tensor = torch.tensor(img_RGB.transpose(2, 0, 1), dtype=torch.float) / 256.0
     return tensor.unsqueeze(0)  # Add batch dimension
-
 
 # Example:
 # image = PillowImage.open("/pfss/mlde/workspaces/mlde_wsp_Rohrbach/users/tb17xity/InFact/third_party/TruFor/test_docker/images/pristine1.jpg")

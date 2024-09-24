@@ -22,13 +22,13 @@ class DetectManipulation(Action):
         self.image: Image = MultimediaSnippet(image_ref).images[0]
 
     def __str__(self):
-        return f'{self.name}()'
+        return f'{self.name}({self.image.reference})'
 
     def __eq__(self, other):
-        return isinstance(other, DetectManipulation) and np.array_equal(np.array(self.image), np.array(other.image))
+        return isinstance(other, DetectManipulation) and self.image == other.image
 
     def __hash__(self):
-        return hash((self.name, self.image.image.tobytes()))
+        return hash((self.name, self.image))
 
 
 @dataclass

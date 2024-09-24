@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 from typing import Collection, Optional
 
-from infact.common import FCDocument, Label, Claim, Action, Evidence, Prompt
+from infact.common import FCDocument, Label, Claim, Action, Evidence, Prompt, Content
 from infact.common.label import DEFAULT_LABEL_DEFINITIONS
 from infact.common.misc import WebSource
 from infact.utils.parsing import (remove_non_symbols, extract_last_code_span, read_md_file,
@@ -292,9 +292,12 @@ class ReiteratePrompt(Prompt):
 
 class InterpretPrompt(Prompt):
     template_file_path = "infact/prompts/interpret.md"
-    def __init__(self, claim: Claim, guidelines: str = ''):
+
+    def __init__(self, content: Content, guidelines: str = ''):
+        if guidelines:
+            guidelines = "# Guidelines\n" + guidelines
         placeholder_targets = {
-            "[CLAIM]": claim,
+            "[CONTENT]": content,
             "[GUIDELINES]": guidelines,
         }
         super().__init__(placeholder_targets)
@@ -306,7 +309,7 @@ class InterpretPrompt(Prompt):
             pattern = re.compile(r'\*\*(.*)\*\*', re.DOTALL)
             matches = pattern.findall(response) or ['']
             answer = matches[0]
-        return [answer] if answer else [response]
+        return answer or response
 
 
 class JudgeNaively(Prompt):

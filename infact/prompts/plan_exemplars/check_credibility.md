@@ -5,7 +5,7 @@ Text: "According to example-news.com, a new species of bird was discovered in th
 
 ...
 
-ACTIONS:
+## Actions
 ```
 check_credibility("example-news.com")
 ```

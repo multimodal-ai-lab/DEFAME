@@ -5,7 +5,7 @@ Text: "The sign in <image:3> says 'No Trespassing'."
 
 ...
 
-ACTIONS:
+## Actions
 ```
 ocr(<image:3>)
 ```

@@ -5,7 +5,7 @@ Text: "<image:2> shows a nuclear weapons facility in Usbekistan."
 
 ...
 
-ACTIONS:
+## Actions
 ```
 geolocate(<image:2>)
 ```

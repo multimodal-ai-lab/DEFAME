@@ -1,21 +1,23 @@
 import os
 import pickle
+from pathlib import Path
 
-from infact.common.misc import Query, WebSource
+from config.globals import result_base_dir
 from infact.common.logger import Logger
+from infact.common.misc import Query, WebSource
 from infact.tools.search.search_api import SearchAPI
 
 
 class RemoteSearchAPI(SearchAPI):
     is_local = False
-    file_name = "search_cache.json"
 
     def __init__(self, logger: Logger = None,
                  activate_cache: bool = True,
                  **kwargs):
         super().__init__(logger=logger)
         self.search_cached_first = activate_cache
-        self.path_to_cache = os.path.join(logger.target_dir / self.file_name)
+        self.cache_file_name = f"{self.name}_cache.pckl"
+        self.path_to_cache = os.path.join(Path(result_base_dir) / self.cache_file_name)
         self.cache_hit = 0
         self.cache: dict[Query, list[WebSource]] = {}
         self._initialize_cache()

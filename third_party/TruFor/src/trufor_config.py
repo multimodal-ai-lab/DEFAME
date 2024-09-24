@@ -14,8 +14,6 @@ Created in September 2022
 @author: fabrizio.guillaro
 """
 from yacs.config import CfgNode as CN
-from pathlib import Path
-
 
 _C = CN()
 
@@ -51,11 +49,9 @@ _C.TEST = CN()
 _C.TEST.MODEL_FILE = ''
 
 
-def update_config(cfg, args):
-    current_dir = Path(__file__).parent
-    trufor_yaml_path = current_dir / 'trufor.yaml'
+def update_config(cfg, args, path):
     cfg.defrost()
-    cfg.merge_from_file(trufor_yaml_path)
+    cfg.merge_from_file(path)
     if args and args.opts:
         cfg.merge_from_list(args.opts)
     cfg.freeze()

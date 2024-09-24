@@ -10,20 +10,20 @@ class FaceRecognition(Action):
     name = "recognize_faces"
     description = "Identifies and recognizes faces within an image."
     how_to = "Provide an image and the model will recognize faces in it."
-    format = 'recognize_faces(image_patch)'
+    format = "recognize_faces(<image:n>), where `n` is the image's ID"
     is_multimodal = True
 
     def __init__(self, image_ref: str):
         self.image: Image = MultimediaSnippet(image_ref).images[0]
 
     def __str__(self):
-        return f'{self.name}()'
+        return f'{self.name}({self.image.reference})'
 
     def __eq__(self, other):
-        return isinstance(other, FaceRecognition) and np.array_equal(np.array(self.image), np.array(other.image))
+        return isinstance(other, FaceRecognition) and self.image == other.image
 
     def __hash__(self):
-        return hash((self.name, self.image.image.tobytes()))
+        return hash((self.name, self.image))
 
 
 class FaceRecognizer(Tool):
