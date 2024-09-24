@@ -14,7 +14,6 @@ from bs4 import BeautifulSoup
 from config.globals import api_keys
 from infact.common.misc import Query, WebSource
 from infact.tools.search.remote_search_api import RemoteSearchAPI
-from config.globals import api_keys
 from infact.common.medium import Image, media_registry
 
 _SERPER_URL = 'https://google.serper.dev'

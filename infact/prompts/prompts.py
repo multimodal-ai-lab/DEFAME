@@ -380,7 +380,7 @@ def parse_single_action(raw_action: str) -> Optional[Action]:
     except Exception as e:
         # TODO: Make logger global and enable the following log:
         # self.logger.log(f"WARNING: Failed to parse '{raw_action}':\n{e}")
-        print("Problem")
+        print(f"WARNING: Failed to parse '{raw_action}':\n{e}")
         pass
 
     return None
