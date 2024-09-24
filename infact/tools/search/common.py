@@ -19,16 +19,15 @@ class SearchResult(Result):
 class Search(Action):
     api: str
     query_string: str
-    search_type: str = 'search'
+    search_type: str
     start_date: date
     end_date: date
 
-    def __init__(self, query: str, search_type: str = None, start_date: date = None, end_date: date = None):
+    def __init__(self, query: str, start_date: date = None, end_date: date = None):
         assert ((query[0] == '"' and query[-1] == '"') or (query[0] == '<' and query[-1] == '>'))
         self.query_string = query[1:-1]
         self.start_date = start_date
         self.end_date = end_date
-        self.search_type = search_type
 
     def __str__(self):
         return f'{self.name}("{self.query_string}")'
@@ -87,13 +86,14 @@ class WikiLookup(Search):
 
 class ReverseSearch(Search):
     name = "reverse_search"
+    search_type = 'reverse'
     description = "Performs a reverse image search to find similar images on the web."
     how_to = "Provide an image and the model will perform a reverse search to find similar images."
     format = 'reverse_search(image)'
     is_multimodal = True
 
     def __init__(self, image_ref: str):
-        super().__init__(query=image_ref, search_type="reverse")
+        super().__init__(query=image_ref)
         self.image: Image = MultimediaSnippet(image_ref).images[0]
 
     def __str__(self):

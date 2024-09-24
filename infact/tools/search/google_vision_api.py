@@ -73,33 +73,20 @@ class GoogleVisionAPI(RemoteSearchAPI):
             for image in page.full_matching_images[:query.limit]:
                 image_url = image.url
 
-                scraped_text = scrape_text_from_url(url=image_url, logger=self.logger)
-                if scraped_text:
-                    text = f"Full Matching Image at {image_url}:\n{scraped_text}"
-                    results.append(WebSource(
+                text = f"Full Matching Image at {image_url}."
+                results.append(WebSource(
                         url=image_url,
                         text=text,
                         query=query,
                         rank=len(results) + 1,
-                    ))
-                else:
-                    continue
+                ))
 
             # Partial Matching Images
             for image in page.partial_matching_images[:query.limit]:
                 image_url = image.url
                 image = self._download_image(image_url)
-                scraped_text = scrape_text_from_url(url=image_url, logger=self.logger)
                 if image:
-                    text = f"Partial Matching Image {image.reference} at {image_url}:\n{scraped_text}"
-                    results.append(WebSource(
-                        url=image_url,
-                        text=text,
-                        query=query,
-                        rank=len(results) + 1,
-                    ))
-                elif scraped_text:
-                    text = f"Partial Matching Image at {image_url}:\n{scraped_text}"
+                    text = f"Partial Matching Image {image.reference} at {image_url}."
                     results.append(WebSource(
                         url=image_url,
                         text=text,
@@ -113,17 +100,8 @@ class GoogleVisionAPI(RemoteSearchAPI):
         for image in web_detection.visually_similar_images[:query.limit]:
             image_url = image.url
             image = self._download_image(image_url)
-            scraped_text = scrape_text_from_url(url=image_url, logger=self.logger)
             if image:
-                text = f"Visually similar Image {image.reference} at {image_url}:\n{scraped_text}"
-                results.append(WebSource(
-                    url=image_url,
-                    text=text,
-                    query=query,
-                    rank=len(results) + 1,
-                ))
-            elif scraped_text:
-                text = f"Visually similar Image at {image_url}:\n{scraped_text}"
+                text = f"Visually similar Image {image.reference} at {image_url}."
                 results.append(WebSource(
                     url=image_url,
                     text=text,

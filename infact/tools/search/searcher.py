@@ -123,12 +123,15 @@ class Searcher(Tool):
         for search_engine in list(self.search_apis.values()):
             if isinstance(query, ImageQuery) and query.search_type == 'reverse' and isinstance(search_engine, GoogleVisionAPI):
                 results = search_engine._call_api(query)
-            elif isinstance(query, TextQuery) and (query.search_type == 'search' or query.search_type == 'images') :
+            elif isinstance(query, TextQuery) and (query.search_type == 'search' or query.search_type == 'images') and not isinstance(search_engine, GoogleVisionAPI):
                 results = search_engine._call_api(query)
             else:
                 continue
             
-            self.past_queries_helpful[query.get_query_content().reference] = True
+            if query.search_type == 'reverse':
+                self.past_queries_helpful[query.get_query_content().reference] = True
+            else:
+                self.past_queries_helpful[query.get_query_content()] = True
             results = self._remove_known_search_results(results)
 
             # Track search engine call
