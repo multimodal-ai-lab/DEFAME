@@ -8,10 +8,11 @@ warnings.filterwarnings("ignore")
 if __name__ == '__main__':  # evaluation uses multiprocessing
     set_start_method("spawn")
     evaluate(
-        llm="gpt_4o_mini",
+        llm="gpt_4o",
         tools_config=dict(searcher=dict(
             search_engine_config=dict(
                 google=dict(),
+                google_vision=dict(),
             ),
             limit_per_search=3
         ),
@@ -31,7 +32,7 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         llm_kwargs=dict(temperature=0.01),
         benchmark_name="verite",
         benchmark_kwargs=dict(variant="dev"),
-        n_samples=10,
+        n_samples=None,
         print_log_level="info",
         random_sampling=False,
         n_workers=1,
