@@ -6,7 +6,7 @@ Claim date: October 29, 2020
 
 ...
 
-ACTIONS:
+## Actions
 ```
 web_search("New Zealand Food Bill 2020")
 web_search("New Zealand Food Bill gardening ban")

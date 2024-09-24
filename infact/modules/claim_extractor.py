@@ -36,7 +36,7 @@ class ClaimExtractor:
 
         if self.do_interpretation or self.prepare_rules:
             self.logger.log("Interpreting...")
-            claims = self.interpret(content, self.prepare_rules)
+            self.interpret(content, self.prepare_rules)
 
         if self.do_decomposition:
             self.logger.log("Decomposing...")
@@ -61,16 +61,15 @@ class ClaimExtractor:
 
         return claims
 
-    def interpret(self, content: Content, prepare_rules: str = ""):
-        """Interprets the content"""
-        prompt = InterpretPrompt(content.text, prepare_rules)
-        claims = self.llm.generate(prompt)
-        return claims
+    def interpret(self, content: Content, prepare_rules: str = "") -> None:
+        """Adds an interpretation to the content object."""
+        prompt = InterpretPrompt(content, prepare_rules)
+        content.interpretation = self.llm.generate(prompt)
 
     def decompose(self, content: Content):
         """Splits up the content into atomic facts."""
         interpretation = content.interpretation
-        result, _ = self.atomic_fact_generator.run(interpretation)  # TODO: Implement handling the interpretation
+        result, _ = self.atomic_fact_generator.run(interpretation)
         atomic_facts = [fact for _, facts in result for fact in facts]
         return atomic_facts
 
