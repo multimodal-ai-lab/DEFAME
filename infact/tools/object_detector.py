@@ -100,5 +100,5 @@ class ObjectDetector(Tool):
         self.logger.log(str(result))
         return result
 
-    def _summarize(self, result: ObjectDetectionResult, **kwargs) -> MultimediaSnippet:
+    def _summarize(self, result: ObjectDetectionResult, **kwargs) -> Optional[MultimediaSnippet]:
         return MultimediaSnippet("Object Detector not fully implemented yet.")  # TODO: Implement the summary

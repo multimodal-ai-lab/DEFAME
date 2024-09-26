@@ -1,3 +1,5 @@
+from typing import Optional
+
 from infact.common import MultimediaSnippet, Action
 from infact.common.modeling import Model
 from infact.common.results import Result
@@ -49,5 +51,5 @@ class CredibilityChecker(Tool):
         result = Result()
         return result
 
-    def _summarize(self, result: Result, **kwargs) -> MultimediaSnippet:
+    def _summarize(self, result: Result, **kwargs) -> Optional[MultimediaSnippet]:
         raise NotImplementedError

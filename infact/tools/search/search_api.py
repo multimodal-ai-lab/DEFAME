@@ -3,6 +3,7 @@ from abc import ABC
 from infact.common import Logger
 from infact.common.misc import Query, WebSource
 from infact.utils.console import yellow
+from .common import SearchResult
 
 
 class SearchAPI(ABC):
@@ -21,10 +22,10 @@ class SearchAPI(ABC):
         if self.logger is not None:
             self.logger.log(yellow(f"Searching {self.name} with query: {query}"))
 
-    def search(self, query: Query) -> list[WebSource]:
+    def search(self, query: Query) -> SearchResult:
         """Runs the API by submitting the query and obtaining a list of search results."""
         self._before_search(query)
         return self._call_api(query)
 
-    def _call_api(self, query: Query) -> list[WebSource]:
+    def _call_api(self, query: Query) -> SearchResult:
         raise NotImplementedError()

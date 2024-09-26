@@ -1,14 +1,16 @@
 import os
 import pickle
-from pathlib import Path
-from bs4 import BeautifulSoup
-import requests
 import re
+from pathlib import Path
+
+import requests
+from bs4 import BeautifulSoup
 
 from config.globals import result_base_dir
 from infact.common.logger import Logger
-from infact.common.misc import Query, WebSource
+from infact.common.misc import Query
 from infact.tools.search.search_api import SearchAPI
+from .common import SearchResult
 
 
 class RemoteSearchAPI(SearchAPI):
@@ -22,7 +24,7 @@ class RemoteSearchAPI(SearchAPI):
         self.cache_file_name = f"{self.name}_cache.pckl"
         self.path_to_cache = os.path.join(Path(result_base_dir) / self.cache_file_name)
         self.cache_hit = 0
-        self.cache: dict[Query, list[WebSource]] = {}
+        self.cache: dict[Query, SearchResult] = {}
         self._initialize_cache()
 
     def _initialize_cache(self):
@@ -40,31 +42,32 @@ class RemoteSearchAPI(SearchAPI):
         with open(self.path_to_cache, 'wb') as f:
             pickle.dump(self.cache, f)
 
-    def _add_to_cache(self, query: Query, results: list[WebSource]):
+    def _add_to_cache(self, query: Query, search_result: SearchResult):
         """Adds the given query-results pair to the cache."""
-        self.cache[query] = results
+        self.cache[query] = search_result
         self._save_data()
 
-    def search(self, query: Query) -> list[WebSource]:
+    def search(self, query: Query) -> SearchResult:
         # Try to load from cache
         if self.search_cached_first:
             cache_results = self.search_cache(query)
             if cache_results:
                 self.cache_hit += 1
                 return cache_results
-        if query.search_type == 'image':
-            from infact.tools.search.query_serper import SerperAPI
-            assert isinstance(self, SerperAPI), "Need SerperAPI for image search"
-        results = super().search(query)
-        self._add_to_cache(query, results)
-        return results
 
-    def search_cache(self, query: Query) -> list[WebSource]:
+        # Run actual search
+        search_result = super().search(query)
+        self._add_to_cache(query, search_result)
+        return search_result
+
+    def search_cache(self, query: Query) -> SearchResult:
         """Search the local in-memory data for matching results."""
         if query in self.cache:
             return self.cache[query]
 
+
 def scrape_text_from_url(url, logger):
+    # TODO: Also scrape images
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     }
@@ -81,6 +84,7 @@ def scrape_text_from_url(url, logger):
     except Exception as e:
         logger.info(f"An unexpected error occurred while scraping {url}: {e}")
     return ""
+
 
 def filter_relevant_sentences(text, keywords):
     sentences = re.split(r'(?<=[.!?]) +', text)

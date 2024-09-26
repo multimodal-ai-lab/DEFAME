@@ -12,17 +12,15 @@ class Evidence:
     fact-check. Is typically the output of performing an Action."""
     raw: Result  # The raw output from the executed tool
     action: Action  # The action which led to this evidence
-    summary: MultimediaSnippet = None  # Contains the key takeaways for the fact-check
+    summary: MultimediaSnippet = None  # Contains the key takeaways for the fact-check, if any
 
     def is_useful(self) -> Optional[bool]:
         """Returns True if the contained information helps the fact-check."""
         return self.summary is not None
 
     def __str__(self):
+        action_name = f"### Evidence from `{self.action.name}`\n"
         if self.is_useful():
-            return str(self.summary)
+            return action_name + str(self.summary)
         else:
-            return str(self.raw)
-
-    # def get_useful_results(self) -> list[Result]:
-    #     return [r for r in self.raw if r.is_useful()]
+            return action_name + str(self.raw)
