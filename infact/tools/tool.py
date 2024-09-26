@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any
+from typing import Any, Optional
 
 import torch
 
@@ -25,7 +25,7 @@ class Tool(ABC):
         """The actual function executing the action."""
         raise NotImplementedError
 
-    def _summarize(self, result: Result, **kwargs) -> MultimediaSnippet:
+    def _summarize(self, result: Result, **kwargs) -> Optional[MultimediaSnippet]:
         """Turns the result into an LLM-friendly summary. May use additional
         context for summarization. Returns None iff the result does not contain any
         (potentially) helpful information."""

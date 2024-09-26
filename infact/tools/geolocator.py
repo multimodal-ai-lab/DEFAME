@@ -118,5 +118,5 @@ class Geolocator(Tool):
         self.logger.log(str(result))
         return result
 
-    def _summarize(self, result: GeolocationResult, **kwargs) -> MultimediaSnippet:
+    def _summarize(self, result: GeolocationResult, **kwargs) -> Optional[MultimediaSnippet]:
         return MultimediaSnippet(result.text)  # TODO: Improve summary w.r.t. uncertainty

@@ -1,12 +1,12 @@
 import re
 from datetime import date
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 from jinja2.exceptions import TemplateSyntaxError
 from openai import APIError
 
-from infact.common import MultimediaSnippet, FCDocument, Model
+from infact.common import MultimediaSnippet, FCDocument, Model, Prompt
 from infact.prompts.prompts import SummarizeResultPrompt
 from infact.tools.search.duckduckgo import DuckDuckGo
 from infact.tools.search.knowledge_base import KnowledgeBase
@@ -82,9 +82,8 @@ class Searcher(Tool):
 
         self.debug = do_debug
 
-        self.past_queries_helpful: dict[Query, bool] = {}
         # Cut the result text, maintaining a little buffer for the summary prompt
-        self.past_search_results = set()
+        self.known_web_sources = set()
 
         self.reset()
 
@@ -94,7 +93,6 @@ class Searcher(Tool):
         if action.end_date is not None:
             if end_date is None or action.end_date < end_date:
                 end_date = action.end_date
-
 
         if action.search_type == "reverse" and isinstance(action, ReverseSearch):
             query = ImageQuery(
@@ -113,59 +111,54 @@ class Searcher(Tool):
                 start_date=action.start_date,
                 end_date=end_date
             )
-        web_sources = self.search(query)
 
-        return SearchResult(web_sources)
+        return self.search(query)
 
-    def search(self, query: Query) -> list[WebSource]:
+    def search(self, query: Query) -> SearchResult:
         """Searches for evidence using the search APIs according to their precedence."""
 
         for search_engine in list(self.search_apis.values()):
             if isinstance(query, ImageQuery) and query.search_type == 'reverse' and isinstance(search_engine, GoogleVisionAPI):
-                results = search_engine._call_api(query)
+                search_result = search_engine.search(query)
             elif isinstance(query, TextQuery) and (query.search_type == 'search' or query.search_type == 'images') and not isinstance(search_engine, GoogleVisionAPI):
-                results = search_engine._call_api(query)
+                search_result = search_engine.search(query)
             else:
                 continue
-            
-            if query.search_type == 'reverse':
-                self.past_queries_helpful[query.get_query_content().reference] = True
-            else:
-                self.past_queries_helpful[query.get_query_content()] = True
-            results = self._remove_known_search_results(results)
+
+            # Remove known websites from search result
+            search_result.sources = self._remove_known_web_sources(search_result.sources)
 
             # Track search engine call
             self.stats[search_engine.name] += 1
 
-            # Log search results info
-            self.logger.log(f"Got {len(results)} new result(s):")
-            for i, result in enumerate(results):
+            # Log search result info
+            self.logger.log(f"Got {len(search_result.sources)} new web source(s):")
+            for i, web_source in enumerate(search_result.sources):
                 result_summary = f"\t{i + 1}."
-                if result.date is not None:
-                    result_summary += f" {result.date.strftime('%B %d, %Y')}"
-                result_summary += f" {result.url}"
+                if web_source.date is not None:
+                    result_summary += f" {web_source.date.strftime('%B %d, %Y')}"
+                result_summary += f" {web_source.url}"
                 self.logger.log(result_summary)
 
-            # Modify the results text to avoid jinja errors when used in prompt
-            results = self._postprocess_results(results)
+            # Modify the raw web source text to avoid jinja errors when used in prompt
+            search_result.sources = self._postprocess_results(search_result.sources)
 
-            # If there is at least one result, we were successful
-            if len(results) > 0:
-                self._register_search_results(results)
-                return results
-        return []
+            # If there is at least one new web source in the result, we were successful
+            if len(search_result.sources) > 0:
+                self._register_web_sources(search_result.sources)
+                return search_result
 
-    def _remove_known_search_results(self, results: list[WebSource]) -> list[WebSource]:
-        """Removes already known search results"""
-        return [r for r in results if r not in self.past_search_results]
+    def _remove_known_web_sources(self, web_sources: list[WebSource]) -> list[WebSource]:
+        """Removes already known websites from the list web_sources."""
+        return [r for r in web_sources if r not in self.known_web_sources]
 
-    def _register_search_results(self, results: list[WebSource]):
+    def _register_web_sources(self, web_sources: list[WebSource]):
         """Adds the provided list of results to the set of known results."""
-        self.past_search_results |= set(results)
+        self.known_web_sources |= set(web_sources)
 
     def reset(self):
-        """Removes all known search results and resets the statistics."""
-        self.past_search_results = set()
+        """Removes all known web sources and resets the statistics."""
+        self.known_web_sources = set()
         self.stats = {s.name: 0 for s in self.search_apis.values()}
 
     def _postprocess_results(self, results: list[WebSource]) -> list[WebSource]:
@@ -182,13 +175,11 @@ class Searcher(Tool):
             result = result[self.max_result_len:]
         return result
 
-    def _summarize(self, result: SearchResult, **kwargs) -> MultimediaSnippet:
+    def _summarize(self, result: SearchResult, **kwargs) -> Optional[MultimediaSnippet]:
         doc = kwargs.get("doc")
         for web_source in result.sources:
             self._summarize_single_web_source(web_source, doc)
-        # TODO: Implement summary of summaries
-        summary = "\n\n".join(map(str, result.sources))
-        return MultimediaSnippet(summary)
+        return self._summarize_summaries(result, doc)
 
     def _summarize_single_web_source(self, web_source: WebSource, doc: FCDocument):
         prompt = SummarizeResultPrompt(web_source, doc)
@@ -211,8 +202,29 @@ class Searcher(Tool):
 
         web_source.summary = MultimediaSnippet(summary)
 
-        if web_source.is_useful():
+        if web_source.is_relevant():
             self.logger.log("Useful result: " + gray(str(web_source)))
+
+    def _summarize_summaries(self, result: SearchResult, doc: FCDocument) -> Optional[MultimediaSnippet]:
+        """Generates a summary, aggregating all relevant information from the
+        identified and relevant web sources."""
+
+        summaries = [str(source) for source in result.sources if source.is_relevant()]
+        if len(summaries) == 0:  # No relevant web sources
+            return None
+        elif len(summaries) == 1:
+            return MultimediaSnippet(summaries[0])
+
+        # Prepare the prompt for the LLM
+        placeholder_targets = {
+            "[SUMMARIES]": "\n\n".join(summaries),
+            "[DOC]": str(doc),
+        }
+        summarize_prompt = Prompt(placeholder_targets=placeholder_targets,
+                                  template_file_path="infact/prompts/summarize_summaries.md")
+
+        # Generate the summary
+        return MultimediaSnippet(self.llm.generate(summarize_prompt))
 
     def get_stats(self) -> dict[str, Any]:
         total_searches = np.sum([n for n in self.stats.values()])

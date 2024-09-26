@@ -16,7 +16,7 @@ class StaticSummary(Procedure):
         results = self.retrieve_resources(queries, summarize=True, doc=doc)
         doc.add_reasoning("## Web Search")
         for result in results[:10]:
-            if result.is_useful():
+            if result.is_relevant():
                 summary_str = f"### Search Result\n{result}"
                 doc.add_reasoning(summary_str)
 

@@ -55,6 +55,15 @@ Follow these steps to set up the MAFC environment:
     }
     ```
 
+## Enable Tool APIs
+Many tools require external APIs to be functional. In most cases, you just need to insert the respective API key into `config/api_keys.yaml`. For all other tools, see the following setup guidelines.
+
+### Google Cloud Vision API (needed for Image Reverse Search)
+1. In the [Google Cloud Console](https://console.cloud.google.com), create a new Project.
+2. Go to the [Service Account](https://console.cloud.google.com/iam-admin/serviceaccounts) overview and add a new Service Account.
+3. Open the new Service Account, go to "Keys" and generate a new JSON key file.
+4. Save the downloaded key file at the path `config/google_service_account_key.json`.
+
 ## Usage
 
 ### Image Loading

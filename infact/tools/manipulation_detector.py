@@ -94,5 +94,5 @@ class ManipulationDetector(Tool):
         result = create_visualizations(result)
         return result
 
-    def _summarize(self, result: ManipulationResult, **kwargs) -> MultimediaSnippet:
+    def _summarize(self, result: ManipulationResult, **kwargs) -> Optional[MultimediaSnippet]:
         return MultimediaSnippet("Manipulation Detector not fully implemented yet.")  # TODO: Implement the summary
