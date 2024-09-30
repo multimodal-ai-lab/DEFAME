@@ -44,7 +44,7 @@ class AVeriTeC(Benchmark):
     for the Claim does NOT prove that the Claim is refuted. Instead, the Claim is simply unsupported--which is a case of 
     'not enough information'."""
 
-    available_actions = [WebSearch, ImageSearch]
+    available_actions = [WebSearch]
 
     def __init__(self, variant="dev"):
         super().__init__(f"AVeriTeC ({variant})", variant)

@@ -115,7 +115,7 @@ class Logger:
         self._current_fact_check_id = index
         self.claim_dir.mkdir(parents=True, exist_ok=True)
         self._update_file_handler()
-        self._add_model_comm_handler()
+        self._update_model_comm_handler()
 
     def _update_file_handler(self):
         """If a fact-check ID is set, writes to logs/<fc_id>.txt, otherwise to log.txt."""
@@ -135,25 +135,37 @@ class Logger:
         log_to_file_handler.setFormatter(formatter)
         self.logger.addHandler(log_to_file_handler)
 
-    def _add_model_comm_handler(self):
-        """Adds a handler specifically for model communication logs."""
+
+    def _update_model_comm_handler(self):
+        """Assigns the model communication handler to the correct claim's subfolder."""
+        # Clear existing handlers to avoid duplication
+        self._remove_existing_handlers(self.model_comm_logger)
+
+        # Set the correct path based on the current claim
         model_comm_path = self.model_comm_path
         model_comm_handler = RotatingFileHandler(model_comm_path, maxBytes=10 * 1024 * 1024, backupCount=5)
         model_comm_handler.setLevel(MODEL_COMM_LOG)
         formatter = RemoveStringFormattingFormatter()
         model_comm_handler.setFormatter(formatter)
-        # Attach the handler only to the model communication logger
         self.model_comm_logger.addHandler(model_comm_handler)
+
+    def _remove_existing_handlers(self, logger):
+        """Removes all existing file handlers from the logger."""
+        for handler in logger.handlers[:]:
+            if isinstance(handler, RotatingFileHandler):
+                logger.removeHandler(handler)
+                handler.close()
 
     def log_model_conv(self, msg: str):
         """Logs model communication using a separate logger."""
         formatted_msg = f"{msg}\n{self.separator}\n"
-        self.model_comm_logger.log_model_comm(formatted_msg)
+        self.model_comm_logger.log(MODEL_COMM_LOG, formatted_msg)
 
-    def save_config(self, signature, local_scope, print_summary: bool = True):
+    def save_config(self, signature, local_scope, benchmark, print_summary: bool = True):
         hyperparams = {}
         for param in signature.parameters:
             hyperparams[param] = local_scope[param]
+        hyperparams["available actions"] = ", ".join([action.name for action in benchmark.available_actions])
         with open(self.config_path, "w") as f:
             yaml.dump(hyperparams, f)
         if print_summary:

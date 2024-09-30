@@ -36,7 +36,7 @@ class VERITE(Benchmark):
 
     extra_prepare_rules = """**Assess Alignment**: Assess the alignment between image and text in complex scenarios. Prepare for varied real-world images and captions.
     **Verify Context**: Examine the source and context of each image to understand its relationship with the accompanying text.
-    Start each claim with: The Claim is that the image show ... """
+    Start each claim with: The Claim is that the image shows ... """
 
     extra_plan_rules = """* **Consider Both Modalities Equally**: Avoid focusing too much on one modality at the expense of the other.
     * **Compare Image and Caption**: Verify the context of the image and caption. Check for
