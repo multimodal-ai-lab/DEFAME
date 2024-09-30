@@ -91,6 +91,6 @@ class TextExtractor(Tool):
         self.logger.log(str(result))
         return result
 
-    def _summarize(self, result: OCRResult, **kwargs) -> MultimediaSnippet:
+    def _summarize(self, result: OCRResult, **kwargs) -> Optional[MultimediaSnippet]:
         # TODO: Add image reference, summarize the output w.r.t. relevant content
         return MultimediaSnippet(f"Extracted text: {result.text}")

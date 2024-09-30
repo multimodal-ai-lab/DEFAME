@@ -29,7 +29,8 @@ class EvidenceBlock:
     evidences: Collection[Evidence]
 
     def __str__(self):
-        return f"## Results\nRetrieved {self.num_useful_evidences} new useful results."  # TODO: Rename to evidence
+        summaries = "\n\n".join([str(e) for e in self.evidences if e.is_useful()])
+        return f"## Evidence\n{summaries}"
 
     @property
     def num_useful_evidences(self):
@@ -61,7 +62,7 @@ class FCDocument:
         self.claim = claim
         self.record = []
         if claim.original_context.interpretation:
-            self.add_reasoning("## Interpretation" + claim.original_context.interpretation)
+            self.add_reasoning("## Interpretation\n" + claim.original_context.interpretation)
 
     def __str__(self):
         doc_str = f'## Claim\n{self.claim}'

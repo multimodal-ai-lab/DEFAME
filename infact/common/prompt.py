@@ -1,4 +1,5 @@
 from typing import Any
+from pathlib import Path
 
 from infact.common.medium import MultimediaSnippet
 from infact.utils.parsing import (strip_string, read_md_file,
@@ -11,12 +12,12 @@ class Prompt(MultimediaSnippet):
     def __init__(self,
                  placeholder_targets: dict[str, Any] = None,
                  text: str = None,
-                 template_file_path: str = None):
+                 template_file_path: str | Path = None):
         if text is None:
             text = self.compose_prompt(template_file_path, placeholder_targets)
         super().__init__(text)
 
-    def compose_prompt(self, template_file_path: str = None,
+    def compose_prompt(self, template_file_path: str | Path = None,
                        placeholder_targets: dict[str, Any] = None) -> str:
         """Turns a template prompt into a ready-to-send prompt string."""
         template = self.get_template(template_file_path)
@@ -26,7 +27,7 @@ class Prompt(MultimediaSnippet):
             text = fill_placeholders(template, placeholder_targets)
         return strip_string(text)
 
-    def get_template(self, template_file_path: str = None) -> str:
+    def get_template(self, template_file_path: str | Path = None) -> str:
         """Collects and combines all pieces to form a template prompt, optionally
         containing placeholders to be replaced."""
         if template_file_path is None:

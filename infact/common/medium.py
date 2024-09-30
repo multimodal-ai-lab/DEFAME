@@ -79,7 +79,7 @@ class Image(Medium):
         return self.image.height
 
     def __hash__(self):
-        return self.image.tobytes()
+        return hash(self.image.tobytes())
 
     def __eq__(self, other):
         return isinstance(other, Image) and np.array_equal(np.array(self.image), np.array(other.image))
@@ -133,17 +133,17 @@ class MultimediaSnippet:
         return media_registry.get_media_from_text(self.text, medium_type="audio")
 
     def __str__(self):
-        string_representation = f"\"{self.text}\""
-        if self.is_multimodal():
-            media_info = []
-            if self.has_images():
-                media_info.append(f"{len(self.images)} Image(s)")
-            if self.has_videos():
-                media_info.append(f"{len(self.videos)} Video(s)")
-            if self.has_audios():
-                media_info.append(f"{len(self.audios)} Audio(s)")
-            media_info = ", ".join(media_info)
-            string_representation += f"\n{media_info}"
+        string_representation = f"{self.text}"
+        # if self.is_multimodal():
+        #     media_info = []
+        #     if self.has_images():
+        #         media_info.append(f"{len(self.images)} Image(s)")
+        #     if self.has_videos():
+        #         media_info.append(f"{len(self.videos)} Video(s)")
+        #     if self.has_audios():
+        #         media_info.append(f"{len(self.audios)} Audio(s)")
+        #     media_info = ", ".join(media_info)
+        #     string_representation += f"\n{media_info}"
         return string_representation
 
 

@@ -1,19 +1,20 @@
 """Class for querying the Google Serper API."""
 
 import random
+import re
 import time
 from datetime import datetime
-from typing import Any, Optional, Literal
-import re
-
-from PIL import Image as PillowImage
-import requests
 from io import BytesIO
+from typing import Any, Optional, Literal
+
+import requests
+from PIL import Image as PillowImage
 
 from config.globals import api_keys
+from infact.common.medium import Image
 from infact.common.misc import Query, WebSource
 from infact.tools.search.remote_search_api import RemoteSearchAPI, scrape_text_from_url, filter_relevant_sentences
-from infact.common.medium import Image
+from .common import SearchResult
 
 _SERPER_URL = 'https://google.serper.dev'
 NO_RESULT_MSG = 'No good Google Search result was found'
@@ -43,7 +44,7 @@ class SerperAPI(RemoteSearchAPI):
             'search': 'organic',
         }
 
-    def _call_api(self, query: Query) -> list[WebSource]:
+    def _call_api(self, query: Query) -> SearchResult:
         """Run query through GoogleSearch and parse result."""
         assert self.serper_api_key, 'Missing serper_api_key.'
         assert query, 'Searching Google with empty query'
@@ -54,7 +55,7 @@ class SerperAPI(RemoteSearchAPI):
         else:
             tbs = self.tbs
 
-        results = self._call_serper_api(
+        output = self._call_serper_api(
             query.text,
             gl=self.gl,
             hl=self.hl,
@@ -62,7 +63,8 @@ class SerperAPI(RemoteSearchAPI):
             tbs=tbs,
             search_type=query.search_type,
         )
-        return self._parse_results(results, query)
+        web_sources = self._parse_results(output, query)
+        return SearchResult(web_sources)
 
     def _call_serper_api(
             self,
@@ -113,26 +115,26 @@ class SerperAPI(RemoteSearchAPI):
             answer = answer_box.get('answer')
             snippet = answer_box.get('snippet')
             snippet_highlighted = answer_box.get('snippetHighlighted')
-    
+
             if answer and isinstance(answer, str):
                 snippets.append(answer)
             if snippet and isinstance(snippet, str):
                 snippets.append(snippet.replace('\n', ' '))
             if snippet_highlighted:
                 snippets.append(snippet_highlighted)
-    
+
         if response.get('knowledgeGraph'):
             kg = response.get('knowledgeGraph', {})
             title = kg.get('title')
             entity_type = kg.get('type')
             description = kg.get('description')
-    
+
             if entity_type:
                 snippets.append(f'{title}: {entity_type}.')
-    
+
             if description:
                 snippets.append(description)
-    
+
             for attribute, value in kg.get('attributes', {}).items():
                 snippets.append(f'{title} {attribute}: {value}.')
 
@@ -140,7 +142,7 @@ class SerperAPI(RemoteSearchAPI):
         result_key = self.result_key_for_type[query.search_type]
         if result_key in response:
             for i, result in enumerate(response[result_key]):
-                if i >= query.limit: #somehow the num param does not restrict requests.post image search results
+                if i >= query.limit:  # somehow the num param does not restrict requests.post image search results
                     break
                 text = result.get("snippet", "")
                 url = result.get("link", "")

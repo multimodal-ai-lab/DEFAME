@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from typing import Optional
 
 from infact.common import MultimediaSnippet, Action, Image
 from infact.common.results import Result
@@ -49,5 +50,5 @@ class FaceRecognizer(Tool):
         result = Result()
         return result
 
-    def _summarize(self, result: Result, **kwargs) -> MultimediaSnippet:
+    def _summarize(self, result: Result, **kwargs) -> Optional[MultimediaSnippet]:
         raise NotImplementedError

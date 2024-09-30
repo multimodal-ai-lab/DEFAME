@@ -68,7 +68,7 @@ class ImageQuery(Query):
         return super().__eq__(other) and self.image == other.image
 
     def __hash__(self):
-        return hash((super().__hash__(), self.image))
+        return hash((super(Query).__hash__(), self.image))
 
 
 @dataclass
@@ -80,9 +80,8 @@ class WebSource(MultimediaSnippet):
     query: Query = None
     rank: int = None
 
-    def is_useful(self) -> Optional[bool]:
-        """Returns true if the summary contains helpful information,
-        e.g., does not contain NONE."""
+    def is_relevant(self) -> Optional[bool]:
+        """Returns true if the summary contains information helpful for the fact-check."""
         if self.summary is None:
             return None
         elif self.summary.text == "":
