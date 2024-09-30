@@ -35,15 +35,14 @@ class NewsCLIPpings(Benchmark):
     **Verify Context**: Examine the source, origin, and context of each image to understand how it relates to the accompanying caption. Identify where an image may have been substituted to convey a false narrative.
     Start each claim with: The Claim is that the image shows ... """
 
-    extra_plan_rules = """* **Consider Both Modalities Equally**: Ensure that both the text and image are evaluated together, as discrepancies often arise from intentional misalignment of the two.
+    extra_plan_rules = """* Ensure that both the text and image are evaluated together, as discrepancies often arise from intentional misalignment of the two.
     * **Compare Image and Caption**: Check for any misleading information, especially in cases where the image does not semantically align with the caption. Pay attention to subtle changes in meaning.
     * **Identify Swapped Images**: Investigate whether the image has been swapped with one from a different event or with different individuals. Utilize tools like image_search to cross-check the image context."""
 
-    extra_judge_rules = """* **Focus on Image-Text Alignment**: The main goal is to verify whether the image supports the claim in the caption or has been used to mislead by being swapped or taken out of context. 
-    * If the image has been used from a different event or misrepresents individuals, the verdict should be OUT OF CONTEXT.
-    * If the claim in the caption is false, then the verdict should be MISCAPTIONED.
-    * If the image and caption match the event, the verdict is SUPPORTED, even if misleading tactics were used elsewhere in the context."""
-
+    extra_judge_rules = """* The main goal is to verify whether the image supports the claim in the caption or has been used to mislead by being swapped or taken out of context. 
+    * If the image has been used from a different event or misrepresents individuals, the verdict should be REFUTED.
+    * If the image and caption match the event, the verdict is SUPPORTED."""
+    
 
     available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
 
