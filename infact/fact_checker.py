@@ -19,7 +19,7 @@ from infact.modules.planner import Planner
 from infact.procedure import get_procedure
 from infact.tools import *
 from infact.utils.console import gray, light_blue, bold, sec2mmss
-
+from infact.common import Action
 
 class FactChecker:
     """The core class for end-to-end fact verification."""
@@ -29,6 +29,7 @@ class FactChecker:
     def __init__(self,
                  llm: str | Model = "gpt_4o_mini",
                  tools: list[Tool] = None,
+                 available_actions: list[Action] = None,
                  search_engines: dict[str, dict] = None,
                  procedure_variant: str = None,
                  interpret: bool = False,
@@ -69,7 +70,7 @@ class FactChecker:
         if tools is None:
             tools = self._initialize_tools(search_engines)
 
-        available_actions = get_available_actions(tools)
+        available_actions = get_available_actions(tools, available_actions)
 
         # Initialize fact-checker modules
         self.planner = Planner(valid_actions=available_actions,

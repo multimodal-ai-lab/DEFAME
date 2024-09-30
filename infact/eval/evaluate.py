@@ -78,15 +78,19 @@ def evaluate(
     # Save hyperparams based on the signature of evaluate()
     if not is_resumed:
         signature = inspect.signature(evaluate)
-        logger.save_config(signature, locals())
+        logger.save_config(signature, locals(), benchmark)
 
     # Load the tools and verify if they are allowed
     tools = initialize_tools(tools_config, llm=None, logger=logger)
     if benchmark.available_actions is not None:
-        for tool in tools:
-            for action in tool.actions:
-                assert action in benchmark.available_actions, \
-                    f"Action {action} not available for benchmark {benchmark.name}."
+        for action in benchmark.available_actions:
+            for tool in tools:
+                if action in tool.actions:
+                    break
+            else:
+                raise ValueError(f"No Tool available for Action {action}.")
+
+
     del tools
 
     if random_sampling:
@@ -130,6 +134,7 @@ def evaluate(
     devices_queue = Queue()
 
     fact_checker_kwargs.update(dict(
+        available_actions=benchmark.available_actions,
         class_definitions=benchmark.class_definitions,
         extra_prepare_rules=benchmark.extra_prepare_rules,
         extra_plan_rules=benchmark.extra_plan_rules,

@@ -2,11 +2,13 @@ from .averitec.benchmark import AVeriTeC
 from .benchmark import Benchmark
 from .fever.benchmark import FEVER
 from .verite.benchmark import VERITE
+from .newsclippings.benchmark import NewsCLIPpings
 
 BENCHMARK_REGISTRY = {
     AVeriTeC,
     FEVER,
-    VERITE
+    VERITE,
+    NewsCLIPpings,
 }
 
 
