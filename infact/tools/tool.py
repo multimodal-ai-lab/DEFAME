@@ -40,8 +40,9 @@ class Tool(ABC):
         return {}
 
 
-def get_available_actions(tools: list[Tool]) -> set[type[Action]]:
+def get_available_actions(tools: list[Tool], available_actions: list[Action]) -> set[type[Action]]:
     actions = set()
     for tool in tools:
         actions.update(tool.actions)
+    actions = actions.intersection(set(available_actions))
     return actions
