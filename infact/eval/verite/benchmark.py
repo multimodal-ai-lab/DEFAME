@@ -43,7 +43,6 @@ class VERITE(Benchmark):
     any misleading information that might suggest the image is used out of context or the caption is miscaptioned.
     * **Identify any potential asymmetry in the modalities**: Perform one image_search if the action is available to compare other images with the claim image."""
 
-
     extra_judge_rules = """* **Focus on the alignment of Image and Claim**: The question is whether the image corresponds to the claim. 
     Judge if there is any alignment issue between image and text. Does the image deliver any support for the claim or is it taken out of context?
     If the claim is actually true but the image shows a different event, then the verdict is OUT OF CONTEXT. If the claim is false, then the verdict should be miscaptioned.
