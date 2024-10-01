@@ -64,7 +64,7 @@ class NewsCLIPpings(Benchmark):
         with open(self.data_file_path, "r", encoding="utf-8") as file:
             data = json.load(file)
 
-        annotations = data["annotations"]
+        annotations = data["annotations"][:250]
         entries = []
 
         for ann in annotations:
@@ -78,9 +78,10 @@ class NewsCLIPpings(Benchmark):
             if image_path and os.path.exists(image_path):
                 image = Image(image_path)
                 claim_text = f"{image.reference} {caption}"
+                id = f'{ann["id"]}_{ann["image_id"]}'
                 entry = {
-                    "id": ann["id"],
-                    "content": Content(text=claim_text, id_number=ann["id"]),
+                    "id": id,
+                    "content": Content(text=claim_text, id_number=id),
                     "label": self.class_mapping[str(ann["falsified"])],
                     "justification": ann.get("justification", "")
                 }
