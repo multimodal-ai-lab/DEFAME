@@ -72,11 +72,13 @@ def scrape_text_from_url(url, logger):
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     }
     try:
-        page = requests.get(url, headers=headers)
+        page = requests.get(url, headers=headers, timeout=5)
         page.raise_for_status()
         soup = BeautifulSoup(page.content, 'html.parser')
         text = soup.get_text(separator=' ', strip=True)
         return text
+    except requests.exceptions.Timeout:
+        logger.info(f"Timeout occurred while scraping {url}")
     except requests.exceptions.HTTPError as http_err:
         logger.info(f"HTTP error occurred while scraping {url}: {http_err}")
     except requests.exceptions.RequestException as req_err:

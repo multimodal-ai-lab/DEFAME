@@ -177,9 +177,12 @@ class Searcher(Tool):
 
     def _summarize(self, result: SearchResult, **kwargs) -> Optional[MultimediaSnippet]:
         doc = kwargs.get("doc")
-        for web_source in result.sources:
-            self._summarize_single_web_source(web_source, doc)
-        return self._summarize_summaries(result, doc)
+        if result:
+            for web_source in result.sources:
+                self._summarize_single_web_source(web_source, doc)
+            return self._summarize_summaries(result, doc)
+        else:
+            return None
 
     def _summarize_single_web_source(self, web_source: WebSource, doc: FCDocument):
         prompt = SummarizeResultPrompt(web_source, doc)
