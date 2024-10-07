@@ -2,7 +2,7 @@ import csv
 import inspect
 import json
 import time
-from multiprocessing import Pool, Queue
+from multiprocessing import Process, Queue
 from pathlib import Path
 from queue import Empty
 from typing import Sequence
@@ -54,6 +54,7 @@ def evaluate(
         procedure_variant = FactChecker.default_procedure
     else:
         procedure_variant = fact_checker_kwargs["procedure_variant"]
+
     logger = Logger(benchmark_name=benchmark.shorthand,
                     procedure_name=procedure_variant,
                     model_name=llm,
@@ -90,7 +91,6 @@ def evaluate(
             else:
                 raise ValueError(f"No Tool available for Action {action}.")
 
-
     del tools
 
     if random_sampling:
@@ -115,7 +115,6 @@ def evaluate(
         for sample in samples:
             if sample["id"] not in checked_claim_ids:
                 samples_to_evaluate.append(sample)
-
     else:
         samples_to_evaluate = samples
 
@@ -132,6 +131,7 @@ def evaluate(
     input_queue = Queue()
     output_queue = Queue()
     devices_queue = Queue()
+    error_queue = Queue()
 
     fact_checker_kwargs.update(dict(
         available_actions=benchmark.available_actions,
@@ -146,31 +146,78 @@ def evaluate(
         target_dir=logger.target_dir
     )
 
-    worker_args = (llm, llm_kwargs, fact_checker_kwargs,
-                   tools_config, logger_kwargs, is_averitec,
-                   input_queue, output_queue, devices_queue)
-
     print(f"Evaluating {n_samples} samples using {n_workers} workers...")
 
-    with Pool(n_workers, fact_check, worker_args):
-        # Initialize workers by assigning them a GPU device
-        for d in range(n_workers):
-            devices_queue.put(d % n_devices)
+    for d in range(n_workers):
+        devices_queue.put(d % n_devices)
 
-        # Fill the input queue with benchmark instances
-        for instance in samples_to_evaluate:
-            content = instance["content"]
-            input_queue.put(content)
+    # Fill the input queue with benchmark instances
+    for instance in samples_to_evaluate:
+        content = instance["content"]
+        input_queue.put(content)
 
-        # Gather worker results by reading the output queue
+    # Optionally, add sentinel values to indicate shutdown after all tasks are done
+    for _ in range(n_workers):
+        input_queue.put(None)
+
+    # Initialize and start worker processes
+    workers = []
+    for i in range(n_workers):
+        p = Process(
+            target=fact_check,
+            args=(
+                llm,
+                llm_kwargs,
+                fact_checker_kwargs,
+                tools_config,
+                logger_kwargs,
+                is_averitec,
+                input_queue,
+                output_queue,
+                devices_queue,
+                error_queue,
+                i  # worker_id
+            )
+        )
+        p.start()
+        workers.append(p)
+        logger.info(f"Started Worker {i} with PID {p.pid}.")
+
+    try:
         for _ in tqdm(range(n_samples), smoothing=0.02):
             try:
                 doc, meta = output_queue.get(timeout=30 * 60)  # 30 minutes timeout
+                process_output(doc, meta, benchmark, logger, is_test)
             except Empty as e:
-                # Happens if some worker died during execution, causing an
-                # incomplete number of instances
-                break
-            process_output(doc, meta, benchmark, logger, is_test)
+                logger.warning("Output queue was empty after 30 minutes timeout. Possible worker failure.")
+
+                # Check for errors reported by workers
+                while not error_queue.empty():
+                    error_message = error_queue.get()
+                    logger.error(error_message)
+
+                # Check the status of each worker
+                for i, worker in enumerate(workers):
+                    if not worker.is_alive():
+                        logger.error(f"Worker {i} has died unexpectedly. Exit code: {worker.exitcode}")
+                        # Log the reason for worker failure if available
+                        # Since the worker has already sent the error message to error_queue,
+                        # it's sufficient to log it here.
+
+                # Since a worker has failed, terminate all workers and stop execution
+                logger.error("A worker has failed. Terminating all workers and stopping execution.")
+                raise RuntimeError("Worker failure detected. Stopping evaluation.")
+
+    except Exception as main_e:
+        logger.exception(f"An unexpected error occurred in the main process: {main_e}")
+    finally:
+        # Ensure all workers are terminated gracefully
+        for i, worker in enumerate(workers):
+            if worker.is_alive():
+                worker.terminate()
+                worker.join()
+                logger.info(f"Worker {i} has been terminated.")
+        logger.info("All workers have been terminated.")
 
     end_time = time.time()
     duration = end_time - start_time
@@ -343,44 +390,60 @@ def save_stats(stats: dict, target_dir: Path):
 
 def fact_check(llm: str, llm_kwargs: dict,
                fact_checker_kwargs: dict, tools_config: dict, logger_kwargs: dict,
-               is_averitec: bool, input_queue: Queue, output_queue: Queue, devices_queue: Queue):
-    device = f"cuda:{devices_queue.get()}"
-    logger = Logger(**logger_kwargs)
+               is_averitec: bool, input_queue: Queue, output_queue: Queue, devices_queue: Queue,
+               error_queue: Queue, worker_id: int):
 
-    # Initialize model(s)
-    llm = make_model(llm, logger=logger, device=device, **llm_kwargs)
+    try:
+        device = f"cuda:{devices_queue.get()}"
+        logger = Logger(**logger_kwargs)
 
-    tools = initialize_tools(tools_config, llm, logger=logger, device=device)
+        # Initialize model(s)
+        llm = make_model(llm, logger=logger, device=device, **llm_kwargs)
 
-    # Setup fact-checker
-    fc = FactChecker(
-        llm=llm,
-        tools=tools,
-        logger=logger,
-        **fact_checker_kwargs,
-    )
+        tools = initialize_tools(tools_config, llm, logger=logger, device=device)
 
-    # Get the knowledge base object
-    if is_averitec:
-        searcher = tools[0]
-        assert isinstance(searcher, Searcher)
-        if 'averitec_kb' in searcher.search_apis:
-            kb = searcher.search_apis["averitec_kb"]
-            assert isinstance(kb, KnowledgeBase)
-    else:
-        kb = None
+        # Setup fact-checker
+        fc = FactChecker(
+            llm=llm,
+            tools=tools,
+            logger=logger,
+            **fact_checker_kwargs,
+        )
 
-    # Run fact-checks as long as there is work to do
-    while True:
-        content = input_queue.get()
-        if is_averitec and 'averitec_kb' in searcher.search_apis:
-            # Restrict the KB to the current claim's resources
-            kb.current_claim_id = content.id_number
-        logger.set_current_fc_id(content.id_number)
-        _, docs, metas = fc.check_content(content)
-        doc = docs[0]
-        meta = metas[0]
-        output_queue.put((doc, meta))
+        # Get the knowledge base object
+        if is_averitec:
+            searcher = tools[0]
+            assert isinstance(searcher, Searcher)
+            if 'averitec_kb' in searcher.search_apis:
+                kb = searcher.search_apis["averitec_kb"]
+                assert isinstance(kb, KnowledgeBase)
+        else:
+            kb = None
+
+        # Run fact-checks as long as there is work to do
+        while True:
+            try:
+                content = input_queue.get(timeout=10)
+            except Empty:
+                # No more tasks are available
+                break
+            if is_averitec and 'averitec_kb' in searcher.search_apis:
+                # Restrict the KB to the current claim's resources
+                kb.current_claim_id = content.id_number
+            logger.set_current_fc_id(content.id_number)
+            _, docs, metas = fc.check_content(content)
+            doc = docs[0]
+            meta = metas[0]
+            output_queue.put((doc, meta))
+
+    except Exception as e:
+        tb = traceback.format_exc()
+        error_message = f"Worker {worker_id} encountered an error:\n{tb}"
+        error_queue.put(error_message)
+        # Optionally, log the error locally if needed
+        logger.error(error_message)
+        # Re-raise the exception to terminate the worker
+        raise
 
 
 def load_results(path: str):
