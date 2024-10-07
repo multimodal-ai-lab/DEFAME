@@ -67,7 +67,7 @@ class NewsCLIPpings(Benchmark):
         annotations = data["annotations"][:250]
         entries = []
 
-        for ann in annotations:
+        for i, ann in enumerate(annotations):
             # Map the caption and image paths using the visual_news_data_mapping
             caption = self.visual_news_data_mapping.get(ann["id"], {}).get("caption", "No caption")
             base_path =  Path(data_base_dir + "NewsCLIPings/news_clippings/visual_news/origin/")
@@ -78,7 +78,7 @@ class NewsCLIPpings(Benchmark):
             if image_path and os.path.exists(image_path):
                 image = Image(image_path)
                 claim_text = f"{image.reference} {caption}"
-                id = f'{ann["id"]}_{ann["image_id"]}'
+                id = f'{i}_{ann["id"]}_{ann["image_id"]}'
                 entry = {
                     "id": id,
                     "content": Content(text=claim_text, id_number=id),
