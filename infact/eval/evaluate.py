@@ -12,6 +12,7 @@ import pandas as pd
 import torch
 import yaml
 from tqdm import tqdm
+import traceback
 
 from infact.common import Label, Logger, FCDocument
 from infact.common.modeling import model_specifier_to_shorthand, AVAILABLE_MODELS, make_model
@@ -209,7 +210,7 @@ def evaluate(
                 raise RuntimeError("Worker failure detected. Stopping evaluation.")
 
     except Exception as main_e:
-        logger.exception(f"An unexpected error occurred in the main process: {main_e}")
+        logger.error(f"An unexpected error occurred in the main process: {main_e}")
     finally:
         # Ensure all workers are terminated gracefully
         for i, worker in enumerate(workers):
@@ -425,7 +426,6 @@ def fact_check(llm: str, llm_kwargs: dict,
             try:
                 content = input_queue.get(timeout=10)
             except Empty:
-                # No more tasks are available
                 break
             if is_averitec and 'averitec_kb' in searcher.search_apis:
                 # Restrict the KB to the current claim's resources

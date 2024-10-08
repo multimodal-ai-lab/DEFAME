@@ -15,6 +15,7 @@ from config.globals import embedding_model
 from infact.common.misc import Query, WebSource
 from infact.common.embedding import EmbeddingModel
 from infact.tools.search.local_search_api import LocalSearchAPI
+from .common import SearchResult
 
 
 class SemanticSearchDB(LocalSearchAPI):
@@ -59,7 +60,8 @@ class SemanticSearchDB(LocalSearchAPI):
     def _call_api(self, query: Query) -> list[WebSource]:
         query_embedding = self._embed(query).reshape(1, -1)
         indices = self._search_semantically(query_embedding, query.limit)
-        return self._indices_to_search_results(indices, query)
+        web_sources = self._indices_to_search_results(indices, query)
+        return SearchResult(web_sources)
 
     def _search_semantically(self, query_embedding, limit: int) -> list[int]:
         """Runs a semantic search using kNN. Returns the indices (starting at 0)
