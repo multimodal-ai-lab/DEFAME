@@ -17,6 +17,7 @@ from infact.common.misc import Query, WebSource
 from infact.common.embedding import EmbeddingModel
 from infact.tools.search.local_search_api import LocalSearchAPI
 from infact.utils.utils import my_hook
+from .common import SearchResult
 
 DOWNLOAD_URLS = {
     "dev": [
@@ -171,7 +172,8 @@ class KnowledgeBase(LocalSearchAPI):
         limit = min(query.limit, knn.n_samples_fit_)  # account for very small resource sets
         try:
             distances, indices = knn.kneighbors(query_embedding, limit)
-            return self._indices_to_search_results(indices[0], query)
+            sources = self._indices_to_search_results(indices[0], query)
+            return SearchResult(sources)
         except Exception as e:
             self.logger.warning(f"Resource retrieval from kNN failed: {e}")
             return []
