@@ -107,7 +107,7 @@ class Logger:
         # Initialize result files (skip if logger is resumed)
         if not os.path.exists(self.predictions_path):
             self._init_predictions_csv()
-        if not os.path.exists(self.averitec_out):
+        if not os.path.exists(self.averitec_out) and benchmark_name == "averitec":
             self._init_averitec_out()
 
     def set_current_fc_id(self, index: int):
