@@ -212,12 +212,11 @@ def evaluate(
     except Exception as main_e:
         logger.error(f"An unexpected error occurred in the main process: {main_e}")
     finally:
-        # Ensure all workers are terminated gracefully
         for i, worker in enumerate(workers):
             if worker.is_alive():
                 worker.terminate()
                 worker.join()
-                logger.info(f"Worker {i} has been terminated.")
+                logger.info(f"Worker {i} has been terminated gracefully.")
         logger.info("All workers have been terminated.")
 
     end_time = time.time()
@@ -425,6 +424,8 @@ def fact_check(llm: str, llm_kwargs: dict,
         while True:
             try:
                 content = input_queue.get(timeout=10)
+                if not content:
+                    break
             except Empty:
                 break
             if is_averitec and 'averitec_kb' in searcher.search_apis:
