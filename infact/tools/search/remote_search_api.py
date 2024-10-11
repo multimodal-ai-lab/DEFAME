@@ -185,7 +185,7 @@ def _resolve_media_hyperlinks(text: str) -> MultimediaSnippet:
         if is_image_url(url):
             try:
                 # Download the image
-                response = requests.get(url, stream=True)
+                response = requests.get(url, stream=True, timeout=5)
                 if response.status_code == 200:
                     img = PillowImage.open(io.BytesIO(response.content))
                     image = Image(pillow_image=img)  # TODO: Check for duplicates
@@ -193,8 +193,8 @@ def _resolve_media_hyperlinks(text: str) -> MultimediaSnippet:
                     text = text.replace(f"[{hypertext}]({url})", f"{hypertext} {image.reference}")
                     continue
 
-            except requests.exceptions.ConnectTimeout:
-                # Webserver is not reachable anymore
+            except (requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
+                # Webserver is not reachable (anymore)
                 pass
 
             except UnidentifiedImageError as e:
