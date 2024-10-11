@@ -199,7 +199,7 @@ class Model(ABC):
             self.n_output_tokens += self.count_tokens(response)
             original_response = response
             
-            if is_guardrail_hit(response): # Handle guardrail hits
+            if response and is_guardrail_hit(response): # Handle guardrail hits
                 self.logger.warning(GUARDRAIL_WARNING)
                 self.logger.warning(f"PROMPT: {str(prompt)}\nRESPONSE: {response}")
                 if isinstance(self, GPTModel):
@@ -211,12 +211,13 @@ class Model(ABC):
                 response = ""
 
             # Attempt to extract the contents from the response
-            try:
-                response = prompt.extract(response)
-            except Exception as e:
-                self.logger.warning("Unable to extract contents from response:\n" + original_response)
-                self.logger.warning(repr(e))
-                response = None
+            if response:
+                try:
+                    response = prompt.extract(response)
+                except Exception as e:
+                    self.logger.warning("Unable to extract contents from response:\n" + original_response)
+                    self.logger.warning(repr(e))
+                    response = None
 
         if response is None:
             self.logger.error("Failed to generate a valid response for prompt:\n" + str(prompt))

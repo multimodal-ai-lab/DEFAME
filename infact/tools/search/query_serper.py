@@ -13,7 +13,7 @@ from PIL import Image as PillowImage
 from config.globals import api_keys
 from infact.common.medium import Image
 from infact.common.misc import Query, WebSource
-from infact.tools.search.remote_search_api import RemoteSearchAPI, scrape_text_from_url, filter_relevant_sentences
+from infact.tools.search.remote_search_api import RemoteSearchAPI, scrape, filter_relevant_sentences
 from .common import SearchResult
 
 _SERPER_URL = 'https://google.serper.dev'
@@ -149,10 +149,10 @@ class SerperAPI(RemoteSearchAPI):
                 image_url = result.get("imageUrl", "")
 
                 if result_key == "organic":
-                    scraped_text = scrape_text_from_url(url=url, logger=self.logger)
-                    if scraped_text:
+                    scraped = scrape(url=url, logger=self.logger)
+                    if scraped:
                         keywords = re.findall(r'\b\w+\b', query.text.lower()) or query.text
-                        relevant_content = filter_relevant_sentences(scraped_text, keywords)[:10]
+                        relevant_content = filter_relevant_sentences(scraped.text, keywords)[:10]
                         relevant_text = ' '.join(relevant_content)
                         text = relevant_text or text
                     else:
