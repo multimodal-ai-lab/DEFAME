@@ -10,7 +10,7 @@ from google.cloud import vision
 from infact.common.medium import Image
 from infact.common.misc import ImageQuery, WebSource
 from infact.tools.search.remote_search_api import RemoteSearchAPI
-from .remote_search_api import scrape_text_from_url
+from .remote_search_api import scrape
 from .common import ReverseSearchResult
 
 
@@ -58,10 +58,10 @@ class GoogleVisionAPI(RemoteSearchAPI):
         for page in web_detection.pages_with_matching_images[:query.limit]:
             url = page.url
             # title = page.page_title if hasattr(page, 'page_title') else ""
-            text = scrape_text_from_url(url, self.logger)
+            scraped = scrape(url, self.logger)
             web_sources.append(WebSource(
                 url=url,
-                text=text,
+                text=scraped.text,
                 query=query,
                 rank=len(web_sources) + 1
             ))

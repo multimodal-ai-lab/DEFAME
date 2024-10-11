@@ -50,7 +50,7 @@ class ManipulationResult(Result):
         loc_str = f'Localization map available: {self.ref_localization_map}' if self.localization_map is not None else 'Localization map: N/A'
         noiseprint_str = 'Noiseprint++ available' if self.noiseprint is not None else 'Noiseprint++: N/A'
 
-        return f'Manipulation Detection Resultswi\n{score_str}\n{conf_str}\n{loc_str}\n{noiseprint_str}'
+        return f'Manipulation Detection Results\n{score_str}\n{conf_str}\n{loc_str}\n{noiseprint_str}'
 
     def __post_init__(self):
         self.text = str(self)

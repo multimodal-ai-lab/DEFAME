@@ -48,6 +48,8 @@ class Image(Medium):
         assert path_to_file is not None or pillow_image is not None
 
         if pillow_image is not None:
+            # Turn any kind of image (incl. PNGs) into RGB which is JPEG-saveable
+            pillow_image = pillow_image.convert('RGB')
             # Save the image in a temporary folder
             path_to_file = Path(temp_dir) / "media" / (datetime.now().strftime("%Y-%m-%d_%H-%M-%s-%f") + ".jpg")
             path_to_file.parent.mkdir(parents=True, exist_ok=True)

@@ -1,12 +1,16 @@
 import re
 from pathlib import Path
 from typing import Optional, Any
+from markdownify import MarkdownConverter
+from urllib.parse import urlparse
 
 from infact.utils.console import orange
 
 MEDIA_REF_REGEX = r"(<(?:image|video|audio):[0-9]+>)"
 MEDIA_ID_REGEX = r"(?:<(?:image|video|audio):([0-9]+)>)"
 MEDIA_SPECIFIER_REGEX = r"(?:<(image|video|audio):([0-9]+)>)"
+
+URL_REGEX = r"https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9@:%_\+.~#?&//=]*)"
 
 
 def strip_string(s: str) -> str:
@@ -183,3 +187,22 @@ def fill_placeholders(text: str, placeholder_targets: dict[str, Any]) -> str:
             raise ValueError(f"Placeholder '{placeholder}' not found in prompt template:\n{text}")
         text = text.replace(placeholder, str(target))
     return text
+
+
+def md(soup, **kwargs):
+    """Converts a BeautifulSoup object into Markdown."""
+    return MarkdownConverter(**kwargs).convert_soup(soup)
+
+
+def get_markdown_hyperlinks(text: str) -> list[tuple[str, str]]:
+    """Extracts all web hyperlinks from the given markdown-formatted string. Returns
+    a list of hypertext-URL-pairs."""
+    hyperlink_regex = f'(?:\[([^]^[]*)\]\(({URL_REGEX})\))'
+    pattern = re.compile(hyperlink_regex, re.DOTALL)
+    hyperlinks = re.findall(pattern, text)
+    return hyperlinks
+
+
+def is_image_url(url: str) -> bool:
+    url_parsed = urlparse(url)
+    return Path(url_parsed.path).suffix in [".jpg", ".jpeg", ".png", ".webp", ".gif"]
