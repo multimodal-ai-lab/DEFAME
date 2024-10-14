@@ -15,7 +15,7 @@ class DetectManipulation(Action):
     name = "detect_manipulation"
     description = "Detects manipulations within an image."
     how_to = "Provide an image and the model will analyze it for signs of manipulation."
-    format = "detect_manipulation(<image:n>), where `n` is the image's ID"
+    format = "detect_manipulation(<image:k>), where `k` is the image's ID"
     is_multimodal = True
 
     def __init__(self, image_ref: str):

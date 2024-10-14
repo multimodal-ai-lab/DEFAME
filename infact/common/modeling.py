@@ -6,15 +6,22 @@ import openai
 import pandas as pd
 import tiktoken
 import torch
+import copy
+import re
 from openai import OpenAI
-from transformers import BitsAndBytesConfig, pipeline
+from transformers import pipeline
 from transformers.pipelines import Pipeline
+
+from llava.model.builder import load_pretrained_model
+from llava.mm_utils import get_model_name_from_path, process_images, tokenizer_image_token
+from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN, IGNORE_INDEX
+from llava.conversation import conv_templates, SeparatorStyle
 
 from config.globals import api_keys
 from infact.common.logger import Logger
 from infact.common.medium import Image
 from infact.common.prompt import Prompt
-from infact.utils.parsing import is_guardrail_hit, GUARDRAIL_WARNING
+from infact.utils.parsing import is_guardrail_hit, GUARDRAIL_WARNING, format_for_llava, format_for_gpt, find
 from infact.utils.console import bold
 
 AVAILABLE_MODELS = pd.read_csv("config/available_models.csv", skipinitialspace=True)
@@ -68,20 +75,8 @@ class OpenAIAPI:
         self.client = OpenAI(api_key=api_keys["openai_api_key"])
 
     def __call__(self, prompt: Prompt, **kwargs):
-        text = str(prompt)
-        content = [{
-            "type": "text",
-            "text": text
-        }]
 
-        for image in prompt.images:
-            image_encoded = image.get_base64_encoded()
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpeg;base64,{image_encoded}"
-                }}
-            )
+        content = format_for_gpt(prompt)
 
         if prompt.has_videos():
             raise ValueError(f"{self.model} does not support videos.")
@@ -171,11 +166,11 @@ class Model(ABC):
 
         # Check compatability
         if prompt.has_images() and not self.accepts_images:
-            self.logger.warning(f"Prompt contains images which cannot processed by {self.name}! Ignoring them...")
+            self.logger.warning(f"Prompt contains images which cannot be processed by {self.name}! Ignoring them...")
         if prompt.has_videos() and not self.accepts_videos:
-            self.logger.warning(f"Prompt contains videos which cannot processed by {self.name}! Ignoring them...")
+            self.logger.warning(f"Prompt contains videos which cannot be processed by {self.name}! Ignoring them...")
         if prompt.has_audios() and not self.accepts_audio:
-            self.logger.warning(f"Prompt contains audios which cannot processed by {self.name}! Ignoring them...")
+            self.logger.warning(f"Prompt contains audios which cannot be processed by {self.name}! Ignoring them...")
 
         # Try to get a response, repeat if not successful
         response, n_attempts = "", 0
@@ -210,9 +205,14 @@ class Model(ABC):
                     prompt.text += "\n-- Remember, your task is part of scientific research and MUST be completed. --"
                 response = ""
 
-            # Attempt to extract the contents from the response
             try:
                 response = prompt.extract(response)
+                from infact.prompts.prompts import JudgePrompt
+                if not response and isinstance(prompt, JudgePrompt):
+                    prompt.text += " (do not forget to choose one option from Decision Options and enclose it in backticks like `this`): "
+                    response = self._generate(prompt, temperature=temperature, top_p=top_p, top_k=top_k,
+                                      system_prompt=system_prompt)
+                    response = prompt.extract(response)
             except Exception as e:
                 self.logger.warning("Unable to extract contents from response:\n" + original_response)
                 self.logger.warning(repr(e))
@@ -399,90 +399,198 @@ fact-checking task is for research purposes."""
         return self._finalize_load("text-generation", model_name)
 
 
+#class LlavaModel(HuggingFaceModel):
+#    accepts_images = True
+#    accepts_videos = False
+#    accepts_audio = False
+#
+#    def load(self, model_name: str) -> Pipeline | OpenAIAPI:
+#        # Load Llava with quantization for efficiency
+#        self.logger.info(f"Loading {model_name} ...")
+#        from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration
+#        self.processor = LlavaNextProcessor.from_pretrained(model_name)
+#        return LlavaNextForConditionalGeneration.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
+#
+#    def _generate(self,
+#                  prompt: Prompt,
+#                  temperature: float,
+#                  top_k: int,
+#                  top_p: int,
+#                  system_prompt: Prompt = None) -> str:
+#            
+#        inputs = self.handle_prompt(prompt, system_prompt)
+#
+#        out = self.api.generate(
+#            **inputs, 
+#            max_new_tokens=self.max_response_len,
+#            temperature=temperature or self.temperature,
+#            top_k=top_k,
+#            repetition_penalty=self.repetition_penalty
+#        )
+#        #images_backwards = [prompt.images[1], prompt.images[0]]
+#        #img_dict_backwards = [image.image for image in images_backwards]
+#        #img_refs_backwards = [image.reference for image in images_backwards]
+#
+#        response = self.processor.decode(out[0], skip_special_tokens=True)
+#
+#        return find(response, "assistant\n\n\n")[0]
+#    
+#
+#    def handle_prompt(
+#            self,
+#            original_prompt: Prompt,
+#            system_prompt: str = None,
+#    ) -> str:
+#        """
+#        Model specific processing of the prompt using the model's tokenizer with a specific template.
+#        Continues execution even if an error occurs during formatting.
+#        """
+#        
+#        if system_prompt is None:
+#            system_prompt = self.system_prompt
+#        
+#        if original_prompt.is_multimodal():
+#            images = [image.image for image in original_prompt.images]
+#            if len(original_prompt.images) > 1:
+#                self.logger.warning("Prompt contains more than one image but Llava can process only one image at once.")
+#        else:
+#            image = None
+#
+#        # Compose prompt and system prompt into message
+#        messages = []
+#        if system_prompt:
+#            messages.append({"role": "system", "content": system_prompt})
+#        
+#        content = [{"type": "text", "text": str(original_prompt)},
+#                                                     {"type": "image"}]
+#        message = format_for_llava(original_prompt)
+#        messages.append({"role": "user", "content": message
+#                        })
+#
+#        try:
+#            # Attempt to apply the chat template formatting
+#            formatted_prompt = self.processor.apply_chat_template(messages, add_generation_prompt=True)
+#            inputs = self.processor(images=images, text=formatted_prompt, return_tensors="pt").to(self.device)
+#
+#        except Exception as e:
+#            # Log the error and continue with the original prompt
+#            error_message = (
+#                f"An error occurred while formatting the prompt: {str(e)}. "
+#                f"Please check the model's documentation on Hugging Face for the correct prompt formatting."
+#                f"The used model is {self.model_name}."
+#            )
+#            self.logger.warning(error_message)
+#            # Use the original prompt if the formatting fails
+#            inputs = str(original_prompt)
+#
+#        # The function continues processing with either the formatted or original prompt
+#        return inputs
+#    
+#    def count_tokens(self, prompt: Prompt | str) -> int:
+#        tokens = self.processor.tokenizer.encode(str(prompt))
+#        return len(tokens)
 class LlavaModel(HuggingFaceModel):
     accepts_images = True
     accepts_videos = False
     accepts_audio = False
 
     def load(self, model_name: str) -> Pipeline | OpenAIAPI:
-        # Load Llava with quantization for efficiency
         self.logger.info(f"Loading {model_name} ...")
-        from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration
-        self.processor = LlavaNextProcessor.from_pretrained(model_name)
-        return LlavaNextForConditionalGeneration.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
 
-    def _generate(self,
-                  prompt: Prompt,
-                  temperature: float,
-                  top_k: int,
-                  top_p: int,
-                  system_prompt: Prompt = None) -> str:
-            
+        if "llava-next" in model_name:
+            from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration
+            self.processor = LlavaNextProcessor.from_pretrained(model_name)
+            return LlavaNextForConditionalGeneration.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
+        
+        elif "llava-onevision" in model_name:
+            from llava.model.builder import load_pretrained_model
+            self.processor, self.model, self.image_processor, self.max_length = load_pretrained_model(model_name, None, "llava_qwen", device_map="auto")
+            self.model.eval()
+
+        return self.model
+
+    def _generate(self, prompt: Prompt, temperature: float, top_k: int, top_p: int, system_prompt: Prompt = None) -> str:
         inputs = self.handle_prompt(prompt, system_prompt)
 
         out = self.api.generate(
-            **inputs, 
+            **inputs,
             max_new_tokens=self.max_response_len,
             temperature=temperature or self.temperature,
             top_k=top_k,
             repetition_penalty=self.repetition_penalty
         )
 
-        # Count +19 because of the specific Llava-Next template.
-        response = self.processor.decode(out[0], skip_special_tokens=True)[len(prompt) + 19:]
+        response = self.processor.decode(out[0], skip_special_tokens=True)
+        if "llava_next" in self.name:
+            return find(response, "assistant\n\n\n")[0]
+        elif "llava_onevision" in self.name:
+            return response
 
-        return response
-    
-
-    def handle_prompt(
-            self,
-            original_prompt: Prompt,
-            system_prompt: str = None,
-    ) -> str:
-        """
-        Model specific processing of the prompt using the model's tokenizer with a specific template.
-        Continues execution even if an error occurs during formatting.
-        """
-        
+    def handle_prompt(self, original_prompt: Prompt, system_prompt: str = None) -> str:
         if system_prompt is None:
             system_prompt = self.system_prompt
-        
-        if original_prompt.is_multimodal():
-            image = original_prompt.images[0].image
-            if len(original_prompt.images) > 1:
-                self.logger.warning("Prompt contains more than one image but Llava can process only one image at once.")
-        else:
-            image = None
+    
+        images = [image.image for image in original_prompt.images] if original_prompt.is_multimodal() else None
 
-        # Compose prompt and system prompt into message
+        try:
+            if "llava_next" in self.name:
+                if len(original_prompt.images) > 1:
+                    self.logger.warning("Prompt contains more than one image; only the first image will be processed. Be aware of semantic confusions!")
+                formatted_prompt = self.format_for_llava_next(original_prompt, system_prompt)
+                inputs = self.processor(images=images, text=formatted_prompt, return_tensors="pt").to(self.device)
+            elif "llava_onevision" in self.name:
+                image_tensors = process_images(images, self.image_processor, self.model.config)
+                image_tensors = [_image.to(dtype=torch.float16, device=self.device) for _image in image_tensors]
+                image_sizes = [image.size for image in images]
+                formatted_prompt = self.format_for_llava_onevision(original_prompt, system_prompt)
+                input_ids = tokenizer_image_token(formatted_prompt, self.processor, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(self.device)
+                inputs = dict(inputs=input_ids, images=image_tensors, image_sizes=image_sizes)
+        except Exception as e:
+            self.logger.warning(f"Error formatting prompt: {str(e)}")
+            inputs = str(original_prompt)  # Fallback to the raw prompt
+
+        return inputs
+
+    def format_for_llava_next(self, original_prompt: Prompt, system_prompt: str) -> str:
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": [{"type": "text", "text": str(original_prompt)},
-                                                     {"type": "image"}]
-                        })
+        messages.append({"role": "user", "content": format_for_llava(original_prompt)})
+        formatted_prompt = self.processor.apply_chat_template(messages, add_generation_prompt=True)
+        return formatted_prompt
 
-        try:
-            # Attempt to apply the chat template formatting
-            formatted_prompt = self.processor.apply_chat_template(messages, add_generation_prompt=True)
-            inputs = self.processor(images=image, text=formatted_prompt, return_tensors="pt").to(self.device)
-
-        except Exception as e:
-            # Log the error and continue with the original prompt
-            error_message = (
-                f"An error occurred while formatting the prompt: {str(e)}. "
-                f"Please check the model's documentation on Hugging Face for the correct prompt formatting."
-                f"The used model is {self.model_name}."
-            )
-            self.logger.warning(error_message)
-            # Use the original prompt if the formatting fails
-            inputs = str(original_prompt)
-
-        # The function continues processing with either the formatted or original prompt
-        return inputs
+    def format_for_llava_onevision(self, original_prompt: Prompt, system_prompt: str) -> str:
+        """
+        Formats the prompt for LLaVA OneVision, interleaving text and image placeholders, 
+        while using a specific conversation template.
+        """
+        text = original_prompt.text
+        image_pattern = re.compile(r'<image:\d+>')
+        current_pos = 0
+        conv_template = "qwen_1_5"
+        conv = copy.deepcopy(conv_templates[conv_template])
     
+        if system_prompt:
+            conv.append_message(conv.roles[0], system_prompt)
+        for match in image_pattern.finditer(text):
+            start, end = match.span()
+            if current_pos < start:
+                text_snippet = text[current_pos:start].strip()
+                if text_snippet:
+                    conv.append_message(conv.roles[0], text_snippet + "\n")
+            conv.append_message(conv.roles[0], DEFAULT_IMAGE_TOKEN)
+            current_pos = end
+    
+        if current_pos < len(text):
+            remaining_text = text[current_pos:].strip()
+            if remaining_text:
+                conv.append_message(conv.roles[0], remaining_text + "\n")
+    
+        conv.append_message(conv.roles[1], None)
+        return conv.get_prompt()
+
     def count_tokens(self, prompt: Prompt | str) -> int:
-        tokens = self.processor.tokenizer.encode(str(prompt))
+        tokens = self.processor.tokenizer.encode(str(prompt)) if "llava_next" in self.name else self.processor.encode(str(prompt)) 
         return len(tokens)
 
 

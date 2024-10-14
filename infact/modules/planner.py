@@ -50,13 +50,14 @@ class Planner:
                     is_performed = True
                     break
 
-            if not action_class.is_multimodal or (action_class.is_multimodal and not is_performed):
+            if not action_class.is_limited or (action_class.is_limited and not is_performed):
                 new_valid_actions.append(action_class)
             else:
                 self.logger.log(f"INFO: Dropping action '{action_class.name}' as it was already performed.")
 
-        self.valid_actions = new_valid_actions
-        prompt = PlanPrompt(doc, self.valid_actions, self.extra_rules)
+        #self.valid_actions = new_valid_actions
+        # DISCLAIMER: So far the planning only properly works for 1-image multimodal claims as it the limits the multimodal actions
+        prompt = PlanPrompt(doc, new_valid_actions, self.extra_rules)
         n_attempts = 0
 
         while n_attempts < self.max_attempts:

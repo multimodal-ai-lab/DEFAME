@@ -33,7 +33,7 @@ class NewsCLIPpings(Benchmark):
 
     extra_prepare_rules = """**Assess Alignment**: Assess the alignment between image and text in complex scenarios, especially where images are swapped or altered to mislead. Prepare for diverse real-world images and captions that may intentionally misrepresent events.
     **Verify Context**: Examine the source, origin, and context of each image to understand how it relates to the accompanying caption. Identify where an image may have been substituted to convey a false narrative.
-    Start each claim with: The Claim is that the image shows ... """
+    Start each claim with: The claim is that the image shows ... """
 
     extra_plan_rules = """* Ensure that both the text and image are evaluated together, as discrepancies often arise from intentional misalignment of the two.
     * **Compare Image and Caption**: Check for any misleading information, especially in cases where the image does not semantically align with the caption. Pay attention to subtle changes in meaning.

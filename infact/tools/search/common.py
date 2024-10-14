@@ -65,6 +65,7 @@ class WebSearch(Search):
     If a previous web search did not yield any results, use a very different query."""
     format = """web_search("your web search query goes here")"""
     is_multimodal = False
+    is_limited = False
 
 
 class ImageSearch(Search):
@@ -76,6 +77,7 @@ class ImageSearch(Search):
     If no relevant images are found, refine the query or use more descriptive terms."""
     format = """image_search("your image search query goes here")"""
     is_multimodal = True
+    is_limited = False
 
 
 class WikiDumpLookup(Search):
@@ -89,6 +91,7 @@ class WikiDumpLookup(Search):
     `wiki_dump_lookup` did not yield enough results, use a very different query."""
     format = """wiki_dump_lookup("your wiki search query goes here")"""
     is_multimodal = False
+    is_limited = False
 
 
 class WikiLookup(Search):
@@ -100,6 +103,7 @@ class WikiLookup(Search):
     If a previous wiki_lookup did not yield any results, use a very different query."""
     format = """wiki_lookup("your wiki search query goes here")"""
     is_multimodal = False
+    is_limited = False
 
 
 class ReverseSearch(Search):
@@ -109,6 +113,7 @@ class ReverseSearch(Search):
     how_to = "Provide an image and the model will perform a reverse search to find similar images."
     format = 'reverse_search(image)'
     is_multimodal = True
+    is_limited = True
 
     def __init__(self, image_ref: str):
         super().__init__(query=image_ref)
