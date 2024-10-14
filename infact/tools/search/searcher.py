@@ -189,6 +189,8 @@ class Searcher(Tool):
 
         try:
             summary = self.llm.generate(prompt, max_attempts=3)
+            if not summary:
+                summary = "NONE"
         except APIError as e:
             self.logger.log(orange(f"APIError: {e} - Skipping the summary for {web_source.url}."))
             self.logger.log(orange(f"Used prompt:\n{str(prompt)}"))
