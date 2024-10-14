@@ -424,7 +424,8 @@ def fact_check(llm: str, llm_kwargs: dict,
         while True:
             try:
                 content = input_queue.get(timeout=10)
-                if not content:
+                if content == None:
+                    logger.info("Input Queue is empty.")
                     break
             except Empty:
                 break

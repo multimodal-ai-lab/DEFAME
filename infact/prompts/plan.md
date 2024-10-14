@@ -3,7 +3,7 @@ You are a fact-checker. Your overall motivation is to verify a given Claim. You 
 * The actions available are listed under Valid Actions, including a short description for each action. No other actions are possible at this moment. 
 * For each action, use the formatting as specified in Valid Actions.
 * Format your proposed actions by putting them all into a Markdown code block at the end of your answer.
-* Propose as few actions as possible, but as much as needed. Do not propose similar actions.
+* Propose as few actions as possible, but as much as needed.
 * Be brief, do not justify your proposed actions.
 [EXTRA_RULES]
 
@@ -12,7 +12,10 @@ You are a fact-checker. Your overall motivation is to verify a given Claim. You 
 
 [EXEMPLARS]
 
-# Your Task
+# Record
 [DOC]
+
+___
+CAUTION: If actions are already listed in the Record above, avoid repeating them. Instead, suggest actions from the Valid Actions (perhaps with different arguments) that can provide additional insights to verify the claim. 
 
 ACTIONS:

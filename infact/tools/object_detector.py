@@ -16,6 +16,7 @@ class DetectObjects(Action):
     how_to = "Provide an image and the model will recognize objects in it."
     format = "detect_objects(<image:n>), where `n` is the image's ID"
     is_multimodal = True
+    is_limited = True
 
     def __init__(self, image_ref: str):
         self.image: Image = MultimediaSnippet(image_ref).images[0]

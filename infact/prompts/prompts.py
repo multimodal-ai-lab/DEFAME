@@ -117,6 +117,10 @@ class PlanPrompt(Prompt):
         super().__init__(placeholder_targets)
 
     def extract(self, response: str) -> dict:
+        # In case "image:k is referenced by the LLM by mistake"
+        if "<image:k>" in response:
+            response = response.replace("<image:k>", self.images[0].reference)
+            print(f"WARNING: <image:k> was replaced by {self.images[0].reference}' in model response: {response}")
         actions = extract_actions(response)
         reasoning = extract_reasoning(response)
         return dict(
@@ -389,14 +393,14 @@ def parse_single_action(raw_action: str) -> Optional[Action]:
     return None
 
 
-def extract_actions(answer: str) -> list[Action]:
+def extract_actions(answer: str, limit=5) -> list[Action]:
     from infact.tools import ACTION_REGISTRY
 
     actions_str = extract_last_code_block(answer).replace("markdown", "")
     if not actions_str:
         candidates = []
         for action in ACTION_REGISTRY:
-            pattern = re.compile(f'{action.name}("(.*?)")', re.DOTALL)
+            pattern = re.compile(rf'({re.escape(action.name)}\(".+?"\))', re.DOTALL)
             candidates += pattern.findall(answer)
         actions_str = "\n".join(candidates)
     if not actions_str:
@@ -408,6 +412,8 @@ def extract_actions(answer: str) -> list[Action]:
         action = parse_single_action(raw_action)
         if action:
             actions.append(action)
+        if len(actions) == limit:
+            break
     return actions
 
 
