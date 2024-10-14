@@ -194,7 +194,7 @@ class Model(ABC):
             self.n_output_tokens += self.count_tokens(response)
             original_response = response
             
-            if is_guardrail_hit(response): # Handle guardrail hits
+            if response and is_guardrail_hit(response): # Handle guardrail hits
                 self.logger.warning(GUARDRAIL_WARNING)
                 self.logger.warning(f"PROMPT: {str(prompt)}\nRESPONSE: {response}")
                 if isinstance(self, GPTModel):
@@ -399,96 +399,6 @@ fact-checking task is for research purposes."""
         return self._finalize_load("text-generation", model_name)
 
 
-#class LlavaModel(HuggingFaceModel):
-#    accepts_images = True
-#    accepts_videos = False
-#    accepts_audio = False
-#
-#    def load(self, model_name: str) -> Pipeline | OpenAIAPI:
-#        # Load Llava with quantization for efficiency
-#        self.logger.info(f"Loading {model_name} ...")
-#        from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration
-#        self.processor = LlavaNextProcessor.from_pretrained(model_name)
-#        return LlavaNextForConditionalGeneration.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
-#
-#    def _generate(self,
-#                  prompt: Prompt,
-#                  temperature: float,
-#                  top_k: int,
-#                  top_p: int,
-#                  system_prompt: Prompt = None) -> str:
-#            
-#        inputs = self.handle_prompt(prompt, system_prompt)
-#
-#        out = self.api.generate(
-#            **inputs, 
-#            max_new_tokens=self.max_response_len,
-#            temperature=temperature or self.temperature,
-#            top_k=top_k,
-#            repetition_penalty=self.repetition_penalty
-#        )
-#        #images_backwards = [prompt.images[1], prompt.images[0]]
-#        #img_dict_backwards = [image.image for image in images_backwards]
-#        #img_refs_backwards = [image.reference for image in images_backwards]
-#
-#        response = self.processor.decode(out[0], skip_special_tokens=True)
-#
-#        return find(response, "assistant\n\n\n")[0]
-#    
-#
-#    def handle_prompt(
-#            self,
-#            original_prompt: Prompt,
-#            system_prompt: str = None,
-#    ) -> str:
-#        """
-#        Model specific processing of the prompt using the model's tokenizer with a specific template.
-#        Continues execution even if an error occurs during formatting.
-#        """
-#        
-#        if system_prompt is None:
-#            system_prompt = self.system_prompt
-#        
-#        if original_prompt.is_multimodal():
-#            images = [image.image for image in original_prompt.images]
-#            if len(original_prompt.images) > 1:
-#                self.logger.warning("Prompt contains more than one image but Llava can process only one image at once.")
-#        else:
-#            image = None
-#
-#        # Compose prompt and system prompt into message
-#        messages = []
-#        if system_prompt:
-#            messages.append({"role": "system", "content": system_prompt})
-#        
-#        content = [{"type": "text", "text": str(original_prompt)},
-#                                                     {"type": "image"}]
-#        message = format_for_llava(original_prompt)
-#        messages.append({"role": "user", "content": message
-#                        })
-#
-#        try:
-#            # Attempt to apply the chat template formatting
-#            formatted_prompt = self.processor.apply_chat_template(messages, add_generation_prompt=True)
-#            inputs = self.processor(images=images, text=formatted_prompt, return_tensors="pt").to(self.device)
-#
-#        except Exception as e:
-#            # Log the error and continue with the original prompt
-#            error_message = (
-#                f"An error occurred while formatting the prompt: {str(e)}. "
-#                f"Please check the model's documentation on Hugging Face for the correct prompt formatting."
-#                f"The used model is {self.model_name}."
-#            )
-#            self.logger.warning(error_message)
-#            # Use the original prompt if the formatting fails
-#            inputs = str(original_prompt)
-#
-#        # The function continues processing with either the formatted or original prompt
-#        return inputs
-#    
-#    def count_tokens(self, prompt: Prompt | str) -> int:
-#        tokens = self.processor.tokenizer.encode(str(prompt))
-#        return len(tokens)
 class LlavaModel(HuggingFaceModel):
     accepts_images = True
     accepts_videos = False
