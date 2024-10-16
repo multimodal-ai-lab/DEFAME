@@ -118,9 +118,18 @@ class PlanPrompt(Prompt):
 
     def extract(self, response: str) -> dict:
         # In case "image:k is referenced by the LLM by mistake"
-        if "<image:k>" in response:
-            response = response.replace("<image:k>", self.images[0].reference)
-            print(f"WARNING: <image:k> was replaced by {self.images[0].reference}' in model response: {response}")
+        original_response = response
+        claim_image = self.images[0].reference
+        if "<image:k>" in original_response:
+            response = original_response.replace("<image:k>", claim_image)
+            print(f"WARNING: <image:k> was replaced by {claim_image} in response: {original_response}")
+
+        pattern = re.compile(r'reverse_search\((.*?)\)')
+        match = re.search(pattern, original_response)
+        sub = f'reverse_search({claim_image})'
+        if match and sub not in original_response :
+            response = re.sub(pattern, sub, original_response)
+            print(f"WARNING: {match[0]} was replaced by {sub} in response: {original_response}")
         actions = extract_actions(response)
         reasoning = extract_reasoning(response)
         return dict(
@@ -364,15 +373,11 @@ def parse_single_action(raw_action: str) -> Optional[Action]:
         raw_action = raw_action[1:]
 
     try:
-        # Use regular expression to match action and argument in the form action(argument)
         match = re.match(r'(\w+)\((.*)\)', raw_action)
-
-        # Extract action name and arguments
         if match:
             action_name, arguments = match.groups()
             arguments = arguments.strip()
         else:
-            # self.logger.log(f"Invalid action format: {raw_action}")
             match = re.search(r'"(.*?)"', raw_action)
             arguments = f'"{match.group(1)}"' if match else f'"{raw_action}"'
             first_part = raw_action.split(' ')[0]
@@ -400,7 +405,7 @@ def extract_actions(answer: str, limit=5) -> list[Action]:
     if not actions_str:
         candidates = []
         for action in ACTION_REGISTRY:
-            pattern = re.compile(rf'({re.escape(action.name)}\(".+?"\))', re.DOTALL)
+            pattern = re.compile(rf'({re.escape(action.name)}\(.+?\))', re.DOTALL)
             candidates += pattern.findall(answer)
         actions_str = "\n".join(candidates)
     if not actions_str:

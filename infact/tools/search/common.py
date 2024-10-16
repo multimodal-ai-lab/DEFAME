@@ -111,7 +111,7 @@ class ReverseSearch(Search):
     search_type = 'reverse'
     description = "Performs a reverse image search to find similar images on the web."
     how_to = "Provide an image and the model will perform a reverse search to find similar images."
-    format = 'reverse_search(image)'
+    format = "reverse_search(<image:k>), where `k` is the image's ID"
     is_multimodal = True
     is_limited = True
 
@@ -120,7 +120,7 @@ class ReverseSearch(Search):
         self.image: Image = MultimediaSnippet(image_ref).images[0]
 
     def __str__(self):
-        return f'{self.name}()'
+        return f'{self.name}({self.image.reference})'
 
     def __eq__(self, other):
         return isinstance(other, ReverseSearch) and np.array_equal(np.array(self.image), np.array(other.image))
