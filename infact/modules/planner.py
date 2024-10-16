@@ -56,7 +56,6 @@ class Planner:
                 self.logger.log(f"INFO: Dropping action '{action_class.name}' as it was already performed.")
 
         #self.valid_actions = new_valid_actions
-        # DISCLAIMER: So far the planning only properly works for 1-image multimodal claims as it the limits the multimodal actions
         prompt = PlanPrompt(doc, new_valid_actions, self.extra_rules)
         n_attempts = 0
 
@@ -78,7 +77,7 @@ class Planner:
             if len(actions) > 0:
                 return actions, reasoning
             else:
-                self.logger.warning(f'No actions were found in this response: {response["response"]}')
+                self.logger.warning(f'No new actions were found in this response: {response["response"]}')
                 return [], ""
 
 
