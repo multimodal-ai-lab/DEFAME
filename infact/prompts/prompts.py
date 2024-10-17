@@ -124,12 +124,6 @@ class PlanPrompt(Prompt):
             response = original_response.replace("<image:k>", claim_image)
             print(f"WARNING: <image:k> was replaced by {claim_image} in response: {original_response}")
 
-        pattern = re.compile(r'reverse_search\((.*?)\)')
-        match = re.search(pattern, original_response)
-        sub = f'reverse_search({claim_image})'
-        if match and sub not in original_response :
-            response = re.sub(pattern, sub, original_response)
-            print(f"WARNING: {match[0]} was replaced by {sub} in response: {original_response}")
         actions = extract_actions(response)
         reasoning = extract_reasoning(response)
         return dict(

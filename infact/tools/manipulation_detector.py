@@ -17,6 +17,7 @@ class DetectManipulation(Action):
     how_to = "Provide an image and the model will analyze it for signs of manipulation."
     format = "detect_manipulation(<image:k>), where `k` is the image's ID"
     is_multimodal = True
+    is_limited = True
 
     def __init__(self, image_ref: str):
         self.image: Image = MultimediaSnippet(image_ref).images[0]
