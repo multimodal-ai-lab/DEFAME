@@ -34,5 +34,6 @@ class Procedure(ABC):
         search_results = []
         for query in search_queries:
             evidence = self.actor.perform([query], doc=doc, summarize=summarize)[0]
-            search_results.append(evidence.raw.sources)
+            if evidence.raw:
+                search_results.extend(evidence.raw.sources)
         return search_results

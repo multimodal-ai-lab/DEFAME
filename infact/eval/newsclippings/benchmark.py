@@ -12,7 +12,9 @@ from infact.tools.geolocator import Geolocate
 from infact.tools.object_detector import DetectObjects
 from infact.tools import WebSearch, ImageSearch, ReverseSearch
 
-
+####### To speed up testing we only load a 1000 samples from the dataset. ########
+temporary_load_restriction = 250
+##################################################################################
 class NewsCLIPpings(Benchmark):
     shorthand = "newsclippings"
 
@@ -41,7 +43,8 @@ class NewsCLIPpings(Benchmark):
 
     extra_judge_rules = """* The main goal is to verify whether the image supports the claim in the caption or has been used to mislead by being swapped or taken out of context. 
     * If the image has been used from a different event or misrepresents individuals, the verdict should be REFUTED.
-    * If the image and caption match the event, the verdict is SUPPORTED."""
+    * If the image and caption match the event, the verdict is SUPPORTED.
+    * If you do not find any apparent contradictions then the sample is probably SUPPORTED."""
     
 
     available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
@@ -64,7 +67,7 @@ class NewsCLIPpings(Benchmark):
         with open(self.data_file_path, "r", encoding="utf-8") as file:
             data = json.load(file)
 
-        annotations = data["annotations"][:250]
+        annotations = data["annotations"][:temporary_load_restriction] if temporary_load_restriction else data["annotations"] ######## temporary load restriction ########
         entries = []
 
         for i, ann in enumerate(annotations):
