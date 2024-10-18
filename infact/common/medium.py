@@ -230,10 +230,11 @@ class MediaRegistry:
         return None
 
     def _get_id_by_path(self, path_to_medium: Path) -> Optional[int]:
-        matches = self.media["path_to_file"] == _normalize_path(path_to_medium)
-        if not np.any(matches):
+        match = self.media.loc[self.media["path_to_file"] == _normalize_path(path_to_medium)]
+        if not match.empty:
+            return match["id"].values[0]
+        else:
             return None
-        return self.media[matches]["id"].values[0]
 
     def _get_path_by_id(self, medium_type: str, medium_id: int) -> Optional[Path]:
         media = self.media
