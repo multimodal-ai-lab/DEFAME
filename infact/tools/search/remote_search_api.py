@@ -147,7 +147,7 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
         response = requests.post(firecrawl_url,
                                  json=json_data,
                                  headers=headers)
-    except requests.exceptions.RetryError:
+    except (requests.exceptions.RetryError, ConnectionRefusedError, requests.exceptions.ConnectionError):
         logger.error(f"Firecrawl is not running! Falling back...")
         return None
     except Exception as e:

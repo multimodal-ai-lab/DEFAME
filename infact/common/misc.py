@@ -6,7 +6,7 @@ from typing import Optional, List
 from infact.common import MultimediaSnippet, Image
 
 
-@dataclass
+@dataclass(frozen=True)
 class Query(ABC):
     limit: Optional[int] = None
     start_date: Optional[Date] = None
@@ -37,7 +37,7 @@ class Query(ABC):
         ))
     
 
-@dataclass
+@dataclass(frozen=True)
 class TextQuery(Query):
     text: str = ''
     search_type: str = 'search'
@@ -53,7 +53,7 @@ class TextQuery(Query):
     def __hash__(self):
         return hash((super().__hash__(), self.text))
     
-@dataclass
+@dataclass(frozen=True) 
 class ImageQuery(Query):
     text: str = None
     image: Image = None  
@@ -68,7 +68,7 @@ class ImageQuery(Query):
         return super().__eq__(other) and self.image == other.image
 
     def __hash__(self):
-        return hash((super(Query).__hash__(), self.image))
+        return hash((super().__hash__(), self.image))
 
 
 @dataclass
