@@ -42,7 +42,8 @@ class DGM4(Benchmark):
     * **Compare Image and Text**: Evaluate how the image and the text interact. Check whether the image's manipulation affects the interpretation of the text and vice versa.
     * **Investigate Face Manipulations**: For manipulations like face swaps or attribute changes, assess whether they align with the corresponding text. Ensure face swaps and altered facial attributes are correctly identified.
     * **Examine Text Manipulations**: Assess semantic or sentiment-based manipulations in the text. Pay special attention to cases where the named entity remains the same but the surrounding context changes.
-    * **Use Cross-Modality Tools**: Utilize available tools (e.g., reverse image search) to cross-check whether the manipulations in one modality (image or text) create inconsistencies with the other.
+    * **Use Cross-Modality Tools**: Utilize available tools e.g., manipulation_detection(), reverse_search() and image search() to cross-check whether the manipulations in one modality (image or text) create inconsistencies with the other.
+    * **Always use detect_manipulation() to identify potential manipulation of the image.
     """
     extra_judge_rules = """
     * **Classify based on Manipulation Type**: If the image or text shows manipulations (either global or fine-grained), the verdict should be REFUTED.

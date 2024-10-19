@@ -5,6 +5,7 @@ from typing import Collection, Optional
 from infact.common import FCDocument, Label, Claim, Action, Evidence, Prompt, Content
 from infact.common.label import DEFAULT_LABEL_DEFINITIONS
 from infact.common.misc import WebSource
+from infact.common.results import Result
 from infact.utils.parsing import (remove_non_symbols, extract_last_code_span, read_md_file,
                                   find_code_span, extract_last_paragraph, extract_last_code_block,
                                   strip_string, remove_code_blocks)
@@ -77,6 +78,15 @@ class SummarizeResultPrompt(Prompt):
         }
         super().__init__(placeholder_targets)
 
+class SummarizeManipulationResultPrompt(Prompt):
+    template_file_path = "infact/prompts/summarize_manipulation_result.md"
+
+    def __init__(self, manipulation_result: Result):
+        placeholder_targets = {
+            "[MANIPULATION_RESULT]": str(manipulation_result),
+        }
+        super().__init__(placeholder_targets)
+
 
 class SelectionPrompt(Prompt):
     template_file_path = "infact/prompts/select_evidence.md"
@@ -120,9 +130,12 @@ class PlanPrompt(Prompt):
         # In case "image:k is referenced by the LLM by mistake"
         original_response = response
         claim_image = self.images[0].reference
-        if "<image:k>" in original_response:
-            response = original_response.replace("<image:k>", claim_image)
-            print(f"WARNING: <image:k> was replaced by {claim_image} in response: {original_response}")
+        pattern = re.compile(r'<image:[a-zA-Z0-9_]+>')
+        multimodal_actions = pattern.findall(response)
+
+        if multimodal_actions:
+            response = pattern.sub(claim_image, response)
+            print(f"WARNING: <image:k> was replaced by {claim_image} to generate response: {response}")
 
         actions = extract_actions(response)
         reasoning = extract_reasoning(response)
