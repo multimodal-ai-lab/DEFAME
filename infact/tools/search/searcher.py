@@ -16,7 +16,7 @@ from infact.tools.search.wiki_dump import WikiDumpAPI
 from infact.tools.search.google_vision_api import GoogleVisionAPI
 from infact.tools.tool import Tool
 from infact.utils.console import gray, orange
-from .common import SearchResult, Search, WebSearch, WikiDumpLookup, ImageSearch, ReverseSearch
+from .common import SearchResult, Search, WebSearch, WikiDumpLookup, ImageSearch, ReverseSearch, ReverseSearchResult
 from ...common.misc import  WebSource, Query, ImageQuery, TextQuery
 
 SEARCH_APIS = {
@@ -180,7 +180,10 @@ class Searcher(Tool):
         if result:
             for web_source in result.sources:
                 self._summarize_single_web_source(web_source, doc)
-            return self._summarize_summaries(result, doc)
+            if type(result) == ReverseSearchResult:
+                return str(result)
+            else:
+                return self._summarize_summaries(result, doc)
         else:
             return None
 
@@ -227,9 +230,17 @@ class Searcher(Tool):
         }
         summarize_prompt = Prompt(placeholder_targets=placeholder_targets,
                                   template_file_path="infact/prompts/summarize_summaries.md")
-
-        # Generate the summary
-        return MultimediaSnippet(self.llm.generate(summarize_prompt))
+        references = ""
+        for source in result.sources:
+            if not source.has_images:
+                return MultimediaSnippet(self.llm.generate(summarize_prompt))
+            else: 
+                for image in source.images:
+                    references += f'{source.url}: {image.reference}\n'
+                summary = self.llm.generate(summarize_prompt)
+                return MultimediaSnippet(f'{summary}\n{references}.')
+        
+        
 
     def get_stats(self) -> dict[str, Any]:
         total_searches = np.sum([n for n in self.stats.values()])

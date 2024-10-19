@@ -187,7 +187,7 @@ def evaluate(
     try:
         for _ in tqdm(range(n_samples), smoothing=0.02):
             try:
-                doc, meta = output_queue.get(timeout=30 * 60)  # 30 minutes timeout
+                doc, meta = output_queue.get(timeout=60 * 60)  # 60 minutes timeout
                 process_output(doc, meta, benchmark, logger, is_test)
             except Empty as e:
                 logger.warning("Output queue was empty after 30 minutes timeout. Possible worker failure.")
