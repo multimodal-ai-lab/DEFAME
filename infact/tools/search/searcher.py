@@ -172,7 +172,7 @@ class Searcher(Tool):
         the result text to a maximum length."""
         result = re.sub(r"\{\{.*}}", "", result)
         if self.max_result_len is not None:
-            result = result[self.max_result_len:]
+            result = result[:self.max_result_len]
         return result
 
     def _summarize(self, result: SearchResult, **kwargs) -> Optional[MultimediaSnippet]:
@@ -230,6 +230,7 @@ class Searcher(Tool):
         }
         summarize_prompt = Prompt(placeholder_targets=placeholder_targets,
                                   template_file_path="infact/prompts/summarize_summaries.md")
+        #TODO seems to only save one image per result and not per source...
         references = ""
         for source in result.sources:
             if not source.has_images:

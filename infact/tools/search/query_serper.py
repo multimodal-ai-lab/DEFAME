@@ -88,7 +88,7 @@ class SerperAPI(RemoteSearchAPI):
             try:
                 self.total_searches += 1
                 response = requests.post(
-                    f'{_SERPER_URL}/{search_type}', headers=headers, params=params
+                    f'{_SERPER_URL}/{search_type}', headers=headers, timeout=5, params=params
                 )
             except AssertionError as e:
                 raise e
@@ -160,7 +160,7 @@ class SerperAPI(RemoteSearchAPI):
 
                 elif result_key == "images":
                     try:
-                        image_response = requests.get(image_url)
+                        image_response = requests.get(image_url, timeout=10)
                         image = Image(pillow_image=PillowImage.open(BytesIO(image_response.content)))
                         if image:
                             text += f"\n{image.reference}"

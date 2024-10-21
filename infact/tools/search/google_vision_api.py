@@ -57,11 +57,17 @@ class GoogleVisionAPI(RemoteSearchAPI):
         web_sources = []
         for page in web_detection.pages_with_matching_images[:query.limit]:
             url = page.url
-            # title = page.page_title if hasattr(page, 'page_title') else ""
+            title = page.page_title if hasattr(page, 'page_title') else ""
             scraped = scrape(url, self.logger)
+            if scraped:
+                text = f'Title: {title}\n Content:{scraped.text}'
+            elif title:
+                text =  f'Title: {title}'
+            else:
+                text = ""
             web_sources.append(WebSource(
                 url=url,
-                text=scraped.text,
+                text=text,
                 query=query,
                 rank=len(web_sources) + 1
             ))

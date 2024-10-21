@@ -206,7 +206,8 @@ class Model(ABC):
             try:
                 response = prompt.extract(response)
                 from infact.prompts.prompts import JudgePrompt
-                if not response and isinstance(prompt, JudgePrompt):
+                if isinstance(prompt, JudgePrompt) and not response["verdict"]:
+                    #TODO: Remove this as soon as LLMs are capable enough
                     prompt.text += " (do not forget to choose one option from Decision Options and enclose it in backticks like `this`): "
                     response = self._generate(prompt, temperature=temperature, top_p=top_p, top_k=top_k,
                                       system_prompt=system_prompt)
