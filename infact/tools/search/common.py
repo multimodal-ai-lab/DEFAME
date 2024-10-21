@@ -30,7 +30,7 @@ class ReverseSearchResult(SearchResult):
                                      for description, confidence in self.entities.items())
         if self.best_guess_labels:
             string_repr += (f"\nBest guess about the topic of "
-                           f"the image is {', '.join(self.best_guess_labels)}")
+                           f"the image is {', '.join(self.best_guess_labels)}.\n Exact image matches found at:")
         return string_repr + "\n\n" + "\n\n".join(map(str, self.sources))
 
 

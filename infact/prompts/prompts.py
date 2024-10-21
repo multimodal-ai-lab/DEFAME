@@ -33,12 +33,9 @@ class JudgePrompt(Prompt):
         }
         super().__init__(placeholder_targets)
 
-    def extract(self, response: str) -> dict | str | None:
+    def extract(self, response: str) -> dict:
         verdict = extract_verdict(response, classes=self.classes)
-        if verdict is None:
-            return None
-        else:
-            return dict(verdict=verdict, response=response)
+        return dict(verdict=verdict, response=response)
 
 
 class DecontextualizePrompt(Prompt):
@@ -158,7 +155,7 @@ class PoseQuestionsPrompt(Prompt):
             self.template_file_path = "infact/prompts/pose_questions_no_interpretation.md"
         super().__init__(placeholder_targets)
 
-    def extract(self, response: str) -> dict | str | None:
+    def extract(self, response: str) -> dict:
         questions = find_code_span(response)
         return dict(
             questions=questions,
@@ -177,7 +174,7 @@ class ProposeQueries(Prompt):
         }
         super().__init__(placeholder_targets)
 
-    def extract(self, response: str) -> dict | str | None:
+    def extract(self, response: str) -> dict:
         queries = extract_queries(response)
         return dict(
             queries=queries,
@@ -195,7 +192,7 @@ class ProposeQuerySimple(Prompt):
         }
         super().__init__(placeholder_targets)
 
-    def extract(self, response: str) -> dict | str | None:
+    def extract(self, response: str) -> dict:
         queries = extract_queries(response)
         return dict(
             queries=queries,
@@ -213,7 +210,7 @@ class ProposeQueriesNoQuestions(Prompt):
         }
         super().__init__(placeholder_targets)
 
-    def extract(self, response: str) -> dict | str | None:
+    def extract(self, response: str) -> dict:
         queries = extract_queries(response)
         return dict(
             queries=queries,
@@ -236,7 +233,7 @@ class AnswerCollectively(Prompt):
         }
         super().__init__(placeholder_targets)
 
-    def extract(self, response: str) -> dict | str | None:
+    def extract(self, response: str) -> dict:
         """Extract result ID and answer to the question from response"""
         answered = "NONE" not in response and "None" not in response
 
@@ -270,7 +267,7 @@ class AnswerQuestion(Prompt):
         }
         super().__init__(placeholder_targets)
 
-    def extract(self, response: str) -> dict | str | None:
+    def extract(self, response: str) -> dict:
         """Extract result ID and answer to the question from response"""
         answered = "NONE" not in response and "None" not in response
 
@@ -322,14 +319,19 @@ class InterpretPrompt(Prompt):
         }
         super().__init__(placeholder_targets)
 
-    def extract(self, response: str) -> dict | str | None:
+    def extract(self, response: str) -> dict:
         answer = extract_last_code_span(response)
         answer = re.sub(r'[^\w\-\s]', '', answer).strip().lower()
+        out = dict(
+            answer=answer,
+            response=response,
+        )
         if not answer:
             pattern = re.compile(r'\*\*(.*)\*\*', re.DOTALL)
             matches = pattern.findall(response) or ['']
             answer = matches[0]
-        return answer or response
+            out.update(dict(answer=answer))
+        return out
 
 
 class JudgeNaively(Prompt):
@@ -349,12 +351,9 @@ class JudgeNaively(Prompt):
         }
         super().__init__(placeholder_targets)
 
-    def extract(self, response: str) -> dict | str | None:
+    def extract(self, response: str) -> dict:
         verdict = extract_verdict(response, classes=self.classes)
-        if verdict is None:
-            return None
-        else:
-            return dict(verdict=verdict, response=response)
+        return dict(verdict=verdict, response=response)
 
 
 def load_exemplars(valid_actions: list[type[Action]]) -> str:
