@@ -34,7 +34,8 @@ sty>=1.0.6
 tiktoken~=0.7.0
 timm==1.0.9
 torch==2.3.1
-transformers>=4.44.2
+torchvision==0.15.2
+transformers>=4.45.2
 tqdm>=4.64.0
 tweepy~=4.14.0
 wandb==0.18.0

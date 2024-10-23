@@ -38,15 +38,14 @@ class VERITE(Benchmark):
     **Verify Context**: Examine the source and context of each image to understand its relationship with the accompanying text.
     Start each claim with: The claim is that the image shows ... """
 
-    extra_plan_rules = """* **Consider Both Modalities Equally**: Avoid focusing too much on one modality at the expense of the other.
-    * **Compare Image and Caption**: Verify the context of the image and caption. Check for
-    any misleading information that might suggest the image is used out of context or the caption is miscaptioned.
+    extra_plan_rules = """* **Consider Both Modalities Equally**: Avoid focusing too much on one modality at the expense of the other but always check whether the text claim is true or false.
+    * **Compare Image and Caption**: Verify the context of the image and caption.
     * **Identify any potential asymmetry in the modalities**: Perform one image_search if the action is available to compare other images with the claim image."""
 
-    extra_judge_rules = """* **Focus on the alignment of Image and Claim**: The question is whether the image corresponds to the claim. 
+    extra_judge_rules = """* **Caption Check First**: If the caption is factually wrong, then the claim is considered miscaptioned.
+    * **Alignment Check of Image and Claim**: If the caption is factually correct, we need to check whether the image corresponds to the claim. 
     Judge if there is any alignment issue between image and text. Does the image deliver any support for the claim or is it taken out of context?
-    If the claim is actually true but the image shows a different event, then the verdict is OUT OF CONTEXT. If the claim is false, then the verdict should be miscaptioned.
-    Lastly, if the image appears to show the event mentioned in the claim, then the verdict is out-of-context."""
+    If the claim text is actually true but the image shows a different event, then the verdict is out-of-context."""
 
     available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
 

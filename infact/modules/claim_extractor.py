@@ -64,7 +64,7 @@ class ClaimExtractor:
     def interpret(self, content: Content, prepare_rules: str = "") -> None:
         """Adds an interpretation to the content object."""
         prompt = InterpretPrompt(content, prepare_rules)
-        content.interpretation = self.llm.generate(prompt)
+        content.interpretation = self.llm.generate(prompt)["interpretation"]
 
     def decompose(self, content: Content):
         """Splits up the content into atomic facts."""

@@ -8,6 +8,7 @@ from .variants.qa_based.no_interpretation import NoInterpretation
 from .variants.qa_based.no_query_gen import NoQueryGeneration
 from .variants.qa_based.simple import SimpleQA
 from .variants.summary_based.default import DynamicSummary
+from .variants.summary_based.all_actions import AllActionsSummary
 from .variants.summary_based.no_qa import StaticSummary
 
 PROCEDURE_REGISTRY = {
@@ -24,6 +25,7 @@ PROCEDURE_REGISTRY = {
     # Summary-based procedures
     "no_qa": StaticSummary,
     "summary": DynamicSummary,
+    "all_actions": AllActionsSummary,
 }
 
 

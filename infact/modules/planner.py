@@ -37,7 +37,7 @@ class Planner:
 
         return available_actions
 
-    def plan_next_actions(self, doc: FCDocument) -> (list[Action], str):
+    def plan_next_actions(self, doc: FCDocument, all_actions=False) -> (list[Action], str):
         # TODO: include image in planning
         performed_actions = doc.get_all_actions()
         new_valid_actions = []
@@ -56,7 +56,7 @@ class Planner:
                 self.logger.log(f"INFO: Dropping action '{action_class.name}' as it was already performed.")
 
         #self.valid_actions = new_valid_actions
-        prompt = PlanPrompt(doc, new_valid_actions, self.extra_rules)
+        prompt = PlanPrompt(doc, new_valid_actions, self.extra_rules, all_actions)
         n_attempts = 0
 
         while n_attempts < self.max_attempts:

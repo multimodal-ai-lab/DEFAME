@@ -148,7 +148,7 @@ class Model(ABC):
             temperature: float = None,
             top_p=None,
             top_k=None,
-            max_attempts: int = 3) -> dict | str | None:
+            max_attempts: int = 3) -> dict | None:
         """Continues the provided prompt and returns the continuation (the response)."""
 
         if isinstance(prompt, str):
@@ -188,7 +188,7 @@ class Model(ABC):
             self.n_input_tokens += self.count_tokens(prompt)
             response = self._generate(prompt, temperature=temperature, top_p=top_p, top_k=top_k,
                                       system_prompt=system_prompt)
-            self.logger.log_model_conv(f"QUERY:\n{prompt}\n\n\n--> RESPONSE:\n{response}")
+            self.logger.log_model_conv(f"{prompt.name} - QUERY:\n\n{prompt}\n\n\n\n===== > RESPONSE:  < =====\n{response}")
             self.n_output_tokens += self.count_tokens(response)
             original_response = response
             
