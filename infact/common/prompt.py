@@ -8,11 +8,15 @@ from infact.utils.parsing import (strip_string, read_md_file,
 
 class Prompt(MultimediaSnippet):
     template_file_path: str
+    name: str = "DefaultPrompt" 
 
     def __init__(self,
                  placeholder_targets: dict[str, Any] = None,
+                 name: str = None,
                  text: str = None,
                  template_file_path: str | Path = None):
+        if name:
+            self.name = name
         if text is None:
             text = self.compose_prompt(template_file_path, placeholder_targets)
         super().__init__(text)

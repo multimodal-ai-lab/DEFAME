@@ -16,6 +16,7 @@ NOT_SYMBOL = 'Unimportant'
 
 class JudgePrompt(Prompt):
     template_file_path = "infact/prompts/judge.md"
+    name = "JudgePrompt"
 
     def __init__(self, doc: FCDocument,
                  classes: Collection[Label],
@@ -40,6 +41,7 @@ class JudgePrompt(Prompt):
 
 class DecontextualizePrompt(Prompt):
     template_file_path = "infact/prompts/decontextualize.md"
+    name = "DecontextualizePrompt"
 
     def __init__(self, claim: Claim):
         placeholder_targets = {
@@ -50,6 +52,8 @@ class DecontextualizePrompt(Prompt):
 
 
 class FilterCheckWorthyPrompt(Prompt):
+    name = "FilterCheckWorthyPrompt"
+
     def __init__(self, claim: Claim, filter_method: str = "default"):
         assert (filter_method in ["default", "custom"])
         placeholder_targets = {  # re-implement this
@@ -67,6 +71,7 @@ class FilterCheckWorthyPrompt(Prompt):
 
 class SummarizeResultPrompt(Prompt):
     template_file_path = "infact/prompts/summarize_result.md"
+    name = "SummarizeResultPrompt"
 
     def __init__(self, search_result: WebSource, doc: FCDocument):
         placeholder_targets = {
@@ -77,6 +82,7 @@ class SummarizeResultPrompt(Prompt):
 
 class SummarizeManipulationResultPrompt(Prompt):
     template_file_path = "infact/prompts/summarize_manipulation_result.md"
+    name = "SummarizeManipulationResultPrompt"
 
     def __init__(self, manipulation_result: Result):
         placeholder_targets = {
@@ -87,6 +93,7 @@ class SummarizeManipulationResultPrompt(Prompt):
 
 class SelectionPrompt(Prompt):
     template_file_path = "infact/prompts/select_evidence.md"
+    name = "SelectionPrompt"
 
     def __init__(self, question: str, evidences: list[WebSource]):
         placeholder_targets = {
@@ -98,23 +105,28 @@ class SelectionPrompt(Prompt):
 
 class SummarizeDocPrompt(Prompt):
     template_file_path = "infact/prompts/summarize_doc.md"
+    name = "SummarizeDocPrompt"
 
     def __init__(self, doc: FCDocument):
         super().__init__({"[DOC]": doc})
 
-
 class PlanPrompt(Prompt):
     template_file_path = "infact/prompts/plan.md"
+    name = "PlanPrompt"
 
     def __init__(self, doc: FCDocument,
                  valid_actions: list[type[Action]],
-                 extra_rules: str = None):
+                 extra_rules: str = None,
+                 all_actions: bool = False):
         self.context = doc.claim.original_context
         valid_action_str = "\n\n".join([f"* `{a.name}`\n"
                                         f"   * Description: {remove_non_symbols(a.description)}\n"
                                         f"   * How to use: {remove_non_symbols(a.how_to)}\n"
                                         f"   * Format: {a.format}" for a in valid_actions])
         extra_rules = "" if extra_rules is None else remove_non_symbols(extra_rules)
+        if all_actions:
+            extra_rules = "Very Important: No need to be frugal. Choose all available actions at least once."
+            
         placeholder_targets = {
             "[DOC]": doc,
             "[VALID_ACTIONS]": valid_action_str,
@@ -144,6 +156,8 @@ class PlanPrompt(Prompt):
 
 
 class PoseQuestionsPrompt(Prompt):
+    name = "PoseQuestionsPrompt"
+
     def __init__(self, doc: FCDocument, n_questions: int = 10, interpret: bool = True):
         placeholder_targets = {
             "[CLAIM]": doc.claim,
@@ -166,6 +180,7 @@ class PoseQuestionsPrompt(Prompt):
 class ProposeQueries(Prompt):
     """Used to generate queries to answer AVeriTeC questions."""
     template_file_path = "infact/prompts/propose_queries.md"
+    name = "ProposeQueries"
 
     def __init__(self, question: str, doc: FCDocument):
         placeholder_targets = {
@@ -185,6 +200,7 @@ class ProposeQueries(Prompt):
 class ProposeQuerySimple(Prompt):
     """Used to generate queries to answer AVeriTeC questions."""
     template_file_path = "infact/prompts/propose_query_simple.md"
+    name = "ProposeQuerySimple"
 
     def __init__(self, question: str):
         placeholder_targets = {
@@ -203,6 +219,7 @@ class ProposeQuerySimple(Prompt):
 class ProposeQueriesNoQuestions(Prompt):
     """Used to generate queries to answer AVeriTeC questions."""
     template_file_path = "infact/prompts/propose_queries_no_questions.md"
+    name = "ProposeQueriesNoQuestions"
 
     def __init__(self, doc: FCDocument):
         placeholder_targets = {
@@ -221,6 +238,7 @@ class ProposeQueriesNoQuestions(Prompt):
 class AnswerCollectively(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
     template_file_path = "infact/prompts/answer_question_collectively.md"
+    name = "AnswerCollectively"
 
     def __init__(self, question: str, results: list[WebSource], doc: FCDocument):
         result_strings = [f"## Result `{i}`\n{str(result)}" for i, result in enumerate(results)]
@@ -258,6 +276,7 @@ class AnswerCollectively(Prompt):
 class AnswerQuestion(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
     template_file_path = "infact/prompts/answer_question.md"
+    name = "AnswerQuestion"
 
     def __init__(self, question: str, result: WebSource, doc: FCDocument):
         placeholder_targets = {
@@ -286,6 +305,7 @@ class AnswerQuestion(Prompt):
 class AnswerQuestionNoEvidence(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
     template_file_path = "infact/prompts/answer_question_no_evidence.md"
+    name = "AnswerQuestionNoEvidence"
 
     def __init__(self, question: str, doc: FCDocument):
         placeholder_targets = {
@@ -297,6 +317,7 @@ class AnswerQuestionNoEvidence(Prompt):
 
 class ReiteratePrompt(Prompt):
     template_file_path = "infact/prompts/consolidate.md"
+    name = "ReiteratePrompt"
 
     def __init__(self, doc: FCDocument, evidences: Collection[Evidence]):
         evidence_str = "\n\n".join([str(e) for e in evidences])
@@ -309,6 +330,7 @@ class ReiteratePrompt(Prompt):
 
 class InterpretPrompt(Prompt):
     template_file_path = "infact/prompts/interpret.md"
+    name = "InterpretPrompt"
 
     def __init__(self, content: Content, guidelines: str = ''):
         if guidelines:
@@ -323,19 +345,20 @@ class InterpretPrompt(Prompt):
         answer = extract_last_code_span(response)
         answer = re.sub(r'[^\w\-\s]', '', answer).strip().lower()
         out = dict(
-            answer=answer,
+            interpretation=answer,
             response=response,
         )
         if not answer:
             pattern = re.compile(r'\*\*(.*)\*\*', re.DOTALL)
             matches = pattern.findall(response) or ['']
             answer = matches[0]
-            out.update(dict(answer=answer))
+            out.update(dict(interpretation=answer))
         return out
 
 
 class JudgeNaively(Prompt):
     template_file_path = "infact/prompts/judge_naive.md"
+    name = "JudgeNaively"
 
     def __init__(self, claim: Claim,
                  classes: Collection[Label],

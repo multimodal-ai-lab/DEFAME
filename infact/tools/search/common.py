@@ -13,7 +13,7 @@ class SearchResult(Result):
     sources: list[WebSource]
 
     def __str__(self):
-        return "\n\n".join(map(str, self.sources))
+        return "**Web Search Result**\n\n" +"\n\n".join(map(str, self.sources))
 
 
 @dataclass
@@ -31,7 +31,7 @@ class ReverseSearchResult(SearchResult):
         if self.best_guess_labels:
             string_repr += (f"\nBest guess about the topic of "
                            f"the image is {', '.join(self.best_guess_labels)}.\n Exact image matches found at:")
-        return string_repr + "\n\n" + "\n\n".join(map(str, self.sources))
+        return "**Reverse Search Result** The exact image was found in the following sources:\n\n" + "\n\n".join(map(str, self.sources))
 
 
 class Search(Action):

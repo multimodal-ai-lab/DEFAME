@@ -13,12 +13,12 @@ from PIL import Image as PillowImage
 from config.globals import api_keys
 from infact.common.medium import Image
 from infact.common.misc import Query, WebSource
-from infact.tools.search.remote_search_api import RemoteSearchAPI, scrape, filter_relevant_sentences
+from infact.tools.search.remote_search_api import RemoteSearchAPI, scrape
 from .common import SearchResult
 
 _SERPER_URL = 'https://google.serper.dev'
 NO_RESULT_MSG = 'No good Google Search result was found'
-
+MAX_NUM_SEARCH_RESULTS = 10
 
 class SerperAPI(RemoteSearchAPI):
     """Class for querying the Google Serper API."""
@@ -59,7 +59,6 @@ class SerperAPI(RemoteSearchAPI):
             query.text,
             gl=self.gl,
             hl=self.hl,
-            num=query.limit,
             tbs=tbs,
             search_type=query.search_type,
         )
@@ -142,21 +141,17 @@ class SerperAPI(RemoteSearchAPI):
         result_key = self.result_key_for_type[query.search_type]
         if result_key in response:
             for i, result in enumerate(response[result_key]):
-                if i >= query.limit:  # somehow the num param does not restrict requests.post image search results
+                if i >= MAX_NUM_SEARCH_RESULTS:  # somehow the num param does not restrict requests.post image search results
                     break
                 text = result.get("snippet", "")
                 url = result.get("link", "")
                 image_url = result.get("imageUrl", "")
+                title = result.get('title')
 
                 if result_key == "organic":
                     scraped = scrape(url=url, logger=self.logger)
                     if scraped:
-                        keywords = re.findall(r'\b\w+\b', query.text.lower()) or query.text
-                        relevant_content = filter_relevant_sentences(scraped.text, keywords)[:10]
-                        relevant_text = ' '.join(relevant_content)
-                        text = relevant_text or text
-                    else:
-                        continue
+                        text = str(scraped)
 
                 elif result_key == "images":
                     try:

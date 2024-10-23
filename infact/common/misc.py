@@ -75,6 +75,7 @@ class ImageQuery(Query):
 class WebSource(MultimediaSnippet):
     """Output when searching the web or a local knowledge base."""
     url: str
+    title: str = ""
     date: Date = None
     summary: MultimediaSnippet = None
     query: Query = None
@@ -93,7 +94,7 @@ class WebSource(MultimediaSnippet):
         """Differentiates between direct citation (original text) and
         indirect citation (if summary is available)."""
         text = self.summary.text if self.summary is not None else f'"{self.text}"'
-        return f'From [Source]({self.url}):\n{text}'
+        return f'From [Source]({self.url}): {self.title}\nContent: {text}'
 
     def __eq__(self, other):
         return self.url == other.url
