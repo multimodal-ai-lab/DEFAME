@@ -137,8 +137,10 @@ class PlanPrompt(Prompt):
 
     def extract(self, response: str) -> dict:
         # In case "image:k is referenced by the LLM by mistake"
-        original_response = response
-        claim_image = self.images[0].reference
+        if self.images:
+            claim_image = self.images[0].reference
+        else:
+            claim_image = None
         pattern = re.compile(r'<image:[a-zA-Z0-9_]+>')
         multimodal_actions = pattern.findall(response)
 

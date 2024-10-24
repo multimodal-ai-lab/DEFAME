@@ -299,8 +299,11 @@ def finalize_evaluation(stats: dict,
     experiment_dir = Path(experiment_dir)
     is_averitec = isinstance(benchmark, AVeriTeC)
     is_test = benchmark.variant == "test"
-
-    instance_stats = pd.read_csv(experiment_dir / Logger.instance_stats_filename)
+    try:
+        instance_stats = pd.read_csv(experiment_dir / Logger.instance_stats_filename)
+    except Exception:
+        print("Terminated before instance_stats.csv was created. ")
+        return
 
     # Add aggregated statistics from individual claims
     stats.update({"Time per claim": instance_stats["Duration"].mean()})

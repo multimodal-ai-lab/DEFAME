@@ -67,9 +67,9 @@ class NewsCLIPpings(Benchmark):
             data = json.load(file)
 
         annotations = data["annotations"]
-        if n_samples and (n_samples < len(annotations)):
+        if n_samples:
                 random.seed(random_seed)
-                annotations = random.sample(annotations, n_samples)
+                annotations = random.sample(annotations, len(annotations))[:n_samples]
         entries = []
 
         for i, ann in enumerate(annotations):
@@ -83,7 +83,7 @@ class NewsCLIPpings(Benchmark):
             if image_path and os.path.exists(image_path):
                 image = Image(image_path)
                 claim_text = f"{image.reference} {caption}"
-                id = f'{i}_{ann["id"]}_{ann["image_id"]}'
+                id = f'{ann["id"]}_{ann["image_id"]}'
                 entry = {
                     "id": id,
                     "content": Content(text=claim_text, id_number=id),
