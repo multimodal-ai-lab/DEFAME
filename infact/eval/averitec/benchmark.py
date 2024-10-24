@@ -54,9 +54,9 @@ class AVeriTeC(Benchmark):
         # Load the data
         with open(self.file_path, 'r') as f:
             data_raw = json.load(f)
-        if n_samples and (n_samples < len(data_raw)):
+        if n_samples:
             random.seed(random_seed)
-            data_raw = random.sample(data_raw, n_samples)
+            data_raw = random.sample(data_raw, len(data_raw))[:n_samples]
 
         data = []
         for i, d in enumerate(data_raw):

@@ -94,9 +94,9 @@ class FEVER(Benchmark):
         # Read the files
         raw_data = orjsonl.load(self.file_path)
         justifications = None
-        if n_samples and (n_samples < len(raw_data)):
+        if n_samples:
             random.seed(random_seed)
-            indices = random.sample(range(len(raw_data)), n_samples)
+            indices = random.sample(raw_data, len(raw_data))[:n_samples]
             raw_data = [raw_data[i] for i in indices]
             if os.path.exists(self.justifications_file_path):
                 justifications_raw = orjsonl.load(self.justifications_file_path)
@@ -112,7 +112,8 @@ class FEVER(Benchmark):
             content = Content(row["claim"])
             label = self.class_mapping[row["label"].lower()] if variant in ["train", "dev"] else None
             justification = justifications[i] if justifications is not None else None
-            data.append({"id": i,
+            id = row["id"]
+            data.append({"id": id,
                          "content": content,
                          "label": label,
                          "justification": justification})

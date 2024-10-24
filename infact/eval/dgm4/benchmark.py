@@ -60,9 +60,9 @@ class DGM4(Benchmark):
         """Load the DGM4 annotations and construct the entries."""
         with open(self.data_file_path, "r", encoding="utf-8") as file:
             data = json.load(file)
-            if n_samples and (n_samples < len(data)):
+            if n_samples:
                 random.seed(random_seed)
-                data = random.sample(data, n_samples)
+                data = random.sample(data, len(data))[:n_samples]
 
         entries = []
        
@@ -74,7 +74,7 @@ class DGM4(Benchmark):
             if image_path and os.path.exists(image_path):
                 image = Image(image_path)
                 claim_text = f'{ann["text"]} {image.reference}'
-                id = f'{i}_{ann["id"]}'
+                id = f'{ann["id"]}'
                 entry = {
                     "id": id,
                     "content": Content(text=claim_text, id_number=id),

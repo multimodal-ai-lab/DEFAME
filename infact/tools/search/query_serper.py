@@ -15,6 +15,7 @@ from infact.common.medium import Image
 from infact.common.misc import Query, WebSource
 from infact.tools.search.remote_search_api import RemoteSearchAPI, scrape
 from .common import SearchResult
+from.google_vision_api import get_base_domain
 
 _SERPER_URL = 'https://google.serper.dev'
 NO_RESULT_MSG = 'No good Google Search result was found'
@@ -139,8 +140,9 @@ class SerperAPI(RemoteSearchAPI):
 
         results = []
         result_key = self.result_key_for_type[query.search_type]
+        filtered_results = filter_unique_results_by_domain(response[result_key])
         if result_key in response:
-            for i, result in enumerate(response[result_key]):
+            for i, result in enumerate(filtered_results):
                 if i >= MAX_NUM_SEARCH_RESULTS:  # somehow the num param does not restrict requests.post image search results
                     break
                 text = result.get("snippet", "")
@@ -170,3 +172,32 @@ class SerperAPI(RemoteSearchAPI):
                 results.append(WebSource(url=url, text=text, query=query, rank=i, date=result_date))
 
         return results
+
+
+def filter_unique_results_by_domain(results):
+    """
+    Filters the results to ensure only one result per website base domain is included 
+    (e.g., 'facebook.com' regardless of subdomain).
+    
+    Args:
+        results (list): List of result dictionaries from the search result.
+    
+    Returns:
+        list: Filtered list of unique results by domain.
+    """
+    unique_domains = set()
+    filtered_results = []
+    
+    for result in results:
+        url = result.get("link", "")  # Extract URL from the result dictionary
+        if not url:
+            continue  # Skip if no URL is found
+        
+        base_domain = get_base_domain(url)
+        
+        # Add the result if we haven't seen this domain before
+        if base_domain not in unique_domains:
+            unique_domains.add(base_domain)
+            filtered_results.append(result)
+    
+    return filtered_results
