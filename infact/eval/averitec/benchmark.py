@@ -2,8 +2,9 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Iterator
+import random
 
-from config.globals import data_base_dir
+from config.globals import data_base_dir, random_seed
 from infact.common import Label, Content
 from infact.tools import WebSearch, ImageSearch
 from infact.eval.benchmark import Benchmark
@@ -46,13 +47,16 @@ class AVeriTeC(Benchmark):
 
     available_actions = [WebSearch]
 
-    def __init__(self, variant="dev"):
-        super().__init__(f"AVeriTeC ({variant})", variant)
+    def __init__(self, n_samples: int = None, variant: str ="dev"):
+        super().__init__(name=f"AVeriTeC ({variant})", variant=variant)
         self.file_path = Path(data_base_dir + f"AVeriTeC/{variant}.json")
 
         # Load the data
         with open(self.file_path, 'r') as f:
             data_raw = json.load(f)
+        if n_samples and (n_samples < len(data_raw)):
+            random.seed(random_seed)
+            data_raw = random.sample(data_raw, n_samples)
 
         data = []
         for i, d in enumerate(data_raw):

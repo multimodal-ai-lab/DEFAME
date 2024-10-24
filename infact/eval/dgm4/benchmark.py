@@ -2,17 +2,15 @@ import json
 import os
 from pathlib import Path
 from typing import Iterator
+import random
 
 from infact.common.medium import Image
-from config.globals import data_base_dir
+from config.globals import data_base_dir, random_seed
 from infact.common import Label, Content
 from infact.eval.benchmark import Benchmark
 from infact.tools.manipulation_detector import DetectManipulation
 from infact.tools import WebSearch, ImageSearch, ReverseSearch 
 
-####### To speed up testing we only load a 1000 samples from the dataset. ########
-temporary_load_restriction = 200
-##################################################################################
 
 class DGM4(Benchmark):
     shorthand = "dgm4"
@@ -52,20 +50,23 @@ class DGM4(Benchmark):
 
     available_actions = [WebSearch, ImageSearch, ReverseSearch, DetectManipulation]
 
-    def __init__(self, variant="train"):
+    def __init__(self, variant="train", n_samples: int=None):
         super().__init__(f"DGM4 ({variant})", variant)
         self.data_file_path = Path(data_base_dir + f"DGM4/metadata/{variant}.json")
         self.base_image_path = Path(data_base_dir)
-        self.data = self.load_data()
+        self.data = self.load_data(n_samples) #TODO: Shift the sampling to the parent class Benchmark like a (sample() function)
 
-    def load_data(self) -> list[dict]:
+    def load_data(self, n_samples: int=None) -> list[dict]:
         """Load the DGM4 annotations and construct the entries."""
         with open(self.data_file_path, "r", encoding="utf-8") as file:
             data = json.load(file)
+            if n_samples and (n_samples < len(data)):
+                random.seed(random_seed)
+                data = random.sample(data, n_samples)
 
         entries = []
-        data = data[:temporary_load_restriction] if temporary_load_restriction else data ######## temporary load restriction ########
-        for i, ann in enumerate(data[:temporary_load_restriction]):
+       
+        for i, ann in enumerate(data):
             # Construct the image path
             image_path = self.base_image_path / Path(ann["image"])
             

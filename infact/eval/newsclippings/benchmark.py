@@ -2,9 +2,10 @@ import json
 import os
 from pathlib import Path
 from typing import Iterator
+import random
 
 from infact.common.medium import Image
-from config.globals import data_base_dir
+from config.globals import data_base_dir, random_seed
 from infact.common import Label, Content
 from infact.eval.benchmark import Benchmark
 from infact.tools.text_extractor import OCR
@@ -12,9 +13,7 @@ from infact.tools.geolocator import Geolocate
 from infact.tools.object_detector import DetectObjects
 from infact.tools import WebSearch, ImageSearch, ReverseSearch
 
-####### To speed up testing we only load a 1000 samples from the dataset. ########
-temporary_load_restriction = 250
-##################################################################################
+
 class NewsCLIPpings(Benchmark):
     shorthand = "newsclippings"
 
@@ -49,12 +48,12 @@ class NewsCLIPpings(Benchmark):
 
     available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
 
-    def __init__(self, variant="val"):
+    def __init__(self, variant="val", n_samples: int=None):
         super().__init__(f"NewsCLIPings ({variant})", variant)
         self.visual_news_file_path = Path(data_base_dir + "NewsCLIPings/news_clippings/visual_news/origin/data.json")
         self.data_file_path = Path(data_base_dir + f"NewsCLIPings/news_clippings/news_clippings/data/merged_balanced/{variant}.json")
         self.visual_news_data_mapping = self.load_visual_news_data()
-        self.data = self.load_data()
+        self.data = self.load_data(n_samples)
 
     def load_visual_news_data(self) -> dict:
         """Load visual news data and map it by ID."""
@@ -62,12 +61,15 @@ class NewsCLIPpings(Benchmark):
             visual_news_data = json.load(file)
         return {ann["id"]: ann for ann in visual_news_data}
 
-    def load_data(self) -> list[dict]:
+    def load_data(self, n_samples: int=None) -> list[dict]:
         """Load annotations data from the NewsCLIPings dataset and map captions to images."""
         with open(self.data_file_path, "r", encoding="utf-8") as file:
             data = json.load(file)
 
-        annotations = data["annotations"][:temporary_load_restriction] if temporary_load_restriction else data["annotations"] ######## temporary load restriction ########
+        annotations = data["annotations"]
+        if n_samples and (n_samples < len(annotations)):
+                random.seed(random_seed)
+                annotations = random.sample(annotations, n_samples)
         entries = []
 
         for i, ann in enumerate(annotations):
