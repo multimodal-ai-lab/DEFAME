@@ -31,9 +31,9 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         llm_kwargs=dict(temperature=0.01),
         benchmark_name="mocheg",
         benchmark_kwargs=dict(variant="val"),
-        n_samples=1,
+        n_samples=200,
         sample_ids=None,
         print_log_level="info",
         random_sampling=False,
-        n_workers=1,
+        n_workers=5,
     )
