@@ -229,7 +229,7 @@ def _resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
                     text = text.replace(f"[{hypertext}]({url})", f"{hypertext} {image.reference}")
                     continue
 
-            except (requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
+            except (requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout, requests.exceptions.TooManyRedirects):
                 # Webserver is not reachable (anymore)
                 pass
 
@@ -237,6 +237,10 @@ def _resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
                 print(f"Unable to download image from {url}.")
                 print(e)
                 # Image has an incompatible format. Skip it.
+                pass
+            except Exception as e:
+                print(f"Unable to download image from {url}.")
+                print(e)
                 pass
 
             finally:

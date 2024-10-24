@@ -47,7 +47,10 @@ def evaluate(
     if llm_kwargs is None:
         llm_kwargs = dict()
 
-    benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
+    if n_samples:
+         benchmark = load_benchmark(benchmark_name, n_samples=n_samples, **benchmark_kwargs) #TODO: n_samples logic has been overworked for random_sampling. COde can be slimmed down here (ll. 103 ff)
+    else:
+        benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
     is_test = benchmark.variant == "test"
 
     llm = model_specifier_to_shorthand(llm) if llm not in AVAILABLE_MODELS["Shorthand"].values else llm
