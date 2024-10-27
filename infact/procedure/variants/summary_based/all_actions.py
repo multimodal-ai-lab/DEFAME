@@ -3,6 +3,7 @@ from typing import Any, Collection
 from infact.common import FCDocument, Label, Evidence
 from infact.procedure.procedure import Procedure
 from infact.prompts.prompts import ReiteratePrompt
+from infact.tools.search.common import WebSearch, ImageSearch
 
 
 class AllActionsSummary(Procedure):
@@ -17,6 +18,9 @@ class AllActionsSummary(Procedure):
             self.logger.log("Not enough information yet. Continuing fact-check...")
             n_iterations += 1
             actions, reasoning = self.planner.plan_next_actions(doc, all_actions=True)
+            text = f'"{doc.claim.text.split(">", 1)[1].strip()}"'
+            actions.append(WebSearch(text))
+            actions.append(ImageSearch(text))
             if len(reasoning) > 32:  # Only keep substantial reasoning
                 doc.add_reasoning(reasoning)
             doc.add_actions(actions)
