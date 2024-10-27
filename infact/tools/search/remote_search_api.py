@@ -93,7 +93,7 @@ class RemoteSearchAPI(SearchAPI):
             cache_results = self.search_cache(query)
             if cache_results:
                 self.cache_hit += 1
-                #return cache_results
+                return cache_results
 
         # Run actual search
         search_result = super().search(query)
@@ -200,7 +200,7 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
 
 
     success = response.json()["success"]
-    if success:
+    if success and "data" in response.json():
         data = response.json()["data"]
         text = data["markdown"]
         return _resolve_media_hyperlinks(text)

@@ -138,7 +138,7 @@ class PlanPrompt(Prompt):
     def extract(self, response: str) -> dict:
         # In case "image:k is referenced by the LLM by mistake"
         if self.images:
-            claim_image = self.images[0].reference
+            claim_image = self.images[0].reference #Be careful that the Plan Prompt always has the Claim image first before any other iamge!
         else:
             claim_image = None
         pattern = re.compile(r'<image:[a-zA-Z0-9_]+>')
