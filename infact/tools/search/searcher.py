@@ -186,10 +186,7 @@ class Searcher(Tool):
         if result:
             for web_source in result.sources:
                 self._summarize_single_web_source(web_source, doc)
-            if type(result) == ReverseSearchResult:
-                return str(result)
-            else:
-                return self._summarize_summaries(result, doc)
+            return self._summarize_summaries(result, doc)
         else:
             return None
 

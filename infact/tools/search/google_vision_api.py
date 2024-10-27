@@ -60,7 +60,7 @@ class GoogleVisionAPI(RemoteSearchAPI):
         filtered_pages = filter_unique_stem_pages(web_detection.pages_with_matching_images)
         for page in filtered_pages:
             url = page.url
-            title = page.page_title if hasattr(page, 'page_title') else ""
+            title = f'Found exact image on website with title: {page.page_title}' if hasattr(page, 'page_title') else "Found exact image on website"
             scraped = scrape(url, self.logger)
             
             if scraped:
