@@ -8,6 +8,8 @@ import io
 import requests
 from bs4 import BeautifulSoup
 from PIL import Image as PillowImage, UnidentifiedImageError
+from notebook.auth import passwd
+from urllib.parse import urlparse
 
 from config.globals import temp_dir
 from infact.common.misc import Query
@@ -16,6 +18,40 @@ from infact.tools.search.search_api import SearchAPI
 from infact.tools.search.common import SearchResult
 from infact.utils.parsing import md, get_markdown_hyperlinks, is_image_url
 
+
+fact_checking_websites = [
+    "snopes.com",
+    "politifact.com",
+    "factcheck.org",
+    "truthorfiction.com",
+    "fullfact.org",
+    "leadstories.com",
+    "hoax-slayer.net",
+    "checkyourfact.com",
+    "reuters.com/fact-check",
+    "apnews.com/APFactCheck",
+    "factcheck.afp.com",
+    "poynter.org",
+    "factcheck.ge",
+    "vishvasnews.com",
+    "boomlive.in",
+    "altnews.in",
+    "thequint.com/news/webqoof",
+    "factcheck.kz"
+]
+
+block_keywords = [
+        "captcha",
+        "verify you are human",
+        "access denied",
+        "premium content",
+        "403 Forbidden",
+        "You have been blocked",
+        "Please enable JavaScript",
+        "I'm not a robot",
+        "Are you a robot?",
+        "Are you a human?",
+    ]
 
 class RemoteSearchAPI(SearchAPI):
     is_local = False
@@ -70,24 +106,31 @@ class RemoteSearchAPI(SearchAPI):
             return self.cache[query]
 
 
-def scrape(url, logger) -> MultimediaSnippet:
+def scrape(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
     """Scrapes the contents of the specified webpage."""
+    if is_fact_checking_site(url):
+        logger.info(f"Skipping fact-checking website: {url}")
+        return None
     # TODO: Handle social media links (esp. Twitter/X, YouTube etc.) differently
     if _firecrawl_is_running():
         scraped = scrape_firecrawl(url, logger)
-        if scraped:
-            return scraped
     else:
         logger.error(f"Firecrawl is not running! Falling back...")
-    # Fallback
-    return MultimediaSnippet(scrape_naive(url, logger))
 
+    if not scraped:
+        # Fallback
+        scraped = MultimediaSnippet(scrape_naive(url, logger))
 
-def scrape_naive(url, logger):
+    if scraped and is_relevant_content(str(scraped)):
+        return scraped
+    else:
+        return None
+
+def scrape_naive(url: str, logger: Logger) ->  Optional[MultimediaSnippet]:
     """Fallback scraping script."""
     # TODO: Also scrape images
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'User-Agent': 'Mozilla/4.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     }
     try:
         page = requests.get(url, headers=headers, timeout=5)
@@ -95,9 +138,9 @@ def scrape_naive(url, logger):
         # Handle any request errors
         if page.status_code == 403:
             logger.info(f"Forbidden URL: {url}")
-            return ""
+            return None
         elif page.status_code == 404:
-            return ""
+            return None
         page.raise_for_status()
 
         soup = BeautifulSoup(page.content, 'html.parser')
@@ -108,7 +151,7 @@ def scrape_naive(url, logger):
         # Turn soup object into a Markdown-formatted string
         text = md(soup)
         text = postprocess_scraped(text)
-        return text
+        return MultimediaSnippet(text)
     except requests.exceptions.Timeout:
         logger.info(f"Timeout occurred while scraping {url}")
     except requests.exceptions.HTTPError as http_err:
@@ -117,18 +160,7 @@ def scrape_naive(url, logger):
         logger.info(f"Request exception occurred while scraping {url}: {req_err}")
     except Exception as e:
         logger.info(f"An unexpected error occurred while scraping {url}: {e}")
-    return ""
-
-
-def filter_relevant_sentences(text, keywords):
-    sentences = re.split(r'(?<=[.!?]) +', text)
-    relevant_sentences = []
-    for sentence in sentences:
-        score = sum(1 for word in keywords if word in sentence.lower())
-        if score > 0:
-            relevant_sentences.append((sentence, score))
-    relevant_sentences.sort(key=lambda x: x[1], reverse=True)
-    return [sentence for sentence, score in relevant_sentences]
+    return None
 
 
 def postprocess_scraped(text: str) -> str:
@@ -184,7 +216,7 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
         return None
 
     success = response.json()["success"]
-    if success:
+    if success and "data" in response.json():
         data = response.json()["data"]
         text = data["markdown"]
         return _resolve_media_hyperlinks(text)
@@ -194,16 +226,18 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
         return None
 
 
-def _resolve_media_hyperlinks(text: str) -> MultimediaSnippet:
+def _resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
     """Identifies all image URLs, downloads the images and replaces the
     respective Markdown hyperlinks with their proper image reference."""
+    if not text:
+        return None
     hyperlinks = get_markdown_hyperlinks(text)
     for hypertext, url in hyperlinks:
         # Check if URL is an image URL
         if is_image_url(url):
             try:
                 # Download the image
-                response = requests.get(url, stream=True, timeout=5)
+                response = requests.get(url, stream=True, timeout=10)
                 if response.status_code == 200:
                     img = PillowImage.open(io.BytesIO(response.content))
                     image = Image(pillow_image=img)  # TODO: Check for duplicates
@@ -211,7 +245,7 @@ def _resolve_media_hyperlinks(text: str) -> MultimediaSnippet:
                     text = text.replace(f"[{hypertext}]({url})", f"{hypertext} {image.reference}")
                     continue
 
-            except (requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
+            except (requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout, requests.exceptions.TooManyRedirects):
                 # Webserver is not reachable (anymore)
                 pass
 
@@ -219,6 +253,10 @@ def _resolve_media_hyperlinks(text: str) -> MultimediaSnippet:
                 print(f"Unable to download image from {url}.")
                 print(e)
                 # Image has an incompatible format. Skip it.
+                pass
+            except Exception as e:
+                print(f"Unable to download image from {url}.")
+                print(e)
                 pass
 
             finally:
@@ -236,6 +274,34 @@ def _firecrawl_is_running():
     except (requests.exceptions.ConnectionError, requests.exceptions.RetryError):
         return False
     return response.status_code == 200
+
+
+def is_fact_checking_site(url: str) -> bool:
+    """Check if the URL belongs to a known fact-checking website."""
+    parsed_url = urlparse(url)
+    domain = parsed_url.netloc.lower()
+    # Check if the domain matches any known fact-checking website
+    for site in fact_checking_websites:
+        if site in domain:
+            return True
+    return False
+
+
+def is_relevant_content(content: str) -> bool:
+    """Checks if the web scraping result contains relevant content or is blocked by a bot-catcher/paywall."""
+
+    if not content:
+        return False
+
+    for keyword in block_keywords:
+        if re.search(keyword, content, re.IGNORECASE):
+            return False
+
+    # Optionally, check for suspiciously short content (less than 500 characters might indicate blocking)
+    if len(content.strip()) < 500:
+        return False
+
+    return True
 
 
 if __name__ == '__main__':

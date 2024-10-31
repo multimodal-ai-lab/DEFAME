@@ -47,7 +47,10 @@ def evaluate(
     if llm_kwargs is None:
         llm_kwargs = dict()
 
-    benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
+    if n_samples:
+         benchmark = load_benchmark(benchmark_name, n_samples=n_samples, **benchmark_kwargs) #TODO: n_samples logic has been overworked for random_sampling. COde can be slimmed down here (ll. 103 ff)
+    else:
+        benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
     is_test = benchmark.variant == "test"
 
     llm = model_specifier_to_shorthand(llm) if llm not in AVAILABLE_MODELS["Shorthand"].values else llm
@@ -187,7 +190,7 @@ def evaluate(
     try:
         for _ in tqdm(range(n_samples), smoothing=0.02):
             try:
-                doc, meta = output_queue.get(timeout=30 * 60)  # 30 minutes timeout
+                doc, meta = output_queue.get(timeout=60 * 60)  # 60 minutes timeout
                 process_output(doc, meta, benchmark, logger, is_test)
             except Empty as e:
                 logger.warning("Output queue was empty after 30 minutes timeout. Possible worker failure.")
@@ -296,8 +299,11 @@ def finalize_evaluation(stats: dict,
     experiment_dir = Path(experiment_dir)
     is_averitec = isinstance(benchmark, AVeriTeC)
     is_test = benchmark.variant == "test"
-
-    instance_stats = pd.read_csv(experiment_dir / Logger.instance_stats_filename)
+    try:
+        instance_stats = pd.read_csv(experiment_dir / Logger.instance_stats_filename)
+    except Exception:
+        print("Terminated before instance_stats.csv was created. ")
+        return
 
     # Add aggregated statistics from individual claims
     stats.update({"Time per claim": instance_stats["Duration"].mean()})
@@ -424,7 +430,7 @@ def fact_check(llm: str, llm_kwargs: dict,
         while True:
             try:
                 content = input_queue.get(timeout=10)
-                if not content:
+                if content is None:
                     return
             except Empty:
                 return

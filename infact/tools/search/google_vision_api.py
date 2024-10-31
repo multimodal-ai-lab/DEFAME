@@ -2,10 +2,12 @@ import os
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Optional
+import re
 
 import requests
 from PIL import Image as pillowImage
 from google.cloud import vision
+from urllib.parse import urlparse
 
 from infact.common.medium import Image
 from infact.common.misc import ImageQuery, WebSource
@@ -55,16 +57,20 @@ class GoogleVisionAPI(RemoteSearchAPI):
 
         # Pages Relevant Images
         web_sources = []
-        for page in web_detection.pages_with_matching_images[:query.limit]:
+        filtered_pages = filter_unique_stem_pages(web_detection.pages_with_matching_images)
+        for page in filtered_pages:
             url = page.url
-            # title = page.page_title if hasattr(page, 'page_title') else ""
+            title = f'Found exact image on website with title: {page.page_title}' if hasattr(page, 'page_title') else "Found exact image on website"
             scraped = scrape(url, self.logger)
-            web_sources.append(WebSource(
-                url=url,
-                text=scraped.text,
-                query=query,
-                rank=len(web_sources) + 1
-            ))
+            
+            if scraped:
+                web_sources.append(WebSource(
+                    url=url,
+                    title=title,
+                    text=str(scraped),
+                    query=query,
+                    rank=len(web_sources) + 1
+                ))
 
         return ReverseSearchResult(sources=web_sources, entities=web_entities, best_guess_labels=best_guess_labels)
 
@@ -77,3 +83,48 @@ class GoogleVisionAPI(RemoteSearchAPI):
         except Exception as e:
             self.logger.log(f"Failed to download or open image from {image_url}: {e}")
             return None
+
+def get_base_domain(url):
+    """
+    Extracts the base domain from a given URL, ignoring common subdomains like 'www' and 'm'.
+    
+    Args:
+        url (str): The URL to extract the base domain from.
+    
+    Returns:
+        str: The base domain (e.g., 'facebook.com').
+    """
+    netloc = urlparse(url).netloc
+    
+    # Remove common subdomains like 'www.' and 'm.'
+    if netloc.startswith('www.') or netloc.startswith('m.'):
+        netloc = netloc.split('.', 1)[1]  # Remove the first part (e.g., 'www.', 'm.')
+    
+    return netloc
+
+def filter_unique_stem_pages(pages):
+    """
+    Filters pages to ensure only one page per website base domain is included 
+    (e.g., 'facebook.com' regardless of subdomain), 
+    and limits the total number of pages to the specified limit.
+    
+    Args:
+        pages (list): List of pages with matching images.
+        limit (int): Maximum number of pages to keep.
+    
+    Returns:
+        list: Filtered list of pages.
+    """
+    unique_domains = set()
+    filtered_pages = []
+    
+    for page in pages:
+        base_domain = get_base_domain(page.url)
+        
+        # Check if we already have a page from this base domain
+        if base_domain not in unique_domains:
+            unique_domains.add(base_domain)
+            filtered_pages.append(page)
+        
+    return filtered_pages
+

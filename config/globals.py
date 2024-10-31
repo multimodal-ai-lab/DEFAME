@@ -13,3 +13,5 @@ embedding_model = "Alibaba-NLP/gte-base-en-v1.5"  # used for semantic search in 
 manipulation_detection_model = working_dir / "third_party/TruFor/weights/trufor.pth.tar" 
 
 api_keys = yaml.safe_load(open("config/api_keys.yaml"))
+
+random_seed = 42 # used for sub-sampling in partial dataset testing

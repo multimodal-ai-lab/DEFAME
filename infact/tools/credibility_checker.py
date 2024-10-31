@@ -13,6 +13,7 @@ class CredibilityCheck(Action):
     how_to = "Provide a source URL or name and the model will assess its credibility."
     format = 'check_credibility("url")'
     is_multimodal = False
+    is_limited = False
 
     def __init__(self, source: str):
         self.source = source

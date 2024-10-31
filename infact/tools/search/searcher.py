@@ -16,7 +16,7 @@ from infact.tools.search.wiki_dump import WikiDumpAPI
 from infact.tools.search.google_vision_api import GoogleVisionAPI
 from infact.tools.tool import Tool
 from infact.utils.console import gray, orange
-from .common import SearchResult, Search, WebSearch, WikiDumpLookup, ImageSearch, ReverseSearch
+from .common import SearchResult, Search, WebSearch, WikiDumpLookup, ImageSearch, ReverseSearch, ReverseSearchResult
 from ...common.misc import  WebSource, Query, ImageQuery, TextQuery
 
 SEARCH_APIS = {
@@ -141,7 +141,7 @@ class Searcher(Tool):
                 self.logger.log(result_summary)
 
             # Modify the raw web source text to avoid jinja errors when used in prompt
-            search_result.sources = self._postprocess_results(search_result.sources)
+            search_result.sources = self._postprocess_results(search_result.sources)[:self.limit_per_search]
 
             # If there is at least one new web source in the result, we were successful
             if len(search_result.sources) > 0:
@@ -164,15 +164,21 @@ class Searcher(Tool):
     def _postprocess_results(self, results: list[WebSource]) -> list[WebSource]:
         """Modifies the results text to avoid jinja errors when used in prompt."""
         for result in results:
-            result.text = self.postprocess_result(result.text)
+            result.text = self.postprocess_result(result.text, result.query)
         return results
 
-    def postprocess_result(self, result: str):
+    def postprocess_result(self, result: str, query: str, filter_relevant: bool=True):
         """Removes all double curly braces to avoid conflicts with Jinja and optionally truncates
-        the result text to a maximum length."""
+        the result text to a maximum length. Also filter the content according to keywords from the query."""
+        if filter_relevant and (query.search_type != "reverse") and (query.search_type != "images"):
+            keywords = re.findall(r'\b\w+\b', query.text.lower()) or query.text
+            relevant_content = filter_relevant_sentences(result, keywords)[:10]
+            relevant_text = ' '.join(relevant_content)
+            result = relevant_text or result
+
         result = re.sub(r"\{\{.*}}", "", result)
         if self.max_result_len is not None:
-            result = result[self.max_result_len:]
+            result = result[:self.max_result_len]
         return result
 
     def _summarize(self, result: SearchResult, **kwargs) -> Optional[MultimediaSnippet]:
@@ -185,27 +191,30 @@ class Searcher(Tool):
             return None
 
     def _summarize_single_web_source(self, web_source: WebSource, doc: FCDocument):
-        prompt = SummarizeResultPrompt(web_source, doc)
-
-        try:
-            summary = self.llm.generate(prompt, max_attempts=3)
-            if not summary:
+        if str(web_source) == "NONE":
+            web_source.summary = MultimediaSnippet(summary)
+        else:
+            prompt = SummarizeResultPrompt(web_source, doc)
+    
+            try:
+                summary = self.llm.generate(prompt, max_attempts=3)
+                if not summary:
+                    summary = "NONE"
+            except APIError as e:
+                self.logger.log(orange(f"APIError: {e} - Skipping the summary for {web_source.url}."))
+                self.logger.log(orange(f"Used prompt:\n{str(prompt)}"))
                 summary = "NONE"
-        except APIError as e:
-            self.logger.log(orange(f"APIError: {e} - Skipping the summary for {web_source.url}."))
-            self.logger.log(orange(f"Used prompt:\n{str(prompt)}"))
-            summary = "NONE"
-        except TemplateSyntaxError as e:
-            self.logger.log(orange(f"TemplateSyntaxError: {e} - Skipping the summary for {web_source.url}."))
-            summary = "NONE"
-        except ValueError as e:
-            self.logger.log(orange(f"ValueError: {e} - Skipping the summary for {web_source.url}."))
-            summary = "NONE"
-        except Exception as e:
-            self.logger.log(orange(f"Error while summarizing! {e} - Skipping the summary for {web_source.url}."))
-            summary = "NONE"
-
-        web_source.summary = MultimediaSnippet(summary)
+            except TemplateSyntaxError as e:
+                self.logger.log(orange(f"TemplateSyntaxError: {e} - Skipping the summary for {web_source.url}."))
+                summary = "NONE"
+            except ValueError as e:
+                self.logger.log(orange(f"ValueError: {e} - Skipping the summary for {web_source.url}."))
+                summary = "NONE"
+            except Exception as e:
+                self.logger.log(orange(f"Error while summarizing! {e} - Skipping the summary for {web_source.url}."))
+                summary = "NONE"
+    
+            web_source.summary = MultimediaSnippet(summary)
 
         if web_source.is_relevant():
             self.logger.log("Useful result: " + gray(str(web_source)))
@@ -222,14 +231,24 @@ class Searcher(Tool):
 
         # Prepare the prompt for the LLM
         placeholder_targets = {
-            "[SUMMARIES]": "\n\n".join(summaries),
+            "[SUMMARIES]": str(result),
             "[DOC]": str(doc),
         }
         summarize_prompt = Prompt(placeholder_targets=placeholder_targets,
+                                  name="SummarizeSummariesPrompt",
                                   template_file_path="infact/prompts/summarize_summaries.md")
-
-        # Generate the summary
-        return MultimediaSnippet(self.llm.generate(summarize_prompt))
+        #TODO seems to only save one image per result and not per source...
+        references = ""
+        for source in result.sources:
+            if not source.has_images:
+                return MultimediaSnippet(self.llm.generate(summarize_prompt))
+            else: 
+                for image in source.images:
+                    references += f'{source.url}: {image.reference}\n'
+                summary = self.llm.generate(summarize_prompt)
+                return MultimediaSnippet(f'{summary}\n{references}.')
+        
+        
 
     def get_stats(self) -> dict[str, Any]:
         total_searches = np.sum([n for n in self.stats.values()])
@@ -240,3 +259,14 @@ class Searcher(Tool):
 
     def set_date_restriction(self, until: date):
         self.restrict_results_until_date = until
+
+
+def filter_relevant_sentences(text, keywords):
+    sentences = re.split(r'(?<=[.!?]) +', text)
+    relevant_sentences = []
+    for sentence in sentences:
+        score = sum(1 for word in keywords if word in sentence.lower())
+        if score > 0:
+            relevant_sentences.append((sentence, score))
+    relevant_sentences.sort(key=lambda x: x[1], reverse=True)
+    return [sentence for sentence, score in relevant_sentences]

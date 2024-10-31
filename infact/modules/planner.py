@@ -37,7 +37,7 @@ class Planner:
 
         return available_actions
 
-    def plan_next_actions(self, doc: FCDocument) -> (list[Action], str):
+    def plan_next_actions(self, doc: FCDocument, all_actions=False) -> (list[Action], str):
         # TODO: include image in planning
         performed_actions = doc.get_all_actions()
         new_valid_actions = []
@@ -50,13 +50,13 @@ class Planner:
                     is_performed = True
                     break
 
-            if not action_class.is_multimodal or (action_class.is_multimodal and not is_performed):
+            if not action_class.is_limited or (action_class.is_limited and not is_performed):
                 new_valid_actions.append(action_class)
             else:
                 self.logger.log(f"INFO: Dropping action '{action_class.name}' as it was already performed.")
 
-        self.valid_actions = new_valid_actions
-        prompt = PlanPrompt(doc, self.valid_actions, self.extra_rules)
+        #self.valid_actions = new_valid_actions
+        prompt = PlanPrompt(doc, new_valid_actions, self.extra_rules, all_actions)
         n_attempts = 0
 
         while n_attempts < self.max_attempts:
@@ -77,7 +77,7 @@ class Planner:
             if len(actions) > 0:
                 return actions, reasoning
             else:
-                self.logger.warning(f'No actions were found in this response: {response["response"]}')
+                self.logger.warning(f'No new actions were found in this response: {response["response"]}')
                 return [], ""
 
 

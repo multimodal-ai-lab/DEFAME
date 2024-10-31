@@ -5,7 +5,7 @@ from typing import Iterator
 import pandas as pd
 
 from infact.common.medium import Image
-from config.globals import data_base_dir
+from config.globals import data_base_dir, random_seed
 from infact.common import Label, Content
 from infact.eval.benchmark import Benchmark
 from infact.tools.text_extractor import OCR
@@ -36,28 +36,28 @@ class VERITE(Benchmark):
 
     extra_prepare_rules = """**Assess Alignment**: Assess the alignment between image and text in complex scenarios. Prepare for varied real-world images and captions.
     **Verify Context**: Examine the source and context of each image to understand its relationship with the accompanying text.
-    Start each claim with: The Claim is that the image shows ... """
+    Start each claim with: The claim is that the image shows ... """
 
-    extra_plan_rules = """* **Consider Both Modalities Equally**: Avoid focusing too much on one modality at the expense of the other.
-    * **Compare Image and Caption**: Verify the context of the image and caption. Check for
-    any misleading information that might suggest the image is used out of context or the caption is miscaptioned.
+    extra_plan_rules = """* **Consider Both Modalities Equally**: Avoid focusing too much on one modality at the expense of the other but always check whether the text claim is true or false.
+    * **Compare Image and Caption**: Verify the context of the image and caption.
     * **Identify any potential asymmetry in the modalities**: Perform one image_search if the action is available to compare other images with the claim image."""
 
-    extra_judge_rules = """* **Focus on the alignment of Image and Claim**: The question is whether the image corresponds to the claim. 
+    extra_judge_rules = """* **Caption Check First**: If the caption is factually wrong, then the claim is considered miscaptioned.
+    * **Alignment Check of Image and Claim**: If the caption is factually correct, we need to check whether the image corresponds to the claim. 
     Judge if there is any alignment issue between image and text. Does the image deliver any support for the claim or is it taken out of context?
-    If the claim is actually true but the image shows a different event, then the verdict is OUT OF CONTEXT. If the claim is false, then the verdict should be miscaptioned.
-    Lastly, if the image appears to show the event mentioned in the claim, then the verdict is out-of-context."""
+    If the claim text is actually true but the image shows a different event, then the verdict is out-of-context."""
 
     available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
 
-    def __init__(self, variant="dev"):
+    def __init__(self, variant="dev", n_samples: int=None):
         super().__init__(f"VERITE ({variant})", variant)
         self.file_path = Path(data_base_dir + "VERITE/VERITE.csv")
-        self.data = self.load_data()
+        self.data = self.load_data(n_samples)
 
-    def load_data(self) -> list[dict]:
+    def load_data(self, n_samples: int=None) -> list[dict]:
         df = pd.read_csv(self.file_path)
-
+        if n_samples and (n_samples < len(df)):
+            df = df.sample(n=n_samples, random_state=random_seed)
         data = []
         for i, row in df.iterrows():
             image_path = Path(data_base_dir + f"VERITE/{row['image_path']}")

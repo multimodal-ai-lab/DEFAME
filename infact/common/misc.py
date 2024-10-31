@@ -6,7 +6,7 @@ from typing import Optional, List
 from infact.common import MultimediaSnippet, Image
 
 
-@dataclass
+@dataclass(frozen=True)
 class Query(ABC):
     limit: Optional[int] = None
     start_date: Optional[Date] = None
@@ -37,7 +37,7 @@ class Query(ABC):
         ))
     
 
-@dataclass
+@dataclass(frozen=True)
 class TextQuery(Query):
     text: str = ''
     search_type: str = 'search'
@@ -53,7 +53,7 @@ class TextQuery(Query):
     def __hash__(self):
         return hash((super().__hash__(), self.text))
     
-@dataclass
+@dataclass(frozen=True) 
 class ImageQuery(Query):
     text: str = None
     image: Image = None  
@@ -68,13 +68,14 @@ class ImageQuery(Query):
         return super().__eq__(other) and self.image == other.image
 
     def __hash__(self):
-        return hash((super(Query).__hash__(), self.image))
+        return hash((super().__hash__(), self.image))
 
 
 @dataclass
 class WebSource(MultimediaSnippet):
     """Output when searching the web or a local knowledge base."""
     url: str
+    title: str = ""
     date: Date = None
     summary: MultimediaSnippet = None
     query: Query = None
@@ -93,7 +94,7 @@ class WebSource(MultimediaSnippet):
         """Differentiates between direct citation (original text) and
         indirect citation (if summary is available)."""
         text = self.summary.text if self.summary is not None else f'"{self.text}"'
-        return f'From [Source]({self.url}):\n{text}'
+        return f'From [Source]({self.url}): {self.title}\nContent: {text}'
 
     def __eq__(self, other):
         return self.url == other.url

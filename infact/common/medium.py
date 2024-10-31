@@ -208,7 +208,7 @@ class MediaRegistry:
 
     def get_media_from_text(self, text: str, medium_type: str = None) -> list:
         """Returns the list of all loaded media referenced in the text."""
-        medium_refs = set(get_medium_refs(text))
+        medium_refs = get_unique_ordered_medium_refs(text)
         media = []
         for ref in medium_refs:
             medium = self.get(ref)
@@ -230,10 +230,11 @@ class MediaRegistry:
         return None
 
     def _get_id_by_path(self, path_to_medium: Path) -> Optional[int]:
-        matches = self.media["path_to_file"] == _normalize_path(path_to_medium)
-        if not np.any(matches):
+        match = self.media.loc[self.media["path_to_file"] == _normalize_path(path_to_medium)]
+        if not match.empty:
+            return match["id"].values[0]
+        else:
             return None
-        return self.media[matches]["id"].values[0]
 
     def _get_path_by_id(self, medium_type: str, medium_id: int) -> Optional[Path]:
         media = self.media
@@ -310,6 +311,19 @@ def get_medium_refs(text: str) -> list[str]:
     pattern = re.compile(MEDIA_REF_REGEX, re.DOTALL)
     matches = pattern.findall(text)
     return matches
+
+def get_unique_ordered_medium_refs(text: str) -> list[str]:
+    """Extracts all media references from the text, preserving their order and removing duplicates."""
+    pattern = re.compile(MEDIA_REF_REGEX, re.DOTALL)
+    matches = pattern.findall(text)
+    seen = set()
+    unique_refs = []
+    for match in matches:
+        if match not in seen:
+            unique_refs.append(match)
+            seen.add(match)
+    
+    return unique_refs
 
 
 def parse_media_ref(reference: str) -> Optional[tuple[str, int]]:

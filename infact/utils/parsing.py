@@ -102,7 +102,13 @@ def find_enclosed_through_horizontal_line(text: str):
 def find(text: str, delimiter: str):
     pattern = re.compile(f'{delimiter}(.*?){delimiter}', re.DOTALL)
     matches = pattern.findall(text)
+    if matches:
+        return matches
+    open_block_pattern = re.compile(f'{delimiter}(.*)', re.DOTALL)
+    matches = open_block_pattern.findall(text)
     return matches
+
+
 
 
 def extract_last_paragraph(text: str) -> str:
@@ -188,6 +194,70 @@ def fill_placeholders(text: str, placeholder_targets: dict[str, Any]) -> str:
             raise ValueError(f"Placeholder '{placeholder}' not found in prompt template:\n{text}")
         text = text.replace(placeholder, str(target))
     return text
+
+def format_for_llava(prompt):
+    text = prompt.text
+    image_pattern = re.compile(r'<image:\d+>')
+    formatted_list = []
+    current_pos = 0
+    
+    for match in image_pattern.finditer(text):
+        start, end = match.span()
+
+        if current_pos < start:
+            text_snippet = text[current_pos:start].strip()
+            if text_snippet:
+                formatted_list.append({"type": "text", "text": text_snippet + "\n"})
+        
+        formatted_list.append({"type": "image"})
+        current_pos = end
+    
+    if current_pos < len(text):
+        remaining_text = text[current_pos:].strip()
+        if remaining_text:
+            formatted_list.append({"type": "text", "text": remaining_text + "\n"})
+
+    return formatted_list
+
+
+def format_for_gpt(prompt):
+    text = prompt.text
+    img_dict = {image.reference: image for image in prompt.images}
+    formatted_list = []
+    image_pattern = re.compile(r'<image:\d+>') 
+    current_pos = 0
+
+    for match in image_pattern.finditer(text):
+        start, end = match.span()
+        image_reference = match.group()
+
+        if current_pos < start:
+            text_snippet = text[current_pos:start].strip()
+            if text_snippet:
+                formatted_list.append({
+                    "type": "text",
+                    "text": text_snippet + "\n"
+                })
+
+        if image_reference in img_dict:
+            image_encoded = img_dict[image_reference].get_base64_encoded()
+            formatted_list.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{image_encoded}"
+                }
+            })
+        current_pos = end
+
+    if current_pos < len(text):
+        remaining_text = text[current_pos:].strip()
+        if remaining_text:
+            formatted_list.append({
+                "type": "text",
+                "text": remaining_text + "\n"
+            })
+    
+    return formatted_list
 
 
 def md(soup, **kwargs):

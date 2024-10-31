@@ -9,14 +9,16 @@ from config.globals import manipulation_detection_model
 from infact.common import MultimediaSnippet, Result, Action, Image
 from infact.tools.tool import Tool
 from third_party.TruFor.src.fake_detect_tool import analyze_image, create_visualizations
+from infact.prompts.prompts import SummarizeManipulationResultPrompt
 
 
 class DetectManipulation(Action):
     name = "detect_manipulation"
     description = "Detects manipulations within an image."
     how_to = "Provide an image and the model will analyze it for signs of manipulation."
-    format = "detect_manipulation(<image:n>), where `n` is the image's ID"
+    format = "detect_manipulation(<image:k>), where `k` is the image's ID"
     is_multimodal = True
+    is_limited = True
 
     def __init__(self, image_ref: str):
         self.image: Image = MultimediaSnippet(image_ref).images[0]
@@ -35,22 +37,21 @@ class DetectManipulation(Action):
 class ManipulationResult(Result):
     text: str = field(init=False)
     score: Optional[float]
-    confidence_map: Optional[np.ndarray]
-    localization_map: np.ndarray
-    ref_confidence_map: Optional[str]
-    ref_localization_map: Optional[str]
-    noiseprint: Optional[np.ndarray] = None
+    confidence_map: Image
+    localization_map: Image
+    noiseprint_map: Image
 
     def is_useful(self) -> Optional[bool]:
         return self.score is not None or self.confidence_map is not None
 
     def __str__(self):
-        score_str = f'Score: {self.score:.3f}. (Everything above 0.5 might suggest manipulation.)' if self.score is not None else 'Score: N/A'
-        conf_str = f'Confidence map available: {self.ref_confidence_map}' if self.confidence_map is not None else 'Confidence map: N/A'
-        loc_str = f'Localization map available: {self.ref_localization_map}' if self.localization_map is not None else 'Localization map: N/A'
-        noiseprint_str = 'Noiseprint++ available' if self.noiseprint is not None else 'Noiseprint++: N/A'
-
-        return f'Manipulation Detection Results\n{score_str}\n{conf_str}\n{loc_str}\n{noiseprint_str}'
+        score_str = f'Score: {self.score:.3f}. (Everything above 0.6 might suggest manipulation.)' if self.score is not None else 'Score: N/A'
+        loc_str = f'Localization map available: {self.localization_map.reference}.' if self.localization_map is not None else 'Localization map: N/A'
+        conf_str = f'Confidence map available: {self.confidence_map.reference}.' if self.confidence_map is not None else 'Confidence map: N/A'
+        noiseprint_str = f'Noiseprint++ available: {self.noiseprint_map.reference}.' if self.noiseprint_map is not None else 'Noiseprint++: N/A'
+        #TODO: Perhaps include noiseprint for more precise manipulation detection.
+        return f'Manipulation Detection Results\n{score_str}\n{loc_str}\n{conf_str}\n{noiseprint_str}'
+    
 
     def __post_init__(self):
         self.text = str(self)
@@ -77,11 +78,9 @@ class ManipulationDetector(Tool):
 
         result = ManipulationResult(
             score=result_dict.get('score'),
-            confidence_map=result_dict.get('conf'),
-            localization_map=result_dict['map'],
-            noiseprint=result_dict.get('np++'),
-            ref_localization_map=result_dict.get('ref_localization_map'),
-            ref_confidence_map=result_dict.get('ref_confidence_map'),
+            confidence_map=result_dict.get('confidence_map'),
+            localization_map=result_dict.get('localization_map'),
+            noiseprint_map=result_dict.get('noiseprint_map'),
         )
         return result
 
@@ -95,4 +94,11 @@ class ManipulationDetector(Tool):
         return result
 
     def _summarize(self, result: ManipulationResult, **kwargs) -> Optional[MultimediaSnippet]:
-        return MultimediaSnippet("Manipulation Detector not fully implemented yet.")  # TODO: Implement the summary
+        prompt = SummarizeManipulationResultPrompt(result) 
+        summary = self.llm.generate(prompt)
+        references = f"""
+        Localization map at: {result.localization_map.reference}\n
+        Confidence map at: {result.confidence_map.reference}\n
+        Noiseprint map at: {result.noiseprint_map.reference}
+        """
+        return MultimediaSnippet(f'{summary}\n{references}.')
