@@ -13,7 +13,10 @@ BENCHMARK_REGISTRY = {
 
 
 def load_benchmark(name: str, **kwargs) -> Benchmark:
+    print("Loading benchmark...", end="")
     for benchmark in BENCHMARK_REGISTRY:
         if name == benchmark.shorthand:
-            return benchmark(**kwargs)
+            b = benchmark(**kwargs)
+            print(" done.")
+            return b
     raise ValueError(f"No benchmark named '{name}'.")

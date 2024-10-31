@@ -425,9 +425,9 @@ def fact_check(llm: str, llm_kwargs: dict,
             try:
                 content = input_queue.get(timeout=10)
                 if not content:
-                    break
+                    return
             except Empty:
-                break
+                return
             if is_averitec and 'averitec_kb' in searcher.search_apis:
                 # Restrict the KB to the current claim's resources
                 kb.current_claim_id = content.id_number

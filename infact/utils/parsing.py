@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional, Any
 from markdownify import MarkdownConverter
 from urllib.parse import urlparse
+import requests
 
 from infact.utils.console import orange
 
@@ -204,5 +205,12 @@ def get_markdown_hyperlinks(text: str) -> list[tuple[str, str]]:
 
 
 def is_image_url(url: str) -> bool:
-    url_parsed = urlparse(url)
-    return Path(url_parsed.path).suffix in [".jpg", ".jpeg", ".png", ".webp", ".gif"]
+    """Returns True iff the URL points at an accessible _pixel_ image file."""
+    try:
+        response = requests.head(url, timeout=2)
+        content_type = response.headers.get('content-type')
+        return (content_type.startswith("image/") and not "svg" in response.headers.get('content-type') and
+                not "svg" in content_type and
+                not "eps" in content_type)
+    except Exception:
+        return False
