@@ -278,15 +278,11 @@ class AnswerQuestionNoEvidence(Prompt):
         super().__init__(placeholder_targets)
 
 
-class ReiteratePrompt(Prompt):
-    template_file_path = "infact/prompts/consolidate.md"
+class DevelopPrompt(Prompt):
+    template_file_path = "infact/prompts/develop.md"
 
-    def __init__(self, doc: FCDocument, evidences: Collection[Evidence]):
-        evidence_str = "\n\n".join([str(e) for e in evidences])
-        placeholder_targets = {
-            "[DOC]": doc,
-            "[RESULTS]": evidence_str,
-        }
+    def __init__(self, doc: FCDocument):
+        placeholder_targets = {"[DOC]": doc}
         super().__init__(placeholder_targets)
 
 

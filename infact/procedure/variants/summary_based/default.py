@@ -2,7 +2,7 @@ from typing import Any, Collection
 
 from infact.common import FCDocument, Label, Evidence
 from infact.procedure.procedure import Procedure
-from infact.prompts.prompts import ReiteratePrompt
+from infact.prompts.prompts import DevelopPrompt
 
 
 class DynamicSummary(Procedure):
@@ -23,13 +23,12 @@ class DynamicSummary(Procedure):
             if actions:
                 evidences = self.actor.perform(actions, doc)
                 doc.add_evidence(evidences)  # even if no evidence, add empty evidence block for the record
-                self._consolidate_knowledge(doc, evidences)
+                self._develop(doc)
             label = self.judge.judge(doc, is_final=n_iterations == self.max_iterations or not actions)
         return label, {}
 
-    def _consolidate_knowledge(self, doc: FCDocument, evidences: Collection[Evidence]):
-        """Analyzes the currently available information and states new questions, adds them
-        to the FCDoc."""
-        prompt = ReiteratePrompt(doc, evidences)
+    def _develop(self, doc: FCDocument):
+        """Analyzes the currently available information and infers new insights."""
+        prompt = DevelopPrompt(doc)
         response = self.llm.generate(prompt)
         doc.add_reasoning(response)
