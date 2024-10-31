@@ -13,7 +13,7 @@ class SearchResult(Result):
     sources: list[WebSource]
 
     def __str__(self):
-        return "\n\n".join(map(str, self.sources))
+        return "**Web Search Result**\n\n" +"\n\n".join(map(str, self.sources))
 
 
 @dataclass
@@ -30,8 +30,8 @@ class ReverseSearchResult(SearchResult):
                                      for description, confidence in self.entities.items())
         if self.best_guess_labels:
             string_repr += (f"\nBest guess about the topic of "
-                           f"the image is {', '.join(self.best_guess_labels)}")
-        return string_repr + "\n\n" + "\n\n".join(map(str, self.sources))
+                           f"the image is {', '.join(self.best_guess_labels)}.\n Exact image matches found at:")
+        return "**Reverse Search Result** The exact image was found in the following sources:\n\n" + "\n\n".join(map(str, self.sources))
 
 
 class Search(Action):
@@ -65,6 +65,7 @@ class WebSearch(Search):
     If a previous web search did not yield any results, use a very different query."""
     format = """web_search("your web search query goes here")"""
     is_multimodal = False
+    is_limited = False
 
 
 class ImageSearch(Search):
@@ -76,6 +77,7 @@ class ImageSearch(Search):
     If no relevant images are found, refine the query or use more descriptive terms."""
     format = """image_search("your image search query goes here")"""
     is_multimodal = True
+    is_limited = False
 
 
 class WikiDumpLookup(Search):
@@ -89,6 +91,7 @@ class WikiDumpLookup(Search):
     `wiki_dump_lookup` did not yield enough results, use a very different query."""
     format = """wiki_dump_lookup("your wiki search query goes here")"""
     is_multimodal = False
+    is_limited = False
 
 
 class WikiLookup(Search):
@@ -100,6 +103,7 @@ class WikiLookup(Search):
     If a previous wiki_lookup did not yield any results, use a very different query."""
     format = """wiki_lookup("your wiki search query goes here")"""
     is_multimodal = False
+    is_limited = False
 
 
 class ReverseSearch(Search):
@@ -107,15 +111,16 @@ class ReverseSearch(Search):
     search_type = 'reverse'
     description = "Performs a reverse image search to find similar images on the web."
     how_to = "Provide an image and the model will perform a reverse search to find similar images."
-    format = 'reverse_search(image)'
+    format = "reverse_search(<image:k>), where `k` is the image's ID"
     is_multimodal = True
+    is_limited = True
 
     def __init__(self, image_ref: str):
         super().__init__(query=image_ref)
         self.image: Image = MultimediaSnippet(image_ref).images[0]
 
     def __str__(self):
-        return f'{self.name}()'
+        return f'{self.name}({self.image.reference})'
 
     def __eq__(self, other):
         return isinstance(other, ReverseSearch) and np.array_equal(np.array(self.image), np.array(other.image))

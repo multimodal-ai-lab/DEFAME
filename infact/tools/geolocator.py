@@ -14,8 +14,9 @@ class Geolocate(Action):
     name = "geolocate"
     description = "Performs geolocation to determine the country where an image was taken."
     how_to = f"Provide an image and the model will determine the most likely countries where it was taken."
-    format = "geolocate(<image:n>), where `n` is the image's ID"
+    format = "geolocate(<image:k>), where `k` is the image's ID"
     is_multimodal = True
+    is_limited = True
 
     def __init__(self, image_ref: str, top_k: int = 10):
         self.image: Image = MultimediaSnippet(image_ref).images[0]

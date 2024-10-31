@@ -51,6 +51,8 @@ class DuckDuckGo(RemoteSearchAPI):
         results = []
         for i, result in enumerate(response):
             url = result.get('href', '')
-            text = f"{result.get('title', '')}: {result.get('body', '')}"
-            results.append(WebSource(url=url, text=text, query=query, rank=i))
+            title = result.get('title', '')
+            text = result.get('body', '')
+            
+            results.append(WebSource(url=url, title=title, text=text, query=query, rank=i))
         return results

@@ -83,10 +83,11 @@ def load_model(config, model_file, device):
 
 def create_visualizations(result: dict) -> dict:
     """
-    Create visualizations for the localization map and confidence map and return them as Pillow images.
+    Create visualizations for the localization map, confidence map, and Noiseprint++ (if available),
+    and return them as Pillow images.
     
     :param result: A dictionary containing the results of the manipulation detection.
-    :return: A dictionary containing Pillow images for the localization and confidence maps.
+    :return: A dictionary containing Pillow images for the localization, confidence maps, and Noiseprint++.
     """
 
     # Visualization for the localization map
@@ -115,8 +116,29 @@ def create_visualizations(result: dict) -> dict:
     confidence_map = Image(pillow_image=PillowImage.open(buf_conf).convert("RGB"))
     plt.close(fig_conf)
 
-    result["ref_localization_map"] = localization_map.reference
-    result["ref_confidence_map"] = confidence_map.reference
+    # Visualization for the Noiseprint++ if available
+    if 'np++' in result:
+        noisepr = result['np++']
+        fig_noise, ax_noise = plt.subplots()
+        # Remove border and down-sample for better visualization
+        ax_noise.imshow(noisepr[16:-16:5, 16:-16:5], cmap='gray')
+        ax_noise.set_title('Noiseprint++')
+        ax_noise.axis('off')
+
+        # Save the Noiseprint++ map to a buffer
+        buf_noise = BytesIO()
+        plt.savefig(buf_noise, format='png', bbox_inches='tight')
+        buf_noise.seek(0)
+        noiseprint_map = Image(pillow_image=PillowImage.open(buf_noise).convert("RGB"))
+        plt.close(fig_noise)
+
+        result["noiseprint_map"] = noiseprint_map
+    else:
+        result["noiseprint_map"] = None  # No Noiseprint++ data
+
+    # Add the created Pillow images to the result dictionary
+    result["localization_map"] = localization_map
+    result["confidence_map"] = confidence_map
 
     return result
 

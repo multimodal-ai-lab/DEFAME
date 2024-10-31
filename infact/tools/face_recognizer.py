@@ -13,6 +13,7 @@ class FaceRecognition(Action):
     how_to = "Provide an image and the model will recognize faces in it."
     format = "recognize_faces(<image:n>), where `n` is the image's ID"
     is_multimodal = True
+    is_limited = True
 
     def __init__(self, image_ref: str):
         self.image: Image = MultimediaSnippet(image_ref).images[0]

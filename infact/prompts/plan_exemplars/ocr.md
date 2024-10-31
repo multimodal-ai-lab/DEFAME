@@ -1,11 +1,11 @@
 # Example: ocr()
 
 ## Claim
-Text: "The sign in <image:3> says 'No Trespassing'."
+Text: "The sign in <image:k> says 'No Trespassing'."
 
 ...
 
 ## Actions
 ```
-ocr(<image:3>)
+ocr(<image:k>)
 ```
