@@ -36,7 +36,6 @@ class SerperAPI(RemoteSearchAPI):
         self.hl = hl
         self.tbs = tbs
         self.search_type = search_type
-        self.total_searches = 0
         self.result_key_for_type = {
             'news': 'news',
             'places': 'places',
@@ -82,25 +81,34 @@ class SerperAPI(RemoteSearchAPI):
             'q': search_term,
             **{key: value for key, value in kwargs.items() if value is not None},
         }
-        response, num_fails, sleep_time = None, 0, 0
+        response, num_tries, sleep_time = None, 0, 0
 
-        while not response and num_fails < max_retries:
+        while not response and num_tries < max_retries:
+            num_tries += 1
             try:
-                self.total_searches += 1
                 response = requests.post(
-                    f'{_SERPER_URL}/{search_type}', headers=headers, params=params
+                    f'{_SERPER_URL}/{search_type}', headers=headers, params=params, timeout=3,
                 )
-            except AssertionError as e:
-                raise e
-            except Exception:  # pylint: disable=broad-exception-caught
-                response = None
-                num_fails += 1
+
+                if response.status_code == 400:
+                    message = response.json().get('message')
+                    if message == "Not enough credits":
+                        error_msg = "No Serper API credits left anymore! Please recharge the Serper account."
+                        self.logger.critical(error_msg)
+                        raise RuntimeError(error_msg)
+
+            except requests.exceptions.Timeout:
                 sleep_time = min(sleep_time * 2, 600)
                 sleep_time = random.uniform(1, 10) if not sleep_time else sleep_time
+                self.logger.warning(f"Unable to reach Serper API: Connection timed out. "
+                                    f"Retrying after {sleep_time} seconds.")
                 time.sleep(sleep_time)
 
-        if not response:
-            raise ValueError('Failed to get result from Google Serper API')
+            # except Exception as e:
+            #     self.logger.warning("Failed to call Serper API:\n" + repr(e))
+
+        if response is None:
+            raise ValueError('Failed to get a response from Serper API.')
 
         response.raise_for_status()
         search_results = response.json()

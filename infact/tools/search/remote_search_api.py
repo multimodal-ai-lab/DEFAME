@@ -8,9 +8,8 @@ import io
 import requests
 from bs4 import BeautifulSoup
 from PIL import Image as PillowImage, UnidentifiedImageError
-from notebook.auth import passwd
 
-from config.globals import result_base_dir
+from config.globals import temp_dir
 from infact.common.misc import Query
 from infact.common import Logger, MultimediaSnippet, Image
 from infact.tools.search.search_api import SearchAPI
@@ -27,7 +26,7 @@ class RemoteSearchAPI(SearchAPI):
         super().__init__(logger=logger)
         self.search_cached_first = activate_cache
         self.cache_file_name = f"{self.name}_cache.pckl"
-        self.path_to_cache = os.path.join(Path(result_base_dir) / self.cache_file_name)
+        self.path_to_cache = os.path.join(Path(temp_dir) / self.cache_file_name)
         self.cache_hit = 0
         self.cache: dict[Query, SearchResult] = {}
         self._initialize_cache()
@@ -74,11 +73,14 @@ class RemoteSearchAPI(SearchAPI):
 def scrape(url, logger) -> MultimediaSnippet:
     """Scrapes the contents of the specified webpage."""
     # TODO: Handle social media links (esp. Twitter/X, YouTube etc.) differently
-    scraped = scrape_firecrawl(url, logger)
-    if scraped:
-        return scraped
+    if _firecrawl_is_running():
+        scraped = scrape_firecrawl(url, logger)
+        if scraped:
+            return scraped
     else:
-        return MultimediaSnippet(scrape_naive(url, logger))
+        logger.error(f"Firecrawl is not running! Falling back...")
+    # Fallback
+    return MultimediaSnippet(scrape_naive(url, logger))
 
 
 def scrape_naive(url, logger):
@@ -89,7 +91,15 @@ def scrape_naive(url, logger):
     }
     try:
         page = requests.get(url, headers=headers, timeout=5)
+
+        # Handle any request errors
+        if page.status_code == 403:
+            logger.info(f"Forbidden URL: {url}")
+            return ""
+        elif page.status_code == 404:
+            return ""
         page.raise_for_status()
+
         soup = BeautifulSoup(page.content, 'html.parser')
         # text = soup.get_text(separator='\n', strip=True)
         if soup.article:
@@ -146,16 +156,25 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
     try:
         response = requests.post(firecrawl_url,
                                  json=json_data,
-                                 headers=headers)
-    except requests.exceptions.RetryError:
-        logger.error(f"Firecrawl is not running! Falling back...")
+                                 headers=headers,
+                                 timeout=10)  # Firecrawl scrapes usually take 2 to 4s
+    except (requests.exceptions.RetryError, requests.exceptions.ConnectionError):
+        logger.error(f"Firecrawl is not running!")
+        return None
+    except requests.exceptions.Timeout:
+        logger.warning(f"Firecrawl failed to respond in time! This can be due to server overload. "
+                       f"Skipping the URL {url}.")
         return None
     except Exception as e:
         logger.info(repr(e))
         logger.info(f"Unable to read {url}. Skipping...")
         return None
 
-    if response.status_code in [402, 403, 409]:
+    if response.status_code == 408:
+        logger.warning(f"Firecrawl failed to respond in time! "
+                       f"Perhaps the Firecrawl service is hanging? Skipping the URL {url}.")
+        return None
+    elif response.status_code in [402, 403, 409]:
         error_message = response.json().get('error', 'Unknown error occurred')
         logger.log(f'Failed to scrape URL {url}.\nError {response.status_code}: {response.reason}. Message: {error_message}.')
         return None
@@ -163,7 +182,6 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
         error_message = response.json().get('error', 'Unknown error occurred')
         logger.info(f'Failed to scrape URL {url}.\nError {response.status_code}: {response.reason}. Message: {error_message}.')
         return None
-
 
     success = response.json()["success"]
     if success:
@@ -209,6 +227,15 @@ def _resolve_media_hyperlinks(text: str) -> MultimediaSnippet:
 
         # TODO: Resolve videos and audios
     return MultimediaSnippet(text)
+
+
+def _firecrawl_is_running():
+    """Returns True iff Firecrawl is running."""
+    try:
+        response = requests.get("http://localhost:3002")
+    except (requests.exceptions.ConnectionError, requests.exceptions.RetryError):
+        return False
+    return response.status_code == 200
 
 
 if __name__ == '__main__':
