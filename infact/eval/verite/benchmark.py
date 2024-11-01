@@ -55,9 +55,11 @@ class VERITE(Benchmark):
         self.data = self.load_data(n_samples)
 
     def load_data(self, n_samples: int=None) -> list[dict]:
+        # TODO: Increase efficiency
         df = pd.read_csv(self.file_path)
-        if n_samples and (n_samples < len(df)):
-            df = df.sample(n=n_samples, random_state=random_seed)
+        # TODO: Adhere to random_shuffle hyperparam and do not loose instances while building
+        # if n_samples and (n_samples < len(df)):
+        #     df = df.sample(n=n_samples, random_state=random_seed)
         data = []
         for i, row in df.iterrows():
             image_path = Path(data_base_dir + f"VERITE/{row['image_path']}")

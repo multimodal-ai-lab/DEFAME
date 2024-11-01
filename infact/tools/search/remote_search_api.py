@@ -8,18 +8,15 @@ import io
 import requests
 from bs4 import BeautifulSoup
 from PIL import Image as PillowImage, UnidentifiedImageError
-from notebook.auth import passwd
-from urllib.parse import urlparse
 
 from config.globals import temp_dir
 from infact.common.misc import Query
 from infact.common import Logger, MultimediaSnippet, Image
 from infact.tools.search.search_api import SearchAPI
 from infact.tools.search.common import SearchResult
-from infact.utils.parsing import md, get_markdown_hyperlinks, is_image_url
+from infact.utils.parsing import md, get_markdown_hyperlinks, is_image_url, get_domain
 
-
-fact_checking_websites = [
+fact_checking_urls = [
     "snopes.com",
     "politifact.com",
     "factcheck.org",
@@ -29,6 +26,7 @@ fact_checking_websites = [
     "hoax-slayer.net",
     "checkyourfact.com",
     "reuters.com/fact-check",
+    "reuters.com/article/fact-check",
     "apnews.com/APFactCheck",
     "factcheck.afp.com",
     "poynter.org",
@@ -38,6 +36,17 @@ fact_checking_websites = [
     "altnews.in",
     "thequint.com/news/webqoof",
     "factcheck.kz"
+]
+
+# These sites don't allow bot access/scraping. Must use a proprietary API for that
+unsupported_domains = [
+    "facebook.com",
+    "twitter.com",
+    "x.com",
+    "instagram.com",
+    "youtube.com",
+    "tiktok.com",
+    "reddit.com",
 ]
 
 block_keywords = [
@@ -108,18 +117,15 @@ class RemoteSearchAPI(SearchAPI):
 
 def scrape(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
     """Scrapes the contents of the specified webpage."""
-    if is_fact_checking_site(url):
-        logger.info(f"Skipping fact-checking website: {url}")
+    if is_unsupported_site(url):
+        logger.log(f"Skipping unsupported site {url}.")
         return None
-    # TODO: Handle social media links (esp. Twitter/X, YouTube etc.) differently
+
     if _firecrawl_is_running():
         scraped = scrape_firecrawl(url, logger)
     else:
         logger.error(f"Firecrawl is not running! Falling back...")
-
-    if not scraped:
-        # Fallback
-        scraped = MultimediaSnippet(scrape_naive(url, logger))
+        scraped = scrape_naive(url, logger)
 
     if scraped and is_relevant_content(str(scraped)):
         return scraped
@@ -153,9 +159,9 @@ def scrape_naive(url: str, logger: Logger) ->  Optional[MultimediaSnippet]:
         text = postprocess_scraped(text)
         return MultimediaSnippet(text)
     except requests.exceptions.Timeout:
-        logger.info(f"Timeout occurred while scraping {url}")
+        logger.info(f"Timeout occurred while naively scraping {url}")
     except requests.exceptions.HTTPError as http_err:
-        logger.info(f"HTTP error occurred while scraping {url}: {http_err}")
+        logger.info(f"HTTP error occurred while doing naive scrape: {http_err}")
     except requests.exceptions.RequestException as req_err:
         logger.info(f"Request exception occurred while scraping {url}: {req_err}")
     except Exception as e:
@@ -199,7 +205,7 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
         return None
     except Exception as e:
         logger.info(repr(e))
-        logger.info(f"Unable to read {url}. Skipping...")
+        logger.info(f"Unable to scrape {url} with Firecrawl. Skipping...")
         return None
 
     if response.status_code == 408:
@@ -212,7 +218,7 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
         return None
     elif response.status_code == 500:
         error_message = response.json().get('error', 'Unknown error occurred')
-        logger.info(f'Failed to scrape URL {url}.\nError {response.status_code}: {response.reason}. Message: {error_message}.')
+        logger.info(f'Firecrawl encountered an internal error while scraping {url}.\n{response.reason}. Message: {error_message}.')
         return None
 
     success = response.json()["success"]
@@ -278,13 +284,17 @@ def _firecrawl_is_running():
 
 def is_fact_checking_site(url: str) -> bool:
     """Check if the URL belongs to a known fact-checking website."""
-    parsed_url = urlparse(url)
-    domain = parsed_url.netloc.lower()
     # Check if the domain matches any known fact-checking website
-    for site in fact_checking_websites:
-        if site in domain:
+    for site in fact_checking_urls:
+        if site in url:
             return True
     return False
+
+
+def is_unsupported_site(url: str) -> bool:
+    """Checks if the URL belongs to a known unsupported website."""
+    domain = get_domain(url)
+    return domain in unsupported_domains
 
 
 def is_relevant_content(content: str) -> bool:
@@ -293,13 +303,13 @@ def is_relevant_content(content: str) -> bool:
     if not content:
         return False
 
+    # Check for suspiciously short content (less than 500 characters might indicate blocking)
+    if len(content.strip()) < 500:
+        return False
+
     for keyword in block_keywords:
         if re.search(keyword, content, re.IGNORECASE):
             return False
-
-    # Optionally, check for suspiciously short content (less than 500 characters might indicate blocking)
-    if len(content.strip()) < 500:
-        return False
 
     return True
 

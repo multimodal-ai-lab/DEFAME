@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
-import numpy as np
 import torch
 from PIL.Image import Image as PILImage
 from transformers import AutoProcessor, AutoModel

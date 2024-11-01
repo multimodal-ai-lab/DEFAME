@@ -85,15 +85,25 @@ def evaluate(
         signature = inspect.signature(evaluate)
         logger.save_config(signature, locals(), benchmark)
 
-    # Load the tools and verify if they are allowed
+    # Load the tools for sanity check
     tools = initialize_tools(tools_config, llm=None, logger=logger)
+
     if benchmark.available_actions is not None:
+        # Verify that each tool is relevant (i.e. offers at least one allowed action)
+        for tool in tools:
+            for action in tool.actions:
+                if action in benchmark.available_actions:
+                    break
+            else:
+                logger.info(f"Tool {tool.name} offers only forbidden actions. You may exclude this tool.")
+
+        # Verify that each allowed action has a corresponding tool
         for action in benchmark.available_actions:
             for tool in tools:
                 if action in tool.actions:
                     break
             else:
-                raise ValueError(f"No Tool available for Action {action}.")
+                logger.warning(f"No Tool available for action {action.name}.")
 
     del tools
 
@@ -196,9 +206,9 @@ def evaluate(
                 logger.warning("Output queue was empty after 30 minutes timeout. Possible worker failure.")
 
                 # Check for errors reported by workers
-                while not error_queue.empty():
-                    error_message = error_queue.get()
-                    logger.error(error_message)
+                # while not error_queue.empty():
+                #     error_message = error_queue.get()
+                #     logger.error(error_message)
 
                 # Check the status of each worker
                 for i, worker in enumerate(workers):
@@ -399,35 +409,35 @@ def fact_check(llm: str, llm_kwargs: dict,
                is_averitec: bool, input_queue: Queue, output_queue: Queue, devices_queue: Queue,
                error_queue: Queue, worker_id: int):
 
-    try:
-        device = f"cuda:{devices_queue.get()}"
-        logger = Logger(**logger_kwargs)
+    device = f"cuda:{devices_queue.get()}"
+    logger = Logger(**logger_kwargs)
 
-        # Initialize model(s)
-        llm = make_model(llm, logger=logger, device=device, **llm_kwargs)
+    # Initialize model(s)
+    llm = make_model(llm, logger=logger, device=device, **llm_kwargs)
 
-        tools = initialize_tools(tools_config, llm, logger=logger, device=device)
+    tools = initialize_tools(tools_config, llm, logger=logger, device=device)
 
-        # Setup fact-checker
-        fc = FactChecker(
-            llm=llm,
-            tools=tools,
-            logger=logger,
-            **fact_checker_kwargs,
-        )
+    # Setup fact-checker
+    fc = FactChecker(
+        llm=llm,
+        tools=tools,
+        logger=logger,
+        **fact_checker_kwargs,
+    )
 
-        # Get the knowledge base object
-        if is_averitec:
-            searcher = tools[0]
-            assert isinstance(searcher, Searcher)
-            if 'averitec_kb' in searcher.search_apis:
-                kb = searcher.search_apis["averitec_kb"]
-                assert isinstance(kb, KnowledgeBase)
-        else:
-            kb = None
+    # Get the knowledge base object
+    if is_averitec:
+        searcher = tools[0]
+        assert isinstance(searcher, Searcher)
+        if 'averitec_kb' in searcher.search_apis:
+            kb = searcher.search_apis["averitec_kb"]
+            assert isinstance(kb, KnowledgeBase)
+    else:
+        kb = None
 
-        # Run fact-checks as long as there is work to do
-        while True:
+    # Run fact-checks as long as there is work to do
+    while True:
+        try:
             try:
                 content = input_queue.get(timeout=10)
                 if content is None:
@@ -443,15 +453,11 @@ def fact_check(llm: str, llm_kwargs: dict,
             meta = metas[0]
             output_queue.put((doc, meta))
 
-    except Exception as e:
-        tb = traceback.format_exc()
-        error_message = f"Worker {worker_id} encountered an error:\n{tb}"
-        error_queue.put(error_message)
-        # Optionally, log the error locally if needed
-        logger.error(error_message)
-        # Re-raise the exception to terminate the worker
-        raise
-
+        except Exception as e:
+            tb = traceback.format_exc()
+            error_message = f"Worker {worker_id} encountered an error:\n{tb}"
+            error_queue.put(error_message)
+            logger.error(error_message)
 
 def load_results(path: str):
     ground_truth = []
