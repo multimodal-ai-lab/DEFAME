@@ -1,19 +1,18 @@
 import base64
-import csv
 import re
+import sqlite3
 from abc import ABC
 from dataclasses import dataclass
+from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
 
 import numpy as np
-import pandas as pd
 from PIL.Image import Image as PillowImage, open as pillow_open
 
 from config.globals import temp_dir
-from infact.utils.parsing import extract_by_regex, MEDIA_ID_REGEX, MEDIA_REF_REGEX, MEDIA_SPECIFIER_REGEX
+from infact.utils.parsing import MEDIA_REF_REGEX, MEDIA_SPECIFIER_REGEX
 
 
 class Medium(ABC):
@@ -175,20 +174,33 @@ class MultimediaSnippet:
 class MediaRegistry:
     """Keeps track of the paths of all referenced media (images, videos, and audios).
     Also holds a cache of already loaded media files for efficiency."""
+    db_location = Path(temp_dir) / "media_registry.db"
     file_name = "media.csv"
     csv_headers = ["medium_type", "id", "path_to_file"]
 
-    def __init__(self, target_dir: Path | str):
-        # Initialize folder and file
-        target_dir = Path(target_dir)
-        if not target_dir.exists():
-            target_dir.mkdir()
-        self.path = target_dir / self.file_name
-        if not self.path.exists():
-            with open(self.path, "w") as f:
-                csv.writer(f).writerow(self.csv_headers)
-
+    def __init__(self):
+        # Initialize folder, DB, and cache
+        if not self.db_location.parent.exists():
+            self.db_location.parent.mkdir(exist_ok=True, parents=True)
+        is_new = not self.db_location.exists()
+        self.conn = sqlite3.connect(self.db_location)
+        self.cur = self.conn.cursor()
+        if is_new:
+            self._init_db()
         self.cache: dict[tuple, Medium] = dict()
+
+    def _init_db(self):
+        """Initializes a clean, new DB."""
+        for medium_type in ["image", "video", "audio"]:
+            stmt = f"""
+                CREATE TABLE {medium_type}(id INTEGER PRIMARY KEY, path TEXT);
+            """
+            self.cur.execute(stmt)
+            stmt = f"""
+                CREATE UNIQUE INDEX {medium_type}_path_idx ON {medium_type}(path);
+            """
+            self.cur.execute(stmt)
+        self.conn.commit()
 
     def get(self, reference: str) -> Optional[Medium]:
         """Gets the referenced media object by loading it from the cache or,
@@ -201,24 +213,17 @@ class MediaRegistry:
         if medium is None:
             # Load from disk
             medium = self._load(medium_type, medium_id)
-            # if medium is not None:
-            #     self._add_to_cache(medium, medium_id)
-
-        # Add reference to medium
-        # if medium is not None:
-        #     medium.reference = reference
-        #     medium.id = medium_id
 
         return medium
 
     def add(self, medium: Medium) -> int:
         """Adds a new medium to the registry, if not yet registered. In any case,
         returns the corresponding medium ID."""
-        if not self.contains(medium.path_to_file):
+        if not self.contains(medium.data_type, medium.path_to_file):
             medium_id = self._insert_into_registry(medium.path_to_file, medium.data_type)
             self._add_to_cache(medium, medium_id)
         else:  # Just return the reference
-            medium_id = self._get_id_by_path(medium.path_to_file)
+            medium_id = self._get_id_by_path(medium.data_type, medium.path_to_file)
         return medium_id
 
     def validate(self, text: str) -> bool:
@@ -252,51 +257,44 @@ class MediaRegistry:
                     return Audio(path_to_medium)
         return None
 
-    def _get_id_by_path(self, path_to_medium: Path) -> Optional[int]:
-        match = self.media.loc[self.media["path_to_file"] == _normalize_path(path_to_medium)]
-        if not match.empty:
-            return match["id"].values[0]
+    def _get_id_by_path(self, medium_type: str, path_to_medium: Path) -> Optional[int]:
+        stmt = f"""
+            SELECT id
+            FROM {medium_type}
+            WHERE path = ?;
+        """
+        response = self.cur.execute(stmt, (_normalize_path(path_to_medium),))
+        result = response.fetchone()
+        if result is not None:
+            return result[0]
         else:
             return None
 
     def _get_path_by_id(self, medium_type: str, medium_id: int) -> Optional[Path]:
-        media = self.media
-        matches = (media["medium_type"] == medium_type) & (media["id"] == medium_id)
-        if not np.any(matches):
+        stmt = f"""
+            SELECT path
+            FROM {medium_type}
+            WHERE id = ?;
+        """
+        response = self.cur.execute(stmt, (medium_id,))
+        result = response.fetchone()
+        if result is not None:
+            return Path(result[0])
+        else:
             return None
-        return Path(media[matches]["path_to_file"].values[0])
 
     def _insert_into_registry(self, path_to_medium: Path, medium_type: str) -> int:
-        """Adds the new medium directly to the media.csv file and returns its assigned ID."""
-        new_id = self.get_max_id(medium_type) + 1
-        with open(self.path, "a") as f:
-            csv.writer(f).writerow([medium_type, new_id, _normalize_path(path_to_medium)])
-        return new_id
+        """Adds the new medium directly to the database and returns its assigned ID."""
+        stmt = f"""
+            INSERT INTO {medium_type}(path)
+            VALUES (?);
+        """
+        self.cur.execute(stmt, (_normalize_path(path_to_medium),))
+        self.conn.commit()
+        return self._get_id_by_path(medium_type, path_to_medium)
 
-    def get_max_id(self, medium_type: str) -> int:
-        media = self.media
-        matches = media["medium_type"] == medium_type
-        if not np.any(matches):
-            return -1
-        else:
-            return media[matches]["id"].max()
-
-    def contains(self, path_to_medium: Path | str) -> bool:
-        matches = self.media["path_to_file"] == _normalize_path(path_to_medium)
-        return np.any(matches)
-
-    def _load_registry(self):
-        if not self.path.exists():
-            return self._empty_registry()
-        else:
-            return pd.read_csv(self.path)
-
-    def _empty_registry(self):
-        return pd.DataFrame(columns=self.csv_headers)
-
-    @property
-    def media(self):
-        return self._load_registry()
+    def contains(self, medium_type: str, path_to_medium: Path | str) -> bool:
+        return self._get_id_by_path(medium_type, path_to_medium) is not None
 
     def _get_cached(self, medium_type: str, medium_id: int) -> Optional[Medium]:
         """Tries to retrieve media object from the cache. Returns
@@ -322,11 +320,7 @@ def _normalize_path(path: Path | str) -> str:
     return path.absolute().as_posix()
 
 
-media_registry = MediaRegistry(temp_dir)
-
-
-def get_media_id(text: str) -> int:
-    return int(extract_by_regex(text, MEDIA_ID_REGEX))
+media_registry = MediaRegistry()
 
 
 def get_medium_refs(text: str) -> list[str]:
@@ -334,6 +328,7 @@ def get_medium_refs(text: str) -> list[str]:
     pattern = re.compile(MEDIA_REF_REGEX, re.DOTALL)
     matches = pattern.findall(text)
     return matches
+
 
 def get_unique_ordered_medium_refs(text: str) -> list[str]:
     """Extracts all media references from the text, preserving their order and removing duplicates."""
@@ -345,7 +340,7 @@ def get_unique_ordered_medium_refs(text: str) -> list[str]:
         if match not in seen:
             unique_refs.append(match)
             seen.add(match)
-    
+
     return unique_refs
 
 
