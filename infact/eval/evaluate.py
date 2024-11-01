@@ -163,7 +163,7 @@ def evaluate(
     print(f"Evaluating {n_samples} samples using {n_workers} workers...")
 
     for d in range(n_workers):
-        devices_queue.put(d % n_devices)
+        devices_queue.put(d % n_devices if n_devices > 0 else None)
 
     # Fill the input queue with benchmark instances
     for instance in samples_to_evaluate:
@@ -409,7 +409,8 @@ def fact_check(llm: str, llm_kwargs: dict,
                is_averitec: bool, input_queue: Queue, output_queue: Queue, devices_queue: Queue,
                error_queue: Queue, worker_id: int):
 
-    device = f"cuda:{devices_queue.get()}"
+    device_id = devices_queue.get()
+    device = None if device_id is None else f"cuda:{device_id}"
     logger = Logger(**logger_kwargs)
 
     # Initialize model(s)

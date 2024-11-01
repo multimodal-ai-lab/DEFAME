@@ -21,17 +21,15 @@ class VERITE(Benchmark):
 
     class_mapping = {
         "true": Label.SUPPORTED,
-        "miscaptioned": Label.MISCAPTIONED,
+        "miscaptioned": Label.OUT_OF_CONTEXT,
         "out-of-context": Label.OUT_OF_CONTEXT,
     }
 
     class_definitions = {
         Label.SUPPORTED:
-            "An image-caption pair is considered supported when the origin, content, and context of an image are accurately described in the accompanying caption.",
-        Label.MISCAPTIONED:
-            "An image-caption pair is considered miscaptioned when an image is being paired with a misleading caption that misrepresents the origin, content, and/or meaning of the image.",
+            "The claim accurately and coherently describes the origin, content, and context of the image.",
         Label.OUT_OF_CONTEXT:
-            "The image is used out of context. The caption is factual but the image is used in a misleading way to convey a false narrative."
+            "The claim uses the image out of context, i.e., the image itself is pristine but the claim constructs a false narrative around the image or uses the image in a misleading way. In particular, the claim misrepresents the origin, content, and/or meaning of the image."
     }
 
     extra_prepare_rules = """**Assess Alignment**: Assess the alignment between image and text in complex scenarios. Prepare for varied real-world images and captions.

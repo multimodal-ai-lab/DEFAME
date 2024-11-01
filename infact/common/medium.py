@@ -48,8 +48,7 @@ class Image(Medium):
         assert path_to_file is not None or pillow_image is not None
 
         if pillow_image is not None:
-            # Turn any kind of image (incl. PNGs) into RGB which is JPEG-saveable
-            pillow_image = pillow_image.convert('RGB')
+            pillow_image = self._ensure_rgb_mode(pillow_image)
             # Save the image in a temporary folder
             path_to_file = Path(temp_dir) / "media" / (datetime.now().strftime("%Y-%m-%d_%H-%M-%s-%f") + ".jpg")
             path_to_file.parent.mkdir(parents=True, exist_ok=True)
@@ -61,7 +60,16 @@ class Image(Medium):
             self.image = pillow_image
         else:
             # Pillow opens images lazily, so actual image read only happens when accessing the image
-            self.image = pillow_open(self.path_to_file)
+            pillow_image = pillow_open(self.path_to_file)
+            pillow_image = self._ensure_rgb_mode(pillow_image)
+            self.image = pillow_image
+
+    def _ensure_rgb_mode(self, pillow_image: PillowImage) -> PillowImage:
+        """Turns any kind of image (incl. PNGs) into RGB mode which is JPEG-saveable."""
+        if pillow_image.mode != "RGB":
+            return pillow_image.convert('RGB')
+        else:
+            return pillow_image
 
     def ensure_loaded(self) -> None:
         if self.image is None:

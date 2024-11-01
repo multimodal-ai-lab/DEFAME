@@ -16,6 +16,8 @@ from infact.tools.search.search_api import SearchAPI
 from infact.tools.search.common import SearchResult
 from infact.utils.parsing import md, get_markdown_hyperlinks, is_image_url, get_domain
 
+MAX_MEDIA_PER_PAGE = 32  # Any media URLs in a webpage exceeding this limit will be ignored.
+
 fact_checking_urls = [
     "snopes.com",
     "politifact.com",
@@ -188,14 +190,15 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
     firecrawl_url = "http://localhost:3002/v1/scrape"
     json_data = {
         "url": url,
-        "formats": ["markdown", "html"]
+        "formats": ["markdown", "html"],
+        "timeout": 8000,  # waiting time in milliseconds for the page to respond
     }
 
     try:
         response = requests.post(firecrawl_url,
                                  json=json_data,
                                  headers=headers,
-                                 timeout=10)  # Firecrawl scrapes usually take 2 to 4s
+                                 timeout=60 * 10)  # Firecrawl scrapes usually take 2 to 4s, but a 1700-page PDF takes 5 min
     except (requests.exceptions.RetryError, requests.exceptions.ConnectionError):
         logger.error(f"Firecrawl is not running!")
         return None
@@ -233,14 +236,15 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
 
 
 def _resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
-    """Identifies all image URLs, downloads the images and replaces the
+    """Identifies up to MAX_MEDIA_PER_PAGE image URLs, downloads the images and replaces the
     respective Markdown hyperlinks with their proper image reference."""
     if not text:
         return None
     hyperlinks = get_markdown_hyperlinks(text)
+    media_count = 0
     for hypertext, url in hyperlinks:
         # Check if URL is an image URL
-        if is_image_url(url):
+        if is_image_url(url) and not is_fact_checking_site(url) and not is_unsupported_site(url):
             try:
                 # Download the image
                 response = requests.get(url, stream=True, timeout=10)
@@ -249,7 +253,11 @@ def _resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
                     image = Image(pillow_image=img)  # TODO: Check for duplicates
                     # Replace the Markdown hyperlink
                     text = text.replace(f"[{hypertext}]({url})", f"{hypertext} {image.reference}")
-                    continue
+                    media_count += 1
+                    if media_count >= MAX_MEDIA_PER_PAGE:
+                        break
+                    else:
+                        continue
 
             except (requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout, requests.exceptions.TooManyRedirects):
                 # Webserver is not reachable (anymore)
