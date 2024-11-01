@@ -106,6 +106,7 @@ class MultimediaSnippet:
     text: str
 
     def __post_init__(self):
+        assert isinstance(self.text, str)
         # Verify if all medium references in the text are valid
         if not media_registry.validate(self.text):
             print("Warning: There are unresolvable media references.")
@@ -147,6 +148,20 @@ class MultimediaSnippet:
         #     media_info = ", ".join(media_info)
         #     string_representation += f"\n{media_info}"
         return string_representation
+
+    def to_interleaved(self) -> list[str | Medium]:
+        """Returns a list of interleaved string and media objects representing
+        this multimedia snippet. I.e., all the media references are replaced by
+        the actual medium object."""
+        split = re.split(MEDIA_REF_REGEX, self.text)
+        # Replace each reference with its actual medium object
+        for i in range(len(split)):
+            substr = split[i]
+            if is_medium_ref(substr):
+                medium = media_registry.get(substr)
+                if medium is not None:
+                    split[i] = medium
+        return split
 
 
 class MediaRegistry:
@@ -334,3 +349,9 @@ def parse_media_ref(reference: str) -> Optional[tuple[str, int]]:
         return match[0], int(match[1])
     else:
         return None
+
+
+def is_medium_ref(string: str) -> bool:
+    """Returns True iff the string represents a medium reference."""
+    pattern = re.compile(MEDIA_REF_REGEX, re.DOTALL)
+    return pattern.fullmatch(string) is not None

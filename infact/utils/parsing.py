@@ -1,8 +1,9 @@
 import re
 from pathlib import Path
 from typing import Optional, Any
-from markdownify import MarkdownConverter
 from urllib.parse import urlparse
+
+from markdownify import MarkdownConverter
 import requests
 
 from infact.utils.console import orange
@@ -220,46 +221,6 @@ def format_for_llava(prompt):
     return formatted_list
 
 
-def format_for_gpt(prompt):
-    text = prompt.text
-    img_dict = {image.reference: image for image in prompt.images}
-    formatted_list = []
-    image_pattern = re.compile(r'<image:\d+>') 
-    current_pos = 0
-
-    for match in image_pattern.finditer(text):
-        start, end = match.span()
-        image_reference = match.group()
-
-        if current_pos < start:
-            text_snippet = text[current_pos:start].strip()
-            if text_snippet:
-                formatted_list.append({
-                    "type": "text",
-                    "text": text_snippet + "\n"
-                })
-
-        if image_reference in img_dict:
-            image_encoded = img_dict[image_reference].get_base64_encoded()
-            formatted_list.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpeg;base64,{image_encoded}"
-                }
-            })
-        current_pos = end
-
-    if current_pos < len(text):
-        remaining_text = text[current_pos:].strip()
-        if remaining_text:
-            formatted_list.append({
-                "type": "text",
-                "text": remaining_text + "\n"
-            })
-    
-    return formatted_list
-
-
 def md(soup, **kwargs):
     """Converts a BeautifulSoup object into Markdown."""
     return MarkdownConverter(**kwargs).convert_soup(soup)
@@ -284,3 +245,10 @@ def is_image_url(url: str) -> bool:
                 not "eps" in content_type)
     except Exception:
         return False
+
+
+def get_domain(url: str) -> str:
+    parsed_url = urlparse(url)
+    netloc = parsed_url.netloc.lower()  # get the network location (netloc)
+    domain = '.'.join(netloc.split('.')[-2:])  # remove subdomains
+    return domain

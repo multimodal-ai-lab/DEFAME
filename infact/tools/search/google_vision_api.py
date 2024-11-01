@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 from infact.common.medium import Image
 from infact.common.misc import ImageQuery, WebSource
 from infact.tools.search.remote_search_api import RemoteSearchAPI
-from .remote_search_api import scrape
+from .remote_search_api import scrape, is_fact_checking_site
 from .common import ReverseSearchResult
 
 
@@ -60,6 +60,10 @@ class GoogleVisionAPI(RemoteSearchAPI):
         filtered_pages = filter_unique_stem_pages(web_detection.pages_with_matching_images)
         for page in filtered_pages:
             url = page.url
+            if is_fact_checking_site(url):
+                self.logger.log(f"Skipping fact-checking website: {url}")
+                continue
+
             title = f'Found exact image on website with title: {page.page_title}' if hasattr(page, 'page_title') else "Found exact image on website"
             scraped = scrape(url, self.logger)
             
