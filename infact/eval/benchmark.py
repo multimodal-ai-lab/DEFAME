@@ -5,6 +5,7 @@ from typing import MutableSequence, Iterable
 
 from infact.common.action import Action
 from infact.common.label import Label
+from config.globals import random_seed
 
 
 class Benchmark(ABC, Iterable):
@@ -42,6 +43,7 @@ class Benchmark(ABC, Iterable):
 
     def shuffle(self):
         """Reorders the samples randomly."""
+        random.seed(random_seed)
         random.shuffle(self.data)
 
     def get_by_id(self, claim_id: int):

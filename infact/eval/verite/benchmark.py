@@ -5,7 +5,7 @@ from typing import Iterator
 import pandas as pd
 
 from infact.common.medium import Image
-from config.globals import data_base_dir, random_seed
+from config.globals import data_base_dir
 from infact.common import Label, Content
 from infact.eval.benchmark import Benchmark
 from infact.tools.text_extractor import OCR
@@ -47,17 +47,14 @@ class VERITE(Benchmark):
 
     available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
 
-    def __init__(self, variant="dev", n_samples: int=None):
+    def __init__(self, variant="dev"):
         super().__init__(f"VERITE ({variant})", variant)
         self.file_path = Path(data_base_dir + "VERITE/VERITE.csv")
-        self.data = self.load_data(n_samples)
+        self.data = self.load_data()
 
-    def load_data(self, n_samples: int=None) -> list[dict]:
+    def load_data(self) -> list[dict]:
         # TODO: Increase efficiency
         df = pd.read_csv(self.file_path)
-        # TODO: Adhere to random_shuffle hyperparam and do not loose instances while building
-        # if n_samples and (n_samples < len(df)):
-        #     df = df.sample(n=n_samples, random_state=random_seed)
         data = []
         for i, row in df.iterrows():
             image_path = Path(data_base_dir + f"VERITE/{row['image_path']}")

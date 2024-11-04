@@ -2,7 +2,6 @@ import json
 import os
 from pathlib import Path
 from typing import Iterator
-import random
 
 from infact.common.medium import Image
 from config.globals import data_base_dir, random_seed
@@ -48,12 +47,12 @@ class NewsCLIPpings(Benchmark):
 
     available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
 
-    def __init__(self, variant="val", n_samples: int=None):
+    def __init__(self, variant="val"):
         super().__init__(f"NewsCLIPings ({variant})", variant)
         self.visual_news_file_path = Path(data_base_dir + "NewsCLIPings/news_clippings/visual_news/origin/data.json")
         self.data_file_path = Path(data_base_dir + f"NewsCLIPings/news_clippings/news_clippings/data/merged_balanced/{variant}.json")
         self.visual_news_data_mapping = self.load_visual_news_data()
-        self.data = self.load_data(n_samples)
+        self.data = self.load_data()
 
     def load_visual_news_data(self) -> dict:
         """Load visual news data and map it by ID."""
@@ -61,15 +60,12 @@ class NewsCLIPpings(Benchmark):
             visual_news_data = json.load(file)
         return {ann["id"]: ann for ann in visual_news_data}
 
-    def load_data(self, n_samples: int=None) -> list[dict]:
+    def load_data(self) -> list[dict]:
         """Load annotations data from the NewsCLIPings dataset and map captions to images."""
         with open(self.data_file_path, "r", encoding="utf-8") as file:
             data = json.load(file)
 
         annotations = data["annotations"]
-        if n_samples:
-                random.seed(random_seed)
-                annotations = random.sample(annotations, len(annotations))[:n_samples]
         entries = []
 
         for i, ann in enumerate(annotations):
