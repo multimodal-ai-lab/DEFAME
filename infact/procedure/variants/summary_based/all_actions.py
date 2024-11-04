@@ -1,16 +1,11 @@
-from typing import Any, Collection
+from typing import Any
 
-from infact.common import FCDocument, Label, Evidence
-from infact.procedure.procedure import Procedure
-from infact.prompts.prompts import ReiteratePrompt
+from infact.common import FCDocument, Label
+from infact.procedure.variants.summary_based.default import DynamicSummary
 from infact.tools.search.common import WebSearch, ImageSearch
 
 
-class AllActionsSummary(Procedure):
-    def __init__(self, max_iterations: int = 3, **kwargs):
-        super().__init__(**kwargs)
-        self.max_iterations = max_iterations
-
+class AllActionsSummary(DynamicSummary):
     def apply_to(self, doc: FCDocument) -> (Label, dict[str, Any]):
         n_iterations = 0
         label = Label.NEI
@@ -27,13 +22,6 @@ class AllActionsSummary(Procedure):
             if actions:
                 evidences = self.actor.perform(actions, doc)
                 doc.add_evidence(evidences)  # even if no evidence, add empty evidence block for the record
-                self._consolidate_knowledge(doc, evidences)
+                self._develop(doc)
             label = self.judge.judge(doc, is_final=n_iterations == self.max_iterations or not actions)
         return label, {}
-
-    def _consolidate_knowledge(self, doc: FCDocument, evidences: Collection[Evidence]):
-        """Analyzes the currently available information and states new questions, adds them
-        to the FCDoc."""
-        prompt = ReiteratePrompt(doc, evidences)
-        response = self.llm.generate(prompt)
-        doc.add_reasoning(response)

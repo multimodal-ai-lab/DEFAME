@@ -21,17 +21,15 @@ class VERITE(Benchmark):
 
     class_mapping = {
         "true": Label.SUPPORTED,
-        "miscaptioned": Label.MISCAPTIONED,
+        "miscaptioned": Label.OUT_OF_CONTEXT,
         "out-of-context": Label.OUT_OF_CONTEXT,
     }
 
     class_definitions = {
         Label.SUPPORTED:
-            "An image-caption pair is considered supported when the origin, content, and context of an image are accurately described in the accompanying caption.",
-        Label.MISCAPTIONED:
-            "An image-caption pair is considered miscaptioned when an image is being paired with a misleading caption that misrepresents the origin, content, and/or meaning of the image.",
+            "The claim accurately and coherently describes the origin, content, and context of the image.",
         Label.OUT_OF_CONTEXT:
-            "The image is used out of context. The caption is factual but the image is used in a misleading way to convey a false narrative."
+            "The claim uses the image out of context, i.e., the image itself is pristine but the claim constructs a false narrative around the image or uses the image in a misleading way. In particular, the claim misrepresents the origin, content, and/or meaning of the image."
     }
 
     extra_prepare_rules = """**Assess Alignment**: Assess the alignment between image and text in complex scenarios. Prepare for varied real-world images and captions.
@@ -55,9 +53,11 @@ class VERITE(Benchmark):
         self.data = self.load_data(n_samples)
 
     def load_data(self, n_samples: int=None) -> list[dict]:
+        # TODO: Increase efficiency
         df = pd.read_csv(self.file_path)
-        if n_samples and (n_samples < len(df)):
-            df = df.sample(n=n_samples, random_state=random_seed)
+        # TODO: Adhere to random_shuffle hyperparam and do not loose instances while building
+        # if n_samples and (n_samples < len(df)):
+        #     df = df.sample(n=n_samples, random_state=random_seed)
         data = []
         for i, row in df.iterrows():
             image_path = Path(data_base_dir + f"VERITE/{row['image_path']}")

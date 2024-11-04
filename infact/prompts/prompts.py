@@ -126,7 +126,7 @@ class PlanPrompt(Prompt):
         extra_rules = "" if extra_rules is None else remove_non_symbols(extra_rules)
         if all_actions:
             extra_rules = "Very Important: No need to be frugal. Choose all available actions at least once."
-            
+
         placeholder_targets = {
             "[DOC]": doc,
             "[VALID_ACTIONS]": valid_action_str,
@@ -136,17 +136,19 @@ class PlanPrompt(Prompt):
         super().__init__(placeholder_targets)
 
     def extract(self, response: str) -> dict:
-        # In case "image:k is referenced by the LLM by mistake"
-        if self.images:
-            claim_image = self.images[0].reference #Be careful that the Plan Prompt always has the Claim image first before any other iamge!
-        else:
-            claim_image = None
-        pattern = re.compile(r'<image:[a-zA-Z0-9_]+>')
-        multimodal_actions = pattern.findall(response)
+        # TODO: Prevent the following from happening at all.
+        # It may accidentally happen that the LLM generated "<image:k>" in its response (because it was
+        # included as an example in the prompt).
+        pattern = re.compile(r'<image:k>')
+        matches = pattern.findall(response)
 
-        if multimodal_actions:
-            response = pattern.sub(claim_image, response)
-            print(f"WARNING: <image:k> was replaced by {claim_image} to generate response: {response}")
+        if matches:
+            # Replace "<image:k>" with the reference to the claim's image by assuming that the first image
+            # is tha claim image.
+            if self.images:
+                claim_image_ref = self.images[0].reference #Be careful that the Plan Prompt always has the Claim image first before any other image!
+                response = pattern.sub(claim_image_ref, response)
+                print(f"WARNING: <image:k> was replaced by {claim_image_ref} to generate response: {response}")
 
         actions = extract_actions(response)
         reasoning = extract_reasoning(response)
@@ -317,16 +319,12 @@ class AnswerQuestionNoEvidence(Prompt):
         super().__init__(placeholder_targets)
 
 
-class ReiteratePrompt(Prompt):
-    template_file_path = "infact/prompts/consolidate.md"
+class DevelopPrompt(Prompt):
+    template_file_path = "infact/prompts/develop.md"
     name = "ReiteratePrompt"
 
-    def __init__(self, doc: FCDocument, evidences: Collection[Evidence]):
-        evidence_str = "\n\n".join([str(e) for e in evidences])
-        placeholder_targets = {
-            "[DOC]": doc,
-            "[RESULTS]": evidence_str,
-        }
+    def __init__(self, doc: FCDocument):
+        placeholder_targets = {"[DOC]": doc}
         super().__init__(placeholder_targets)
 
 
