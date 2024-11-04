@@ -6,18 +6,18 @@ import numpy as np
 from jinja2.exceptions import TemplateSyntaxError
 from openai import APIError
 
-from infact.common import MultimediaSnippet, FCDocument, Model, Prompt
+from infact.common import MultimediaSnippet, FCDocument, Prompt
 from infact.prompts.prompts import SummarizeResultPrompt
 from infact.tools.search.duckduckgo import DuckDuckGo
+from infact.tools.search.google_vision_api import GoogleVisionAPI
 from infact.tools.search.knowledge_base import KnowledgeBase
 from infact.tools.search.query_serper import SerperAPI
 from infact.tools.search.search_api import SearchAPI
 from infact.tools.search.wiki_dump import WikiDumpAPI
-from infact.tools.search.google_vision_api import GoogleVisionAPI
 from infact.tools.tool import Tool
 from infact.utils.console import gray, orange
-from .common import SearchResult, Search, WebSearch, WikiDumpLookup, ImageSearch, ReverseSearch, ReverseSearchResult
-from ...common.misc import  WebSource, Query, ImageQuery, TextQuery
+from .common import SearchResult, Search, WebSearch, WikiDumpLookup, ImageSearch, ReverseSearch
+from ...common.misc import WebSource, Query, ImageQuery, TextQuery
 
 SEARCH_APIS = {
     "google": SerperAPI,
@@ -96,7 +96,7 @@ class Searcher(Tool):
 
         if action.search_type == "reverse" and isinstance(action, ReverseSearch):
             query = ImageQuery(
-                text="", #later on we can fill this to have keyword-guided scraping
+                text="",  # later on we can fill this to have keyword-guided scraping
                 image=action.image,
                 search_type=action.search_type,
                 limit=self.limit_per_search,
@@ -118,9 +118,12 @@ class Searcher(Tool):
         """Searches for evidence using the search APIs according to their precedence."""
 
         for search_engine in list(self.search_apis.values()):
-            if isinstance(query, ImageQuery) and query.search_type == 'reverse' and isinstance(search_engine, GoogleVisionAPI):
+            if isinstance(query, ImageQuery) and query.search_type == 'reverse' and isinstance(search_engine,
+                                                                                               GoogleVisionAPI):
                 search_result = search_engine.search(query)
-            elif isinstance(query, TextQuery) and (query.search_type == 'search' or query.search_type == 'images') and not isinstance(search_engine, GoogleVisionAPI):
+            elif isinstance(query, TextQuery) and (
+                    query.search_type == 'search' or query.search_type == 'images') and not isinstance(search_engine,
+                                                                                                       GoogleVisionAPI):
                 search_result = search_engine.search(query)
             else:
                 continue
@@ -167,7 +170,7 @@ class Searcher(Tool):
             result.text = self.postprocess_result(result.text, result.query)
         return results
 
-    def postprocess_result(self, result: str, query: str, filter_relevant: bool=True):
+    def postprocess_result(self, result: str, query: str, filter_relevant: bool = True):
         """Removes all double curly braces to avoid conflicts with Jinja and optionally truncates
         the result text to a maximum length. Also filter the content according to keywords from the query."""
         if filter_relevant and (query.search_type != "reverse") and (query.search_type != "images"):
@@ -195,7 +198,7 @@ class Searcher(Tool):
             web_source.summary = MultimediaSnippet(summary)
         else:
             prompt = SummarizeResultPrompt(web_source, doc)
-    
+
             try:
                 summary = self.llm.generate(prompt, max_attempts=3)
                 if not summary:
@@ -213,7 +216,7 @@ class Searcher(Tool):
             except Exception as e:
                 self.logger.log(orange(f"Error while summarizing! {e} - Skipping the summary for {web_source.url}."))
                 summary = "NONE"
-    
+
             web_source.summary = MultimediaSnippet(summary)
 
         if web_source.is_relevant():
@@ -237,18 +240,16 @@ class Searcher(Tool):
         summarize_prompt = Prompt(placeholder_targets=placeholder_targets,
                                   name="SummarizeSummariesPrompt",
                                   template_file_path="infact/prompts/summarize_summaries.md")
-        #TODO seems to only save one image per result and not per source...
+        # TODO seems to only save one image per result and not per source...
         references = ""
         for source in result.sources:
             if not source.has_images:
                 return MultimediaSnippet(self.llm.generate(summarize_prompt))
-            else: 
+            else:
                 for image in source.images:
                     references += f'{source.url}: {image.reference}\n'
                 summary = self.llm.generate(summarize_prompt)
                 return MultimediaSnippet(f'{summary}\n{references}.')
-        
-        
 
     def get_stats(self) -> dict[str, Any]:
         total_searches = np.sum([n for n in self.stats.values()])

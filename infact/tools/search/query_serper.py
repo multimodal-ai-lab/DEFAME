@@ -13,7 +13,7 @@ from PIL import Image as PillowImage
 from config.globals import api_keys
 from infact.common.medium import Image
 from infact.common.misc import Query, WebSource
-from infact.tools.search.remote_search_api import RemoteSearchAPI, scrape
+from infact.tools.search.remote_search_api import RemoteSearchAPI, scrape, is_fact_checking_site
 from .common import SearchResult
 from.google_vision_api import get_base_domain
 
@@ -37,7 +37,6 @@ class SerperAPI(RemoteSearchAPI):
         self.hl = hl
         self.tbs = tbs
         self.search_type = search_type
-        self.total_searches = 0
         self.result_key_for_type = {
             'news': 'news',
             'places': 'places',
@@ -82,25 +81,34 @@ class SerperAPI(RemoteSearchAPI):
             'q': search_term,
             **{key: value for key, value in kwargs.items() if value is not None},
         }
-        response, num_fails, sleep_time = None, 0, 0
+        response, num_tries, sleep_time = None, 0, 0
 
-        while not response and num_fails < max_retries:
+        while not response and num_tries < max_retries:
+            num_tries += 1
             try:
-                self.total_searches += 1
                 response = requests.post(
-                    f'{_SERPER_URL}/{search_type}', headers=headers, timeout=5, params=params
+                    f'{_SERPER_URL}/{search_type}', headers=headers, params=params, timeout=3,
                 )
-            except AssertionError as e:
-                raise e
-            except Exception:  # pylint: disable=broad-exception-caught
-                response = None
-                num_fails += 1
+
+                if response.status_code == 400:
+                    message = response.json().get('message')
+                    if message == "Not enough credits":
+                        error_msg = "No Serper API credits left anymore! Please recharge the Serper account."
+                        self.logger.critical(error_msg)
+                        raise RuntimeError(error_msg)
+
+            except requests.exceptions.Timeout:
                 sleep_time = min(sleep_time * 2, 600)
                 sleep_time = random.uniform(1, 10) if not sleep_time else sleep_time
+                self.logger.warning(f"Unable to reach Serper API: Connection timed out. "
+                                    f"Retrying after {sleep_time} seconds.")
                 time.sleep(sleep_time)
 
-        if not response:
-            raise ValueError('Failed to get result from Google Serper API')
+            # except Exception as e:
+            #     self.logger.warning("Failed to call Serper API:\n" + repr(e))
+
+        if response is None:
+            raise ValueError('Failed to get a response from Serper API.')
 
         response.raise_for_status()
         search_results = response.json()
@@ -147,6 +155,10 @@ class SerperAPI(RemoteSearchAPI):
                     break
                 text = result.get("snippet", "")
                 url = result.get("link", "")
+                if is_fact_checking_site(url):
+                    self.logger.log(f"Skipping fact-checking website: {url}")
+                    continue
+
                 image_url = result.get("imageUrl", "")
                 title = result.get('title')
 
@@ -176,28 +188,28 @@ class SerperAPI(RemoteSearchAPI):
 
 def filter_unique_results_by_domain(results):
     """
-    Filters the results to ensure only one result per website base domain is included 
+    Filters the results to ensure only one result per website base domain is included
     (e.g., 'facebook.com' regardless of subdomain).
-    
+
     Args:
         results (list): List of result dictionaries from the search result.
-    
+
     Returns:
         list: Filtered list of unique results by domain.
     """
     unique_domains = set()
     filtered_results = []
-    
+
     for result in results:
         url = result.get("link", "")  # Extract URL from the result dictionary
         if not url:
             continue  # Skip if no URL is found
-        
+
         base_domain = get_base_domain(url)
-        
+
         # Add the result if we haven't seen this domain before
         if base_domain not in unique_domains:
             unique_domains.add(base_domain)
             filtered_results.append(result)
-    
+
     return filtered_results
