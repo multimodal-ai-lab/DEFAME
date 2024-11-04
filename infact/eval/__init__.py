@@ -4,7 +4,7 @@ from .fever.benchmark import FEVER
 from .verite.benchmark import VERITE
 from .newsclippings.benchmark import NewsCLIPpings
 from .dgm4.benchmark import DGM4
-from .MOCHEG.benchmark import MOCHEG
+from .mocheg.benchmark import MOCHEG
 
 BENCHMARK_REGISTRY = {
     AVeriTeC,
@@ -16,11 +16,11 @@ BENCHMARK_REGISTRY = {
 }
 
 
-def load_benchmark(name: str, n_samples: int = None, **kwargs) -> Benchmark:
+def load_benchmark(name: str, **kwargs) -> Benchmark:
     print("Loading benchmark...", end="")
     for benchmark in BENCHMARK_REGISTRY:
         if name == benchmark.shorthand:
-            b = benchmark(n_samples=n_samples, **kwargs)
+            b = benchmark(**kwargs)
             print(" done.")
             return b
     raise ValueError(f"No benchmark named '{name}'.")
