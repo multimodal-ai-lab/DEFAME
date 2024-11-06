@@ -183,7 +183,8 @@ class MediaRegistry:
         if not self.db_location.parent.exists():
             self.db_location.parent.mkdir(exist_ok=True, parents=True)
         is_new = not self.db_location.exists()
-        self.conn = sqlite3.connect(self.db_location)
+        self.conn = sqlite3.connect(self.db_location, timeout=10)
+        self.conn.execute("PRAGMA journal_mode=WAL;")
         self.cur = self.conn.cursor()
         if is_new:
             self._init_db()

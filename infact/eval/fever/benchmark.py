@@ -5,7 +5,7 @@ import random
 
 import orjsonl
 
-from config.globals import data_base_dir, random_seed
+from config.globals import data_base_dir
 from infact.common import Label, Content
 from infact.tools import WikiDumpLookup
 from infact.eval.benchmark import Benchmark
@@ -74,12 +74,12 @@ class FEVER(Benchmark):
 
     available_actions = [WikiDumpLookup]
 
-    def __init__(self, version=1, variant="dev", n_samples: int = None):
+    def __init__(self, version=1, variant="dev"):
         super().__init__(f"FEVER V{version} ({variant})", variant)
         self.file_path = Path(data_base_dir + f"FEVER/fever{version}_{variant}.jsonl")
         self.justifications_file_path = Path(data_base_dir + f"FEVER/gt_justification_fever{version}_{variant}.jsonl")
 
-        self.data = self.load_data(variant, n_samples)
+        self.data = self.load_data(variant)
 
         if version == 1:
             self.extra_prepare_rules = self.extra_prepare_rules_v1
@@ -90,21 +90,13 @@ class FEVER(Benchmark):
         else:
             raise ValueError(f"Invalid FEVER version '{version}' specified.")
 
-    def load_data(self, variant, n_samples: int=None) -> list[dict]:
+    def load_data(self, variant) -> list[dict]:
         # Read the files
         raw_data = orjsonl.load(self.file_path)
-        justifications = None
-        if n_samples:
-            random.seed(random_seed)
-            indices = random.sample(raw_data, len(raw_data))[:n_samples]
-            raw_data = [raw_data[i] for i in indices]
-            if os.path.exists(self.justifications_file_path):
-                justifications_raw = orjsonl.load(self.justifications_file_path)
-                justifications = [justifications_raw[i] for i in indices]
-
-        else:
-            if os.path.exists(self.justifications_file_path):
+        if os.path.exists(self.justifications_file_path):
                 justifications = orjsonl.load(self.justifications_file_path)
+        else:
+            justifications = None
 
         # Translate raw data into structured list of dicts
         data = []
