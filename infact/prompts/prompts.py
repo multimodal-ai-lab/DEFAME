@@ -341,20 +341,6 @@ class InterpretPrompt(Prompt):
         }
         super().__init__(placeholder_targets)
 
-    def extract(self, response: str) -> dict:
-        answer = extract_last_code_span(response)
-        answer = re.sub(r'[^\w\-\s]', '', answer).strip().lower()
-        out = dict(
-            interpretation=answer,
-            response=response,
-        )
-        if not answer:
-            pattern = re.compile(r'\*\*(.*)\*\*', re.DOTALL)
-            matches = pattern.findall(response) or ['']
-            answer = matches[0]
-            out.update(dict(interpretation=answer))
-        return out
-
 
 class JudgeNaively(Prompt):
     template_file_path = "infact/prompts/judge_naive.md"
