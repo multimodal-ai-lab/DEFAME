@@ -40,7 +40,8 @@ fact_checking_urls = [
     "factcheck.kz"
 ]
 
-# These sites don't allow bot access/scraping. Must use a proprietary API for that
+# These sites don't allow bot access/scraping. Must use a
+# proprietary API or a different way to access them.
 unsupported_domains = [
     "facebook.com",
     "twitter.com",
@@ -49,6 +50,9 @@ unsupported_domains = [
     "youtube.com",
     "tiktok.com",
     "reddit.com",
+    "ebay.com",
+    "microsoft.com",
+    "researchhub.com",
 ]
 
 block_keywords = [
@@ -190,15 +194,15 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
     firecrawl_url = "http://localhost:3002/v1/scrape"
     json_data = {
         "url": url,
-        "formats": ["markdown", "html"],
-        "timeout": 8000,  # waiting time in milliseconds for the page to respond
+        "formats": ["markdown"],
+        "timeout": 10 * 60 * 1000,  # waiting time in milliseconds for Firecrawl to process the job
     }
 
     try:
         response = requests.post(firecrawl_url,
                                  json=json_data,
                                  headers=headers,
-                                 timeout=60 * 10)  # Firecrawl scrapes usually take 2 to 4s, but a 1700-page PDF takes 5 min
+                                 timeout=10 * 60 + 10)  # Firecrawl scrapes usually take 2 to 4s, but a 1700-page PDF takes 5 min
     except (requests.exceptions.RetryError, requests.exceptions.ConnectionError):
         logger.error(f"Firecrawl is not running!")
         return None
@@ -211,34 +215,33 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
         logger.info(f"Unable to scrape {url} with Firecrawl. Skipping...")
         return None
 
-    if response.status_code == 408:
-        logger.warning(f"Firecrawl failed to respond in time! "
-                       f"Perhaps the Firecrawl service is hanging? Skipping the URL {url}.")
-        return None
-    elif response.status_code in [402, 403, 409]:
-        error_message = response.json().get('error', 'Unknown error occurred')
-        logger.log(f'Failed to scrape URL {url}.\nError {response.status_code}: {response.reason}. Message: {error_message}.')
-        return None
-    elif response.status_code == 500:
-        error_message = response.json().get('error', 'Unknown error occurred')
-        logger.info(f'Firecrawl encountered an internal error while scraping {url}.\n{response.reason}. Message: {error_message}.')
+    if response.status_code != 200:
+        logger.log(f"Failed to scrape {url}")
+        match response.status_code:
+            case 402: logger.log(f"Error 402: Access denied.")
+            case 403: logger.log(f"Error 403: Forbidden.")
+            case 408: logger.warning(f"Error 408: Timeout! Firecrawl overloaded or Webpage did not respond.")
+            case 409: logger.log(f"Error 409: Access denied.")
+            case 500: logger.log(f"Error 500: Server error.")
+            case _: logger.log(f"Error {response.status_code}: {response.reason}.")
+        logger.log("Skipping that URL.")
         return None
 
     success = response.json()["success"]
     if success and "data" in response.json():
         data = response.json()["data"]
-        text = data["markdown"]
+        text = data.get("markdown")
         return _resolve_media_hyperlinks(text)
     else:
-        logger.info(str(response))
-        logger.info(f"Unable to read {url}. Skipping...")
+        logger.info(f"Unable to read {url}. Skipping it.")
+        logger.info(str(response.content))
         return None
 
 
 def _resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
     """Identifies up to MAX_MEDIA_PER_PAGE image URLs, downloads the images and replaces the
     respective Markdown hyperlinks with their proper image reference."""
-    if not text:
+    if text is None:
         return None
     hyperlinks = get_markdown_hyperlinks(text)
     media_count = 0
@@ -246,6 +249,7 @@ def _resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
         # Check if URL is an image URL
         if is_image_url(url) and not is_fact_checking_site(url) and not is_unsupported_site(url):
             try:
+                # TODO: Handle very large images like: https://eoimages.gsfc.nasa.gov/images/imagerecords/144000/144225/campfire_oli_2018312_lrg.jpg
                 # Download the image
                 response = requests.get(url, stream=True, timeout=10)
                 if response.status_code == 200:
@@ -268,6 +272,7 @@ def _resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
                 print(e)
                 # Image has an incompatible format. Skip it.
                 pass
+
             except Exception as e:
                 print(f"Unable to download image from {url}.")
                 print(e)
@@ -323,16 +328,18 @@ def is_relevant_content(content: str) -> bool:
 
 
 if __name__ == '__main__':
-    print("Running scrapes...")
+    logger = Logger("dummy", print_log_level="debug")
+    logger.info("Running scrapes...")
     urls_to_scrape = [
+        "https://www.washingtonpost.com/video/national/cruz-calls-trump-clinton-two-new-york-liberals/2016/04/07/da3b78a8-fcdf-11e5-813a-90ab563f0dde_video.html",
         "https://nypost.com/2024/10/11/us-news/meteorologists-hit-with-death-threats-after-debunking-hurricane-conspiracy-theories/",
         "https://www.tagesschau.de/ausland/asien/libanon-israel-blauhelme-nahost-102.html",
         "https://www.zeit.de/politik/ausland/2024-10/wolodymyr-selenskyj-berlin-olaf-scholz-militaerhilfe",
         "https://edition.cnn.com/2024/10/07/business/property-damange-hurricane-helene-47-billion/index.html"
     ]
     for url in urls_to_scrape:
-        scraped = scrape_firecrawl(url, None)
+        scraped = scrape_firecrawl(url, logger)
         if scraped:
             print(scraped, "\n\n\n")
         else:
-            print("Scrape failed.")
+            logger.error("Scrape failed.")
