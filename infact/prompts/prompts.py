@@ -447,9 +447,12 @@ def extract_verdict(response: str, classes: Collection[Label]) -> Optional[Label
         answer = matches[0]
 
     try:
-        return Label(answer)
+        label = Label(answer)
+        assert label in classes
+        return label
 
     except ValueError:
+        # TODO: Verify if this is necessary
         # Maybe the label is a substring of the response
         for c in classes:
             if c.value in response:
