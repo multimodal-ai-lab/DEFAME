@@ -105,10 +105,12 @@ def evaluate(
             else:
                 logger.warning(f"No Tool available for action {action.name}.")
 
+    # TODO: Print a nice, colored list of tools and their usage
+
     del tools
 
     if random_sampling:
-        benchmark.shuffle()
+        benchmark.shuffle()  # TODO: Add seed
 
     if n_samples:
         samples = benchmark[:n_samples]
@@ -137,6 +139,8 @@ def evaluate(
 
     if n_samples == 0:
         raise RuntimeError("Nothing to evaluate.")
+
+    n_workers = min(n_workers, n_samples)
 
     is_averitec = isinstance(benchmark, AVeriTeC)
 
@@ -200,10 +204,10 @@ def evaluate(
     try:
         for _ in tqdm(range(n_samples), smoothing=0.02):
             try:
-                doc, meta = output_queue.get(timeout=60 * 60)  # 60 minutes timeout
+                doc, meta = output_queue.get(timeout=15 * 60)  # 15 minutes timeout
                 process_output(doc, meta, benchmark, logger, is_test)
             except Empty as e:
-                logger.warning("Output queue was empty after 30 minutes timeout. Possible worker failure.")
+                logger.warning("Output queue remained empty for 15 minutes. Likely a worker crashed.")
 
                 # Check for errors reported by workers
                 # while not error_queue.empty():
@@ -212,7 +216,7 @@ def evaluate(
 
                 # Check the status of each worker
                 for i, worker in enumerate(workers):
-                    if not worker.is_alive():
+                    if not worker.is_alive() and worker.exitcode != 0:
                         logger.error(f"Worker {i} has died unexpectedly. Exit code: {worker.exitcode}")
                         # Log the reason for worker failure if available
                         # Since the worker has already sent the error message to error_queue,
