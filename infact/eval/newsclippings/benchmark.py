@@ -44,7 +44,8 @@ class NewsCLIPpings(Benchmark):
     * If the image has been used from a different event or misrepresents individuals, the verdict should be REFUTED.
     * If the image and caption match the event, the verdict is SUPPORTED.
     * If you do not find any apparent contradictions then the sample is probably SUPPORTED."""
-    
+
+    base_path = Path(data_base_dir + "NewsCLIPings/news_clippings/visual_news/origin/")
 
     available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
 
@@ -65,28 +66,32 @@ class NewsCLIPpings(Benchmark):
         """Load annotations data from the NewsCLIPings dataset and map captions to images."""
         with open(self.data_file_path, "r", encoding="utf-8") as file:
             data = json.load(file)
-
         annotations = data["annotations"]
-        if n_samples:
-                random.seed(random_seed)
-                annotations = random.sample(annotations, len(annotations))[:n_samples]
-        entries = []
 
+        # Pre-select instances
+        # TODO: Add random sampling
+        if n_samples:
+            annotations = annotations[:n_samples]
+
+        entries = []
         for i, ann in enumerate(annotations):
             # Map the caption and image paths using the visual_news_data_mapping
-            caption = self.visual_news_data_mapping.get(ann["id"], {}).get("caption", "No caption")
-            base_path =  Path(data_base_dir + "NewsCLIPings/news_clippings/visual_news/origin/")
-            relative_path = self.visual_news_data_mapping.get(ann["image_id"], {}).get("image_path", None)
-            image_path = base_path / Path(relative_path[2:])
+            caption = self.visual_news_data_mapping.get(ann["id"], {}).get("caption")
+            if not caption:
+                continue
 
-            
+            relative_path = self.visual_news_data_mapping.get(ann["image_id"], {}).get("image_path")
+            image_path = self.base_path / Path(relative_path[2:])
+
             if image_path and os.path.exists(image_path):
                 image = Image(image_path)
                 claim_text = f"{image.reference} {caption}"
-                id = f'{ann["id"]}_{ann["image_id"]}'
+                # id = f'{ann_data["id"]}_{ann_data["image_id"]}'
                 entry = {
-                    "id": id,
-                    "content": Content(text=claim_text, id_number=id),
+                    "id": i,
+                    "content": Content(text=claim_text,
+                                       id_number=i,
+                                       meta_info="Published: some date between 2005 and 2020."),
                     "label": self.class_mapping[str(ann["falsified"])],
                     "justification": ann.get("justification", "")
                 }
