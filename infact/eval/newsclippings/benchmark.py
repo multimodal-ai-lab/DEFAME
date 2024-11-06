@@ -2,7 +2,6 @@ import json
 import os
 from pathlib import Path
 from typing import Iterator
-import random
 
 from infact.common.medium import Image
 from config.globals import data_base_dir, random_seed

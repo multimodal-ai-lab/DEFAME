@@ -2,6 +2,7 @@ from typing import Any
 
 from infact.common import FCDocument, Label
 from infact.procedure.variants.summary_based.default import DynamicSummary
+from infact.tools.search.common import WebSearch, ImageSearch
 
 
 class AllActionsSummary(DynamicSummary):
@@ -12,6 +13,9 @@ class AllActionsSummary(DynamicSummary):
             self.logger.log("Not enough information yet. Continuing fact-check...")
             n_iterations += 1
             actions, reasoning = self.planner.plan_next_actions(doc, all_actions=True)
+            text = f'"{doc.claim.text.split(">", 1)[1].strip()}"'
+            actions.append(WebSearch(text))
+            actions.append(ImageSearch(text))
             if len(reasoning) > 32:  # Only keep substantial reasoning
                 doc.add_reasoning(reasoning)
             doc.add_actions(actions)
