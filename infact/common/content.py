@@ -12,6 +12,8 @@ class Content(MultimediaSnippet):
     date: datetime = None
     origin: str = None  # URL
 
+    meta_info: str = None
+
     interpretation: str = None  # Added during claim extraction
 
     id_number: int = None  # Used by some benchmarks to identify contents

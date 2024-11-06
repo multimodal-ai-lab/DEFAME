@@ -24,4 +24,6 @@ class Claim(MultimediaSnippet):
             claim_str += f"\nDate: {date.strftime('%B %d, %Y')}"
         if origin := self.original_context.origin:
             claim_str += f"\nOrigin: {origin}"
+        if meta_info := self.original_context.meta_info:
+            claim_str += f"\nMeta Info: {meta_info}"
         return claim_str
