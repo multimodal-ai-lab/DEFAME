@@ -334,8 +334,8 @@ def finalize_evaluation(stats: dict,
 
     if not is_test:
         benchmark_classes = benchmark.get_classes()
-        if is_averitec:
-            benchmark_classes.remove(Label.CHERRY_PICKING)
+        #if is_averitec:
+        #    benchmark_classes.remove(Label.CHERRY_PICKING)
 
         plot_confusion_matrix(predicted_labels,
                               ground_truth_labels,

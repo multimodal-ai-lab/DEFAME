@@ -342,7 +342,10 @@ class HuggingFaceModel(Model, ABC):
 
 
     def count_tokens(self, prompt: Prompt | str) -> int:
-        tokens = self.api.tokenizer.encode(str(prompt))
+        if self.tokenizer:
+            tokens = self.tokenizer.encode(str(prompt))
+        else:
+            tokens = self.api.tokenizer.encode(str(prompt))
         return len(tokens)
 
 
@@ -495,17 +498,23 @@ the instructions and keep the output to the minimum."""
         return self.model
 
     def _generate(self, prompt: Prompt, temperature: float, top_k: int, top_p: int, system_prompt: Prompt = None) -> str:
-        inputs = self.handle_prompt(prompt, system_prompt)
+        inputs, formatted_prompt = self.handle_prompt(prompt, system_prompt)
         stopping_criteria = StoppingCriteriaList([RepetitionStoppingCriteria(self.tokenizer)])
-
-        out = self.api.generate(
-            **inputs,
-            max_new_tokens=self.max_response_len,
-            temperature=temperature or self.temperature,
-            top_k=top_k,
-            repetition_penalty=self.repetition_penalty,
-            stopping_criteria=stopping_criteria,
-        )
+        
+        try:
+            out = self.api.generate(
+                **inputs,
+                max_new_tokens=self.max_response_len,
+                temperature=temperature or self.temperature,
+                top_k=top_k,
+                repetition_penalty=self.repetition_penalty,
+                stopping_criteria=stopping_criteria,
+            )
+        except IndexError as e:
+            image_count = formatted_prompt.count("<image>")
+            self.logger.error(f"IndexError: cur_image_idx out of range. Number of Images. {len(inputs['images'])}\nPrompt:\n{prompt}\n\n\nFormatted Prompt:\n{formatted_prompt}\n\n\nNumber of ImageTokens in the Formatted Prompt: {image_count}")
+            response = ""
+            return response
 
         response = self.processor.decode(out[0], skip_special_tokens=True)
         if "llava_next" in self.name:
@@ -517,7 +526,8 @@ the instructions and keep the output to the minimum."""
         if system_prompt is None:
             system_prompt = self.system_prompt
     
-        images = [image.image for image in original_prompt.images] if original_prompt.is_multimodal() else None
+        #images = [image.image for image in original_prompt.images] if original_prompt.is_multimodal() else None
+        images = [block.image for block in original_prompt.to_interleaved() if isinstance(block, Image)] if original_prompt.is_multimodal() else None
 
         try:
             if "llava_next" in self.name:
@@ -534,9 +544,10 @@ the instructions and keep the output to the minimum."""
                 inputs = dict(inputs=input_ids, images=image_tensors, image_sizes=image_sizes)
         except Exception as e:
             self.logger.warning(f"Error formatting prompt: {str(e)}")
+            formatted_prompt = ""
             inputs = str(original_prompt)  # Fallback to the raw prompt
 
-        return inputs
+        return inputs, formatted_prompt
 
     def format_for_llava_next(self, original_prompt: Prompt, system_prompt: str) -> str:
         messages = []
@@ -548,37 +559,33 @@ the instructions and keep the output to the minimum."""
 
     def format_for_llava_onevision(self, original_prompt: Prompt, system_prompt: str) -> str:
         """
-        Formats the prompt for LLaVA OneVision, interleaving text and image placeholders, 
-        while using a specific conversation template.
+        Formats the prompt for LLaVA OneVision, interleaving text and image placeholders,
+        using a specific conversation template. The function follows an elegant block-based
+        approach using to_interleaved.
         """
-        text = original_prompt.text
-        image_pattern = re.compile(r'<image:\d+>')
-        current_pos = 0
         conv_template = "qwen_1_5"
         conv = copy.deepcopy(conv_templates[conv_template])
-    
+
+        # Add system prompt if provided
         if system_prompt:
             conv.append_message(conv.roles[0], system_prompt)
-        for match in image_pattern.finditer(text):
-            start, end = match.span()
-            if current_pos < start:
-                text_snippet = text[current_pos:start].strip()
+
+        # Format the prompt by interleaving text and images
+        for block in original_prompt.to_interleaved():
+            if isinstance(block, str):  # Text block
+                text_snippet = block.strip()
                 if text_snippet:
                     conv.append_message(conv.roles[0], text_snippet + "\n")
-            conv.append_message(conv.roles[0], DEFAULT_IMAGE_TOKEN)
-            current_pos = end
-    
-        if current_pos < len(text):
-            remaining_text = text[current_pos:].strip()
-            if remaining_text:
-                conv.append_message(conv.roles[0], remaining_text + "\n")
-    
-        conv.append_message(conv.roles[1], None)
-        return conv.get_prompt()
 
-    def count_tokens(self, prompt: Prompt | str) -> int:
-        tokens = self.processor.tokenizer.encode(str(prompt)) if "llava_next" in self.name else self.processor.encode(str(prompt)) 
-        return len(tokens)
+            elif isinstance(block, Image):  # Image block
+                # Use a predefined token to represent images
+                conv.append_message(conv.roles[0], DEFAULT_IMAGE_TOKEN)
+
+        # Append an empty assistant message to mark the end of user input
+        conv.append_message(conv.roles[1], None)
+
+        # Get the formatted prompt string
+        return conv.get_prompt()
 
 
 def make_model(name: str, **kwargs) -> Model:

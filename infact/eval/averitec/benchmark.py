@@ -32,12 +32,7 @@ class AVeriTeC(Benchmark):
             """The knowledge from the fact-check explicitly and clearly refutes at least substantial parts
             if not even the whole the Claim.""",
         Label.CONFLICTING:
-            """The Claim has both supporting and refuting evidence from multiple sources.""",
-        Label.CHERRY_PICKING:
-            """The Claim is technically true but misleads by excluding important context. Including
-            that context would create a significantly different impression. Pick this
-            decision also in the case if the Claim is not universally true but true under
-            certain conditions.""",
+            """The Claim has both supporting and refuting evidence from multiple sources or the Claim is technically true but misleads by excluding important context. """,
     }
 
     extra_judge_rules = """* **Do not commit the "argument from ignorance" fallacy**: The absence of evidence

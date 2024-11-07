@@ -36,7 +36,7 @@ class GoogleVisionAPI(RemoteSearchAPI):
         image = vision.Image(content=query.image.get_base64_encoded())
         response = self.client.web_detection(image=image)
         if response.error.message:
-            raise Exception(f"{response.error.message}\nCheck Google Cloud Vision API documentation for more info.")
+             self.logger.warning(f"{response.error.message}\nCheck Google Cloud Vision API documentation for more info.")
 
         return self._parse_results(response.web_detection, query)
 

@@ -39,7 +39,7 @@ def plot_confusion_matrix(predictions: Sequence[Label],
         if isinstance(pred, str):
             pred = Label[pred]
             gt = Label[gt]
-        if pred != Label.REFUSED_TO_ANSWER:
+        if pred != Label.REFUSED_TO_ANSWER and (gt in class_conversion) and (pred in class_conversion):
             confusion_matrix[class_conversion[gt], class_conversion[pred]] += 1
 
     correct = np.copy(confusion_matrix)
