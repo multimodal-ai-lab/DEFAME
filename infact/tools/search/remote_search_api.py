@@ -130,7 +130,7 @@ def scrape(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
     if _firecrawl_is_running():
         scraped = scrape_firecrawl(url, logger)
     else:
-        logger.error(f"Firecrawl is not running! Falling back...")
+        logger.warning(f"Firecrawl is not running! Falling back...")
         scraped = scrape_naive(url, logger)
 
     if scraped and is_relevant_content(str(scraped)):

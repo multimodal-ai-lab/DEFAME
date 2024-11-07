@@ -60,6 +60,8 @@ class VERITE(Benchmark):
             image_path = Path(data_base_dir + f"VERITE/{row['image_path']}")
             if not os.path.exists(image_path):
                 continue  # TODO: Complete all missing images
+            #if row["label"] == "out-of-context":
+            #    continue
             image = Image(image_path)
             assert isinstance(i, int)
             claim_text = f"{image.reference} {row['caption']}"
