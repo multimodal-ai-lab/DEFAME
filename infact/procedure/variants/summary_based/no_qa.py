@@ -6,7 +6,7 @@ from infact.procedure.procedure import Procedure
 from infact.prompts.prompts import ProposeQueriesNoQuestions
 
 
-class StaticSummary(Procedure):
+class NoQA(Procedure):
     def apply_to(self, doc: FCDocument) -> (Label, dict[str, Any]):
         """InFact but omitting posing any questions."""
         # Stage 2*: Search query generation (modified)

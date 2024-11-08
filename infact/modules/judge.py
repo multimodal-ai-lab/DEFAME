@@ -5,7 +5,7 @@ from infact.common.label import Label, DEFAULT_LABEL_DEFINITIONS
 from infact.common.logger import Logger
 from infact.common.modeling import Model
 from infact.common.prompt import Prompt
-from infact.prompts.prompts import JudgePrompt, JudgeNaively
+from infact.prompts.prompts import JudgePrompt, JudgeNaively, JudgeMinimal
 from infact.utils.console import orange
 
 
@@ -52,11 +52,15 @@ class Judge:
         prompt = JudgeNaively(doc.claim, self.classes, self.class_definitions)
         return self._generate_verdict(prompt)
 
+    def judge_minimally(self, doc: FCDocument) -> Label:
+        prompt = JudgeMinimal(doc.claim, self.classes, self.class_definitions)
+        return self._generate_verdict(prompt)
+
     def _generate_verdict(self, prompt: Prompt) -> Label:
         response = self.llm.generate(prompt)
 
         if not response["verdict"]:
-            self.logger.info(orange(f"Error while generating verdict for response: {response['response']}\n\nDefaulting to REFUSED."))
+            self.logger.warning(f"Error while generating verdict for response: {response['response']}\n\nDefaulting to REFUSED.")
             self.latest_reasoning = ""
             return Label.REFUSED_TO_ANSWER
 

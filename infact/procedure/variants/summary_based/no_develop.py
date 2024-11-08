@@ -1,15 +1,11 @@
-from typing import Any, Collection
+from typing import Any
 
-from infact.common import FCDocument, Label, Evidence
-from infact.procedure.procedure import Procedure
-from infact.prompts.prompts import DevelopPrompt
+from infact.common import FCDocument, Label
+from .dynamic import DynamicSummary
 
 
-class DynamicSummary(Procedure):
-    def __init__(self, max_iterations: int = 3, **kwargs):
-        super().__init__(**kwargs)
-        self.max_iterations = max_iterations
-
+class NoDevelop(DynamicSummary):
+    """Like Dynamic but without develop"""
     def apply_to(self, doc: FCDocument) -> (Label, dict[str, Any]):
         n_iterations = 0
         label = Label.NEI
@@ -23,12 +19,6 @@ class DynamicSummary(Procedure):
             if actions:
                 evidences = self.actor.perform(actions, doc)
                 doc.add_evidence(evidences)  # even if no evidence, add empty evidence block for the record
-                self._develop(doc)
+                # self._develop(doc)
             label = self.judge.judge(doc, is_final=n_iterations == self.max_iterations or not actions)
         return label, {}
-
-    def _develop(self, doc: FCDocument):
-        """Analyzes the currently available information and infers new insights."""
-        prompt = DevelopPrompt(doc)
-        response = self.llm.generate(prompt)
-        doc.add_reasoning(response)

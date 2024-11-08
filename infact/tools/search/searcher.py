@@ -194,30 +194,27 @@ class Searcher(Tool):
             return None
 
     def _summarize_single_web_source(self, web_source: WebSource, doc: FCDocument):
-        if str(web_source) == "NONE":
-            web_source.summary = MultimediaSnippet(summary)
-        else:
-            prompt = SummarizeResultPrompt(web_source, doc)
+        prompt = SummarizeResultPrompt(web_source, doc)
 
-            try:
-                summary = self.llm.generate(prompt, max_attempts=3)
-                if not summary:
-                    summary = "NONE"
-            except APIError as e:
-                self.logger.log(orange(f"APIError: {e} - Skipping the summary for {web_source.url}."))
-                self.logger.log(orange(f"Used prompt:\n{str(prompt)}"))
+        try:
+            summary = self.llm.generate(prompt, max_attempts=3)
+            if not summary:
                 summary = "NONE"
-            except TemplateSyntaxError as e:
-                self.logger.log(orange(f"TemplateSyntaxError: {e} - Skipping the summary for {web_source.url}."))
-                summary = "NONE"
-            except ValueError as e:
-                self.logger.log(orange(f"ValueError: {e} - Skipping the summary for {web_source.url}."))
-                summary = "NONE"
-            except Exception as e:
-                self.logger.log(orange(f"Error while summarizing! {e} - Skipping the summary for {web_source.url}."))
-                summary = "NONE"
+        except APIError as e:
+            self.logger.log(orange(f"APIError: {e} - Skipping the summary for {web_source.url}."))
+            self.logger.log(orange(f"Used prompt:\n{str(prompt)}"))
+            summary = "NONE"
+        except TemplateSyntaxError as e:
+            self.logger.log(orange(f"TemplateSyntaxError: {e} - Skipping the summary for {web_source.url}."))
+            summary = "NONE"
+        except ValueError as e:
+            self.logger.log(orange(f"ValueError: {e} - Skipping the summary for {web_source.url}."))
+            summary = "NONE"
+        except Exception as e:
+            self.logger.log(orange(f"Error while summarizing! {e} - Skipping the summary for {web_source.url}."))
+            summary = "NONE"
 
-            web_source.summary = MultimediaSnippet(summary)
+        web_source.summary = MultimediaSnippet(summary)
 
         if web_source.is_relevant():
             self.logger.log("Useful result: " + gray(str(web_source)))
@@ -231,6 +228,10 @@ class Searcher(Tool):
             return None
         elif len(summaries) == 1:
             return MultimediaSnippet(summaries[0])
+
+        # Disable summary of summaries:
+        # relevant_sources = "\n\n".join([str(s) for s in result.sources if s.is_relevant()])
+        # return MultimediaSnippet(relevant_sources)
 
         # Prepare the prompt for the LLM
         placeholder_targets = {

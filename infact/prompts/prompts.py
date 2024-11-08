@@ -365,6 +365,22 @@ class JudgeNaively(Prompt):
         return dict(verdict=verdict, response=response)
 
 
+class JudgeMinimal(JudgeNaively):
+    template_file_path = "infact/prompts/judge_minimal.md"
+    name = "JudgeMinimal"
+
+
+class InitializePrompt(Prompt):
+    template_file_path = "infact/prompts/initialize.md"
+    name = "InitializePrompt"
+
+    def __init__(self, claim: Claim):
+        placeholder_targets = {
+            "[CLAIM]": claim,
+        }
+        super().__init__(placeholder_targets)
+
+
 def load_exemplars(valid_actions: list[type[Action]]) -> str:
     exemplars_dir = Path("infact/prompts/plan_exemplars")
     exemplar_paths = []
