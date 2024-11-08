@@ -29,8 +29,11 @@ class EvidenceBlock:
     evidences: Collection[Evidence]
 
     def __str__(self):
-        summaries = "\n\n".join([str(e) for e in self.evidences if e.is_useful()])
-        return f"## Evidence\n{summaries}"
+        if len(self.evidences) == 0:
+            summary = "No new evidence found."
+        else:
+            summary = "\n\n".join([str(e) for e in self.evidences if e.is_useful()])
+        return f"## Evidence\n{summary}"
 
     @property
     def num_useful_evidences(self):

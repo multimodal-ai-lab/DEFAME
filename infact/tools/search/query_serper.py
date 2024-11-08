@@ -151,7 +151,7 @@ class SerperAPI(RemoteSearchAPI):
         filtered_results = filter_unique_results_by_domain(response[result_key])
         if result_key in response:
             for i, result in enumerate(filtered_results):
-                if i >= MAX_NUM_SEARCH_RESULTS:  # somehow the num param does not restrict requests.post image search results
+                if len(results) >= MAX_NUM_SEARCH_RESULTS:  # somehow the num param does not restrict requests.post image search results
                     break
                 text = result.get("snippet", "")
                 url = result.get("link", "")
@@ -163,9 +163,9 @@ class SerperAPI(RemoteSearchAPI):
                 title = result.get('title')
 
                 if result_key == "organic":
-                    scraped = scrape(url=url, logger=self.logger)
-                    if scraped:
-                        text = str(scraped)
+                    text = str(scrape(url=url, logger=self.logger))
+                    if not text:
+                        continue
 
                 elif result_key == "images":
                     try:

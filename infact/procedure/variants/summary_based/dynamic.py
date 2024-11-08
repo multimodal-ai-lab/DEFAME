@@ -1,21 +1,21 @@
 from typing import Any
 
 from infact.common import FCDocument, Label
-from infact.procedure.variants.summary_based.dynamic import DynamicSummary
-from infact.tools.search.common import WebSearch, ImageSearch
+from infact.procedure.procedure import Procedure
 
 
-class AllActionsSummary(DynamicSummary):
+class DynamicSummary(Procedure):
+    def __init__(self, max_iterations: int = 3, **kwargs):
+        super().__init__(**kwargs)
+        self.max_iterations = max_iterations
+
     def apply_to(self, doc: FCDocument) -> (Label, dict[str, Any]):
         n_iterations = 0
         label = Label.NEI
         while label == Label.NEI and n_iterations < self.max_iterations:
             self.logger.log("Not enough information yet. Continuing fact-check...")
             n_iterations += 1
-            actions, reasoning = self.planner.plan_next_actions(doc, all_actions=True)
-            text = f'"{doc.claim.text.split(">", 1)[1].strip()}"'
-            actions.append(WebSearch(text))
-            actions.append(ImageSearch(text))
+            actions, reasoning = self.planner.plan_next_actions(doc)
             if len(reasoning) > 32:  # Only keep substantial reasoning
                 doc.add_reasoning(reasoning)
             doc.add_actions(actions)

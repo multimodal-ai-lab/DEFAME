@@ -12,8 +12,8 @@ from urllib.parse import urlparse
 from infact.common.medium import Image
 from infact.common.misc import ImageQuery, WebSource
 from infact.tools.search.remote_search_api import RemoteSearchAPI
-from .remote_search_api import scrape, is_fact_checking_site
-from .common import ReverseSearchResult
+from infact.tools.search.remote_search_api import scrape, is_fact_checking_site
+from infact.tools.search.common import ReverseSearchResult
 
 
 class GoogleVisionAPI(RemoteSearchAPI):
@@ -132,3 +132,11 @@ def filter_unique_stem_pages(pages):
         
     return filtered_pages
 
+if __name__ == "__main__":
+    query = ImageQuery(
+        image=Image(pillow_image=pillowImage.open("/pfss/mlde/workspaces/mlde_wsp_Rohrbach/users/mr74vahu/InFact/out/temp/media/516.jpg").convert('RGB')),
+        search_type="search"
+    )
+    api = GoogleVisionAPI()
+    result = api._call_api(query)
+    print(result)

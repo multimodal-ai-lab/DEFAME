@@ -34,7 +34,7 @@ class ClaimExtractor:
     def extract_claims(self, content: Content) -> list[Claim]:
         self.logger.log("Starting claim extraction.")
 
-        if self.do_interpretation or self.prepare_rules:
+        if self.do_interpretation:
             self.logger.log("Interpreting...")
             self.interpret(content, self.prepare_rules)
 

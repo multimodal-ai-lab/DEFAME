@@ -1,10 +1,11 @@
 from abc import ABC
 from typing import Any
 
-from infact.tools import WebSearch
-from infact.common.misc import WebSource
 from infact.common import FCDocument, Label, Model, Logger
+from infact.common.misc import WebSource
 from infact.modules import Judge, Actor, Planner
+from infact.prompts.prompts import DevelopPrompt
+from infact.tools import WebSearch
 
 
 class Procedure(ABC):
@@ -37,3 +38,9 @@ class Procedure(ABC):
             if evidence.raw:
                 search_results.extend(evidence.raw.sources)
         return search_results
+
+    def _develop(self, doc: FCDocument):
+        """Analyzes the currently available information and infers new insights."""
+        prompt = DevelopPrompt(doc)
+        response = self.llm.generate(prompt)
+        doc.add_reasoning("## Elaboration\n" + response)

@@ -158,7 +158,7 @@ class KnowledgeBase(LocalSearchAPI):
             results.append(result)
         return results
 
-    def _call_api(self, query: Query) -> list[WebSource]:
+    def _call_api(self, query: Query) -> SearchResult:
         """Performs a vector search on the text embeddings of the resources of the currently active claim."""
         if self.current_claim_id is None:
             raise RuntimeError("No claim ID specified. You must set the current_claim_id to the "
@@ -166,7 +166,7 @@ class KnowledgeBase(LocalSearchAPI):
 
         knn = self.embedding_knns[self.current_claim_id]
         if knn is None:
-            return []
+            return None
 
         query_embedding = self._embed(query.text).reshape(1, -1)
         limit = min(query.limit, knn.n_samples_fit_)  # account for very small resource sets
@@ -176,7 +176,7 @@ class KnowledgeBase(LocalSearchAPI):
             return SearchResult(sources)
         except Exception as e:
             self.logger.warning(f"Resource retrieval from kNN failed: {e}")
-            return []
+            return None
 
     def _download(self):
         print("Downloading knowledge base...")
