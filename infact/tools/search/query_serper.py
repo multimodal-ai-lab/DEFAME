@@ -19,7 +19,7 @@ from.google_vision_api import get_base_domain
 
 _SERPER_URL = 'https://google.serper.dev'
 NO_RESULT_MSG = 'No good Google Search result was found'
-MAX_NUM_SEARCH_RESULTS = 10
+MAX_NUM_SEARCH_RESULTS = 5
 
 class SerperAPI(RemoteSearchAPI):
     """Class for querying the Google Serper API."""
@@ -151,7 +151,8 @@ class SerperAPI(RemoteSearchAPI):
         filtered_results = filter_unique_results_by_domain(response[result_key])
         if result_key in response:
             for i, result in enumerate(filtered_results):
-                if len(results) >= MAX_NUM_SEARCH_RESULTS:  # somehow the num param does not restrict requests.post image search results
+                limit = query.limit or MAX_NUM_SEARCH_RESULTS
+                if len(results) >= limit:  # somehow the num param does not restrict requests.post image search results
                     break
                 text = result.get("snippet", "")
                 url = result.get("link", "")

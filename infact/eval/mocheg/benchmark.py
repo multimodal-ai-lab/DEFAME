@@ -38,7 +38,7 @@ class MOCHEG(Benchmark):
 
     def load_data(self, n_samples: int = None) -> list[dict]:
         # Load the corpus
-        df = pd.read_csv(self.file_path)
+        df = pd.read_csv(self.file_path).drop_duplicates(subset='claim_id', keep='first')
         if n_samples and n_samples < len(df):
             df = df.sample(n=n_samples, random_state=random_seed)
 

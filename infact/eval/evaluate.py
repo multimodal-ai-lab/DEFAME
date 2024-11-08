@@ -202,15 +202,16 @@ def evaluate(
     try:
         for _ in tqdm(range(n_samples), smoothing=0.02):
             try:
-                doc, meta = output_queue.get(timeout=15 * 60)  # 15 minutes timeout
+                timeout = 25
+                doc, meta = output_queue.get(timeout=timeout * 60)  # 15 minutes timeout
                 process_output(doc, meta, benchmark, logger, is_test)
             except Empty as e:
-                logger.warning("Output queue remained empty for 15 minutes. Likely a worker crashed.")
+                logger.warning("Output queue remained empty for {timeout} minutes. Likely a worker crashed.")
 
                 # Check for errors reported by workers
-                # while not error_queue.empty():
-                #     error_message = error_queue.get()
-                #     logger.error(error_message)
+                while not error_queue.empty():
+                    error_message = error_queue.get()
+                    logger.error(error_message)
 
                 # Check the status of each worker
                 for i, worker in enumerate(workers):
@@ -222,7 +223,7 @@ def evaluate(
 
                 # Since a worker has failed, terminate all workers and stop execution
                 logger.error("A worker has failed. Terminating all workers and stopping execution.")
-                raise RuntimeError("Worker failure detected. Stopping evaluation.")
+                #raise RuntimeError("Worker failure detected. Stopping evaluation.")
 
     except Exception as main_e:
         logger.error(f"An unexpected error occurred in the main process: {main_e}")
