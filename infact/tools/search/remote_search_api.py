@@ -324,7 +324,7 @@ def is_fact_checking_site(url: str) -> bool:
 
 def is_unsupported_site(url: str) -> bool:
     """Checks if the URL belongs to a known unsupported website."""
-    if ".gov" in url:
+    if (".gov" in url) or (url in unscrapable_domains):
         return True
     domain = get_domain(url)
     return domain in unsupported_domains
