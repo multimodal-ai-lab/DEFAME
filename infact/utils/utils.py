@@ -78,8 +78,12 @@ def my_hook(pbar: tqdm):
 
 def load_experiment_parameters(from_dir: str | Path):
     config_path = Path(from_dir) / "config.yaml"
+    
+    # Load only lines that do not start with "available actions:"
     with open(config_path, "r") as f:
-        experiment_params = yaml.safe_load(f)
+        filtered_lines = [line for line in f if not line.strip().startswith("available actions:")]
+
+    experiment_params = yaml.safe_load("\n".join(filtered_lines))
     return experiment_params
 
 
