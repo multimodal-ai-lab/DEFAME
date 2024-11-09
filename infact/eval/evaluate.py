@@ -13,6 +13,7 @@ import torch
 import yaml
 from tqdm import tqdm
 import traceback
+from sklearn.metrics import precision_score, recall_score, f1_score
 
 from infact.common import Label, Logger, FCDocument
 from infact.common.modeling import model_specifier_to_shorthand, AVAILABLE_MODELS, make_model
@@ -330,7 +331,11 @@ def finalize_evaluation(stats: dict,
     df.to_csv(experiment_dir / Logger.predictions_filename, index=False)
     
     predicted_labels = df["predicted"].to_numpy()
-    ground_truth_labels = None if is_test else df["target"].to_numpy()
+    if is_averitec:
+        ground_truth_labels = None if is_test else df["target"].to_numpy()
+    else:
+        #Assuming that the test set also has target labels.
+        ground_truth_labels = df["target"].to_numpy()
 
     # Compute metrics and save them along with the other stats
     metric_stats = compute_metrics(predicted_labels, ground_truth_labels)
@@ -365,6 +370,22 @@ def compute_metrics(predicted_labels: Sequence[Label],
         "Total": n_samples,
         "Refused": int(n_refused),
     }
+
+    try:
+        labels = np.unique(np.append(ground_truth_labels, predicted_labels))
+        precision = precision_score(ground_truth_labels, predicted_labels, labels=labels, average=None)
+        recall = recall_score(ground_truth_labels, predicted_labels, labels=labels, average=None)
+        f1_scores = f1_score(ground_truth_labels, predicted_labels, labels=labels, average=None)
+
+        for label, p, r, f1 in zip(labels, precision, recall, f1_scores):
+            metric_summary.update({
+                f"{label}_Precision": round(p, 2),
+                f"{label}_Recall": round(r, 2),
+                f"{label}_F1_Score": round(f1, 2),
+            })
+    except Exception as e:
+        print(f"There was an error computing the F1_score: {str(e)}")
+        
 
     if ground_truth_labels is not None:
         correct_predictions = np.asarray(np.array(predicted_labels) == np.array(ground_truth_labels))
