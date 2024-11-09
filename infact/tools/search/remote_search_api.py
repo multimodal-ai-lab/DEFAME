@@ -53,6 +53,8 @@ unsupported_domains = [
     "ebay.com",
     "microsoft.com",
     "researchhub.com",
+    "pinterest.com",
+    "irs.gov"
 ]
 
 block_keywords = [
@@ -67,6 +69,10 @@ block_keywords = [
         "Are you a robot?",
         "Are you a human?",
     ]
+
+unscrapable_domains = [
+
+]
 
 class RemoteSearchAPI(SearchAPI):
     is_local = False
@@ -108,6 +114,11 @@ class RemoteSearchAPI(SearchAPI):
             cache_results = self.search_cache(query)
             if cache_results:
                 self.cache_hit += 1
+                #debug_list = [source.summary.text for source in cache_results.sources]
+                #if any(debug_list):
+                #    print(debug_list)
+                for websource in cache_results.sources:
+                    websource.summary = None # to ensure no summaries are taken from the cache
                 return cache_results
 
         # Run actual search
@@ -195,7 +206,7 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
     json_data = {
         "url": url,
         "formats": ["markdown"],
-        "timeout": 10 * 60 * 1000,  # waiting time in milliseconds for Firecrawl to process the job
+        "timeout": 15 * 60 * 1000,  # waiting time in milliseconds for Firecrawl to process the job
     }
 
     try:
@@ -207,16 +218,21 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
         logger.error(f"Firecrawl is not running!")
         return None
     except requests.exceptions.Timeout:
-        logger.warning(f"Firecrawl failed to respond in time! This can be due to server overload. "
-                       f"Skipping the URL {url}.")
+        error_message = "Firecrawl failed to respond in time! This can be due to server overload."
+        logger.warning(f"{error_message}\nSkipping the URL {url}.")
+        log_error_url(url, error_message)
         return None
     except Exception as e:
+        error_message = f"Exception: {repr(e)}"
         logger.info(repr(e))
         logger.info(f"Unable to scrape {url} with Firecrawl. Skipping...")
+        log_error_url(url, error_message)
         return None
 
     if response.status_code != 200:
         logger.log(f"Failed to scrape {url}")
+        error_message = f"Failed to scrape {url} - Status code: {response.status_code} - Reason: {response.reason}"
+        log_error_url(url, error_message)
         match response.status_code:
             case 402: logger.log(f"Error 402: Access denied.")
             case 403: logger.log(f"Error 403: Forbidden.")
@@ -233,8 +249,10 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
         text = data.get("markdown")
         return _resolve_media_hyperlinks(text)
     else:
+        error_message = f"Unable to read {url}. No usable data in response."
         logger.info(f"Unable to read {url}. Skipping it.")
         logger.info(str(response.content))
+        log_error_url(url, error_message)
         return None
 
 
@@ -306,6 +324,8 @@ def is_fact_checking_site(url: str) -> bool:
 
 def is_unsupported_site(url: str) -> bool:
     """Checks if the URL belongs to a known unsupported website."""
+    if ".gov" in url:
+        return True
     domain = get_domain(url)
     return domain in unsupported_domains
 
@@ -327,6 +347,13 @@ def is_relevant_content(content: str) -> bool:
     return True
 
 
+def log_error_url(url: str, message: str):
+        error_log_file = temp_dir.parent / "crawl_error_log.txt"
+        with open(error_log_file, "a") as f:
+            f.write(f"{url}: {message}\n")
+
+
+
 if __name__ == '__main__':
     logger = Logger("dummy", print_log_level="debug")
     logger.info("Running scrapes...")
@@ -343,3 +370,4 @@ if __name__ == '__main__':
             print(scraped, "\n\n\n")
         else:
             logger.error("Scrape failed.")
+
