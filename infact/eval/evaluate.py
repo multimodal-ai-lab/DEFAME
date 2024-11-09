@@ -325,6 +325,10 @@ def finalize_evaluation(stats: dict,
 
     # Retrieve predictions and ground truth
     df = pd.read_csv(experiment_dir / Logger.predictions_filename)
+    # Sort by 'sample_index' column
+    df = df.sort_values(by="sample_index").reset_index(drop=True)
+    df.to_csv(experiment_dir / Logger.predictions_filename, index=False)
+    
     predicted_labels = df["predicted"].to_numpy()
     ground_truth_labels = None if is_test else df["target"].to_numpy()
 

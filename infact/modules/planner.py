@@ -77,7 +77,8 @@ class Planner:
             if len(actions) > 0:
                 return actions, reasoning
             else:
-                self.logger.warning(f'No new actions were found in this response: {response["response"]}')
+                performed_actions_str = ", ".join(str(obj) for obj in performed_actions)
+                self.logger.warning(f'No new actions were found in this response:\n{response["response"]} and performed actions: {performed_actions_str}')
                 return [], ""
 
 

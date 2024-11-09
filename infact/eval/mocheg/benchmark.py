@@ -30,17 +30,18 @@ class MOCHEG(Benchmark):
 
     available_actions = [WebSearch, ImageSearch]
 
-    def __init__(self, variant="val", n_samples: int = None):
+    def __init__(self, variant="val"):
         super().__init__(f"MOCHEG ({variant})", variant)
         self.file_path = Path(data_base_dir + f"MOCHEG/{variant}/Corpus2.csv")
         self.image_path = Path(data_base_dir + f"MOCHEG/{variant}/images/")
-        self.data = self.load_data(n_samples)
+        self.data = self.load_data()
 
-    def load_data(self, n_samples: int = None) -> list[dict]:
+    def load_data(self) -> list[dict]:
         # Load the corpus
-        df = pd.read_csv(self.file_path).drop_duplicates(subset='claim_id', keep='first')
-        if n_samples and n_samples < len(df):
-            df = df.sample(n=n_samples, random_state=random_seed)
+        df = pd.read_csv(self.file_path)
+        df = df.dropna(subset=['ruling_outline'])
+        # Remove duplicates based on 'claim_id', keeping only the first occurrence
+        df = df.drop_duplicates(subset='claim_id', keep='first')
 
         data = []
         for i, row in df.iterrows():
