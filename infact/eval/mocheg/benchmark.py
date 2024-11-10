@@ -39,9 +39,13 @@ class MOCHEG(Benchmark):
     def load_data(self) -> list[dict]:
         # Load the corpus
         df = pd.read_csv(self.file_path)
-        df = df.dropna(subset=['ruling_outline'])
         # Remove duplicates based on 'claim_id', keeping only the first occurrence
         df = df.drop_duplicates(subset='claim_id', keep='first')
+        # Remove samples with an invalid justification
+        df = df.dropna(subset=['ruling_outline'])
+        #df = df[df['ruling_outline'].str.split().str.len() >= 10]
+        
+        
 
         data = []
         for i, row in df.iterrows():

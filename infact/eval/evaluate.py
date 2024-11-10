@@ -211,10 +211,10 @@ def evaluate(
         for _ in tqdm(range(n_samples), smoothing=0.02):
             try:
                 timeout = 25
-                doc, meta = output_queue.get(timeout=timeout * 60)  # 15 minutes timeout
+                doc, meta = output_queue.get(timeout=timeout * 60)  # 25 minutes timeout
                 process_output(doc, meta, benchmark, logger, is_test)
             except Empty as e:
-                logger.warning("Output queue remained empty for {timeout} minutes. Likely a worker crashed.")
+                logger.warning(f"Output queue remained empty for {timeout} minutes. Likely a worker crashed.")
 
                 # Check for errors reported by workers
                 while not error_queue.empty():

@@ -5,6 +5,7 @@ Always adhere to the following rules:
 * Write only one paragraph.
 * Include all URLs from the listed sources. Format them as Markdown links.
 * Be truthful, brief and do not add any additional information besides the information in the summaries.
+* Include only the most relevant image references (<...>).
 * Don't justify your summary or parts of it, just write the summary.
 
 # Record
