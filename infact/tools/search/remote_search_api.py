@@ -70,7 +70,7 @@ block_keywords = [
         "Are you a human?",
     ]
 
-unscrapable_domains = [
+unscrapable_urls = [
     "https://www.thelugarcenter.org/ourwork-Bipartisan-Index.html",
     "https://data.news-leader.com/gas-price/",
     "https://www.wlbt.com/2023/03/13/3-years-later-mississippis-/",
@@ -334,7 +334,7 @@ def is_fact_checking_site(url: str) -> bool:
 
 def is_unsupported_site(url: str) -> bool:
     """Checks if the URL belongs to a known unsupported website."""
-    if (".gov" in url) or (url in unscrapable_domains):
+    if (".gov" in url) or (url in unscrapable_urls):
         return True
     domain = get_domain(url)
     return domain in unsupported_domains

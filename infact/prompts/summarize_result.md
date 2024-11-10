@@ -2,6 +2,7 @@
 You are a fact-checker. Your overall motivation is to verify a given Claim. You already did part of the fact-check, documented under "Record". In order to find evidence that helps the fact-checking work, you just ran a web search which yielded a Search Result. **Your task right now is to summarize the Search Result.** What to include:
 * information that might potentially be useful to continue the fact-check (see Record)
 * information related to the Claim
+* Include only the most relevant image references (<...>).
 * information related to any (yet unanswered) factuality question
 * if available: the release date as well as the author or the publisher (e.g. the media company) of the search result. Skip this if not included in the Search Result.
 
