@@ -214,8 +214,6 @@ def evaluate(
                 doc, meta = output_queue.get(timeout=timeout * 60)  # 25 minutes timeout
                 process_output(doc, meta, benchmark, logger, is_test)
             except Empty as e:
-                logger.warning(f"Output queue remained empty for {timeout} minutes. Likely a worker crashed.")
-
                 # Check for errors reported by workers
                 while not error_queue.empty():
                     error_message = error_queue.get()
@@ -229,9 +227,8 @@ def evaluate(
                         # Since the worker has already sent the error message to error_queue,
                         # it's sufficient to log it here.
 
-                # Since a worker has failed, terminate all workers and stop execution
-                logger.error("A worker has failed. Terminating all workers and stopping execution.")
-                #raise RuntimeError("Worker failure detected. Stopping evaluation.")
+                logger.warning(f"Output queue remained empty for {timeout} minutes.")
+
 
     except Exception as main_e:
         logger.error(f"An unexpected error occurred in the main process: {main_e}")
@@ -377,54 +374,6 @@ def finalize_evaluation(stats: dict,
                 yaml.dump(scores, f, sort_keys=False)
 
 
-#def compute_metrics(predicted_labels: Sequence[Label],
-#                    ground_truth_labels: Sequence[Label] = None,
-#                    is_mocheg: bool = False):
-#    n_samples = len(predicted_labels)
-#    n_refused = np.count_nonzero(np.array(predicted_labels) == Label.REFUSED_TO_ANSWER)
-#
-#    metric_summary = {
-#        "Total": n_samples,
-#        "Refused": int(n_refused),
-#    }
-#
-#    try:
-#        labels = np.unique(np.append(ground_truth_labels, predicted_labels))
-#        precision = precision_score(ground_truth_labels, predicted_labels, labels=labels, average=None)
-#        recall = recall_score(ground_truth_labels, predicted_labels, labels=labels, average=None)
-#        f1_scores = f1_score(ground_truth_labels, predicted_labels, labels=labels, average=None)
-#
-#        for label, p, r, f1 in zip(labels, precision, recall, f1_scores):
-#            metric_summary.update({
-#                f"{label}_Precision": round(p, 2),
-#                f"{label}_Recall": round(r, 2),
-#                f"{label}_F1_Score": round(f1, 2),
-#            })
-#    except Exception as e:
-#        print(f"There was an error computing the F1_score: {str(e)}")
-#
-#    try:
-#        if is_mocheg:
-#
-#
-#    except Exception as e:
-#        print()
-#        
-#
-#    if ground_truth_labels is not None:
-#        correct_predictions = np.asarray(np.array(predicted_labels) == np.array(ground_truth_labels))
-#        n_correct_predictions = np.sum(correct_predictions)
-#        n_wrong_predictions = n_samples - n_correct_predictions - n_refused
-#        accuracy = n_correct_predictions / (n_samples - n_refused)
-#
-#        metric_summary.update({
-#            "Correct": int(n_correct_predictions),
-#            "Wrong": int(n_wrong_predictions),
-#            "Accuracy": accuracy,
-#        })
-#
-#    return metric_summary
-#
 def compute_metrics(predicted_labels: np.ndarray,
                     ground_truth_labels: Optional[np.ndarray] = None,
                     predicted_justifications: Optional[Sequence[str]] = None,
@@ -434,9 +383,11 @@ def compute_metrics(predicted_labels: np.ndarray,
     n_samples = len(predicted_labels)
     n_refused = np.count_nonzero(np.array(predicted_labels) == "REFUSED_TO_ANSWER")
 
+    metrics = dict()
     metric_summary = {
         "Total": n_samples,
         "Refused": int(n_refused),
+        "Metrics": metrics
     }
 
     # Classification Metrics
@@ -446,12 +397,17 @@ def compute_metrics(predicted_labels: np.ndarray,
         recall = recall_score(ground_truth_labels, predicted_labels, labels=labels, average=None)
         f1_scores = f1_score(ground_truth_labels, predicted_labels, labels=labels, average=None)
 
+        macro_f1 = f1_score(ground_truth_labels, predicted_labels, labels=labels, average='macro')
+
         for label, p, r, f1 in zip(labels, precision, recall, f1_scores):
-            metric_summary.update({
+            metrics.update({
                 f"{label}_Precision": float(round(p, 2)),
                 f"{label}_Recall": float(round(r, 2)),
                 f"{label}_F1_Score": float(round(f1, 2)),
             })
+
+        metric_summary.update({f"Macro-Averaged F1-Score:": float(round(macro_f1, 2))})
+
     except Exception as e:
         print(f"There was an error computing classification metrics: {str(e)}")
 
@@ -459,44 +415,32 @@ def compute_metrics(predicted_labels: np.ndarray,
     try:
         if is_mocheg and (ground_truth_justifications is not None) and (predicted_justifications is not None):
             nltk.download('punkt')
-            # Initialize BLEU and ROUGE calculations
-            rouge1_scores, rouge2_scores, rougeL_scores = [], [], []
-            scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
 
-            # BERTScore and datasets BLEU metric
+            # Load the metrics from `datasets`
             bertscore_metric = load_metric("bertscore")
             bleu_metric_datasets = load_metric("bleu")
+            rouge_metric = load_metric("rouge")
 
-            # Calculate BLEU (nltk) and ROUGE for each justification
-            for pred, gt in zip(predicted_justifications, ground_truth_justifications):
-
-                rouge_scores = scorer.score(gt, pred)
-                rouge1_scores.append(rouge_scores['rouge1'].fmeasure)
-                rouge2_scores.append(rouge_scores['rouge2'].fmeasure)
-                rougeL_scores.append(rouge_scores['rougeL'].fmeasure)
-
-            # Post-process for BERTScore and datasets BLEU calculation
+            # Post-process justifications for metric computation
             processed_preds, processed_labels = postprocess_text(predicted_justifications, ground_truth_justifications)
-            bertscore_result = bertscore_metric.compute(predictions=processed_preds, references=processed_labels, lang="en")
-            processed_preds_bleu = [pred.split() for pred in processed_preds]
-            processed_labels_bleu = [[label.split()] for label in processed_labels]
-            bleu_result_datasets = bleu_metric_datasets.compute(predictions=processed_preds_bleu, references=processed_labels_bleu)
 
-            # Aggregate metrics
-            average_bleu_datasets = round(bleu_result_datasets["bleu"] * 100, 4)
-            average_rouge1 = sum(rouge1_scores) / len(rouge1_scores)
-            average_rouge2 = sum(rouge2_scores) / len(rouge2_scores)
-            average_rougeL = sum(rougeL_scores) / len(rougeL_scores)
-            average_bertscore = sum(bertscore_result['f1']) / len(bertscore_result['f1'])
+            # Compute scores
+            bleu_datasets = compute_metrics_with_text(processed_preds, processed_labels, bleu_metric_datasets, "bleu")
+            bertscore = compute_metrics_with_text(processed_preds, processed_labels, bertscore_metric, "bertscore")
+            rouge_scores = compute_metrics_with_text(processed_preds, processed_labels, rouge_metric, "rouge")
 
-            # Update metric summary with generation metrics
-            metric_summary.update({
-                "Average_BLEU_Score_Datasets": average_bleu_datasets,
-                "Average_ROUGE1_F1": round(average_rouge1, 4),
-                "Average_ROUGE2_F1": round(average_rouge2, 4),
-                "Average_ROUGEL_F1": round(average_rougeL, 4),
-                "Average_BERTScore_F1": round(average_bertscore, 4),
-            })
+            # Aggregate metrics into Generation dictionary
+            generation_metrics = {
+                "BLEU": bleu_datasets["bleu"],
+                "ROUGE1": float(rouge_scores.get("rouge1", 0)),
+                "ROUGE2": float(rouge_scores.get("rouge2", 0)),
+                "ROUGE_L": float(rouge_scores.get("rougeL", 0)),
+                "BERTScore": bertscore["bertscore"],
+            }
+
+            # Update metric_summary with generation metrics
+            metric_summary.update({"Generation": generation_metrics})
+
     except Exception as e:
         print(f"There was an error computing MOCHEG generation metrics: {str(e)}")
 
@@ -514,7 +458,6 @@ def compute_metrics(predicted_labels: np.ndarray,
         })
 
     return metric_summary
-
 
 
 def save_stats(stats: dict, target_dir: Path):
@@ -669,3 +612,28 @@ def remove_urls_and_brackets(text):
         return ''
     else:
         return re.sub(r'\[.*?\]\(.*?\)', '', text)
+    
+def compute_metric_with_text_bleu(decoded_preds, decoded_labels, metric):
+    decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
+    decoded_preds_bleu  = [pred.split(' ') for pred in decoded_preds]
+    decoded_labels_bleu = [[pred.split(' ')] for pred in decoded_labels]
+    result = metric.compute(predictions=decoded_preds_bleu, references=decoded_labels_bleu)
+    result["bleu"] = round(result["bleu"] * 100, 4)
+    return result
+
+def compute_metric_with_text_bertscore(decoded_preds, decoded_labels, metric):
+    decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
+    all_result = metric.compute(predictions=decoded_preds, references=decoded_labels, lang="en")
+    avg_result = sum(all_result["f1"]) / len(all_result["f1"]) * 100
+    return {"bertscore": round(avg_result, 4)}
+
+def compute_metrics_with_text(decoded_preds, decoded_labels, metric, metric_name):
+    if metric_name == "bleu":
+        return compute_metric_with_text_bleu(decoded_preds, decoded_labels, metric)
+    elif metric_name == "bertscore":
+        return compute_metric_with_text_bertscore(decoded_preds, decoded_labels, metric)
+    else:
+        decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
+        result = metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
+        result = {key: round(value.mid.fmeasure * 100, 4) for key, value in result.items()}
+        return result
