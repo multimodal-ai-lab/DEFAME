@@ -1,7 +1,6 @@
 """Class for querying the Google Serper API."""
 
 import random
-import re
 import time
 from datetime import datetime
 from io import BytesIO
@@ -15,11 +14,11 @@ from infact.common.medium import Image
 from infact.common.misc import Query, WebSource
 from infact.tools.search.remote_search_api import RemoteSearchAPI, scrape, is_fact_checking_site
 from .common import SearchResult
-from.google_vision_api import get_base_domain
+from .google_vision_api import get_base_domain
 
 _SERPER_URL = 'https://google.serper.dev'
 NO_RESULT_MSG = 'No good Google Search result was found'
-MAX_NUM_SEARCH_RESULTS = 5
+
 
 class SerperAPI(RemoteSearchAPI):
     """Class for querying the Google Serper API."""
@@ -151,7 +150,7 @@ class SerperAPI(RemoteSearchAPI):
         filtered_results = filter_unique_results_by_domain(response[result_key])
         if result_key in response:
             for i, result in enumerate(filtered_results):
-                limit = query.limit or MAX_NUM_SEARCH_RESULTS
+                limit = query.limit or self.max_search_results
                 if len(results) >= limit:  # somehow the num param does not restrict requests.post image search results
                     break
                 text = result.get("snippet", "")
@@ -164,11 +163,9 @@ class SerperAPI(RemoteSearchAPI):
                 title = result.get('title')
 
                 if result_key == "organic":
-                    text = scrape(url=url, logger=self.logger)
+                    text = str(scrape(url=url, logger=self.logger))
                     if not text:
                         continue
-                    else:
-                        text = str(text)
 
                 elif result_key == "images":
                     try:
