@@ -43,6 +43,7 @@ def evaluate(
         fact_checker_kwargs: dict = None,
         llm_kwargs: dict = None,
         benchmark_kwargs: dict = None,
+        allowed_actions: list[str] = None,
         n_samples: int = None,
         sample_ids: list[int] = None,
         random_sampling: bool = False,
@@ -54,7 +55,6 @@ def evaluate(
 
     if llm_kwargs is None:
         llm_kwargs = dict()
-
 
     benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
     is_test = benchmark.variant == "test"
@@ -94,22 +94,26 @@ def evaluate(
     # Load the tools for sanity check
     tools = initialize_tools(tools_config, llm=None, logger=logger)
 
-    if benchmark.available_actions is not None:
-        # Verify that each tool is relevant (i.e. offers at least one allowed action)
-        for tool in tools:
-            for action in tool.actions:
-                if action in benchmark.available_actions:
-                    break
-            else:
-                logger.info(f"Tool {tool.name} offers only forbidden actions. You may exclude this tool.")
+    if allowed_actions is None:
+        allowed_actions = benchmark.available_actions
+    else:
+        allowed_actions = [a for a in benchmark.available_actions if a.name in allowed_actions]
 
-        # Verify that each allowed action has a corresponding tool
-        for action in benchmark.available_actions:
-            for tool in tools:
-                if action in tool.actions:
-                    break
-            else:
-                logger.warning(f"No Tool available for action {action.name}.")
+    # Verify that each tool is relevant (i.e. offers at least one allowed action)
+    for tool in tools:
+        for action in tool.actions:
+            if action in allowed_actions:
+                break
+        else:
+            logger.info(f"Tool {tool.name} offers only forbidden actions. You may exclude this tool.")
+
+    # Verify that each allowed action has a corresponding tool
+    for action in allowed_actions:
+        for tool in tools:
+            if action in tool.actions:
+                break
+        else:
+            logger.warning(f"No Tool available for action {action.name}.")
 
     # TODO: Print a nice, colored list of tools and their usage
 
@@ -158,7 +162,7 @@ def evaluate(
     error_queue = Queue()
 
     fact_checker_kwargs.update(dict(
-        available_actions=benchmark.available_actions,
+        available_actions=allowed_actions,
         class_definitions=benchmark.class_definitions,
         extra_prepare_rules=benchmark.extra_prepare_rules,
         extra_plan_rules=benchmark.extra_plan_rules,
