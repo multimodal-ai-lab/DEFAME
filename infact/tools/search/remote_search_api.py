@@ -71,6 +71,11 @@ block_keywords = [
     ]
 
 unscrapable_domains = [
+    "https://www.thelugarcenter.org/ourwork-Bipartisan-Index.html",
+    "https://data.news-leader.com/gas-price/",
+    "https://www.wlbt.com/2023/03/13/3-years-later-mississippis-/",
+    "https://edition.cnn.com/2021/01/11/business/no-fl",
+    "https://www.thelugarcenter.org/ourwork-Bipart",
 
 ]
 
