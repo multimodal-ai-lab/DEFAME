@@ -85,8 +85,10 @@ class RemoteSearchAPI(SearchAPI):
 
     def __init__(self, logger: Logger = None,
                  activate_cache: bool = True,
+                 max_search_results: int = 10,
                  **kwargs):
         super().__init__(logger=logger)
+        self.max_search_results = max_search_results
         self.search_cached_first = activate_cache
         self.cache_file_name = f"{self.name}_cache.pckl"
         self.path_to_cache = os.path.join(Path(temp_dir) / self.cache_file_name)
