@@ -5,6 +5,8 @@ from infact.eval.evaluate import evaluate
 
 warnings.filterwarnings("ignore")
 
+variant = "test"
+
 if __name__ == '__main__':  # evaluation uses multiprocessing
     set_start_method("spawn")
     evaluate(
@@ -12,15 +14,12 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         tools_config=dict(searcher=dict(
             search_engine_config=dict(
                 google=dict(),
-                google_vision=dict(),
             ),
             limit_per_search=3
-        ),
-            geolocator=dict(),
-            manipulation_detector=dict()
+        )
         ),
         fact_checker_kwargs=dict(
-            procedure_variant="summary",
+            procedure_variant="summary/dynamic",
             interpret=True,
             decompose=False,
             decontextualize=False,
@@ -30,10 +29,10 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         ),
         llm_kwargs=dict(temperature=0.01),
         benchmark_name="mocheg",
-        benchmark_kwargs=dict(variant="val"),
-        n_samples=200,
+        benchmark_kwargs=dict(variant=variant),
+        n_samples=1,
         sample_ids=None,
         print_log_level="info",
-        random_sampling=False,
-        n_workers=5,
+        random_sampling=True, # Set to True in MOCHEG as samples are ordered in the benchmark csv file according to their label.
+        n_workers=1,
     )

@@ -5,7 +5,12 @@ import time
 from multiprocessing import Process, Queue
 from pathlib import Path
 from queue import Empty
-from typing import Sequence
+from typing import Sequence, Optional
+
+from rouge_score import rouge_scorer
+from datasets import load_metric
+from nltk.tokenize.treebank import TreebankWordDetokenizer
+import nltk
 
 import numpy as np
 import pandas as pd
@@ -19,6 +24,7 @@ from infact.common import Label, Logger, FCDocument
 from infact.common.modeling import model_specifier_to_shorthand, AVAILABLE_MODELS, make_model
 from infact.eval import load_benchmark
 from infact.eval.averitec.benchmark import AVeriTeC
+from infact.eval.mocheg.benchmark import MOCHEG
 from infact.eval.averitec.compute_score import compute_averitec_score
 from infact.eval.benchmark import Benchmark
 from infact.fact_checker import FactChecker
@@ -312,6 +318,7 @@ def finalize_evaluation(stats: dict,
     all the values in a YAML file. Also plots a confusion matrix if ground truth is available."""
     experiment_dir = Path(experiment_dir)
     is_averitec = isinstance(benchmark, AVeriTeC)
+    is_mocheg = isinstance(benchmark, MOCHEG)
     is_test = benchmark.variant == "test"
     try:
         instance_stats = pd.read_csv(experiment_dir / Logger.instance_stats_filename)
@@ -336,9 +343,17 @@ def finalize_evaluation(stats: dict,
     else:
         #Assuming that the test set also has target labels.
         ground_truth_labels = df["target"].to_numpy()
+    
+    predicted_justifications = df["justification"]
+    ground_truth_justifications = df["gt_justification"]
+
 
     # Compute metrics and save them along with the other stats
-    metric_stats = compute_metrics(predicted_labels, ground_truth_labels)
+    metric_stats = compute_metrics(predicted_labels, 
+                                   ground_truth_labels, 
+                                   predicted_justifications=predicted_justifications, 
+                                   ground_truth_justifications=ground_truth_justifications,
+                                   is_mocheg=is_mocheg)
     stats["Predictions"] = metric_stats
     save_stats(stats, target_dir=experiment_dir)
 
@@ -361,16 +376,69 @@ def finalize_evaluation(stats: dict,
                 yaml.dump(scores, f, sort_keys=False)
 
 
-def compute_metrics(predicted_labels: Sequence[Label],
-                    ground_truth_labels: Sequence[Label] = None):
+#def compute_metrics(predicted_labels: Sequence[Label],
+#                    ground_truth_labels: Sequence[Label] = None,
+#                    is_mocheg: bool = False):
+#    n_samples = len(predicted_labels)
+#    n_refused = np.count_nonzero(np.array(predicted_labels) == Label.REFUSED_TO_ANSWER)
+#
+#    metric_summary = {
+#        "Total": n_samples,
+#        "Refused": int(n_refused),
+#    }
+#
+#    try:
+#        labels = np.unique(np.append(ground_truth_labels, predicted_labels))
+#        precision = precision_score(ground_truth_labels, predicted_labels, labels=labels, average=None)
+#        recall = recall_score(ground_truth_labels, predicted_labels, labels=labels, average=None)
+#        f1_scores = f1_score(ground_truth_labels, predicted_labels, labels=labels, average=None)
+#
+#        for label, p, r, f1 in zip(labels, precision, recall, f1_scores):
+#            metric_summary.update({
+#                f"{label}_Precision": round(p, 2),
+#                f"{label}_Recall": round(r, 2),
+#                f"{label}_F1_Score": round(f1, 2),
+#            })
+#    except Exception as e:
+#        print(f"There was an error computing the F1_score: {str(e)}")
+#
+#    try:
+#        if is_mocheg:
+#
+#
+#    except Exception as e:
+#        print()
+#        
+#
+#    if ground_truth_labels is not None:
+#        correct_predictions = np.asarray(np.array(predicted_labels) == np.array(ground_truth_labels))
+#        n_correct_predictions = np.sum(correct_predictions)
+#        n_wrong_predictions = n_samples - n_correct_predictions - n_refused
+#        accuracy = n_correct_predictions / (n_samples - n_refused)
+#
+#        metric_summary.update({
+#            "Correct": int(n_correct_predictions),
+#            "Wrong": int(n_wrong_predictions),
+#            "Accuracy": accuracy,
+#        })
+#
+#    return metric_summary
+#
+def compute_metrics(predicted_labels: np.ndarray,
+                    ground_truth_labels: Optional[np.ndarray] = None,
+                    predicted_justifications: Optional[Sequence[str]] = None,
+                    ground_truth_justifications: Optional[Sequence[str]] = None,
+                    is_mocheg: bool = False):
+
     n_samples = len(predicted_labels)
-    n_refused = np.count_nonzero(np.array(predicted_labels) == Label.REFUSED_TO_ANSWER)
+    n_refused = np.count_nonzero(np.array(predicted_labels) == "REFUSED_TO_ANSWER")
 
     metric_summary = {
         "Total": n_samples,
         "Refused": int(n_refused),
     }
 
+    # Classification Metrics
     try:
         labels = np.unique(np.append(ground_truth_labels, predicted_labels))
         precision = precision_score(ground_truth_labels, predicted_labels, labels=labels, average=None)
@@ -379,14 +447,59 @@ def compute_metrics(predicted_labels: Sequence[Label],
 
         for label, p, r, f1 in zip(labels, precision, recall, f1_scores):
             metric_summary.update({
-                f"{label}_Precision": round(p, 2),
-                f"{label}_Recall": round(r, 2),
-                f"{label}_F1_Score": round(f1, 2),
+                f"{label}_Precision": float(round(p, 2)),
+                f"{label}_Recall": float(round(r, 2)),
+                f"{label}_F1_Score": float(round(f1, 2)),
             })
     except Exception as e:
-        print(f"There was an error computing the F1_score: {str(e)}")
-        
+        print(f"There was an error computing classification metrics: {str(e)}")
 
+    # Generation Metrics
+    try:
+        if is_mocheg and (ground_truth_justifications is not None) and (predicted_justifications is not None):
+            nltk.download('punkt')
+            # Initialize BLEU and ROUGE calculations
+            rouge1_scores, rouge2_scores, rougeL_scores = [], [], []
+            scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+
+            # BERTScore and datasets BLEU metric
+            bertscore_metric = load_metric("bertscore")
+            bleu_metric_datasets = load_metric("bleu")
+
+            # Calculate BLEU (nltk) and ROUGE for each justification
+            for pred, gt in zip(predicted_justifications, ground_truth_justifications):
+
+                rouge_scores = scorer.score(gt, pred)
+                rouge1_scores.append(rouge_scores['rouge1'].fmeasure)
+                rouge2_scores.append(rouge_scores['rouge2'].fmeasure)
+                rougeL_scores.append(rouge_scores['rougeL'].fmeasure)
+
+            # Post-process for BERTScore and datasets BLEU calculation
+            processed_preds, processed_labels = postprocess_text(predicted_justifications, ground_truth_justifications)
+            bertscore_result = bertscore_metric.compute(predictions=processed_preds, references=processed_labels, lang="en")
+            processed_preds_bleu = [pred.split() for pred in processed_preds]
+            processed_labels_bleu = [[label.split()] for label in processed_labels]
+            bleu_result_datasets = bleu_metric_datasets.compute(predictions=processed_preds_bleu, references=processed_labels_bleu)
+
+            # Aggregate metrics
+            average_bleu_datasets = round(bleu_result_datasets["bleu"] * 100, 4)
+            average_rouge1 = sum(rouge1_scores) / len(rouge1_scores)
+            average_rouge2 = sum(rouge2_scores) / len(rouge2_scores)
+            average_rougeL = sum(rougeL_scores) / len(rougeL_scores)
+            average_bertscore = sum(bertscore_result['f1']) / len(bertscore_result['f1'])
+
+            # Update metric summary with generation metrics
+            metric_summary.update({
+                "Average_BLEU_Score_Datasets": average_bleu_datasets,
+                "Average_ROUGE1_F1": round(average_rouge1, 4),
+                "Average_ROUGE2_F1": round(average_rouge2, 4),
+                "Average_ROUGEL_F1": round(average_rougeL, 4),
+                "Average_BERTScore_F1": round(average_bertscore, 4),
+            })
+    except Exception as e:
+        print(f"There was an error computing MOCHEG generation metrics: {str(e)}")
+
+    # Final accuracy calculation
     if ground_truth_labels is not None:
         correct_predictions = np.asarray(np.array(predicted_labels) == np.array(ground_truth_labels))
         n_correct_predictions = np.sum(correct_predictions)
@@ -400,6 +513,7 @@ def compute_metrics(predicted_labels: Sequence[Label],
         })
 
     return metric_summary
+
 
 
 def save_stats(stats: dict, target_dir: Path):
@@ -537,3 +651,14 @@ def naive_evaluate(model: str, model_kwargs: dict = None, benchmark_name: str = 
 def bold_print_dict(dictionary: dict):
     for key, value in dictionary.items():
         print(f"\t{bold(str(key))}: {value}")
+
+
+def postprocess_text(preds, labels, num_limit=None):
+    """
+    Postprocessing for BERTScore evaluation for MOCHEG dataset
+    """
+    if num_limit:
+        preds = [TreebankWordDetokenizer().detokenize(pred.split()[:num_limit]) for pred in preds]
+    preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in preds]
+    labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in labels]
+    return preds, labels
