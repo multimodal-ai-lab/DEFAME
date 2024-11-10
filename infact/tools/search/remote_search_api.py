@@ -76,7 +76,8 @@ unscrapable_domains = [
     "https://www.wlbt.com/2023/03/13/3-years-later-mississippis-/",
     "https://edition.cnn.com/2021/01/11/business/no-fl",
     "https://www.thelugarcenter.org/ourwork-Bipart",
-    "https://www.linkedin.com/pulse/senator-kelly-/"
+    "https://www.linkedin.com/pulse/senator-kelly-/",
+    "http://libres.uncg.edu/ir/list-etd.aspx?styp=ty&bs=master%27s%20thesis&amt=100000",
 
 ]
 
@@ -148,8 +149,9 @@ def scrape(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
 
     if _firecrawl_is_running():
         scraped = scrape_firecrawl(url, logger)
+        
     else:
-        logger.warning(f"Firecrawl is not running! Falling back...")
+        logger.warning(f"Firecrawl is not running! Falling back to Beautiful Soup.")
         scraped = scrape_naive(url, logger)
 
     if scraped and is_relevant_content(str(scraped)):
@@ -221,7 +223,7 @@ def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
         response = requests.post(firecrawl_url,
                                  json=json_data,
                                  headers=headers,
-                                 timeout=10 * 60 + 10)  # Firecrawl scrapes usually take 2 to 4s, but a 1700-page PDF takes 5 min
+                                 timeout=10 * 60)  # Firecrawl scrapes usually take 2 to 4s, but a 1700-page PDF takes 5 min
     except (requests.exceptions.RetryError, requests.exceptions.ConnectionError):
         logger.error(f"Firecrawl is not running!")
         return None

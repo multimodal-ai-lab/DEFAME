@@ -12,7 +12,7 @@ from PIL import Image as PillowImage
 from config.globals import api_keys
 from infact.common.medium import Image
 from infact.common.misc import Query, WebSource
-from infact.tools.search.remote_search_api import RemoteSearchAPI, scrape, is_fact_checking_site
+from infact.tools.search.remote_search_api import RemoteSearchAPI, scrape, is_fact_checking_site, is_unsupported_site
 from .common import SearchResult
 from .google_vision_api import get_base_domain
 
@@ -157,6 +157,9 @@ class SerperAPI(RemoteSearchAPI):
                 url = result.get("link", "")
                 if is_fact_checking_site(url):
                     self.logger.log(f"Skipping fact-checking website: {url}")
+                    continue
+                if is_unsupported_site(url):
+                    self.logger.log(f"Skipping unsupported website: {url}")
                     continue
 
                 image_url = result.get("imageUrl", "")
