@@ -58,7 +58,9 @@ class Searcher(Tool):
             search_engine_config["averitec_kb"].update(dict(device=self.device))
 
         # Setup search APIs
-        self.search_apis = {se: SEARCH_APIS[se](logger=self.logger, **kwargs)
+        self.search_apis = {se: SEARCH_APIS[se](logger=self.logger,
+                                                max_search_results=limit_per_search,
+                                                **kwargs)
                             for se, kwargs in search_engine_config.items()}
 
         # Register available tools

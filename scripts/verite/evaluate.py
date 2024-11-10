@@ -9,18 +9,19 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
     set_start_method("spawn")
     evaluate(
         llm="gpt_4o",
-        tools_config=dict(searcher=dict(
-            search_engine_config=dict(
-                google=dict(),
-                google_vision=dict(),
+        tools_config=dict(
+            searcher=dict(
+                search_engine_config=dict(
+                    google=dict(),
+                    google_vision=dict(),
+                ),
+                limit_per_search=3
             ),
-            limit_per_search=3
-        ),
-            geolocator=dict()
+            # geolocator=dict()
         ),
         fact_checker_kwargs=dict(
             procedure_variant="summary/dynamic",
-            interpret=True,
+            interpret=False,
             decompose=False,
             decontextualize=False,
             filter_check_worthy=False,
@@ -30,9 +31,13 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         llm_kwargs=dict(temperature=0.01),
         benchmark_name="verite",
         benchmark_kwargs=dict(variant="dev"),
+        allowed_actions=["web_search",
+                         "image_search",
+                         "reverse_search",
+                         "geolocate"],
         n_samples=None,
         sample_ids=None, # list of integers
-        print_log_level="info",
         random_sampling=False,
-        n_workers=4,
+        print_log_level="info",
+        n_workers=8,
     )
