@@ -9,12 +9,13 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
     set_start_method("spawn")
     evaluate(
         llm="gpt_4o",
-        tools_config=dict(searcher=dict(
-            search_engine_config=dict(
-                google=dict(),
-                google_vision=dict(),
-            ),
-            limit_per_search=3
+        tools_config=dict(
+            searcher=dict(
+                search_engine_config=dict(
+                    google=dict(),
+                    google_vision=dict(),
+                ),
+                limit_per_search=3
         ),
             geolocator=dict()
         ),
