@@ -76,6 +76,7 @@ unscrapable_domains = [
     "https://www.wlbt.com/2023/03/13/3-years-later-mississippis-/",
     "https://edition.cnn.com/2021/01/11/business/no-fl",
     "https://www.thelugarcenter.org/ourwork-Bipart",
+    "https://www.linkedin.com/pulse/senator-kelly-/"
 
 ]
 

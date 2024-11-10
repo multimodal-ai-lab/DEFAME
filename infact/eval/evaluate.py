@@ -6,6 +6,7 @@ from multiprocessing import Process, Queue
 from pathlib import Path
 from queue import Empty
 from typing import Sequence, Optional
+import re
 
 from rouge_score import rouge_scorer
 from datasets import load_metric
@@ -344,8 +345,8 @@ def finalize_evaluation(stats: dict,
         #Assuming that the test set also has target labels.
         ground_truth_labels = df["target"].to_numpy()
     
-    predicted_justifications = df["justification"]
-    ground_truth_justifications = df["gt_justification"]
+    predicted_justifications = df["justification"].apply(remove_urls_and_brackets)
+    ground_truth_justifications = df["gt_justification"].apply(remove_urls_and_brackets)
 
 
     # Compute metrics and save them along with the other stats
@@ -662,3 +663,9 @@ def postprocess_text(preds, labels, num_limit=None):
     preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in preds]
     labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in labels]
     return preds, labels
+
+def remove_urls_and_brackets(text):
+    if pd.isna(text):
+        return ''
+    else:
+        return re.sub(r'\[.*?\]\(.*?\)', '', text)
