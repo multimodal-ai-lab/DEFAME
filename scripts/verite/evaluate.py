@@ -17,7 +17,7 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
                 ),
                 limit_per_search=3
             ),
-            # geolocator=dict()
+            geolocator=dict()
         ),
         fact_checker_kwargs=dict(
             procedure_variant="summary/dynamic",

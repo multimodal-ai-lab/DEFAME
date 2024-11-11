@@ -51,9 +51,11 @@ class KnowledgeBase(LocalSearchAPI):
     embedding_model: EmbeddingModel = None
 
     def __init__(self, variant, logger=None,
-                 device: str | torch.device = None):
+                 device: str | torch.device = None,
+                 max_search_results: int = None):
         super().__init__(logger=logger)
         self.variant = variant
+        self.max_search_results = max_search_results
 
         # Setup paths and dirs
         self.kb_dir = Path(data_base_dir + f"AVeriTeC/knowledge_base/{variant}/")
@@ -169,7 +171,8 @@ class KnowledgeBase(LocalSearchAPI):
             return None
 
         query_embedding = self._embed(query.text).reshape(1, -1)
-        limit = min(query.limit, knn.n_samples_fit_)  # account for very small resource sets
+        limit = query.limit or self.max_search_results
+        limit = min(limit, knn.n_samples_fit_)  # account for very small resource sets
         try:
             distances, indices = knn.kneighbors(query_embedding, limit)
             sources = self._indices_to_search_results(indices[0], query)

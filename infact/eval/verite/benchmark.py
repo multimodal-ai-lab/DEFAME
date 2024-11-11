@@ -40,7 +40,7 @@ class VERITE(Benchmark):
     * **Compare Image and Caption**: Verify the context of the image and caption.
     * **Identify any potential asymmetry in the modalities**: Perform one image_search if the action is available to compare other images with the claim image."""
 
-    extra_judge_rules = """* **Caption Check First**: If the caption is factually wrong, then the claim is considered miscaptioned.
+    extra_judge_rules = """* **Caption Check First**: If the caption is factually wrong, then the claim is considered out-of-context.
     * **Alignment Check of Image and Claim**: If the caption is factually correct, we need to check whether the image corresponds to the claim. 
     Judge if there is any alignment issue between image and text. Does the image deliver any support for the claim or is it taken out of context?
     If the claim text is actually true but the image shows a different event, then the verdict is out-of-context."""

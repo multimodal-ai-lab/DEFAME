@@ -15,7 +15,7 @@ import pandas as pd
 from config.globals import result_base_dir
 from infact.common.document import FCDocument
 from infact.common.label import Label
-from infact.utils.console import remove_string_formatters, bold, red, orange, yellow
+from infact.utils.console import remove_string_formatters, bold, red, orange, yellow, gray
 from infact.utils.utils import flatten_dict
 from infact.common.medium import media_registry
 
@@ -37,6 +37,16 @@ logging.getLogger('filelock').setLevel(logging.ERROR)
 logging.getLogger('sentence_transformers').setLevel(logging.ERROR)
 logging.getLogger('httpcore').setLevel(logging.ERROR)
 logging.getLogger('httpx').setLevel(logging.ERROR)
+logging.getLogger('urllib3.connection').setLevel(logging.ERROR)
+
+LOG_LEVELS = {
+    "critical": 50,
+    "error": 40,
+    "warning": 30,
+    "info": 20,
+    "log": 15,
+    "debug": 10,
+}
 
 # Define a custom level for model communication logs
 MODEL_COMM_LOG = 5  # Lower than DEBUG
@@ -59,7 +69,7 @@ class Logger:
             to name the directory.
         model_name: The shorthand name of the model used for evaluation. Also used
             to name the directory.
-        print_log_level: Pick any of "critical", "error", "warning", "info", "debug"
+        print_log_level: Pick any of "critical", "error", "warning", "info", "log", "debug"
         target_dir: If specified, re-uses an existing directory, i.e., it appends logs
             and results to existing files."""
 
@@ -72,10 +82,11 @@ class Logger:
                  benchmark_name: str = None,
                  procedure_name: str = None,
                  model_name: str = None,
-                 print_log_level: str = "warning",
+                 experiment_name: str = None,
+                 print_log_level: str = "info",
                  target_dir: str | Path = None):
         # Set up the target directory storing all logs and results
-        self.target_dir = _determine_target_dir(benchmark_name, procedure_name, model_name) \
+        self.target_dir = _determine_target_dir(benchmark_name, procedure_name, model_name, experiment_name) \
             if target_dir is None else Path(target_dir)
         os.makedirs(self.target_dir, exist_ok=True)
 
@@ -94,7 +105,7 @@ class Logger:
         self.logger = logging.getLogger('mafc')
         self.logger.propagate = False  # Disable propagation to avoid duplicate logs
         stdout_handler = logging.StreamHandler(sys.stdout)
-        stdout_handler.setLevel(print_log_level.upper())
+        stdout_handler.setLevel(LOG_LEVELS[print_log_level])
         self.logger.addHandler(stdout_handler)
         self._update_file_handler()
         self.logger.setLevel(logging.DEBUG)
@@ -162,15 +173,17 @@ class Logger:
         self.model_comm_logger.log(MODEL_COMM_LOG, formatted_msg)
 
     def save_config(self, signature, local_scope, benchmark, print_summary: bool = True):
+        """Saves the hyperparameters of the current run to a YAML file. Enables to re-use them
+        to resume the run."""
         hyperparams = {}
         for param in signature.parameters:
             hyperparams[param] = local_scope[param]
-        hyperparams["available actions"] = ", ".join([action.name for action in benchmark.available_actions])
         with open(self.config_path, "w") as f:
             yaml.dump(hyperparams, f)
         if print_summary:
-            print(bold("Configuration summary:"))
-            print(yaml.dump(hyperparams, sort_keys=False, indent=4))
+            self.info(bold("Configuration summary:"))
+            self.info("Available actions: " + ", ".join([action.name for action in benchmark.available_actions]))
+            self.info(yaml.dump(hyperparams, sort_keys=False, indent=4))
 
     def _init_predictions_csv(self):
         with open(self.predictions_path, "w") as f:
@@ -194,11 +207,11 @@ class Logger:
     def info(self, msg: str):
         self.logger.info(yellow(msg))
 
-    def debug(self, msg: str):
-        self.logger.debug(msg)
+    def log(self, msg: str, level=15):
+        self.logger.log(level, msg)
 
-    def log(self, msg: str):
-        self.debug(msg)
+    def debug(self, msg: str):
+        self.logger.debug(gray(msg))
 
     def save_next_prediction(self,
                              sample_index: int,
@@ -299,7 +312,10 @@ class RemoveStringFormattingFormatter(logging.Formatter):
         return remove_string_formatters(msg)
 
 
-def _determine_target_dir(benchmark_name: str, procedure_name: str = None, model_name: str = None) -> Path:
+def _determine_target_dir(benchmark_name: str,
+                          procedure_name: str = None,
+                          model_name: str = None,
+                          experiment_name: str = None) -> Path:
     assert benchmark_name is not None
 
     # Construct target directory path
@@ -312,10 +328,24 @@ def _determine_target_dir(benchmark_name: str, procedure_name: str = None, model
         target_dir /= model_name
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
-    target_dir /= timestamp
+    if experiment_name:
+        folder_name = f"{timestamp} {experiment_name}"
+    else:
+        folder_name = timestamp
+    target_dir /= folder_name
 
     # Increment dir name if it exists
     while target_dir.exists():
         target_dir = target_dir.with_stem(timestamp + "'")
 
     return target_dir
+
+
+if __name__ == "__main__":
+    logger = Logger(benchmark_name="test", print_log_level="debug")
+    logger.debug("debug")
+    logger.log("log")
+    logger.info("info")
+    logger.warning("warning")
+    logger.error("error")
+    logger.critical("critical")

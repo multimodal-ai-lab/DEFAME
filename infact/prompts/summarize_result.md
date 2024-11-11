@@ -1,19 +1,17 @@
 # Instructions
-You are a fact-checker. Your overall motivation is to verify a given Claim. You already did part of the fact-check, documented under "Record". In order to find evidence that helps the fact-checking work, you just ran a web search which yielded a Search Result. **Your task right now is to summarize the Search Result.** What to include:
-* information that might potentially be useful to continue the fact-check (see Record)
-* information related to the Claim
-* Include only the most relevant image references (<...>).
-* information related to any (yet unanswered) factuality question
-* if available: the release date as well as the author or the publisher (e.g. the media company) of the search result. Skip this if not included in the Search Result.
+In order to find evidence that helps your fact-check, you just ran a web search which yielded a Search Result. **Your task right now is to summarize the Search Result.** What to include:
+* information that might be useful for the fact-check (see Record)
+* relevant images (refer to images by inserting their reference <image:k>)
+* if available: the release date as well as the author or the publisher (e.g. the media company) of the search result.
 
+Do NOT include:
+* advertisements
+* any other information not related to the Record or the Claim
 
 Additional rules:
-* Be truthful, brief and do not add any additional information besides the information in the Search Result. 
-* If the search result contains an image, then give a short description of the image and state whether the image from the search result and the image from the claim roughly align.
-* If the Search Result doesn't contain any relevant information for the fact-checking work, simply print one word in capital letters: "NONE". 
+* Do not add any additional information besides the information in the Search Result.
+* If the Search Result doesn't contain any relevant information for the fact-checking work, simply print one word in capital letters: "NONE".
 * Keep your writing style like in the Examples 1, 2 and 3 provided to you.
-* Don't justify your summary or parts of it.
-* The search result might include unrelated information due to inefficient web-scraping. Look for separators that might indicate the beginning of different articles, advertisements, links, or other unrelated texts and neglect the corresponding unrelated info.
 * Try to filter out relevant information even if the search result is in a different language.
 
 # Example 1
@@ -28,7 +26,7 @@ The Guardian discusses a report blaming the Syrian government for a toxic gas at
 # Record
 [DOC]
 
-## Search Result
+# Search Result
 [SEARCH_RESULT]
 
-## Your Summary
+# Your Summary
