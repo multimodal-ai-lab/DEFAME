@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Collection
 
+import numpy as np
+
 from infact.common.action import Action
 from infact.common.claim import Claim
 from infact.common.label import Label
@@ -29,7 +31,8 @@ class EvidenceBlock:
     evidences: Collection[Evidence]
 
     def __str__(self):
-        if len(self.evidences) == 0:
+        any_is_useful = np.any([e.is_useful() for e in self.evidences])
+        if not any_is_useful:
             summary = "No new evidence found."
         else:
             summary = "\n\n".join([str(e) for e in self.evidences if e.is_useful()])

@@ -55,6 +55,8 @@ def get_tool_by_name(name: str):
 def initialize_tools(config: dict[str, dict], llm: Model, logger: Logger, device=None) -> list[Tool]:
     tools = []
     for tool_name, kwargs in config.items():
+        if kwargs is None:
+            kwargs = {}
         kwargs.update({"llm": llm, "logger": logger, "device": device})
         tool_class = get_tool_by_name(tool_name)
         t = tool_class(**kwargs)

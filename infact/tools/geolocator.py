@@ -63,6 +63,7 @@ class Geolocator(Tool):
         :param device: The device to run the model on (e.g., -1 for CPU, 0 for GPU).
         :param use_multiple_gpus: Whether to use multiple GPUs if available.
         """
+        # FIXME: Print warning if no GPU available
         self.model_name = model_name
         self.processor = AutoProcessor.from_pretrained(model_name)
         self.model = AutoModel.from_pretrained(model_name)

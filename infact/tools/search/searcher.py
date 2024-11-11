@@ -58,10 +58,13 @@ class Searcher(Tool):
             search_engine_config["averitec_kb"].update(dict(device=self.device))
 
         # Setup search APIs
-        self.search_apis = {se: SEARCH_APIS[se](logger=self.logger,
-                                                max_search_results=limit_per_search,
-                                                **kwargs)
-                            for se, kwargs in search_engine_config.items()}
+        self.search_apis = {}
+        for se, kwargs in search_engine_config.items():
+            api_class = SEARCH_APIS[se]
+            if kwargs is None:
+                kwargs = {}
+            api = api_class(logger=self.logger, max_search_results=limit_per_search, **kwargs)
+            self.search_apis[se] = api
 
         # Register available tools
         actions = []
@@ -243,16 +246,8 @@ class Searcher(Tool):
         summarize_prompt = Prompt(placeholder_targets=placeholder_targets,
                                   name="SummarizeSummariesPrompt",
                                   template_file_path="infact/prompts/summarize_summaries.md")
-        # TODO seems to only save one image per result and not per source...
-        references = ""
-        for source in result.sources:
-            if not source.has_images:
-                return MultimediaSnippet(self.llm.generate(summarize_prompt))
-            else:
-                for image in source.images:
-                    references += f'{source.url}: {image.reference}\n'
-                summary = self.llm.generate(summarize_prompt)
-                return MultimediaSnippet(f'{summary}\n{references}.')
+
+        return MultimediaSnippet(self.llm.generate(summarize_prompt))
 
     def get_stats(self) -> dict[str, Any]:
         total_searches = np.sum([n for n in self.stats.values()])
