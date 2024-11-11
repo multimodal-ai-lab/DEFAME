@@ -321,7 +321,7 @@ class AnswerQuestionNoEvidence(Prompt):
 
 class DevelopPrompt(Prompt):
     template_file_path = "infact/prompts/develop.md"
-    name = "ReiteratePrompt"
+    name = "DevelopPrompt"
 
     def __init__(self, doc: FCDocument):
         placeholder_targets = {"[DOC]": doc}

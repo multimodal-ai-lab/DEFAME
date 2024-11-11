@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 from typing import Optional
 import io
+import time
 
 import requests
 from bs4 import BeautifulSoup
@@ -82,6 +83,7 @@ unscrapable_urls = [
 ]
 
 class RemoteSearchAPI(SearchAPI):
+    # TODO: Rewrite this for parallel access (maybe SQLite?)
     is_local = False
 
     def __init__(self, logger: Logger = None,
@@ -105,8 +107,13 @@ class RemoteSearchAPI(SearchAPI):
             self._load_data()
 
     def _load_data(self):
-        with open(self.path_to_cache, 'rb') as f:
-            self.cache = pickle.load(f)
+        while True:
+            try:
+                with open(self.path_to_cache, 'rb') as f:
+                    self.cache = pickle.load(f)
+                    return
+            except Exception:
+                time.sleep(1)
 
     def _save_data(self):
         with open(self.path_to_cache, 'wb') as f:

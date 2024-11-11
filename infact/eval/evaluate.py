@@ -40,6 +40,7 @@ def evaluate(
         llm: str,
         benchmark_name: str,
         tools_config: dict[str, dict],
+        experiment_name: str = None,
         fact_checker_kwargs: dict = None,
         llm_kwargs: dict = None,
         benchmark_kwargs: dict = None,
@@ -52,6 +53,12 @@ def evaluate(
         n_workers: int = None,
 ):
     assert not n_samples or not sample_ids
+
+    is_resumed = continue_experiment_dir is not None
+
+    status_verb = "Resuming" if is_resumed else "Starting"
+    exp_name_str = f" '{bold(experiment_name)}'" if experiment_name else ""
+    print(f"{status_verb} evaluation{exp_name_str} on {benchmark_name}.")
 
     if llm_kwargs is None:
         llm_kwargs = dict()
@@ -68,13 +75,9 @@ def evaluate(
     logger = Logger(benchmark_name=benchmark.shorthand,
                     procedure_name=procedure_variant,
                     model_name=llm,
+                    experiment_name=experiment_name,
                     print_log_level=print_log_level,
                     target_dir=continue_experiment_dir)
-
-    is_resumed = continue_experiment_dir is not None
-
-    status_verb = "Resuming" if is_resumed else "Starting"
-    print(bold(f"{status_verb} evaluation for {benchmark.name}."))
 
     n_devices = torch.cuda.device_count()
     if n_workers is None:
