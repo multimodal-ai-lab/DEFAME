@@ -15,7 +15,7 @@ Additional rules:
 * Try to filter out relevant information even if the search result is in a different language.
 
 # Example 1
-Yahoo Finance reports about a leaked Trump administration document. According to the report, the document describes Billie Eilish as "destroying our country and everything we care about" due to her lack of support for Trump. The document detailed the administration's issues with multiple public figures not aligned with Trump, including Eilish. Further, Yahoo Finance writes that the document was part of a $250 million advertising contract intended to "defeat despair and inspire hope" during the pandemic.
+According to USA Today Pastor David Platt of McLean Bible Church clarified to his congregation why he prayed for President Donald Trump and emphasized that the prayer was not an endorsement of Trump or his policies. He explained that he acted in the moment to follow God’s command to pray for leaders, aiming to glorify God rather than express political support. The website confirms that Mr Platt prayed for Trump and contains an image of them standing next to each other: <image:k> 
 
 # Example 2
 NONE
