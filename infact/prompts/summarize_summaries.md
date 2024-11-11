@@ -1,12 +1,11 @@
 # Instructions
-You are a fact-checker. Your overall motivation is to verify a given Claim. You already did part of the fact-check, documented under "Record". You just retrieved evidence from the web, each web source summarized under "Web Sources". **Your task right now is to summarize the web source summaries.** 
+You just retrieved web sources, each one summarized under "Web Sources". **Your task right now is to summarize the web source summaries.**
 
 Always adhere to the following rules:
-* Write only one paragraph.
-* Include all URLs from the listed sources. Format them as Markdown links.
-* Be truthful, brief and do not add any additional information besides the information in the summaries.
-* Include only the most relevant image references (<...>).
-* Don't justify your summary or parts of it, just write the summary.
+* Write only one to two paragraphs.
+* Include all URLs from the listed sources. Format them as Markdown hyperlinks.
+* Do not add any additional information besides the information in the summaries.
+* Include references (<image:k>) to all relevant images.
 
 # Record
 [DOC]
