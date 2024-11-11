@@ -139,7 +139,8 @@ def evaluate(
 
         # Only keep samples that haven't been checked yet
         for sample in samples:
-            if sample["id"] not in checked_claim_ids:
+            # sample["id"] should be convertable into a number type for indexing
+            if int(sample["id"]) not in checked_claim_ids:
                 samples_to_evaluate.append(sample)
     else:
         samples_to_evaluate = samples
@@ -405,9 +406,9 @@ def compute_metrics(predicted_labels: np.ndarray,
 
         for label, p, r, f1 in zip(labels, precision, recall, f1_scores):
             metrics.update({
-                f"{label}_Precision": float(round(p, 2)),
-                f"{label}_Recall": float(round(r, 2)),
-                f"{label}_F1_Score": float(round(f1, 2)),
+                f"{label}_Precision": float(round(p, 3)),
+                f"{label}_Recall": float(round(r, 3)),
+                f"{label}_F1_Score": float(round(f1, 3)),
             })
 
         metric_summary.update({f"Macro-Averaged F1-Score:": float(round(macro_f1, 2))})
