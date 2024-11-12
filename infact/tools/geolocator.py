@@ -106,7 +106,7 @@ class Geolocator(Tool):
         prediction = logits_per_image.softmax(dim=1)
 
         # Compute classification score for each country
-        confidences = {choices[i]: float(prediction[0][i].item()) for i in range(len(choices))}
+        confidences = {choices[i]: round(float(prediction[0][i].item()), 2) for i in range(len(choices))}
         top_k_locations = dict(sorted(confidences.items(), key=lambda x: x[1], reverse=True)[:self.top_k])
         most_likely_location = max(top_k_locations, key=top_k_locations.get)
         model_output = logits_per_image
