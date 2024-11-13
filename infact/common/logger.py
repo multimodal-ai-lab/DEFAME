@@ -312,11 +312,14 @@ class RemoveStringFormattingFormatter(logging.Formatter):
         return remove_string_formatters(msg)
 
 
-def _determine_target_dir(benchmark_name: str,
+def _determine_target_dir(benchmark_name: str = "testing",
                           procedure_name: str = None,
                           model_name: str = None,
                           experiment_name: str = None) -> Path:
-    assert benchmark_name is not None
+    #assert benchmark_name is not None
+
+    benchmark_name = benchmark_name if benchmark_name else "testing"
+
 
     # Construct target directory path
     target_dir = Path(result_base_dir) / benchmark_name

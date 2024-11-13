@@ -67,6 +67,12 @@ class FactChecker:
             else:
                 classes = list(class_definitions.keys())
 
+        self.extra_prepare_rules = extra_prepare_rules
+        self.max_iterations = max_iterations
+        self.max_result_len = max_result_len
+        self.restrict_results_to_claim_date = restrict_results_to_claim_date
+
+        
         if tools is None:
             tools = self._initialize_tools(search_engines)
 
@@ -87,11 +93,6 @@ class FactChecker:
                            extra_rules=extra_judge_rules)
 
         self.doc_summarizer = DocSummarizer(self.llm, self.logger)
-
-        self.extra_prepare_rules = extra_prepare_rules
-        self.max_iterations = max_iterations
-        self.max_result_len = max_result_len
-        self.restrict_results_to_claim_date = restrict_results_to_claim_date
 
         if procedure_variant is None:
             procedure_variant = self.default_procedure

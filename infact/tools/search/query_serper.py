@@ -166,9 +166,11 @@ class SerperAPI(RemoteSearchAPI):
                 title = result.get('title')
 
                 if result_key == "organic":
-                    text = str(scrape(url=url, logger=self.logger))
+                    text = scrape(url=url, logger=self.logger)
                     if not text:
                         continue
+                    else:
+                        text = str(text)
 
                 elif result_key == "images":
                     try:
