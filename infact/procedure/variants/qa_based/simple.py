@@ -1,4 +1,4 @@
-from infact.common import FCDocument, Action
+from infact.common import FCDocument, Action, logger
 from infact.common.misc import WebSource
 from infact.procedure.variants.qa_based.infact import InFact
 from infact.prompts.prompts import ProposeQuerySimple
@@ -24,9 +24,9 @@ class SimpleQA(InFact):
             if len(queries) > 0:
                 return [queries[0]]
 
-            self.logger.log("No new actions were found. Retrying...")
+            logger.log("No new actions were found. Retrying...")
 
-        self.logger.warning("Got no search query, dropping this question.")
+        logger.warning("Got no search query, dropping this question.")
         return []
 
     def answer_question(self,

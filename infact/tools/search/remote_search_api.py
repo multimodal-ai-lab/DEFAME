@@ -12,7 +12,7 @@ from PIL import Image as PillowImage, UnidentifiedImageError
 
 from config.globals import temp_dir
 from infact.common.misc import Query
-from infact.common import Logger, MultimediaSnippet, Image
+from infact.common import logger, MultimediaSnippet, Image
 from infact.tools.search.search_api import SearchAPI
 from infact.tools.search.common import SearchResult
 from infact.utils.parsing import md, get_markdown_hyperlinks, is_image_url, get_domain
@@ -38,7 +38,8 @@ fact_checking_urls = [
     "boomlive.in",
     "altnews.in",
     "thequint.com/news/webqoof",
-    "factcheck.kz"
+    "factcheck.kz",
+    "data.gesis.org/claimskg/claim_review",
 ]
 
 # These sites don't allow bot access/scraping. Must use a
@@ -87,11 +88,11 @@ class RemoteSearchAPI(SearchAPI):
     # TODO: Rewrite this for parallel access (maybe SQLite?)
     is_local = False
 
-    def __init__(self, logger: Logger = None,
+    def __init__(self,
                  activate_cache: bool = True,
                  max_search_results: int = 10,
                  **kwargs):
-        super().__init__(logger=logger)
+        super().__init__()
         self.max_search_results = max_search_results
         self.search_cached_first = activate_cache
         self.cache_file_name = f"{self.name}_cache.pckl"
@@ -149,25 +150,25 @@ class RemoteSearchAPI(SearchAPI):
             return self.cache[query]
 
 
-def scrape(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
+def scrape(url: str) -> Optional[MultimediaSnippet]:
     """Scrapes the contents of the specified webpage."""
     if is_unsupported_site(url):
         logger.log(f"Skipping unsupported site {url}.")
         return None
 
     if _firecrawl_is_running():
-        scraped = scrape_firecrawl(url, logger)
+        scraped = scrape_firecrawl(url)
         
     else:
         logger.warning(f"Firecrawl is not running! Falling back to Beautiful Soup.")
-        scraped = scrape_naive(url, logger)
+        scraped = scrape_naive(url)
 
     if scraped and is_relevant_content(str(scraped)):
         return scraped
     else:
         return None
 
-def scrape_naive(url: str, logger: Logger) ->  Optional[MultimediaSnippet]:
+def scrape_naive(url: str) ->  Optional[MultimediaSnippet]:
     """Fallback scraping script."""
     # TODO: Also scrape images
     headers = {
@@ -214,7 +215,7 @@ def postprocess_scraped(text: str) -> str:
     return text
 
 
-def scrape_firecrawl(url: str, logger: Logger) -> Optional[MultimediaSnippet]:
+def scrape_firecrawl(url: str) -> Optional[MultimediaSnippet]:
     """Scrapes the given URL using Firecrawl. Returns a Markdown-formatted
     multimedia snippet, containing any (relevant) media from the page."""
     headers = {
@@ -373,7 +374,6 @@ def log_error_url(url: str, message: str):
 
 
 if __name__ == '__main__':
-    logger = Logger("dummy", print_log_level="debug")
     logger.info("Running scrapes...")
     urls_to_scrape = [
         "https://www.washingtonpost.com/video/national/cruz-calls-trump-clinton-two-new-york-liberals/2016/04/07/da3b78a8-fcdf-11e5-813a-90ab563f0dde_video.html",
@@ -388,4 +388,3 @@ if __name__ == '__main__':
             print(scraped, "\n\n\n")
         else:
             logger.error("Scrape failed.")
-

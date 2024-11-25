@@ -15,6 +15,7 @@ from tqdm import tqdm
 from config.globals import data_base_dir, embedding_model
 from infact.common.misc import Query, WebSource
 from infact.common.embedding import EmbeddingModel
+from infact.common import logger
 from infact.tools.search.local_search_api import LocalSearchAPI
 from infact.utils.utils import my_hook
 from .common import SearchResult
@@ -178,7 +179,7 @@ class KnowledgeBase(LocalSearchAPI):
             sources = self._indices_to_search_results(indices[0], query)
             return SearchResult(sources)
         except Exception as e:
-            self.logger.warning(f"Resource retrieval from kNN failed: {e}")
+            logger.warning(f"Resource retrieval from kNN failed: {e}")
             return None
 
     def _download(self):
@@ -265,8 +266,7 @@ class KnowledgeBase(LocalSearchAPI):
     def _restore(self):
         with open(self.embedding_knns_path, "rb") as f:
             self.embedding_knns = pickle.load(f)
-        if self.logger is not None:
-            self.logger.log(f"Successfully restored knowledge base.")
+        logger.log(f"Successfully restored knowledge base.")
 
 
 def get_contents(file_path) -> list[dict]:

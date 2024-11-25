@@ -3,6 +3,7 @@ from typing import List, Dict
 
 from duckduckgo_search import DDGS
 
+from infact.common import logger
 from infact.common.misc import Query, WebSource
 from infact.tools.search.remote_search_api import RemoteSearchAPI
 from infact.utils.console import red, bold
@@ -28,21 +29,21 @@ class DuckDuckGo(RemoteSearchAPI):
         while attempt < self.max_retries:
             if attempt > 3:
                 wait_time = self.backoff_factor * (attempt)
-                self.logger.log(bold(red(f"Sleeping {wait_time} seconds.")))
+                logger.log(bold(red(f"Sleeping {wait_time} seconds.")))
                 time.sleep(wait_time)
             try:
                 self.total_searches += 1
                 response = DDGS().text(query.text, max_results=query.limit)
                 if not response:
-                    self.logger.log(bold(red("DuckDuckGo is having issues. Run duckduckgo.py "
-                                             "and check https://duckduckgo.com/ for more information.")))
+                    logger.log(bold(red("DuckDuckGo is having issues. Run duckduckgo.py "
+                                        "and check https://duckduckgo.com/ for more information.")))
                     return []
                 return self._parse_results(response, query)
             except Exception as e:
                 attempt += 1
                 query += '?'
-                self.logger.log((bold(red(f"Attempt {attempt} failed: {e}. Retrying with modified query..."))))
-        self.logger.log(bold(red("All attempts to reach DuckDuckGo have failed. Please try again later.")))
+                logger.log((bold(red(f"Attempt {attempt} failed: {e}. Retrying with modified query..."))))
+        logger.log(bold(red("All attempts to reach DuckDuckGo have failed. Please try again later.")))
 
         return []
 
@@ -53,6 +54,6 @@ class DuckDuckGo(RemoteSearchAPI):
             url = result.get('href', '')
             title = result.get('title', '')
             text = result.get('body', '')
-            
+
             results.append(WebSource(url=url, title=title, text=text, query=query, rank=i))
         return results

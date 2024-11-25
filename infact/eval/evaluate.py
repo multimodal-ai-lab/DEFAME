@@ -1,33 +1,32 @@
 import csv
 import inspect
 import json
+import re
 import time
+import traceback
 from multiprocessing import Process, Queue
 from pathlib import Path
 from queue import Empty
 from typing import Sequence, Optional
-import re
 
-from rouge_score import rouge_scorer
-from datasets import load_metric
-from nltk.tokenize.treebank import TreebankWordDetokenizer
 import nltk
-
 import numpy as np
 import pandas as pd
 import torch
 import yaml
-from tqdm import tqdm
-import traceback
+# from rouge_score import rouge_scorer
+# from datasets import load_metric
+from nltk.tokenize.treebank import TreebankWordDetokenizer
 from sklearn.metrics import precision_score, recall_score, f1_score
+from tqdm import tqdm
 
-from infact.common import Label, Logger, FCDocument
+from infact.common import Label, logger, FCDocument
 from infact.common.modeling import model_specifier_to_shorthand, AVAILABLE_MODELS, make_model
 from infact.eval import load_benchmark
 from infact.eval.averitec.benchmark import AVeriTeC
-from infact.eval.mocheg.benchmark import MOCHEG
 from infact.eval.averitec.compute_score import compute_averitec_score
 from infact.eval.benchmark import Benchmark
+from infact.eval.mocheg.benchmark import MOCHEG
 from infact.fact_checker import FactChecker
 from infact.tools import initialize_tools, Searcher
 from infact.tools.search.knowledge_base import KnowledgeBase
@@ -72,12 +71,12 @@ def evaluate(
     else:
         procedure_variant = fact_checker_kwargs["procedure_variant"]
 
-    logger = Logger(benchmark_name=benchmark.shorthand,
-                    procedure_name=procedure_variant,
-                    model_name=llm,
-                    experiment_name=experiment_name,
-                    print_log_level=print_log_level,
-                    target_dir=continue_experiment_dir)
+    logger.set_experiment_dir(path=continue_experiment_dir,
+                              benchmark_name=benchmark.shorthand,
+                              procedure_name=procedure_variant,
+                              model_name=llm,
+                              experiment_name=experiment_name)
+    logger.set_log_level(print_log_level)
 
     n_devices = torch.cuda.device_count()
     if n_workers is None:
@@ -95,7 +94,7 @@ def evaluate(
         logger.save_config(signature, locals(), benchmark)
 
     # Load the tools for sanity check
-    tools = initialize_tools(tools_config, llm=None, logger=logger)
+    tools = initialize_tools(tools_config, llm=None)
 
     if allowed_actions is None:
         allowed_actions = benchmark.available_actions
@@ -173,11 +172,6 @@ def evaluate(
         extra_judge_rules=benchmark.extra_judge_rules,
     ))
 
-    logger_kwargs = dict(
-        print_log_level=print_log_level,
-        target_dir=logger.target_dir
-    )
-
     print(f"Evaluating {n_samples} samples using {n_workers} workers...")
 
     for d in range(n_workers):
@@ -202,7 +196,8 @@ def evaluate(
                 llm_kwargs,
                 fact_checker_kwargs,
                 tools_config,
-                logger_kwargs,
+                print_log_level,
+                logger.target_dir,
                 is_averitec,
                 input_queue,
                 output_queue,
@@ -220,7 +215,7 @@ def evaluate(
             try:
                 timeout = 25
                 doc, meta = output_queue.get(timeout=timeout * 60)  # 25 minutes timeout
-                process_output(doc, meta, benchmark, logger, is_test)
+                process_output(doc, meta, benchmark, is_test)
             except Empty as e:
                 # Check for errors reported by workers
                 while not error_queue.empty():
@@ -238,8 +233,10 @@ def evaluate(
                 logger.warning(f"Output queue remained empty for {timeout} minutes.")
 
 
-    except Exception as main_e:
-        logger.error(f"An unexpected error occurred in the main process: {main_e}")
+    except Exception as e:
+        logger.fatal(f"An unexpected error occurred in the main process:")
+        logger.error(repr(e))
+
     finally:
         for i, worker in enumerate(workers):
             if worker.is_alive():
@@ -259,7 +256,7 @@ def evaluate(
     finalize_evaluation(stats, logger.target_dir, benchmark)
 
 
-def process_output(doc: FCDocument, meta: dict, benchmark: Benchmark, logger: Logger, is_test: bool):
+def process_output(doc: FCDocument, meta: dict, benchmark: Benchmark, is_test: bool):
     content = doc.claim.original_context
     claim_id = content.id_number
     instance = benchmark.get_by_id(claim_id)
@@ -327,7 +324,7 @@ def finalize_evaluation(stats: dict,
     is_mocheg = isinstance(benchmark, MOCHEG)
     is_test = benchmark.variant == "test"
     try:
-        instance_stats = pd.read_csv(experiment_dir / Logger.instance_stats_filename)
+        instance_stats = pd.read_csv(experiment_dir / logger.instance_stats_filename)
     except Exception:
         print("Terminated before instance_stats.csv was created. ")
         return
@@ -338,26 +335,25 @@ def finalize_evaluation(stats: dict,
     stats.update(aggregate_stats(instance_stats, category="Tools"))
 
     # Retrieve predictions and ground truth
-    df = pd.read_csv(experiment_dir / Logger.predictions_filename)
+    df = pd.read_csv(experiment_dir / logger.predictions_filename)
     # Sort by 'sample_index' column
     df = df.sort_values(by="sample_index").reset_index(drop=True)
-    df.to_csv(experiment_dir / Logger.predictions_filename, index=False)
-    
+    df.to_csv(experiment_dir / logger.predictions_filename, index=False)
+
     predicted_labels = df["predicted"].to_numpy()
     if is_averitec:
         ground_truth_labels = None if is_test else df["target"].to_numpy()
     else:
-        #Assuming that the test set also has target labels.
+        # Assuming that the test set also has target labels.
         ground_truth_labels = df["target"].to_numpy()
-    
+
     predicted_justifications = df["justification"].apply(remove_urls_and_brackets)
     ground_truth_justifications = df["gt_justification"].apply(remove_urls_and_brackets)
 
-
     # Compute metrics and save them along with the other stats
-    metric_stats = compute_metrics(predicted_labels, 
-                                   ground_truth_labels, 
-                                   predicted_justifications=predicted_justifications, 
+    metric_stats = compute_metrics(predicted_labels,
+                                   ground_truth_labels,
+                                   predicted_justifications=predicted_justifications,
                                    ground_truth_justifications=ground_truth_justifications,
                                    is_mocheg=is_mocheg)
     stats["Predictions"] = metric_stats
@@ -365,7 +361,7 @@ def finalize_evaluation(stats: dict,
 
     if not is_test:
         benchmark_classes = benchmark.get_classes()
-        #if is_averitec:
+        # if is_averitec:
         #    benchmark_classes.remove(Label.CHERRY_PICKING)
 
         plot_confusion_matrix(predicted_labels,
@@ -375,7 +371,7 @@ def finalize_evaluation(stats: dict,
                               save_dir=experiment_dir)
 
         if is_averitec:
-            averitec_out_path = experiment_dir / Logger.averitec_out_filename
+            averitec_out_path = experiment_dir / logger.averitec_out_filename
             scores = compute_averitec_score(benchmark.file_path, averitec_out_path)
             scores_path = experiment_dir / "averitec_scores.yaml"
             with open(scores_path, "w") as f:
@@ -387,7 +383,6 @@ def compute_metrics(predicted_labels: np.ndarray,
                     predicted_justifications: Optional[Sequence[str]] = None,
                     ground_truth_justifications: Optional[Sequence[str]] = None,
                     is_mocheg: bool = False):
-
     n_samples = len(predicted_labels)
     n_refused = np.count_nonzero(np.array(predicted_labels) == "REFUSED_TO_ANSWER")
 
@@ -499,24 +494,25 @@ def save_stats(stats: dict, target_dir: Path):
 
 
 def fact_check(llm: str, llm_kwargs: dict,
-               fact_checker_kwargs: dict, tools_config: dict, logger_kwargs: dict,
+               fact_checker_kwargs: dict, tools_config: dict,
+               print_log_level: str, logging_target_dir: str | Path,
                is_averitec: bool, input_queue: Queue, output_queue: Queue, devices_queue: Queue,
                error_queue: Queue, worker_id: int):
-
     device_id = devices_queue.get()
     device = None if device_id is None else f"cuda:{device_id}"
-    logger = Logger(**logger_kwargs)
+
+    logger.set_experiment_dir(logging_target_dir)
+    logger.set_log_level(print_log_level)
 
     # Initialize model(s)
-    llm = make_model(llm, logger=logger, device=device, **llm_kwargs)
+    llm = make_model(llm, device=device, **llm_kwargs)
 
-    tools = initialize_tools(tools_config, llm, logger=logger, device=device)
+    tools = initialize_tools(tools_config, llm, device=device)
 
     # Setup fact-checker
     fc = FactChecker(
         llm=llm,
         tools=tools,
-        logger=logger,
         **fact_checker_kwargs,
     )
 
@@ -553,6 +549,7 @@ def fact_check(llm: str, llm_kwargs: dict,
             error_message = f"Worker {worker_id} encountered an error:\n{tb}"
             error_queue.put(error_message)
             logger.error(error_message)
+
 
 def load_results(path: str):
     ground_truth = []
@@ -615,25 +612,29 @@ def postprocess_text(preds, labels, num_limit=None):
     labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in labels]
     return preds, labels
 
+
 def remove_urls_and_brackets(text):
     if pd.isna(text):
         return ''
     else:
         return re.sub(r'\[.*?\]\(.*?\)', '', text)
-    
+
+
 def compute_metric_with_text_bleu(decoded_preds, decoded_labels, metric):
     decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
-    decoded_preds_bleu  = [pred.split(' ') for pred in decoded_preds]
+    decoded_preds_bleu = [pred.split(' ') for pred in decoded_preds]
     decoded_labels_bleu = [[pred.split(' ')] for pred in decoded_labels]
     result = metric.compute(predictions=decoded_preds_bleu, references=decoded_labels_bleu)
     result["bleu"] = round(result["bleu"] * 100, 4)
     return result
+
 
 def compute_metric_with_text_bertscore(decoded_preds, decoded_labels, metric):
     decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
     all_result = metric.compute(predictions=decoded_preds, references=decoded_labels, lang="en")
     avg_result = sum(all_result["f1"]) / len(all_result["f1"]) * 100
     return {"bertscore": round(avg_result, 4)}
+
 
 def compute_metrics_with_text(decoded_preds, decoded_labels, metric, metric_name):
     if metric_name == "bleu":

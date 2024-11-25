@@ -1,12 +1,11 @@
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-import numpy as np
 import torch
 from PIL.Image import Image as PILImage
 from transformers import AutoProcessor, AutoModelForObjectDetection
 
-from infact.common import Result, MultimediaSnippet, Action, Image
+from infact.common import Result, MultimediaSnippet, Action, Image, logger
 from infact.tools.tool import Tool
 
 
@@ -98,7 +97,7 @@ class ObjectDetector(Tool):
             bounding_boxes=bounding_boxes,
             model_output=outputs)
 
-        self.logger.log(str(result))
+        logger.log(str(result))
         return result
 
     def _summarize(self, result: ObjectDetectionResult, **kwargs) -> Optional[MultimediaSnippet]:

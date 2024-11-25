@@ -1,14 +1,14 @@
 from datetime import date
 from typing import Optional
 
-from infact.common import Action, FCDocument, Model, Evidence, Logger
+from infact.common import Action, FCDocument, Evidence
 from infact.tools import Tool, Searcher
 
 
 class Actor:
     """Agent that executes given Actions and returns the resulted Evidence."""
 
-    def __init__(self, tools: list[Tool], llm: Model, logger: Logger):
+    def __init__(self, tools: list[Tool]):
         self.tools = tools
 
     def perform(self, actions: list[Action], doc: FCDocument = None, summarize: bool = True) -> list[Evidence]:
@@ -46,4 +46,3 @@ class Actor:
         searcher = self._get_searcher()
         if searcher is not None:
             searcher.set_date_restriction(until)
-    

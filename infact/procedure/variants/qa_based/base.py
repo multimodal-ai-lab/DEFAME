@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Optional
 
-from infact.common import FCDocument
+from infact.common import FCDocument, logger
 from infact.tools import WebSearch
 from infact.common.misc import WebSource
 from infact.procedure.procedure import Procedure
@@ -55,14 +55,14 @@ class QABased(Procedure, ABC):
             if len(queries) > 0:
                 return queries
 
-            self.logger.log("No new actions were found. Retrying...")
+            logger.log("No new actions were found. Retrying...")
 
-        self.logger.warning("Got no search query, dropping this question.")
+        logger.warning("Got no search query, dropping this question.")
         return []
 
     def approach_question(self, question: str, doc: FCDocument = None) -> Optional[dict]:
         """Tries to answer the given question. If unanswerable, returns None."""
-        self.logger.log(light_blue(f"Answering question: {question}"))
+        logger.log(light_blue(f"Answering question: {question}"))
         self.actor.reset()
 
         # Stage 3: Generate search queries
@@ -89,14 +89,14 @@ class QABased(Procedure, ABC):
         answer, relevant_result = self.answer_question(question, results, doc)
 
         if answer is not None:
-            self.logger.log(f"Got answer: {answer}")
+            logger.log(f"Got answer: {answer}")
             qa_instance = {"question": question,
                            "answer": answer,
                            "url": relevant_result.url,
                            "scraped_text": relevant_result.text}
             return qa_instance
         else:
-            self.logger.log("Got no answer.")
+            logger.log("Got no answer.")
 
     def answer_question_individually(
             self,

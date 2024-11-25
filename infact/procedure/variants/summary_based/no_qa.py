@@ -1,6 +1,6 @@
 from typing import Any
 
-from infact.common import FCDocument, Label
+from infact.common import FCDocument, Label, logger
 from infact.tools import WebSearch
 from infact.procedure.procedure import Procedure
 from infact.prompts.prompts import ProposeQueriesNoQuestions
@@ -41,7 +41,7 @@ class NoQA(Procedure):
             if len(queries) > 0:
                 return queries
 
-            self.logger.log("No new actions were found. Retrying...")
+            logger.log("No new actions were found. Retrying...")
 
-        self.logger.warning("Got no search query, dropping this question.")
+        logger.warning("Got no search query, dropping this question.")
         return []

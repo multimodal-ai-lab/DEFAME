@@ -5,7 +5,7 @@ import torch
 from PIL.Image import Image as PILImage
 from transformers import AutoProcessor, AutoModel
 
-from infact.common import MultimediaSnippet, Action, Image, Result
+from infact.common import MultimediaSnippet, Action, Image, Result, logger
 from infact.tools.tool import Tool
 
 
@@ -116,7 +116,7 @@ class Geolocator(Tool):
             top_k_locations=list(top_k_locations.keys()),
             model_output=model_output
         )
-        self.logger.log(str(result))
+        logger.log(str(result))
         return result
 
     def _summarize(self, result: GeolocationResult, **kwargs) -> Optional[MultimediaSnippet]:

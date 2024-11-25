@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 from typing import Collection, Optional
 
-from infact.common import FCDocument, Label, Claim, Action, Evidence, Prompt, Content
+from infact.common import FCDocument, Label, Claim, Action, Prompt, Content, logger
 from infact.common.label import DEFAULT_LABEL_DEFINITIONS
 from infact.common.misc import WebSource
 from infact.common.results import Result
@@ -80,6 +80,7 @@ class SummarizeResultPrompt(Prompt):
         }
         super().__init__(placeholder_targets)
 
+
 class SummarizeManipulationResultPrompt(Prompt):
     template_file_path = "infact/prompts/summarize_manipulation_result.md"
     name = "SummarizeManipulationResultPrompt"
@@ -109,6 +110,7 @@ class SummarizeDocPrompt(Prompt):
 
     def __init__(self, doc: FCDocument):
         super().__init__({"[DOC]": doc})
+
 
 class PlanPrompt(Prompt):
     template_file_path = "infact/prompts/plan.md"
@@ -146,7 +148,8 @@ class PlanPrompt(Prompt):
             # Replace "<image:k>" with the reference to the claim's image by assuming that the first image
             # is tha claim image.
             if self.images:
-                claim_image_ref = self.images[0].reference #Be careful that the Plan Prompt always has the Claim image first before any other image!
+                claim_image_ref = self.images[
+                    0].reference  # Be careful that the Plan Prompt always has the Claim image first before any other image!
                 response = pattern.sub(claim_image_ref, response)
                 print(f"WARNING: <image:k> was replaced by {claim_image_ref} to generate response: {response}")
 
@@ -421,10 +424,7 @@ def parse_single_action(raw_action: str) -> Optional[Action]:
         raise ValueError(f'Invalid action: {raw_action}\nExpected format: action_name(<arg1>, <arg2>, ...)')
 
     except Exception as e:
-        # TODO: Make logger global and enable the following log:
-        # self.logger.log(f"WARNING: Failed to parse '{raw_action}':\n{e}")
-        print(f"WARNING: Failed to parse '{raw_action}':\n{e}")
-        pass
+        logger.warning(f"Failed to parse '{raw_action}':\n{e}")
 
     return None
 

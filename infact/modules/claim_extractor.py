@@ -1,11 +1,8 @@
-from infact.common.claim import Claim
-from infact.common.content import Content
-from infact.common.modeling import Model
-from infact.common.logger import Logger
+from infact.common import logger, Model, Content, Claim
 from infact.prompts.prompts import SYMBOL, NOT_SYMBOL, DecontextualizePrompt, FilterCheckWorthyPrompt, InterpretPrompt
-from third_party.factscore.atomic_facts import AtomicFactGenerator
 from infact.utils.console import light_blue
 from infact.utils.parsing import extract_first_square_brackets, extract_first_code_block
+from third_party.factscore.atomic_facts import AtomicFactGenerator
 
 
 class ClaimExtractor:
@@ -14,8 +11,7 @@ class ClaimExtractor:
                  interpret: bool = False,
                  decompose: bool = False,
                  decontextualize: bool = False,
-                 filter_check_worthy: bool = False,
-                 logger: Logger = None):
+                 filter_check_worthy: bool = False):
         self.llm = llm
         self.prepare_rules = prepare_rules
         self.do_interpretation = interpret
@@ -29,35 +25,34 @@ class ClaimExtractor:
             )
 
         self.max_retries = 3
-        self.logger = logger
 
     def extract_claims(self, content: Content) -> list[Claim]:
-        self.logger.log("Starting claim extraction.")
+        logger.log("Starting claim extraction.")
 
         if self.do_interpretation:
-            self.logger.log("Interpreting...")
+            logger.log("Interpreting...")
             self.interpret(content, self.prepare_rules)
 
         if self.do_decomposition:
-            self.logger.log("Decomposing...")
+            logger.log("Decomposing...")
             claims = self.decompose(content)
             for atomic_fact in claims:
-                self.logger.log(light_blue(f"'{atomic_fact}'"))
+                logger.log(light_blue(f"'{atomic_fact}'"))
         else:
             claims = [Claim(content.text, original_context=content)]
 
         if self.do_decontextualization:
-            self.logger.log("Decontextualizing...")
+            logger.log("Decontextualizing...")
             for claim in claims:
                 self.decontextualize(claim)
-                self.logger.log(light_blue(f"'{claim}'"))
+                logger.log(light_blue(f"'{claim}'"))
 
         if self.do_filtering:
-            self.logger.log("Filtering for unique, check-worthy claims...")
+            logger.log("Filtering for unique, check-worthy claims...")
             claims = [claim for claim in claims if self.is_check_worthy(claim)]
 
         for claim in claims:
-            self.logger.log(light_blue(f"'{claim}'"))
+            logger.log(light_blue(f"'{claim}'"))
 
         return claims
 

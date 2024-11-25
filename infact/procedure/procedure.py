@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Any
 
-from infact.common import FCDocument, Label, Model, Logger
+from infact.common import FCDocument, Label, Model
 from infact.common.misc import WebSource
 from infact.modules import Judge, Actor, Planner
 from infact.prompts.prompts import DevelopPrompt
@@ -11,13 +11,12 @@ from infact.tools import WebSearch
 class Procedure(ABC):
     """Base class of all procedures. A procedure is the algorithm which implements the fact-checking strategy."""
 
-    def __init__(self, llm: Model, actor: Actor, judge: Judge, planner: Planner, logger: Logger,
+    def __init__(self, llm: Model, actor: Actor, judge: Judge, planner: Planner,
                  max_attempts: int = 3, **kwargs):
         self.llm = llm
         self.actor = actor
         self.judge = judge
         self.planner = planner
-        self.logger = logger
         self.max_attempts = max_attempts
 
     def apply_to(self, doc: FCDocument) -> (Label, dict[str, Any]):

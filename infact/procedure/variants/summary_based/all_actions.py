@@ -1,6 +1,6 @@
 from typing import Any
 
-from infact.common import FCDocument, Label
+from infact.common import FCDocument, Label, logger
 from infact.procedure.variants.summary_based.dynamic import DynamicSummary
 from infact.tools.search.common import WebSearch, ImageSearch
 
@@ -10,7 +10,7 @@ class AllActionsSummary(DynamicSummary):
         n_iterations = 0
         label = Label.NEI
         while label == Label.NEI and n_iterations < self.max_iterations:
-            self.logger.log("Not enough information yet. Continuing fact-check...")
+            logger.log("Not enough information yet. Continuing fact-check...")
             n_iterations += 1
             actions, reasoning = self.planner.plan_next_actions(doc, all_actions=True)
             text = f'"{doc.claim.text.split(">", 1)[1].strip()}"'

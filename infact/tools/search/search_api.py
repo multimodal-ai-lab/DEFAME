@@ -1,7 +1,7 @@
 from abc import ABC
 
-from infact.common import Logger
-from infact.common.misc import Query, WebSource
+from infact.common import logger
+from infact.common.misc import Query
 from infact.utils.console import yellow
 from .common import SearchResult
 
@@ -12,15 +12,13 @@ class SearchAPI(ABC):
     is_free: bool
     is_local: bool
 
-    def __init__(self, logger: Logger = None):
-        self.logger = logger
+    def __init__(self):
         self.total_searches = 0
         assert self.name is not None
 
     def _before_search(self, query: Query):
         self.total_searches += 1
-        if self.logger is not None:
-            self.logger.log(yellow(f"Searching {self.name} with query: {query}"))
+        logger.log(yellow(f"Searching {self.name} with query: {query}"))
 
     def search(self, query: Query) -> SearchResult:
         """Runs the API by submitting the query and obtaining a list of search results."""
