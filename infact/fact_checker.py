@@ -41,12 +41,9 @@ class FactChecker:
                  class_definitions: dict[Label, str] = None,
                  extra_prepare_rules: str = None,
                  extra_plan_rules: str = None,
-                 extra_judge_rules: str = None,
-                 print_log_level: str = "warning"):
+                 extra_judge_rules: str = None):
         assert not tools or not search_engines, \
             "You are allowed to specify either tools or search engines."
-
-        logger.set_log_level(print_log_level)
 
         self.llm = make_model(llm) if isinstance(llm, str) else llm
 

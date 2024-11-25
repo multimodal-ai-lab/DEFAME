@@ -210,32 +210,35 @@ def evaluate(
         workers.append(p)
         logger.info(f"Started Worker {i} with PID {p.pid}.")
 
-    try:
-        for _ in tqdm(range(n_samples), smoothing=0.02):
-            try:
-                timeout = 25
-                doc, meta = output_queue.get(timeout=timeout * 60)  # 25 minutes timeout
-                process_output(doc, meta, benchmark, is_test)
-            except Empty as e:
-                # Check for errors reported by workers
-                while not error_queue.empty():
-                    error_message = error_queue.get()
-                    logger.error(error_message)
+    process = tqdm(range(n_samples), smoothing=0.02)
+    n_completed = 0
 
+    try:
+        while n_completed < n_samples:
+            try:
+                doc, meta = output_queue.get(timeout=60)
+                process_output(doc, meta, benchmark, is_test)
+                n_completed += 1
+                process.update(1)
+
+            except Empty as e:
                 # Check the status of each worker
                 for i, worker in enumerate(workers):
                     if not worker.is_alive() and worker.exitcode != 0:
                         logger.error(f"Worker {i} has died unexpectedly. Exit code: {worker.exitcode}")
-                        # Log the reason for worker failure if available
-                        # Since the worker has already sent the error message to error_queue,
-                        # it's sufficient to log it here.
 
-                logger.warning(f"Output queue remained empty for {timeout} minutes.")
+                # Log any potential error reported by workers
+                while not error_queue.empty():
+                    error_message = error_queue.get()
+                    logger.error(error_message)
 
+                # Quit if all workers are dead
+                if np.all([not worker.is_alive() for worker in workers]):
+                    break
 
     except Exception as e:
         logger.fatal(f"An unexpected error occurred in the main process:")
-        logger.error(repr(e))
+        logger.fatal(traceback.format_exc())
 
     finally:
         for i, worker in enumerate(workers):
@@ -243,7 +246,7 @@ def evaluate(
                 worker.terminate()
                 worker.join()
                 logger.info(f"Worker {i} has been terminated gracefully.")
-        logger.info("All workers have been terminated.")
+        logger.info("All workers are terminated.")
 
     end_time = time.time()
     duration = end_time - start_time
@@ -529,12 +532,13 @@ def fact_check(llm: str, llm_kwargs: dict,
     # Run fact-checks as long as there is work to do
     while True:
         try:
-            try:
-                content = input_queue.get(timeout=10)
-                if content is None:
-                    return
-            except Empty:
-                return
+            content = input_queue.get(timeout=10)
+            if content is None:
+                break
+        except Empty:
+            break
+
+        try:
             if is_averitec and 'averitec_kb' in searcher.search_apis:
                 # Restrict the KB to the current claim's resources
                 kb.current_claim_id = content.id_number
@@ -545,10 +549,11 @@ def fact_check(llm: str, llm_kwargs: dict,
             output_queue.put((doc, meta))
 
         except Exception as e:
-            tb = traceback.format_exc()
-            error_message = f"Worker {worker_id} encountered an error:\n{tb}"
+            error_message = f"Worker {worker_id} encountered an error while processing claim {content.id_number}:\n"
+            error_message += traceback.format_exc()
             error_queue.put(error_message)
-            logger.error(error_message)
+
+    logger.info(f"Worker {worker_id} is done and terminates gracefully.")
 
 
 def load_results(path: str):
