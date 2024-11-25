@@ -19,7 +19,7 @@ from infact.utils.console import remove_string_formatters, bold, red, orange, ye
 from infact.utils.utils import flatten_dict
 from infact.common.medium import media_registry
 
-# Suppress unnecessary logging from other libraries
+# Suppress unwanted logging from other libraries
 logging.getLogger('bs4').setLevel(logging.ERROR)
 logging.getLogger('google').setLevel(logging.WARNING)
 logging.getLogger('PIL').setLevel(logging.WARNING)
@@ -48,18 +48,6 @@ LOG_LEVELS = {
     "debug": 10,
 }
 
-# Define a custom level for model communication logs
-MODEL_COMM_LOG = 5  # Lower than DEBUG
-logging.addLevelName(MODEL_COMM_LOG, "MODEL_COMM")
-
-# Custom method to log at MODEL_COMM_LOG level
-def log_model_comm(self, message, *args, **kwargs):
-    if self.isEnabledFor(MODEL_COMM_LOG):
-        self._log(MODEL_COMM_LOG, message, args, **kwargs)
-
-# Add the custom logging method to Logger
-logging.Logger.log_model_comm = log_model_comm
-
 
 class Logger:
     """Takes care of saving any information (logs, results etc.) related to an evaluation run.
@@ -86,9 +74,12 @@ class Logger:
                  print_log_level: str = "info",
                  target_dir: str | Path = None):
         # Set up the target directory storing all logs and results
-        self.target_dir = _determine_target_dir(benchmark_name, procedure_name, model_name, experiment_name) \
-            if target_dir is None else Path(target_dir)
-        os.makedirs(self.target_dir, exist_ok=True)
+        if target_dir:
+            self.default_dir = Path(target_dir)
+        else:
+            self.default_dir = _determine_target_dir(benchmark_name, procedure_name, model_name, experiment_name)
+
+        self._current_fact_check_id = None
 
         # Define paths for various files
         self.config_path = self.target_dir / self.config_filename
@@ -99,21 +90,20 @@ class Logger:
 
         logging.basicConfig(level=logging.DEBUG)
 
-        self._current_fact_check_id = None
-
         # Initialize the general logger for standard logs
         self.logger = logging.getLogger('mafc')
         self.logger.propagate = False  # Disable propagation to avoid duplicate logs
         stdout_handler = logging.StreamHandler(sys.stdout)
         stdout_handler.setLevel(LOG_LEVELS[print_log_level])
         self.logger.addHandler(stdout_handler)
-        self._update_file_handler()
         self.logger.setLevel(logging.DEBUG)
 
         # Initialize a separate logger for model communication logs
         self.model_comm_logger = logging.getLogger('model_communication')
-        self.model_comm_logger.setLevel(MODEL_COMM_LOG)
+        self.model_comm_logger.setLevel(logging.DEBUG)
         self.model_comm_logger.propagate = False  # Prevent propagation to the main logger
+
+        self._update_file_handler()
 
         # Initialize result files (skip if logger is resumed)
         if not os.path.exists(self.predictions_path):
@@ -124,53 +114,31 @@ class Logger:
     def set_current_fc_id(self, index: int):
         """Sets the current fact-check ID and initializes related loggers."""
         self._current_fact_check_id = index
-        self.claim_dir.mkdir(parents=True, exist_ok=True)
         self._update_file_handler()
-        self._update_model_comm_handler()
 
     def _update_file_handler(self):
-        """If a fact-check ID is set, writes to logs/<fc_id>.txt, otherwise to log.txt."""
-        # Remove all previous file handlers
-        for handler in self.logger.handlers:
-            if isinstance(handler, RotatingFileHandler):
-                self.logger.removeHandler(handler)
-                handler.close()  # Release the file
+        """If a fact-check ID is set, writes to the fact-check-specific folder, otherwise
+        to a global log file."""
+        # Stop logging into previous fact-check directory
+        self._remove_all_file_handlers()
 
-        # Determine the correct path based on whether a fact-check ID is set
-        log_path = self.target_dir / 'log.txt' if self._current_fact_check_id is None else self.log_path
+        self.target_dir.mkdir(parents=True, exist_ok=True)
 
         # Create and add the new file handler for general logs
-        log_to_file_handler = RotatingFileHandler(log_path, maxBytes=10 * 1024 * 1024, backupCount=5)
-        log_to_file_handler.setLevel(logging.DEBUG)
-        formatter = RemoveStringFormattingFormatter()
-        log_to_file_handler.setFormatter(formatter)
-        self.logger.addHandler(log_to_file_handler)
+        general_log_file_handler = _make_file_handler(self.log_path)
+        self.logger.addHandler(general_log_file_handler)
 
+        # Create and add the new file handler for model communications
+        model_comm_log_file_handler = _make_file_handler(self.model_comm_path)
+        self.model_comm_logger.addHandler(model_comm_log_file_handler)
 
-    def _update_model_comm_handler(self):
-        """Assigns the model communication handler to the correct claim's subfolder."""
-        # Clear existing handlers to avoid duplication
-        self._remove_existing_handlers(self.model_comm_logger)
-
-        # Set the correct path based on the current claim
-        model_comm_path = self.model_comm_path
-        model_comm_handler = RotatingFileHandler(model_comm_path, maxBytes=10 * 1024 * 1024, backupCount=5)
-        model_comm_handler.setLevel(MODEL_COMM_LOG)
-        formatter = RemoveStringFormattingFormatter()
-        model_comm_handler.setFormatter(formatter)
-        self.model_comm_logger.addHandler(model_comm_handler)
-
-    def _remove_existing_handlers(self, logger):
-        """Removes all existing file handlers from the logger."""
-        for handler in logger.handlers[:]:
-            if isinstance(handler, RotatingFileHandler):
-                logger.removeHandler(handler)
-                handler.close()
-
-    def log_model_conv(self, msg: str):
-        """Logs model communication using a separate logger."""
-        formatted_msg = f"{msg}\n{self.separator}\n"
-        self.model_comm_logger.log(MODEL_COMM_LOG, formatted_msg)
+    def _remove_all_file_handlers(self):
+        """Removes all existing file handlers from all logger objects."""
+        for l in [self.logger, self.model_comm_logger]:
+            for handler in l.handlers:
+                if isinstance(handler, RotatingFileHandler):
+                    self.logger.removeHandler(handler)
+                    handler.close()  # Release the file
 
     def save_config(self, signature, local_scope, benchmark, print_summary: bool = True):
         """Saves the hyperparameters of the current run to a YAML file. Enables to re-use them
@@ -195,6 +163,25 @@ class Logger:
                                     "correct",
                                     "gt_justification"))
 
+    @property
+    def target_dir(self) -> Path:
+        if self._current_fact_check_id is None:
+            return self.default_dir
+        else:
+            return self.default_dir / "fact-checks" / str(self._current_fact_check_id)
+
+    @property
+    def fc_doc_path(self) -> Path:
+        return self.target_dir / "doc.md"
+
+    @property
+    def log_path(self) -> Path:
+        return self.target_dir / 'log.txt'
+
+    @property
+    def model_comm_path(self) -> Path:
+        return self.target_dir / 'model_communication.txt'
+
     def critical(self, msg: str):
         self.logger.critical(bold(red(msg)))
 
@@ -212,6 +199,11 @@ class Logger:
 
     def debug(self, msg: str):
         self.logger.debug(gray(msg))
+
+    def log_model_comm(self, msg: str):
+        """Logs model communication using a separate logger."""
+        formatted_msg = f"{msg}\n{self.separator}\n\n\n"
+        self.model_comm_logger.debug(formatted_msg)
 
     def save_next_prediction(self,
                              sample_index: int,
@@ -252,25 +244,6 @@ class Logger:
         else:
             return pd.DataFrame()
 
-    @property
-    def claim_dir(self) -> Path:
-        if self._current_fact_check_id is None:
-            raise RuntimeError("Must set a valid fact-checking ID before accessing its directory.")
-        return self.target_dir / "fact-checks" / str(self._current_fact_check_id)
-
-    @property
-    def fc_doc_path(self) -> Path:
-        return self.claim_dir / "doc.md"
-
-    @property
-    def log_path(self) -> Path:
-        return self.claim_dir / "log.txt"
-    
-    @property
-    def model_comm_path(self) -> Path:
-        self.claim_dir.mkdir(parents=True, exist_ok=True)
-        return self.claim_dir / "model_communication.txt"
-
     def save_fc_doc(self, doc: FCDocument):
         doc_str = str(doc)
 
@@ -285,7 +258,7 @@ class Logger:
             f.write(doc_str)
 
         # Save all associated media in separate media dir
-        media_dir = self.claim_dir / "media"
+        media_dir = self.target_dir / "media"
         media_dir.mkdir(exist_ok=True)
         for medium in media:
             medium_copy_path = media_dir / medium.path_to_file.name
@@ -341,6 +314,16 @@ def _determine_target_dir(benchmark_name: str,
     return target_dir
 
 
+def _make_file_handler(path: Path) -> logging.FileHandler:
+    """Sets up a stream that writes all logs with level DEBUG or higher into a dedicated
+    TXT file. It automatically removes any string formatting."""
+    file_handler = RotatingFileHandler(path, maxBytes=10 * 1024 * 1024, backupCount=5)
+    file_handler.setLevel(logging.DEBUG)
+    formatter = RemoveStringFormattingFormatter()
+    file_handler.setFormatter(formatter)
+    return file_handler
+
+
 if __name__ == "__main__":
     logger = Logger(benchmark_name="test", print_log_level="debug")
     logger.debug("debug")
@@ -349,3 +332,4 @@ if __name__ == "__main__":
     logger.warning("warning")
     logger.error("error")
     logger.critical("critical")
+    logger.log_model_comm("model_comm")
