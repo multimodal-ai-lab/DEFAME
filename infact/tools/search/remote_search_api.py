@@ -79,6 +79,7 @@ unscrapable_urls = [
     "https://www.thelugarcenter.org/ourwork-Bipart",
     "https://www.linkedin.com/pulse/senator-kelly-/",
     "http://libres.uncg.edu/ir/list-etd.aspx?styp=ty&bs=master%27s%20thesis&amt=100000",
+    "https://www.washingtonpost.com/investigations/coronavirus-testing-denials/2020/03/",
 
 ]
 

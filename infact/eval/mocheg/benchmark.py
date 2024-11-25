@@ -7,7 +7,7 @@ from config.globals import data_base_dir, random_seed
 from infact.common import Label, Content
 from infact.common.medium import Image
 from infact.eval.benchmark import Benchmark
-from infact.tools import WebSearch, ImageSearch, ReverseSearch
+from infact.tools import WebSearch, ImageSearch, ReverseSearch, Geolocate
 
 class MOCHEG(Benchmark):
     shorthand = "mocheg"
@@ -28,7 +28,7 @@ class MOCHEG(Benchmark):
             "A claim is marked as NEI when there isn't enough evidence to support or refute the claim."
     }
 
-    available_actions = [WebSearch, ImageSearch]
+    available_actions = [WebSearch, ImageSearch, ReverseSearch, Geolocate]
 
     def __init__(self, variant="val"):
         super().__init__(f"MOCHEG ({variant})", variant)
@@ -44,6 +44,12 @@ class MOCHEG(Benchmark):
         # Remove samples with an invalid justification
         df = df.dropna(subset=['ruling_outline'])
         #df = df[df['ruling_outline'].str.split().str.len() >= 10]
+
+        #claims = [
+    #"A photo depicting snow in the Sahara desert in 2024 was widely shared, but fact-checkers say it's an older image from 2018.",
+    #]
+        #df = df[:len(claims)]  
+        #df['Claim'] = claims 
         
         
 
