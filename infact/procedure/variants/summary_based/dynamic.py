@@ -1,6 +1,6 @@
 from typing import Any
 
-from infact.common import FCDocument, Label
+from infact.common import FCDocument, Label, logger
 from infact.procedure.procedure import Procedure
 
 
@@ -13,7 +13,7 @@ class DynamicSummary(Procedure):
         n_iterations = 0
         label = Label.NEI
         while label == Label.NEI and n_iterations < self.max_iterations:
-            self.logger.log("Not enough information yet. Continuing fact-check...")
+            logger.log("Not enough information yet. Continuing fact-check...")
             n_iterations += 1
             actions, reasoning = self.planner.plan_next_actions(doc)
             if len(reasoning) > 32:  # Only keep substantial reasoning

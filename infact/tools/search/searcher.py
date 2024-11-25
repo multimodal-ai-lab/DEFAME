@@ -6,7 +6,7 @@ import numpy as np
 from jinja2.exceptions import TemplateSyntaxError
 from openai import APIError
 
-from infact.common import MultimediaSnippet, FCDocument, Prompt
+from infact.common import MultimediaSnippet, FCDocument, Prompt, logger
 from infact.prompts.prompts import SummarizeResultPrompt
 from infact.tools.search.duckduckgo import DuckDuckGo
 from infact.tools.search.google_vision_api import GoogleVisionAPI
@@ -50,7 +50,7 @@ class Searcher(Tool):
         super().__init__(**kwargs)
 
         if search_engine_config is None:
-            self.logger.log("No search engine specified. Falling back to DuckDuckGo.")
+            logger.log("No search engine specified. Falling back to DuckDuckGo.")
             search_engine_config = {"duckduckgo": {}}
 
         # Add device to knowledge base kwargs
@@ -63,7 +63,7 @@ class Searcher(Tool):
             api_class = SEARCH_APIS[se]
             if kwargs is None:
                 kwargs = {}
-            api = api_class(logger=self.logger, max_search_results=limit_per_search, **kwargs)
+            api = api_class(max_search_results=limit_per_search, **kwargs)
             self.search_apis[se] = api
 
         # Register available tools
@@ -140,13 +140,13 @@ class Searcher(Tool):
             self.stats[search_engine.name] += 1
 
             # Log search result info
-            self.logger.log(f"Got {len(search_result.sources)} new web source(s):")
+            logger.log(f"Got {len(search_result.sources)} new web source(s):")
             for i, web_source in enumerate(search_result.sources):
                 result_summary = f"\t{i + 1}."
                 if web_source.date is not None:
                     result_summary += f" {web_source.date.strftime('%B %d, %Y')}"
                 result_summary += f" {web_source.url}"
-                self.logger.log(result_summary)
+                logger.log(result_summary)
 
             # Modify the raw web source text to avoid jinja errors when used in prompt
             search_result.sources = self._postprocess_results(search_result.sources)[:self.limit_per_search]
@@ -206,23 +206,23 @@ class Searcher(Tool):
             if not summary:
                 summary = "NONE"
         except APIError as e:
-            self.logger.log(orange(f"APIError: {e} - Skipping the summary for {web_source.url}."))
-            self.logger.log(orange(f"Used prompt:\n{str(prompt)}"))
+            logger.log(orange(f"APIError: {e} - Skipping the summary for {web_source.url}."))
+            logger.log(orange(f"Used prompt:\n{str(prompt)}"))
             summary = "NONE"
         except TemplateSyntaxError as e:
-            self.logger.log(orange(f"TemplateSyntaxError: {e} - Skipping the summary for {web_source.url}."))
+            logger.log(orange(f"TemplateSyntaxError: {e} - Skipping the summary for {web_source.url}."))
             summary = "NONE"
         except ValueError as e:
-            self.logger.log(orange(f"ValueError: {e} - Skipping the summary for {web_source.url}."))
+            logger.log(orange(f"ValueError: {e} - Skipping the summary for {web_source.url}."))
             summary = "NONE"
         except Exception as e:
-            self.logger.log(orange(f"Error while summarizing! {e} - Skipping the summary for {web_source.url}."))
+            logger.log(orange(f"Error while summarizing! {e} - Skipping the summary for {web_source.url}."))
             summary = "NONE"
 
         web_source.summary = MultimediaSnippet(summary)
 
         if web_source.is_relevant():
-            self.logger.log("Useful result: " + gray(str(web_source)))
+            logger.log("Useful result: " + gray(str(web_source)))
 
     def _summarize_summaries(self, result: SearchResult, doc: FCDocument) -> Optional[MultimediaSnippet]:
         """Generates a summary, aggregating all relevant information from the

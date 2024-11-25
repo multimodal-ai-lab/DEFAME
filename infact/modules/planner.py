@@ -4,9 +4,7 @@ import pyparsing as pp
 
 from infact.common.action import (Action)
 from infact.tools import IMAGE_ACTIONS
-from infact.common.document import FCDocument
-from infact.common.modeling import Model
-from infact.common.logger import Logger
+from infact.common import logger, FCDocument, Model
 from infact.prompts.prompts import PlanPrompt
 
 
@@ -17,12 +15,9 @@ class Planner:
     def __init__(self,
                  valid_actions: Collection[type[Action]],
                  llm: Model,
-                 logger: Logger,
-                 extra_rules: str
-                 ):
+                 extra_rules: str):
         self.valid_actions = valid_actions
         self.llm = llm
-        self.logger = logger
         self.max_attempts = 5
         self.extra_rules = extra_rules
 
@@ -53,7 +48,7 @@ class Planner:
             if not action_class.is_limited or (action_class.is_limited and not is_performed):
                 new_valid_actions.append(action_class)
             else:
-                self.logger.log(f"INFO: Dropping action '{action_class.name}' as it was already performed.")
+                logger.log(f"INFO: Dropping action '{action_class.name}' as it was already performed.")
 
         #self.valid_actions = new_valid_actions
         prompt = PlanPrompt(doc, new_valid_actions, self.extra_rules, all_actions)
@@ -64,9 +59,8 @@ class Planner:
 
             response = self.llm.generate(prompt)
             if response is None:
-                self.logger.warning("No new actions were found.")
+                logger.warning("No new actions were found.")
                 return [], ""
-
 
             actions = response["actions"]
             reasoning = response["reasoning"]
@@ -78,7 +72,7 @@ class Planner:
                 return actions, reasoning
             else:
                 performed_actions_str = ", ".join(str(obj) for obj in performed_actions)
-                self.logger.warning(f'No new actions were found in this response:\n{response["response"]} and performed actions: {performed_actions_str}')
+                logger.warning(f'No new actions were found in this response:\n{response["response"]} and performed actions: {performed_actions_str}')
                 return [], ""
 
 

@@ -2,22 +2,22 @@ import csv
 import json
 import logging
 import os.path
+import shutil
 import sys
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
-import shutil
 
-import yaml
 import pandas as pd
+import yaml
 
 from config.globals import result_base_dir
 from infact.common.document import FCDocument
 from infact.common.label import Label
+from infact.common.medium import media_registry
 from infact.utils.console import remove_string_formatters, bold, red, orange, yellow, gray
 from infact.utils.utils import flatten_dict
-from infact.common.medium import media_registry
 
 # Suppress unwanted logging from other libraries
 logging.getLogger('bs4').setLevel(logging.ERROR)
@@ -50,43 +50,22 @@ LOG_LEVELS = {
 
 
 class Logger:
-    """Takes care of saving any information (logs, results etc.) related to an evaluation run.
+    """Takes care of saving any information (logs, results etc.) related to an evaluation run."""
 
-    Args:
-        benchmark_name: The shorthand name of the benchmark being evaluated. Used
-            to name the directory.
-        model_name: The shorthand name of the model used for evaluation. Also used
-            to name the directory.
-        print_log_level: Pick any of "critical", "error", "warning", "info", "log", "debug"
-        target_dir: If specified, re-uses an existing directory, i.e., it appends logs
-            and results to existing files."""
+    log_filename = "log.txt"
+    model_comm_filename = "model_communication.txt"
+    doc_filename = "doc.md"
+    averitec_out_filename = "averitec_out.json"
+    config_filename = "config.yaml"
+    predictions_filename = "predictions.csv"
+    instance_stats_filename = "instance_stats.csv"
 
-    averitec_out_filename = 'averitec_out.json'
-    config_filename = 'config.yaml'
-    predictions_filename = 'predictions.csv'
-    instance_stats_filename = 'instance_stats.csv'
-
-    def __init__(self,
-                 benchmark_name: str = None,
-                 procedure_name: str = None,
-                 model_name: str = None,
-                 experiment_name: str = None,
-                 print_log_level: str = "info",
-                 target_dir: str | Path = None):
-        # Set up the target directory storing all logs and results
-        if target_dir:
-            self.default_dir = Path(target_dir)
-        else:
-            self.default_dir = _determine_target_dir(benchmark_name, procedure_name, model_name, experiment_name)
-
+    def __init__(self):
+        self.experiment_dir = None
         self._current_fact_check_id = None
-
-        # Define paths for various files
-        self.config_path = self.target_dir / self.config_filename
-        self.predictions_path = self.target_dir / self.predictions_filename
-        self.instance_stats_path = self.target_dir / self.instance_stats_filename
-        self.averitec_out = self.target_dir / self.averitec_out_filename
+        self.print_log_level = "debug"
         self.separator = "_" * 25
+        self.is_averitec_run = None
 
         logging.basicConfig(level=logging.DEBUG)
 
@@ -94,7 +73,7 @@ class Logger:
         self.logger = logging.getLogger('mafc')
         self.logger.propagate = False  # Disable propagation to avoid duplicate logs
         stdout_handler = logging.StreamHandler(sys.stdout)
-        stdout_handler.setLevel(LOG_LEVELS[print_log_level])
+        stdout_handler.setLevel(LOG_LEVELS[self.print_log_level])
         self.logger.addHandler(stdout_handler)
         self.logger.setLevel(logging.DEBUG)
 
@@ -103,13 +82,41 @@ class Logger:
         self.model_comm_logger.setLevel(logging.DEBUG)
         self.model_comm_logger.propagate = False  # Prevent propagation to the main logger
 
+    def set_experiment_dir(self,
+                           path: str | Path = None,
+                           benchmark_name: str = None,
+                           procedure_name: str = None,
+                           model_name: str = None,
+                           experiment_name: str = None):
+        """Specify the experiment directory to print the logs into.
+
+        Args:
+            path: If specified, re-uses an existing directory, i.e., it appends logs
+                and results to existing files.
+            benchmark_name: The shorthand name of the benchmark being evaluated. Used
+                to name the directory.
+            procedure_name: THe specifier for the used fact-checking procedure.
+            model_name: The shorthand name of the model used for evaluation. Also used
+                to name the directory.
+            experiment_name: Optional a label to distinguish this experiment run."""
+        assert path is not None or benchmark_name is not None
+
+        if path:
+            self.experiment_dir = Path(path)
+        else:
+            self.experiment_dir = _determine_target_dir(benchmark_name, procedure_name, model_name, experiment_name)
+
+        if benchmark_name == "averitec":
+            self.is_averitec_run = True
+
         self._update_file_handler()
 
-        # Initialize result files (skip if logger is resumed)
-        if not os.path.exists(self.predictions_path):
-            self._init_predictions_csv()
-        if not os.path.exists(self.averitec_out) and benchmark_name == "averitec":
-            self._init_averitec_out()
+    def set_log_level(self, level: str):
+        """Pick any of "critical", "error", "warning", "info", "log", "debug"."""
+        self.print_log_level = level
+        for handler in self.logger.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                handler.setLevel(LOG_LEVELS[level])
 
     def set_current_fc_id(self, index: int):
         """Sets the current fact-check ID and initializes related loggers."""
@@ -140,47 +147,40 @@ class Logger:
                     self.logger.removeHandler(handler)
                     handler.close()  # Release the file
 
-    def save_config(self, signature, local_scope, benchmark, print_summary: bool = True):
-        """Saves the hyperparameters of the current run to a YAML file. Enables to re-use them
-        to resume the run."""
-        hyperparams = {}
-        for param in signature.parameters:
-            hyperparams[param] = local_scope[param]
-        with open(self.config_path, "w") as f:
-            yaml.dump(hyperparams, f)
-        if print_summary:
-            self.info(bold("Configuration summary:"))
-            self.info("Available actions: " + ", ".join([action.name for action in benchmark.available_actions]))
-            self.info(yaml.dump(hyperparams, sort_keys=False, indent=4))
-
-    def _init_predictions_csv(self):
-        with open(self.predictions_path, "w") as f:
-            csv.writer(f).writerow(("sample_index",
-                                    "claim",
-                                    "target",
-                                    "predicted",
-                                    "justification",
-                                    "correct",
-                                    "gt_justification"))
-
     @property
     def target_dir(self) -> Path:
         if self._current_fact_check_id is None:
-            return self.default_dir
+            return self.experiment_dir
         else:
-            return self.default_dir / "fact-checks" / str(self._current_fact_check_id)
+            return self.experiment_dir / "fact-checks" / str(self._current_fact_check_id)
+
+    @property
+    def config_path(self) -> Path:
+        return self.target_dir / self.config_filename
+
+    @property
+    def predictions_path(self) -> Path:
+        return self.target_dir / self.predictions_filename
+
+    @property
+    def instance_stats_path(self) -> Path:
+        return self.target_dir / self.instance_stats_filename
+
+    @property
+    def averitec_out(self) -> Path:
+        return self.target_dir / self.averitec_out_filename
 
     @property
     def fc_doc_path(self) -> Path:
-        return self.target_dir / "doc.md"
+        return self.target_dir / self.doc_filename
 
     @property
     def log_path(self) -> Path:
-        return self.target_dir / 'log.txt'
+        return self.target_dir / self.log_filename
 
     @property
     def model_comm_path(self) -> Path:
-        return self.target_dir / 'model_communication.txt'
+        return self.target_dir / self.model_comm_filename
 
     def critical(self, msg: str):
         self.logger.critical(bold(red(msg)))
@@ -205,6 +205,31 @@ class Logger:
         formatted_msg = f"{msg}\n{self.separator}\n\n\n"
         self.model_comm_logger.debug(formatted_msg)
 
+    def save_config(self, signature, local_scope, benchmark, print_summary: bool = True):
+        """Saves the hyperparameters of the current run to a YAML file. Enables to re-use them
+        to resume the run."""
+        assert self.experiment_dir is not None
+        hyperparams = {}
+        for param in signature.parameters:
+            hyperparams[param] = local_scope[param]
+        with open(self.config_path, "w") as f:
+            yaml.dump(hyperparams, f)
+        if print_summary:
+            self.info(bold("Configuration summary:"))
+            self.info("Available actions: " + ", ".join([action.name for action in benchmark.available_actions]))
+            self.info(yaml.dump(hyperparams, sort_keys=False, indent=4))
+
+    def _init_predictions_csv(self):
+        assert self.experiment_dir is not None
+        with open(self.predictions_path, "w") as f:
+            csv.writer(f).writerow(("sample_index",
+                                    "claim",
+                                    "target",
+                                    "predicted",
+                                    "justification",
+                                    "correct",
+                                    "gt_justification"))
+
     def save_next_prediction(self,
                              sample_index: int,
                              claim: str,
@@ -212,6 +237,11 @@ class Logger:
                              predicted: Label,
                              justification: str,
                              gt_justification: Optional[str]):
+        assert self.experiment_dir is not None
+
+        if not os.path.exists(self.predictions_path):
+            self._init_predictions_csv()
+
         target_label_str = target.name if target is not None else None
         is_correct = target == predicted if target is not None else None
         with open(self.predictions_path, "a") as f:
@@ -224,6 +254,7 @@ class Logger:
                                     gt_justification))
 
     def save_next_instance_stats(self, stats: dict, claim_id: int):
+        assert self.experiment_dir is not None
         all_instance_stats = self._load_stats_df()
 
         # Convert statistics dict to Pandas dataframe
@@ -245,6 +276,7 @@ class Logger:
             return pd.DataFrame()
 
     def save_fc_doc(self, doc: FCDocument):
+        assert self.experiment_dir is not None
         doc_str = str(doc)
 
         # Replace all media references with actual file paths for human-readability
@@ -265,10 +297,16 @@ class Logger:
             shutil.copy(medium.path_to_file, medium_copy_path)
 
     def _init_averitec_out(self):
+        assert self.experiment_dir is not None
         with open(self.averitec_out, "w") as f:
             json.dump([], f, indent=4)
 
     def save_next_averitec_out(self, next_out: dict):
+        assert self.experiment_dir is not None
+
+        if not os.path.exists(self.averitec_out) and self.is_averitec_run:
+            self._init_averitec_out()
+
         with open(self.averitec_out, "r") as f:
             current_outs = json.load(f)
         current_outs.append(next_out)
@@ -327,12 +365,4 @@ def _make_file_handler(path: Path) -> logging.FileHandler:
     return file_handler
 
 
-if __name__ == "__main__":
-    logger = Logger(benchmark_name="test", print_log_level="debug")
-    logger.debug("debug")
-    logger.log("log")
-    logger.info("info")
-    logger.warning("warning")
-    logger.error("error")
-    logger.critical("critical")
-    logger.log_model_comm("model_comm")
+logger = Logger()

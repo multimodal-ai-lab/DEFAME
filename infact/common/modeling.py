@@ -11,12 +11,12 @@ import re
 from openai import OpenAI
 from transformers import pipeline, MllamaForConditionalGeneration, AutoProcessor, StoppingCriteria, StoppingCriteriaList, Pipeline
 
-from llava.mm_utils import get_model_name_from_path, process_images, tokenizer_image_token
-from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN, IGNORE_INDEX
-from llava.conversation import conv_templates, SeparatorStyle
+# from llava.mm_utils import get_model_name_from_path, process_images, tokenizer_image_token
+# from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN, IGNORE_INDEX
+# from llava.conversation import conv_templates, SeparatorStyle
 
 from config.globals import api_keys
-from infact.common.logger import Logger
+from infact.common import logger
 from infact.common.medium import Image
 from infact.common.prompt import Prompt
 from infact.utils.parsing import is_guardrail_hit, GUARDRAIL_WARNING, format_for_llava, find
@@ -113,15 +113,12 @@ class Model(ABC):
 
     def __init__(self,
                  specifier: str,
-                 logger: Logger = None,
                  temperature: float = 0.01,
                  top_p: float = 0.9,
                  top_k: int = 50,
                  max_response_len: int = 2048,
                  repetition_penalty: float = 1.2,
-                 device: str | torch.device = None,
-                 ):
-        self.logger = logger
+                 device: str | torch.device = None):
 
         shorthand = model_specifier_to_shorthand(specifier)
         self.name = shorthand
@@ -171,11 +168,11 @@ class Model(ABC):
 
         # Check compatability
         if prompt.has_images() and not self.accepts_images:
-            self.logger.warning(f"Prompt contains images which cannot be processed by {self.name}! Ignoring them...")
+            logger.warning(f"Prompt contains images which cannot be processed by {self.name}! Ignoring them...")
         if prompt.has_videos() and not self.accepts_videos:
-            self.logger.warning(f"Prompt contains videos which cannot be processed by {self.name}! Ignoring them...")
+            logger.warning(f"Prompt contains videos which cannot be processed by {self.name}! Ignoring them...")
         if prompt.has_audios() and not self.accepts_audio:
-            self.logger.warning(f"Prompt contains audios which cannot be processed by {self.name}! Ignoring them...")
+            logger.warning(f"Prompt contains audios which cannot be processed by {self.name}! Ignoring them...")
 
         # Try to get a response, repeat if not successful
         response, n_attempts = "", 0
@@ -186,7 +183,7 @@ class Model(ABC):
             # Trim prompt if too long
             prompt_length = self.count_tokens(prompt) + len(system_prompt)
             if prompt_length > self.context_window:
-                self.logger.debug(f"Prompt has {prompt_length} tokens which is too long "
+                logger.debug(f"Prompt has {prompt_length} tokens which is too long "
                                   f"for the context window of length {self.context_window} "
                                   f"tokens. Truncating the prompt.")
                 prompt.text = prompt.text[:self.context_window - len(system_prompt)]
@@ -195,13 +192,13 @@ class Model(ABC):
             self.n_input_tokens += self.count_tokens(prompt)
             response = self._generate(prompt, temperature=temperature, top_p=top_p, top_k=top_k,
                                       system_prompt=system_prompt)
-            self.logger.log_model_conv(f"{prompt.name} - QUERY:\n\n{prompt}\n\n\n\n===== > RESPONSE:  < =====\n{response}")
+            logger.log_model_comm(f"{prompt.name} - QUERY:\n\n{prompt}\n\n\n\n===== > RESPONSE:  < =====\n{response}")
             self.n_output_tokens += self.count_tokens(response)
             original_response = response
             
             if response and is_guardrail_hit(response): # Handle guardrail hits
-                self.logger.warning(GUARDRAIL_WARNING)
-                self.logger.log(f"PROMPT: {str(prompt)}\nRESPONSE: {response}")
+                logger.warning(GUARDRAIL_WARNING)
+                logger.log(f"PROMPT: {str(prompt)}\nRESPONSE: {response}")
                 if isinstance(self, GPTModel):
                     return prompt.extract(response="")
                 elif self.guardrail_bypass_system_prompt is not None:
@@ -220,12 +217,12 @@ class Model(ABC):
                                       system_prompt=system_prompt)
                     response = prompt.extract(response)
             except Exception as e:
-                self.logger.warning("Unable to extract contents from response:\n" + original_response)
-                self.logger.warning(repr(e))
+                logger.warning("Unable to extract contents from response:\n" + original_response)
+                logger.warning(repr(e))
                 response = None
 
         if response is None:
-            self.logger.error("Failed to generate a valid response for prompt:\n" + str(prompt))
+            logger.error("Failed to generate a valid response for prompt:\n" + str(prompt))
 
         return response
 
@@ -273,12 +270,12 @@ class GPTModel(Model):
                 system_prompt=system_prompt,
             )
         except openai.RateLimitError as e:
-            self.logger.critical(f"OpenAI rate limit hit!")
-            self.logger.critical(repr(e))
+            logger.critical(f"OpenAI rate limit hit!")
+            logger.critical(repr(e))
             quit()
         except Exception as e:
-            self.logger.warning("Error while calling the LLM! Continuing with empty response.\n" + str(e))
-            self.logger.warning("Prompt used:\n" + str(prompt))
+            logger.warning("Error while calling the LLM! Continuing with empty response.\n" + str(e))
+            logger.warning("Prompt used:\n" + str(prompt))
         return ""
 
     def count_tokens(self, prompt: Prompt | str) -> int:
@@ -304,7 +301,7 @@ class HuggingFaceModel(Model, ABC):
             model_kwargs = dict()
         self.model_name = model_name
         model_kwargs["torch_dtype"] = torch.bfloat16
-        self.logger.info(f"Loading {model_name} ...")
+        logger.info(f"Loading {model_name} ...")
         ppl = pipeline(
             task,
             model=model_name,
@@ -337,7 +334,7 @@ class HuggingFaceModel(Model, ABC):
             )
             return output[0]['generated_text'][len(prompt_prepared):]
         except Exception as e:
-            self.logger.warning("Error while calling the LLM! Continuing with empty response.\n" + str(e))
+            logger.warning("Error while calling the LLM! Continuing with empty response.\n" + str(e))
             return ""
 
 
@@ -398,7 +395,7 @@ fact-check any presented content."""
                 f"Please check the model's documentation on Hugging Face for the correct prompt formatting."
                 f"The used model is {self.name}."
             )
-            self.logger.warning(error_message)
+            logger.warning(error_message)
             # Use the original prompt if the formatting fails
             formatted_prompt = str(original_prompt)
 
@@ -439,7 +436,7 @@ fact-check any presented content."""
         Supports both standard LLaMA and LLaMA 3.2 with multimodal capabilities.
         """
         if "llama_32" in model_name:
-            self.logger.info(f"Loading LLaMA 3.2 model: {model_name} ...")
+            logger.info(f"Loading LLaMA 3.2 model: {model_name} ...")
 
             self.model = MllamaForConditionalGeneration.from_pretrained(
                 model_name,
@@ -479,7 +476,7 @@ class LlavaModel(HuggingFaceModel):
 
     def load(self, model_name: str) -> Pipeline | OpenAIAPI:
         # Load Llava with quantization for efficiency
-        self.logger.info(f"Loading {model_name} ...")
+        logger.info(f"Loading {model_name} ...")
         self.system_prompt = """You are an AI assistant skilled in fact-checking. Make sure to follow
 the instructions and keep the output to the minimum."""
 
@@ -512,7 +509,7 @@ the instructions and keep the output to the minimum."""
             )
         except IndexError as e:
             image_count = formatted_prompt.count("<image>")
-            self.logger.error(f"IndexError: cur_image_idx out of range. Number of Images. {len(inputs['images'])}\nPrompt:\n{prompt}\n\n\nFormatted Prompt:\n{formatted_prompt}\n\n\nNumber of ImageTokens in the Formatted Prompt: {image_count}")
+            logger.error(f"IndexError: cur_image_idx out of range. Number of Images. {len(inputs['images'])}\nPrompt:\n{prompt}\n\n\nFormatted Prompt:\n{formatted_prompt}\n\n\nNumber of ImageTokens in the Formatted Prompt: {image_count}")
             response = ""
             return response
 
@@ -532,7 +529,7 @@ the instructions and keep the output to the minimum."""
         try:
             if "llava_next" in self.name:
                 if len(original_prompt.images) > 1:
-                    self.logger.warning("Prompt contains more than one image; only the first image will be processed. Be aware of semantic confusions!")
+                    logger.warning("Prompt contains more than one image; only the first image will be processed. Be aware of semantic confusions!")
                 formatted_prompt = self.format_for_llava_next(original_prompt, system_prompt)
                 inputs = self.processor(images=images, text=formatted_prompt, return_tensors="pt").to(self.device)
             elif "llava_onevision" in self.name:
@@ -547,7 +544,7 @@ the instructions and keep the output to the minimum."""
                 input_ids = tokenizer_image_token(formatted_prompt, self.processor, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(self.device)
                 inputs = dict(inputs=input_ids, images=image_tensors, image_sizes=image_sizes)
         except Exception as e:
-            self.logger.warning(f"Error formatting prompt: {str(e)}")
+            logger.warning(f"Error formatting prompt: {str(e)}")
             formatted_prompt = ""
             inputs = str(original_prompt)  # Fallback to the raw prompt
 

@@ -5,7 +5,7 @@ from typing import Optional
 from PIL.Image import Image as PILImage
 import numpy as np
 
-from infact.common import MultimediaSnippet, Result, Action, Image
+from infact.common import MultimediaSnippet, Result, Action, Image, logger
 from infact.common.results import Result
 from infact.tools.tool import Tool
 
@@ -88,7 +88,7 @@ class TextExtractor(Tool):
         # Concatenate all detected text pieces
         extracted_text = ' '.join([result[1] for result in results])
         result = OCRResult(source="EasyOCR", text=extracted_text, model_output=results)
-        self.logger.log(str(result))
+        logger.log(str(result))
         return result
 
     def _summarize(self, result: OCRResult, **kwargs) -> Optional[MultimediaSnippet]:

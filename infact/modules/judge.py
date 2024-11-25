@@ -1,12 +1,8 @@
 import dataclasses
 
-from infact.common.document import FCDocument
-from infact.common.label import Label, DEFAULT_LABEL_DEFINITIONS
-from infact.common.logger import Logger
-from infact.common.modeling import Model
-from infact.common.prompt import Prompt
+from infact.common import FCDocument, logger, Model, Prompt, Label
+from infact.common.label import DEFAULT_LABEL_DEFINITIONS
 from infact.prompts.prompts import JudgePrompt, JudgeNaively, JudgeMinimal
-from infact.utils.console import orange
 
 
 @dataclasses.dataclass()
@@ -20,7 +16,6 @@ class Judge:
 
     def __init__(self,
                  llm: Model,
-                 logger: Logger,
                  classes: list[Label],
                  class_definitions: dict[Label, str] = None,
                  extra_rules: str = None):
@@ -34,8 +29,6 @@ class Judge:
         self.extra_rules = extra_rules
         self.max_retries = 5
         self.latest_reasoning = None
-
-        self.logger = logger
 
     def judge(self, doc: FCDocument, is_final: bool = True) -> Label:
         classes = self.classes.copy()
@@ -60,7 +53,8 @@ class Judge:
         response = self.llm.generate(prompt)
 
         if not response["verdict"]:
-            self.logger.warning(f"Error while generating verdict for response: {response['response']}\n\nDefaulting to REFUSED.")
+            logger.warning(
+                f"Error while generating verdict for response: {response['response']}\n\nDefaulting to REFUSED.")
             self.latest_reasoning = ""
             return Label.REFUSED_TO_ANSWER
 

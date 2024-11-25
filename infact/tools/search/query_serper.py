@@ -10,7 +10,7 @@ import requests
 from PIL import Image as PillowImage
 
 from config.globals import api_keys
-from infact.common.medium import Image
+from infact.common import logger, Image
 from infact.common.misc import Query, WebSource
 from infact.tools.search.remote_search_api import RemoteSearchAPI, scrape, is_fact_checking_site, is_unsupported_site
 from .common import SearchResult
@@ -93,18 +93,15 @@ class SerperAPI(RemoteSearchAPI):
                     message = response.json().get('message')
                     if message == "Not enough credits":
                         error_msg = "No Serper API credits left anymore! Please recharge the Serper account."
-                        self.logger.critical(error_msg)
+                        logger.critical(error_msg)
                         raise RuntimeError(error_msg)
 
             except requests.exceptions.Timeout:
                 sleep_time = min(sleep_time * 2, 600)
                 sleep_time = random.uniform(1, 10) if not sleep_time else sleep_time
-                self.logger.warning(f"Unable to reach Serper API: Connection timed out. "
+                logger.warning(f"Unable to reach Serper API: Connection timed out. "
                                     f"Retrying after {sleep_time} seconds.")
                 time.sleep(sleep_time)
-
-            # except Exception as e:
-            #     self.logger.warning("Failed to call Serper API:\n" + repr(e))
 
         if response is None:
             raise ValueError('Failed to get a response from Serper API.')
@@ -156,17 +153,17 @@ class SerperAPI(RemoteSearchAPI):
                 text = result.get("snippet", "")
                 url = result.get("link", "")
                 if is_fact_checking_site(url):
-                    self.logger.log(f"Skipping fact-checking website: {url}")
+                    logger.log(f"Skipping fact-checking website: {url}")
                     continue
                 if is_unsupported_site(url):
-                    self.logger.log(f"Skipping unsupported website: {url}")
+                    logger.log(f"Skipping unsupported website: {url}")
                     continue
 
                 image_url = result.get("imageUrl", "")
                 title = result.get('title')
 
                 if result_key == "organic":
-                    text = scrape(url=url, logger=self.logger)
+                    text = scrape(url=url)
                     if not text:
                         continue
                     else:
@@ -180,7 +177,7 @@ class SerperAPI(RemoteSearchAPI):
                             text += f"\n{image.reference}"
 
                     except Exception as e:
-                        self.logger.log(f"Failed to download or open image: {e}")
+                        logger.log(f"Failed to download or open image: {e}")
 
                 try:
                     result_date = datetime.strptime(result['date'], "%b %d, %Y").date()

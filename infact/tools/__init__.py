@@ -1,4 +1,5 @@
-from infact.common.logger import Logger
+from typing import Optional
+
 from infact.common.modeling import Model
 from infact.tools.credibility_checker import CredibilityChecker, CredibilityCheck
 from .face_recognizer import FaceRecognizer, FaceRecognition
@@ -52,12 +53,12 @@ def get_tool_by_name(name: str):
     raise ValueError(f'Tool with name "{name}" does not exist.')
 
 
-def initialize_tools(config: dict[str, dict], llm: Model, logger: Logger, device=None) -> list[Tool]:
+def initialize_tools(config: dict[str, dict], llm: Optional[Model], device=None) -> list[Tool]:
     tools = []
     for tool_name, kwargs in config.items():
         if kwargs is None:
             kwargs = {}
-        kwargs.update({"llm": llm, "logger": logger, "device": device})
+        kwargs.update({"llm": llm, "device": device})
         tool_class = get_tool_by_name(tool_name)
         t = tool_class(**kwargs)
         tools.append(t)

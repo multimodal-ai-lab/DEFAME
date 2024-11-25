@@ -1,8 +1,8 @@
-import numpy as np
-import torch
 from typing import Optional
 
-from infact.common import MultimediaSnippet, Action, Image
+import torch
+
+from infact.common import MultimediaSnippet, Action, Image, logger
 from infact.common.results import Result
 from infact.tools.tool import Tool
 
@@ -47,7 +47,7 @@ class FaceRecognizer(Tool):
         # faces = [result['label'] for result in results]
         # return faces
         text = "Face Recognition is not implemented yet."
-        self.logger.log(str(text))
+        logger.log(str(text))
         result = Result()
         return result
 
