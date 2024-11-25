@@ -15,7 +15,7 @@ Additional rules:
 * Try to filter out relevant information even if the search result is in a different language.
 
 # Example 1
-According to USA Today Pastor David Platt of McLean Bible Church clarified to his congregation why he prayed for President Donald Trump and emphasized that the prayer was not an endorsement of Trump or his policies. He explained that he acted in the moment to follow God’s command to pray for leaders, aiming to glorify God rather than express political support. The website confirms that Mr Platt prayed for Trump and contains an image of them standing next to each other: <image:k> 
+The search result from America Today provides several photographs of the Notre-Dame Cathedral fire on April 15, 2019. <image:i>, <image:j>, <image:k>. None of the images show the Eiffel Tower in the background. 
 
 # Example 2
 NONE

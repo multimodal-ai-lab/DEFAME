@@ -536,9 +536,13 @@ the instructions and keep the output to the minimum."""
                 formatted_prompt = self.format_for_llava_next(original_prompt, system_prompt)
                 inputs = self.processor(images=images, text=formatted_prompt, return_tensors="pt").to(self.device)
             elif "llava_onevision" in self.name:
-                image_tensors = process_images(images, self.image_processor, self.model.config)
-                image_tensors = [_image.to(dtype=torch.float16, device=self.device) for _image in image_tensors]
-                image_sizes = [image.size for image in images]
+                if images:
+                    image_tensors = process_images(images, self.image_processor, self.model.config)
+                    image_tensors = [_image.to(dtype=torch.float16, device=self.device) for _image in image_tensors]
+                    image_sizes = [image.size for image in images]
+                else:
+                    image_tensors = None
+                    image_sizes = None
                 formatted_prompt = self.format_for_llava_onevision(original_prompt, system_prompt)
                 input_ids = tokenizer_image_token(formatted_prompt, self.processor, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(self.device)
                 inputs = dict(inputs=input_ids, images=image_tensors, image_sizes=image_sizes)
