@@ -1,6 +1,6 @@
 from eval.averitec.benchmark import AVeriTeC
-from infact.eval.evaluate import finalize_evaluation
-from infact.utils.utils import load_experiment_parameters
+from defame.eval.evaluate import finalize_evaluation
+from defame.utils.utils import load_experiment_parameters
 
 experiment_dir = ""
 

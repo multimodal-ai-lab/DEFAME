@@ -1,8 +1,8 @@
 """Verifies if the generated Averitec output file is complete and consistent."""
 
 import json
-from infact.utils.utils import load_experiment_parameters
-from infact.tools.search.knowledge_base import N_CLAIMS
+from defame.utils.utils import load_experiment_parameters
+from defame.tools.search.knowledge_base import N_CLAIMS
 from eval.averitec.benchmark import AVeriTeC
 
 path = ""

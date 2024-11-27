@@ -4,12 +4,15 @@ import shutil
 from pathlib import Path
 
 from markdown_pdf import MarkdownPdf, Section
+import pandas as pd
 
 EXPERIMENT_DIRS = [
-    "/pfss/mlde/workspaces/mlde_wsp_Rohrbach/users/mr74vahu/InFact/out/verite/summary/no_develop/gpt_4o/2024-11-08_12-05",
+    "/pfss/mlde/workspaces/mlde_wsp_Rohrbach/users/tb17xity/InFact/out/verite/summary/dynamic/gpt_4o/2024-11-12_08-26 default_config-acc-81-full",
 ]
 
-EXAMPLES_PER_EXPERIMENT = 10
+ONLY_SUCCESS_CASES = True
+
+EXAMPLES_PER_EXPERIMENT = 50
 
 IN_DIR = Path("out/")
 OUT_DIR = Path("out/user_study/fc_docs")
@@ -21,13 +24,28 @@ if OUT_DIR.exists():
 OUT_DIR.mkdir(parents=True)
 
 for exp_dir in EXPERIMENT_DIRS:
-    # Pick samples randomly
     fc_dir = Path(exp_dir) / "fact-checks"
-    all_fc_dirs = os.listdir(fc_dir)
-    fact_checks = random.sample(all_fc_dirs, EXAMPLES_PER_EXPERIMENT)
+
+    if ONLY_SUCCESS_CASES:
+        predictions_path = Path(exp_dir) / "predictions.csv"
+        df = pd.read_csv(predictions_path)
+        is_success = df["correct"]
+        failure_ids = df[is_success]["sample_index"]
+        fc_dirs = [fc_dir / f"{idx}" for idx in failure_ids]
+    else:
+        fc_dirs = os.listdir(fc_dir)
+
+    # Pick samples randomly
+    fact_checks = random.sample(fc_dirs, EXAMPLES_PER_EXPERIMENT)
 
     for fact_check in fact_checks:
         fc_doc = fc_dir / fact_check / "doc.md"
+
+        # Copy the Markdown original
+        target_dir = OUT_DIR / f"{idx}"
+        shutil.copytree(fc_dir / fact_check, target_dir)
+
+        # Convert the Markdown to PDF
         with fc_doc.open() as f:
             content = f.read()
 
@@ -35,5 +53,6 @@ for exp_dir in EXPERIMENT_DIRS:
         pdf.add_section(Section(content, toc=False, root=(fc_dir / fact_check).as_posix()))
 
         pdf.meta["title"] = "MInFact User Study"
-        pdf.save(OUT_DIR / f"{idx}.pdf")
+        pdf.save(target_dir / "rendered.pdf")
+
         idx += 1

@@ -7,7 +7,7 @@ from PIL import Image as PillowImage
 from torch.nn import functional as F
 
 from config.globals import manipulation_detection_model
-from infact.common.medium import Image
+from defame.common.medium import Image
 from third_party.TruFor.src.trufor_config import _C as config
 from third_party.TruFor.src.trufor_config import update_config
 

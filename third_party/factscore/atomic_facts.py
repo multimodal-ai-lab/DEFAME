@@ -26,9 +26,9 @@ import spacy
 #from absl import app
 from nltk import tokenize
 
-from infact.utils.utils import open_file_wrapped
-from infact.utils.parsing import replace
-from infact.common import modeling
+from defame.utils.utils import open_file_wrapped
+from defame.utils.parsing import replace
+from defame.common import modeling
 from config.globals import api_keys
 
 

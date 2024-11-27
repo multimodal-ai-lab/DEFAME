@@ -1,4 +1,4 @@
-from infact.eval.evaluate import evaluate
+from defame.eval.evaluate import evaluate
 from multiprocessing import set_start_method
 
 if __name__ == '__main__':  # evaluation uses multiprocessing

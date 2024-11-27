@@ -1,4 +1,4 @@
-from infact.eval.continute import continue_evaluation
+from defame.eval.continute import continue_evaluation
 from multiprocessing import set_start_method
 
 experiment_dir = ""

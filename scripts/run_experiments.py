@@ -8,8 +8,8 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
     from multiprocessing import set_start_method
     from pathlib import Path
 
-    from infact.eval.evaluate import evaluate
-    from infact.utils.utils import load_config
+    from defame.eval.evaluate import evaluate
+    from defame.utils.utils import load_config
 
     set_start_method("spawn")
     config_dir = Path(CONFIG_DIR)

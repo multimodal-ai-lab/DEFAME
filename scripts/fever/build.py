@@ -3,8 +3,8 @@ the DB and saves them in an extra file."""
 # TODO: Test this script
 
 from config.globals import data_base_dir
-from infact.tools.search.wiki_dump import WikiDumpAPI
-from infact.utils.parsing import extract_nth_sentence
+from defame.tools.search.wiki_dump import WikiDumpAPI
+from defame.utils.parsing import extract_nth_sentence
 from tqdm import tqdm
 import orjsonl
 
