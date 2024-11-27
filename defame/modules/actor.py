@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Optional
 
-from defame.common import Action, FCDocument, Evidence
+from defame.common import Action, Report, Evidence
 from defame.tools import Tool, Searcher
 
 
@@ -11,7 +11,7 @@ class Actor:
     def __init__(self, tools: list[Tool]):
         self.tools = tools
 
-    def perform(self, actions: list[Action], doc: FCDocument = None, summarize: bool = True) -> list[Evidence]:
+    def perform(self, actions: list[Action], doc: Report = None, summarize: bool = True) -> list[Evidence]:
         # TODO: Parallelize
         all_evidence = []
         for action in actions:
@@ -19,7 +19,7 @@ class Actor:
             all_evidence.append(self._perform_single(action, doc, summarize=summarize))
         return all_evidence
 
-    def _perform_single(self, action: Action, doc: FCDocument = None, summarize: bool = True) -> Evidence:
+    def _perform_single(self, action: Action, doc: Report = None, summarize: bool = True) -> Evidence:
         tool = self.get_corresponding_tool_for_action(action)
         return tool.perform(action, summarize=summarize, doc=doc)
 

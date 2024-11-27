@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import date as Date
-from typing import Optional, List
+from typing import Optional
 
-from defame.common import MultimediaSnippet, Image
+from defame.common import MultimediaSnippet, Image, Medium
 
 
 @dataclass(frozen=True)
@@ -22,10 +22,10 @@ class Query(ABC):
         if not isinstance(other, Query):
             return False
         return (
-            self.limit == other.limit and
-            self.start_date == other.start_date and
-            self.end_date == other.end_date and
-            self.search_type == other.search_type
+                self.limit == other.limit and
+                self.start_date == other.start_date and
+                self.end_date == other.end_date and
+                self.search_type == other.search_type
         )
 
     def __hash__(self):
@@ -35,7 +35,7 @@ class Query(ABC):
             self.end_date,
             self.search_type
         ))
-    
+
 
 @dataclass(frozen=True)
 class TextQuery(Query):
@@ -52,12 +52,13 @@ class TextQuery(Query):
 
     def __hash__(self):
         return hash((super().__hash__(), self.text))
-    
-@dataclass(frozen=True) 
+
+
+@dataclass(frozen=True)
 class ImageQuery(Query):
     text: str = None
-    image: Image = None  
-    search_type: str = 'image'  
+    image: Image = None
+    search_type: str = 'image'
 
     def get_query_content(self):
         return self.image
@@ -71,15 +72,24 @@ class ImageQuery(Query):
         return hash((super().__hash__(), self.image))
 
 
-@dataclass
 class WebSource(MultimediaSnippet):
     """Output when searching the web or a local knowledge base."""
-    url: str
-    title: str = ""
-    date: Date = None
-    summary: MultimediaSnippet = None
-    query: Query = None
-    rank: int = None
+
+    def __init__(self,
+                 content: str | list[str | Medium],
+                 url: str,
+                 title: str = "",
+                 date: Date = None,
+                 summary: MultimediaSnippet = None,
+                 query: Query = None,
+                 rank: int = None):
+        super().__init__(content)
+        self.url = url
+        self.title = title
+        self.date = date
+        self.summary = summary
+        self.query = query
+        self.rank = rank
 
     def is_relevant(self) -> Optional[bool]:
         """Returns true if the summary contains information helpful for the fact-check."""

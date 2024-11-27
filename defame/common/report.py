@@ -1,12 +1,13 @@
 from dataclasses import dataclass
 from typing import Collection
+from pathlib import Path
+import shutil
 
 import numpy as np
+from markdown_pdf import MarkdownPdf, Section
 
-from defame.common.action import Action
-from defame.common.claim import Claim
-from defame.common.label import Label
-from defame.common.evidence import Evidence
+from defame.common import Action, Claim, Label, Evidence
+from defame.common.medium import media_registry
 
 
 @dataclass
@@ -54,10 +55,9 @@ class EvidenceBlock:
             return "No new useful evidence!"
 
 
-class FCDocument:
-    """An (incrementally growing) record, documenting the fact-checking (FC) process.
-    Contains information like the claim that is being investigated, all intermediate reasoning
-    and the evidence found."""
+class Report:
+    """An (incrementally growing) document, recording the fact-check. It contains
+    information like the claim, retrieved evidence, and all intermediate reasoning."""
 
     claim: Claim
     record: list  # contains intermediate reasoning and evidence, organized in blocks
@@ -67,8 +67,40 @@ class FCDocument:
     def __init__(self, claim: Claim):
         self.claim = claim
         self.record = []
-        if claim.original_context.interpretation:
-            self.add_reasoning("## Interpretation\n" + claim.original_context.interpretation)
+        # if claim.original_context.interpretation:
+        #     self.add_reasoning("## Interpretation\n" + claim.original_context.interpretation)
+
+    def save_to(self, directory: str | Path):
+        """Saves the Report to the specified directory. Exports the raw
+        Markdown report, all referenced media files, and a rendered PDF."""
+        directory = Path(directory)
+        directory.mkdir(exist_ok=True, parents=True)
+
+        report_str = str(self)
+
+        # Replace all media references with actual file paths for human-readability
+        media = media_registry.get_media_from_text(report_str)
+        for medium in media:
+            markdown_ref = f"![{medium.data_type} {medium.id}](media/{medium.path_to_file.name})"
+            report_str = report_str.replace(medium.reference, markdown_ref)
+
+        # Save the Markdown file
+        with open(directory / "report.md", "w") as f:
+            f.write(report_str)
+
+        # Save all associated media files in a separate subdirectory
+        media_dir = directory / "media"
+        media_dir.mkdir(exist_ok=True)
+        for medium in media:
+            medium_copy_path = media_dir / medium.path_to_file.name
+            shutil.copy(medium.path_to_file, medium_copy_path)
+
+        # Save a rendered PDF
+        pdf = MarkdownPdf(toc_level=0)
+        pdf.add_section(Section(report_str, toc=False, root=directory.as_posix()))
+
+        pdf.meta["title"] = "Fact-Check Report"
+        pdf.save(directory / "report.pdf")
 
     def __str__(self):
         doc_str = f'## Claim\n{self.claim}'

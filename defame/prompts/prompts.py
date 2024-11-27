@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 from typing import Collection, Optional
 
-from defame.common import FCDocument, Label, Claim, Action, Prompt, Content, logger
+from defame.common import Report, Label, Claim, Action, Prompt, Content, logger
 from defame.common.label import DEFAULT_LABEL_DEFINITIONS
 from defame.common.misc import WebSource
 from defame.common.results import Result
@@ -15,12 +15,12 @@ NOT_SYMBOL = 'Unimportant'
 
 
 class JudgePrompt(Prompt):
-    template_file_path = "infact/prompts/judge.md"
+    template_file_path = "defame/prompts/judge.md"
     name = "JudgePrompt"
     retry_instruction = ("(Do not forget to choose one option from Decision Options "
                          "and enclose it in backticks like `this`)")
 
-    def __init__(self, doc: FCDocument,
+    def __init__(self, doc: Report,
                  classes: Collection[Label],
                  class_definitions: dict[Label, str] = None,
                  extra_rules: str = None):
@@ -45,7 +45,7 @@ class JudgePrompt(Prompt):
 
 
 class DecontextualizePrompt(Prompt):
-    template_file_path = "infact/prompts/decontextualize.md"
+    template_file_path = "defame/prompts/decontextualize.md"
     name = "DecontextualizePrompt"
 
     def __init__(self, claim: Claim):
@@ -68,17 +68,17 @@ class FilterCheckWorthyPrompt(Prompt):
             "[CONTEXT]": claim.original_context,
         }
         if filter_method == "custom":
-            self.template_file_path = "infact/prompts/custom_checkworthy.md"
+            self.template_file_path = "defame/prompts/custom_checkworthy.md"
         else:
-            self.template_file_path = "infact/prompts/default_checkworthy.md"
+            self.template_file_path = "defame/prompts/default_checkworthy.md"
         super().__init__(placeholder_targets)
 
 
 class SummarizeResultPrompt(Prompt):
-    template_file_path = "infact/prompts/summarize_result.md"
+    template_file_path = "defame/prompts/summarize_result.md"
     name = "SummarizeResultPrompt"
 
-    def __init__(self, search_result: WebSource, doc: FCDocument):
+    def __init__(self, search_result: WebSource, doc: Report):
         placeholder_targets = {
             "[SEARCH_RESULT]": str(search_result),
             "[DOC]": str(doc),
@@ -87,7 +87,7 @@ class SummarizeResultPrompt(Prompt):
 
 
 class SummarizeManipulationResultPrompt(Prompt):
-    template_file_path = "infact/prompts/summarize_manipulation_result.md"
+    template_file_path = "defame/prompts/summarize_manipulation_result.md"
     name = "SummarizeManipulationResultPrompt"
 
     def __init__(self, manipulation_result: Result):
@@ -98,18 +98,18 @@ class SummarizeManipulationResultPrompt(Prompt):
 
 
 class SummarizeDocPrompt(Prompt):
-    template_file_path = "infact/prompts/summarize_doc.md"
+    template_file_path = "defame/prompts/summarize_doc.md"
     name = "SummarizeDocPrompt"
 
-    def __init__(self, doc: FCDocument):
+    def __init__(self, doc: Report):
         super().__init__({"[DOC]": doc})
 
 
 class PlanPrompt(Prompt):
-    template_file_path = "infact/prompts/plan.md"
+    template_file_path = "defame/prompts/plan.md"
     name = "PlanPrompt"
 
-    def __init__(self, doc: FCDocument,
+    def __init__(self, doc: Report,
                  valid_actions: list[type[Action]],
                  extra_rules: str = None,
                  all_actions: bool = False):
@@ -158,15 +158,15 @@ class PlanPrompt(Prompt):
 class PoseQuestionsPrompt(Prompt):
     name = "PoseQuestionsPrompt"
 
-    def __init__(self, doc: FCDocument, n_questions: int = 10, interpret: bool = True):
+    def __init__(self, doc: Report, n_questions: int = 10, interpret: bool = True):
         placeholder_targets = {
             "[CLAIM]": doc.claim,
             "[N_QUESTIONS]": n_questions
         }
         if interpret:
-            self.template_file_path = "infact/prompts/pose_questions.md"
+            self.template_file_path = "defame/prompts/pose_questions.md"
         else:
-            self.template_file_path = "infact/prompts/pose_questions_no_interpretation.md"
+            self.template_file_path = "defame/prompts/pose_questions_no_interpretation.md"
         super().__init__(placeholder_targets)
 
     def extract(self, response: str) -> dict:
@@ -179,10 +179,10 @@ class PoseQuestionsPrompt(Prompt):
 
 class ProposeQueries(Prompt):
     """Used to generate queries to answer AVeriTeC questions."""
-    template_file_path = "infact/prompts/propose_queries.md"
+    template_file_path = "defame/prompts/propose_queries.md"
     name = "ProposeQueries"
 
-    def __init__(self, question: str, doc: FCDocument):
+    def __init__(self, question: str, doc: Report):
         placeholder_targets = {
             "[DOC]": doc,
             "[QUESTION]": question,
@@ -199,7 +199,7 @@ class ProposeQueries(Prompt):
 
 class ProposeQuerySimple(Prompt):
     """Used to generate queries to answer AVeriTeC questions."""
-    template_file_path = "infact/prompts/propose_query_simple.md"
+    template_file_path = "defame/prompts/propose_query_simple.md"
     name = "ProposeQuerySimple"
 
     def __init__(self, question: str):
@@ -218,10 +218,10 @@ class ProposeQuerySimple(Prompt):
 
 class ProposeQueriesNoQuestions(Prompt):
     """Used to generate queries to answer AVeriTeC questions."""
-    template_file_path = "infact/prompts/propose_queries_no_questions.md"
+    template_file_path = "defame/prompts/propose_queries_no_questions.md"
     name = "ProposeQueriesNoQuestions"
 
-    def __init__(self, doc: FCDocument):
+    def __init__(self, doc: Report):
         placeholder_targets = {
             "[DOC]": doc,
         }
@@ -237,10 +237,10 @@ class ProposeQueriesNoQuestions(Prompt):
 
 class AnswerCollectively(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
-    template_file_path = "infact/prompts/answer_question_collectively.md"
+    template_file_path = "defame/prompts/answer_question_collectively.md"
     name = "AnswerCollectively"
 
-    def __init__(self, question: str, results: list[WebSource], doc: FCDocument):
+    def __init__(self, question: str, results: list[WebSource], doc: Report):
         result_strings = [f"## Result `{i}`\n{str(result)}" for i, result in enumerate(results)]
         results_str = "\n\n".join(result_strings)
 
@@ -275,10 +275,10 @@ class AnswerCollectively(Prompt):
 
 class AnswerQuestion(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
-    template_file_path = "infact/prompts/answer_question.md"
+    template_file_path = "defame/prompts/answer_question.md"
     name = "AnswerQuestion"
 
-    def __init__(self, question: str, result: WebSource, doc: FCDocument):
+    def __init__(self, question: str, result: WebSource, doc: Report):
         placeholder_targets = {
             "[DOC]": doc,
             "[QUESTION]": question,
@@ -304,10 +304,10 @@ class AnswerQuestion(Prompt):
 
 class AnswerQuestionNoEvidence(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
-    template_file_path = "infact/prompts/answer_question_no_evidence.md"
+    template_file_path = "defame/prompts/answer_question_no_evidence.md"
     name = "AnswerQuestionNoEvidence"
 
-    def __init__(self, question: str, doc: FCDocument):
+    def __init__(self, question: str, doc: Report):
         placeholder_targets = {
             "[DOC]": doc,
             "[QUESTION]": question,
@@ -316,16 +316,16 @@ class AnswerQuestionNoEvidence(Prompt):
 
 
 class DevelopPrompt(Prompt):
-    template_file_path = "infact/prompts/develop.md"
+    template_file_path = "defame/prompts/develop.md"
     name = "DevelopPrompt"
 
-    def __init__(self, doc: FCDocument):
+    def __init__(self, doc: Report):
         placeholder_targets = {"[DOC]": doc}
         super().__init__(placeholder_targets)
 
 
 class InterpretPrompt(Prompt):
-    template_file_path = "infact/prompts/interpret.md"
+    template_file_path = "defame/prompts/interpret.md"
     name = "InterpretPrompt"
 
     def __init__(self, content: Content, guidelines: str = ''):
@@ -339,7 +339,7 @@ class InterpretPrompt(Prompt):
 
 
 class JudgeNaively(Prompt):
-    template_file_path = "infact/prompts/judge_naive.md"
+    template_file_path = "defame/prompts/judge_naive.md"
     name = "JudgeNaively"
 
     def __init__(self, claim: Claim,
@@ -362,12 +362,12 @@ class JudgeNaively(Prompt):
 
 
 class JudgeMinimal(JudgeNaively):
-    template_file_path = "infact/prompts/judge_minimal.md"
+    template_file_path = "defame/prompts/judge_minimal.md"
     name = "JudgeMinimal"
 
 
 class InitializePrompt(Prompt):
-    template_file_path = "infact/prompts/initialize.md"
+    template_file_path = "defame/prompts/initialize.md"
     name = "InitializePrompt"
 
     def __init__(self, claim: Claim):
@@ -378,7 +378,7 @@ class InitializePrompt(Prompt):
 
 
 def load_exemplars(valid_actions: list[type[Action]]) -> str:
-    exemplars_dir = Path("infact/prompts/plan_exemplars")
+    exemplars_dir = Path("defame/prompts/plan_exemplars")
     exemplar_paths = []
     for a in valid_actions:
         exemplar_path = exemplars_dir / f"{a.name}.md"

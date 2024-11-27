@@ -4,7 +4,7 @@ import pyparsing as pp
 
 from defame.common.action import (Action)
 from defame.tools import IMAGE_ACTIONS
-from defame.common import logger, FCDocument, Model
+from defame.common import logger, Report, Model
 from defame.prompts.prompts import PlanPrompt
 
 
@@ -21,7 +21,7 @@ class Planner:
         self.max_attempts = 5
         self.extra_rules = extra_rules
 
-    def get_available_actions(self, doc: FCDocument):
+    def get_available_actions(self, doc: Report):
         available_actions = []
         completed_actions = set(type(a) for a in doc.get_all_actions())
 
@@ -32,7 +32,7 @@ class Planner:
 
         return available_actions
 
-    def plan_next_actions(self, doc: FCDocument, all_actions=False) -> (list[Action], str):
+    def plan_next_actions(self, doc: Report, all_actions=False) -> (list[Action], str):
         # TODO: include image in planning
         performed_actions = doc.get_all_actions()
         new_valid_actions = []
@@ -45,7 +45,7 @@ class Planner:
                     is_performed = True
                     break
 
-            if not action_class.is_limited or (action_class.is_limited and not is_performed):
+            if not action_class.is_limited or (action_class.is_limited and not is_performed):  # FIXME
                 new_valid_actions.append(action_class)
             else:
                 logger.log(f"INFO: Dropping action '{action_class.name}' as it was already performed.")

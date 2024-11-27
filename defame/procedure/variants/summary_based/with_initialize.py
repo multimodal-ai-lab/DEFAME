@@ -1,13 +1,13 @@
 from typing import Any
 
-from defame.common import FCDocument, Label, logger
+from defame.common import Report, Label, logger
 from .dynamic import DynamicSummary
 from defame.prompts.prompts import InitializePrompt
 
 
 class WithInitialize(DynamicSummary):
     """Like Dynamic but with initial broadening."""
-    def apply_to(self, doc: FCDocument) -> (Label, dict[str, Any]):
+    def apply_to(self, doc: Report) -> (Label, dict[str, Any]):
         doc.add_reasoning(self.llm.generate(InitializePrompt(doc.claim)))
         n_iterations = 0
         label = Label.NEI

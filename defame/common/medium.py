@@ -102,7 +102,6 @@ class Audio(Medium):
     data_type = "audio"
 
 
-@dataclass
 class MultimediaSnippet:
     """Piece of data holding text which, optionally, refers to media, i.e.,
     images, videos, and audios. Media objects are referenced in the text
@@ -110,10 +109,12 @@ class MultimediaSnippet:
     for video with ID 2. Unresolvable references will be deleted automatically,
     logging a warning."""
 
-    text: str
+    def __init__(self, content: str | list[str | Medium]):
+        if isinstance(content, list):
+            content = interleaved_to_string(content)
+        assert isinstance(content, str)
+        self.text = content
 
-    def __post_init__(self):
-        assert isinstance(self.text, str)
         # Verify if all medium references in the text are valid
         if not media_registry.validate(self.text):
             print("Warning: There are unresolvable media references.")
@@ -359,3 +360,15 @@ def is_medium_ref(string: str) -> bool:
     """Returns True iff the string represents a medium reference."""
     pattern = re.compile(MEDIA_REF_REGEX, re.DOTALL)
     return pattern.fullmatch(string) is not None
+
+
+def interleaved_to_string(interleaved: list[str | Medium]) -> str:
+    """Takes a list of strings and media and turns them into a single string
+    where each medium is replaced by its reference."""
+    out = ""
+    for item in interleaved:
+        if isinstance(item, Medium):
+            out += f" {item.reference} "
+        else:
+            out += item
+    return out

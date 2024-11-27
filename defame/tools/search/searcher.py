@@ -6,7 +6,8 @@ import numpy as np
 from jinja2.exceptions import TemplateSyntaxError
 from openai import APIError
 
-from defame.common import MultimediaSnippet, FCDocument, Prompt, logger
+from config.globals import api_keys
+from defame.common import MultimediaSnippet, Report, Prompt, logger
 from defame.prompts.prompts import SummarizeResultPrompt
 from defame.tools.search.duckduckgo import DuckDuckGo
 from defame.tools.search.google_vision_api import GoogleVisionAPI
@@ -17,7 +18,7 @@ from defame.tools.search.wiki_dump import WikiDumpAPI
 from defame.tools.tool import Tool
 from defame.utils.console import gray, orange
 from .common import SearchResult, Search, WebSearch, WikiDumpLookup, ImageSearch, ReverseSearch
-from ...common.misc import WebSource, Query, ImageQuery, TextQuery
+from defame.common.misc import WebSource, Query, ImageQuery, TextQuery
 
 SEARCH_APIS = {
     "google": SerperAPI,
@@ -50,8 +51,11 @@ class Searcher(Tool):
         super().__init__(**kwargs)
 
         if search_engine_config is None:
-            logger.log("No search engine specified. Falling back to DuckDuckGo.")
-            search_engine_config = {"duckduckgo": {}}
+            if api_keys["serper_api_key"]:
+                search_engine_config = {"google": {}}
+            else:
+                logger.log("No Serper API key provided. Falling back to DuckDuckGo.")
+                search_engine_config = {"duckduckgo": {}}
 
         # Add device to knowledge base kwargs
         if "averitec_kb" in search_engine_config:
@@ -198,7 +202,7 @@ class Searcher(Tool):
         else:
             return None
 
-    def _summarize_single_web_source(self, web_source: WebSource, doc: FCDocument):
+    def _summarize_single_web_source(self, web_source: WebSource, doc: Report):
         prompt = SummarizeResultPrompt(web_source, doc)
 
         try:
@@ -224,7 +228,7 @@ class Searcher(Tool):
         if web_source.is_relevant():
             logger.log("Useful result: " + gray(str(web_source)))
 
-    def _summarize_summaries(self, result: SearchResult, doc: FCDocument) -> Optional[MultimediaSnippet]:
+    def _summarize_summaries(self, result: SearchResult, doc: Report) -> Optional[MultimediaSnippet]:
         """Generates a summary, aggregating all relevant information from the
         identified and relevant web sources."""
 
@@ -245,7 +249,7 @@ class Searcher(Tool):
         }
         summarize_prompt = Prompt(placeholder_targets=placeholder_targets,
                                   name="SummarizeSummariesPrompt",
-                                  template_file_path="infact/prompts/summarize_summaries.md")
+                                  template_file_path="defame/prompts/summarize_summaries.md")
 
         return MultimediaSnippet(self.llm.generate(summarize_prompt))
 

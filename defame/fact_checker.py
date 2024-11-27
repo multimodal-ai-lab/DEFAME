@@ -5,8 +5,8 @@ from typing import Sequence, Any
 
 import numpy as np
 
-from defame.common import Action
-from defame.common import logger, Claim, Content, FCDocument, Label
+from defame.common import logger, Claim, Content, Report, Label, Medium, Action
+from defame.common.label import DEFAULT_LABEL_DEFINITIONS
 from defame.common.modeling import make_model
 from defame.modules.actor import Actor
 from defame.modules.claim_extractor import ClaimExtractor
@@ -22,7 +22,7 @@ from defame.utils.console import gray, light_blue, bold, sec2mmss
 class FactChecker:
     """The core class for end-to-end fact verification."""
 
-    default_procedure = "infact"
+    default_procedure = "defame"
 
     def __init__(self,
                  llm: str | Model = "gpt_4o_mini",
@@ -57,6 +57,7 @@ class FactChecker:
         if classes is None:
             if class_definitions is None:
                 classes = [Label.SUPPORTED, Label.NEI, Label.REFUTED]
+                class_definitions = DEFAULT_LABEL_DEFINITIONS
             else:
                 classes = list(class_definitions.keys())
 
@@ -96,25 +97,16 @@ class FactChecker:
 
     def _initialize_tools(self, search_engines: dict[str, dict]) -> list[Tool]:
         """Loads a default collection of tools."""
-        # Unimodal tools
         tools = [
-            Searcher(search_engines, max_result_len=self.max_result_len, model=self.llm),
-            CredibilityChecker()
-        ]
-
-        # Multimodal tools
-        tools.extend([
-            ObjectDetector(),
+            Searcher(search_engines, max_result_len=self.max_result_len, llm=self.llm),
+            # CredibilityChecker(),
             Geolocator(top_k=10),
-            #  TODO: add an image reverse searcher
-            FaceRecognizer(),
-            TextExtractor(),
-            ManipulationDetector(),
-        ])
+            # ManipulationDetector(),
+        ]
 
         return tools
 
-    def check_content(self, content: Content | str) -> tuple[Label, list[FCDocument], list[dict[str, Any]]]:
+    def check_content(self, content: Content | str) -> tuple[Label, list[Report], list[dict[str, Any]]]:
         """
         Fact-checks the given content ent-to-end by first extracting all check-worthy claims and then
         verifying each claim individually. Returns the aggregated veracity and the list of corresponding
@@ -136,7 +128,7 @@ class FactChecker:
             doc, meta = self.verify_claim(claim)
             docs.append(doc)
             metas.append(meta)
-            logger.save_fc_doc(doc)
+            doc.save_to(logger.target_dir)
 
         aggregated_veracity = aggregate_predictions([doc.verdict for doc in docs])
         logger.log(bold(f"So, the overall veracity is: {aggregated_veracity.value}"))
@@ -144,10 +136,13 @@ class FactChecker:
         logger.log(f"Fact-check took {sec2mmss(fc_duration)}.")
         return aggregated_veracity, docs, metas
 
-    def verify_claim(self, claim: Claim) -> tuple[FCDocument, dict[str, Any]]:
+    def verify_claim(self, claim: Claim | list[str | Medium]) -> tuple[Report, dict[str, Any]]:
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it.
         This is the core of the fact-checking implementation. Here, the fact-checking
         document is constructed incrementally."""
+        if isinstance(claim, list):
+            claim = Claim(claim)
+
         stats = {}
         self.actor.reset()  # remove all past search evidences
         if self.restrict_results_to_claim_date:
@@ -159,7 +154,7 @@ class FactChecker:
         self.llm.reset_stats()
 
         start = time.time()
-        doc = FCDocument(claim)
+        doc = Report(claim)
 
         # Depending on the specified procedure variant, perform the fact-check
         label, meta = self.procedure.apply_to(doc)

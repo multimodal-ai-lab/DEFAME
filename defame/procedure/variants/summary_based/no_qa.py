@@ -1,13 +1,13 @@
 from typing import Any
 
-from defame.common import FCDocument, Label, logger
+from defame.common import Report, Label, logger
 from defame.tools import WebSearch
 from defame.procedure.procedure import Procedure
 from defame.prompts.prompts import ProposeQueriesNoQuestions
 
 
 class NoQA(Procedure):
-    def apply_to(self, doc: FCDocument) -> (Label, dict[str, Any]):
+    def apply_to(self, doc: Report) -> (Label, dict[str, Any]):
         """InFact but omitting posing any questions."""
         # Stage 2*: Search query generation (modified)
         queries = self.generate_search_queries(doc)
@@ -25,7 +25,7 @@ class NoQA(Procedure):
 
         return label, {}
 
-    def generate_search_queries(self, doc: FCDocument) -> list[WebSearch]:
+    def generate_search_queries(self, doc: Report) -> list[WebSearch]:
         prompt = ProposeQueriesNoQuestions(doc)
 
         n_attempts = 0
