@@ -8,7 +8,8 @@ from infact.utils.parsing import (strip_string, read_md_file,
 
 class Prompt(MultimediaSnippet):
     template_file_path: str
-    name: str = "DefaultPrompt" 
+    name: str = "DefaultPrompt"
+    retry_instruction: str
 
     def __init__(self,
                  placeholder_targets: dict[str, Any] = None,

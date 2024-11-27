@@ -17,6 +17,8 @@ NOT_SYMBOL = 'Unimportant'
 class JudgePrompt(Prompt):
     template_file_path = "infact/prompts/judge.md"
     name = "JudgePrompt"
+    retry_instruction = ("(Do not forget to choose one option from Decision Options "
+                         "and enclose it in backticks like `this`)")
 
     def __init__(self, doc: FCDocument,
                  classes: Collection[Label],
@@ -34,9 +36,12 @@ class JudgePrompt(Prompt):
         }
         super().__init__(placeholder_targets)
 
-    def extract(self, response: str) -> dict:
+    def extract(self, response: str) -> dict | str | None:
         verdict = extract_verdict(response, classes=self.classes)
-        return dict(verdict=verdict, response=response)
+        if verdict is None:
+            return None
+        else:
+            return dict(verdict=verdict, response=response)
 
 
 class DecontextualizePrompt(Prompt):
@@ -88,18 +93,6 @@ class SummarizeManipulationResultPrompt(Prompt):
     def __init__(self, manipulation_result: Result):
         placeholder_targets = {
             "[MANIPULATION_RESULT]": str(manipulation_result),
-        }
-        super().__init__(placeholder_targets)
-
-
-class SelectionPrompt(Prompt):
-    template_file_path = "infact/prompts/select_evidence.md"
-    name = "SelectionPrompt"
-
-    def __init__(self, question: str, evidences: list[WebSource]):
-        placeholder_targets = {
-            "[QUESTION]": question,
-            "[EVIDENCES]": "\n\n".join(str(evidence) for evidence in evidences),
         }
         super().__init__(placeholder_targets)
 

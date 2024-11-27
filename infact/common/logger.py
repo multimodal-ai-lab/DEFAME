@@ -101,7 +101,7 @@ class Logger:
             experiment_name: Optional a label to distinguish this experiment run."""
         assert path is not None or benchmark_name is not None
 
-        if path:
+        if path is not None:
             self.experiment_dir = Path(path)
         else:
             self.experiment_dir = _determine_target_dir(benchmark_name, procedure_name, model_name, experiment_name)
