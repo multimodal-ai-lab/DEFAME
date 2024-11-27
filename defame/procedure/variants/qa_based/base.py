@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Optional
 
-from defame.common import FCDocument, logger
+from defame.common import Report, logger
 from defame.tools import WebSearch
 from defame.common.misc import WebSource
 from defame.procedure.procedure import Procedure
@@ -12,7 +12,7 @@ from defame.utils.console import light_blue
 class QABased(Procedure, ABC):
     """Base class for all procedures that apply a questions & answers (Q&A) strategy."""
 
-    def _pose_questions(self, no_of_questions: int, doc: FCDocument) -> list[str]:
+    def _pose_questions(self, no_of_questions: int, doc: Report) -> list[str]:
         """Generates some questions that needs to be answered during the fact-check."""
         prompt = PoseQuestionsPrompt(doc, n_questions=no_of_questions)
         response = self.llm.generate(prompt)
@@ -21,7 +21,7 @@ class QABased(Procedure, ABC):
         else:
             return response["questions"]
 
-    def approach_question_batch(self, questions: list[str], doc: FCDocument) -> list:
+    def approach_question_batch(self, questions: list[str], doc: Report) -> list:
         """Tries to answer the given list of questions. Unanswerable questions are dropped."""
         # Answer each question, one after another
         q_and_a = []
@@ -39,7 +39,7 @@ class QABased(Procedure, ABC):
 
         return q_and_a
 
-    def propose_queries_for_question(self, question: str, doc: FCDocument) -> list[WebSearch]:
+    def propose_queries_for_question(self, question: str, doc: Report) -> list[WebSearch]:
         prompt = ProposeQueries(question, doc)
 
         n_attempts = 0
@@ -60,7 +60,7 @@ class QABased(Procedure, ABC):
         logger.warning("Got no search query, dropping this question.")
         return []
 
-    def approach_question(self, question: str, doc: FCDocument = None) -> Optional[dict]:
+    def approach_question(self, question: str, doc: Report = None) -> Optional[dict]:
         """Tries to answer the given question. If unanswerable, returns None."""
         logger.log(light_blue(f"Answering question: {question}"))
         self.actor.reset()
@@ -80,12 +80,12 @@ class QABased(Procedure, ABC):
     def answer_question(self,
                         question: str,
                         results: list[WebSource],
-                        doc: FCDocument = None) -> (str, WebSource):
+                        doc: Report = None) -> (str, WebSource):
         """Answers the given question and returns the answer along with the ID of the most relevant result."""
         answer, relevant_result = self.answer_question_individually(question, results, doc)
         return answer, relevant_result
 
-    def generate_answer(self, question: str, results: list[WebSource], doc: FCDocument) -> Optional[dict]:
+    def generate_answer(self, question: str, results: list[WebSource], doc: Report) -> Optional[dict]:
         answer, relevant_result = self.answer_question(question, results, doc)
 
         if answer is not None:
@@ -102,7 +102,7 @@ class QABased(Procedure, ABC):
             self,
             question: str,
             results: list[WebSource],
-            doc: FCDocument
+            doc: Report
     ) -> (Optional[str], Optional[WebSource]):
         """Generates an answer to the given question by iterating over the search results
         and using them individually to answer the question."""
@@ -112,7 +112,7 @@ class QABased(Procedure, ABC):
                 return answer, result
         return None, None
 
-    def attempt_answer_question(self, question: str, result: WebSource, doc: FCDocument) -> Optional[str]:
+    def attempt_answer_question(self, question: str, result: WebSource, doc: Report) -> Optional[str]:
         """Generates an answer to the given question."""
         prompt = AnswerQuestion(question, result, doc)
         out = self.llm.generate(prompt, max_attempts=3)

@@ -20,7 +20,7 @@ from nltk.tokenize.treebank import TreebankWordDetokenizer
 from sklearn.metrics import precision_score, recall_score, f1_score
 from tqdm import tqdm
 
-from defame.common import Label, logger, FCDocument
+from defame.common import Label, logger, Report
 from defame.common.modeling import model_specifier_to_shorthand, AVAILABLE_MODELS, make_model
 from defame.eval import load_benchmark
 from defame.eval.averitec.benchmark import AVeriTeC
@@ -259,7 +259,7 @@ def evaluate(
     finalize_evaluation(stats, logger.target_dir, benchmark)
 
 
-def process_output(doc: FCDocument, meta: dict, benchmark: Benchmark, is_test: bool):
+def process_output(doc: Report, meta: dict, benchmark: Benchmark, is_test: bool):
     content = doc.claim.original_context
     claim_id = content.id_number
     instance = benchmark.get_by_id(claim_id)

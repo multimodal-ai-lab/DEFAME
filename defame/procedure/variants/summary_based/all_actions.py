@@ -1,12 +1,12 @@
 from typing import Any
 
-from defame.common import FCDocument, Label, logger
+from defame.common import Report, Label, logger
 from defame.procedure.variants.summary_based.dynamic import DynamicSummary
 from defame.tools.search.common import WebSearch, ImageSearch
 
 
 class AllActionsSummary(DynamicSummary):
-    def apply_to(self, doc: FCDocument) -> (Label, dict[str, Any]):
+    def apply_to(self, doc: Report) -> (Label, dict[str, Any]):
         n_iterations = 0
         label = Label.NEI
         while label == Label.NEI and n_iterations < self.max_iterations:

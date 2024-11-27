@@ -1,6 +1,6 @@
 from typing import Any
 
-from defame.common import FCDocument, Label
+from defame.common import Report, Label
 from defame.common.misc import WebSource
 from defame.procedure.variants.qa_based.base import QABased
 from defame.prompts.prompts import AnswerCollectively
@@ -14,7 +14,7 @@ class AdvancedQA(QABased):
         super().__init__(**kwargs)
         self.max_iterations = max_iterations
 
-    def apply_to(self, doc: FCDocument) -> (Label, dict[str, Any]):
+    def apply_to(self, doc: Report) -> (Label, dict[str, Any]):
         # Run iterative Q&A as long as there is NEI
         q_and_a = []
         n_iterations = 0
@@ -41,7 +41,7 @@ class AdvancedQA(QABased):
     def answer_question(self,
                         question: str,
                         results: list[WebSource],
-                        doc: FCDocument = None) -> (str, WebSource):
+                        doc: Report = None) -> (str, WebSource):
         """Generates an answer to the given question by considering batches of 5 search results at once."""
         for i in range(0, len(results), 5):
             results_batch = results[i:i + 5]

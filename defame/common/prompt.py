@@ -13,8 +13,8 @@ class Prompt(MultimediaSnippet):
 
     def __init__(self,
                  placeholder_targets: dict[str, Any] = None,
-                 name: str = None,
                  text: str = None,
+                 name: str = None,
                  template_file_path: str | Path = None):
         if name:
             self.name = name

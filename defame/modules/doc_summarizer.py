@@ -1,4 +1,4 @@
-from defame.common.document import FCDocument
+from defame.common.report import Report
 from defame.common.modeling import Model
 from defame.prompts.prompts import SummarizeDocPrompt
 
@@ -10,7 +10,7 @@ class DocSummarizer:
     def __init__(self, llm: Model):
         self.llm = llm
 
-    def summarize(self, doc: FCDocument) -> str:
+    def summarize(self, doc: Report) -> str:
         summarize_doc_prompt = SummarizeDocPrompt(doc)
         summary = self.llm.generate(summarize_doc_prompt)
         return summary

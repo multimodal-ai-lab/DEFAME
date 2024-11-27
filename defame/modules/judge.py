@@ -1,6 +1,6 @@
 import dataclasses
 
-from defame.common import FCDocument, logger, Model, Prompt, Label
+from defame.common import Report, logger, Model, Prompt, Label
 from defame.common.label import DEFAULT_LABEL_DEFINITIONS
 from defame.prompts.prompts import JudgePrompt, JudgeNaively, JudgeMinimal
 
@@ -30,7 +30,7 @@ class Judge:
         self.max_retries = 5
         self.latest_reasoning = None
 
-    def judge(self, doc: FCDocument, is_final: bool = True) -> Label:
+    def judge(self, doc: Report, is_final: bool = True) -> Label:
         classes = self.classes.copy()
 
         # If this is a non-final judgement (i.e. there are follow-up retrievals/actions allowed)
@@ -41,11 +41,11 @@ class Judge:
         prompt = JudgePrompt(doc, classes, self.class_definitions, self.extra_rules)
         return self._generate_verdict(prompt)
 
-    def judge_naively(self, doc: FCDocument) -> Label:
+    def judge_naively(self, doc: Report) -> Label:
         prompt = JudgeNaively(doc.claim, self.classes, self.class_definitions)
         return self._generate_verdict(prompt)
 
-    def judge_minimally(self, doc: FCDocument) -> Label:
+    def judge_minimally(self, doc: Report) -> Label:
         prompt = JudgeMinimal(doc.claim, self.classes, self.class_definitions)
         return self._generate_verdict(prompt)
 

@@ -16,6 +16,9 @@ from .variants.summary_based.no_qa import NoQA
 from .variants.summary_based.static import StaticSummary
 
 PROCEDURE_REGISTRY = {
+    "defame": DynamicSummary,
+    "infact": InFact,
+
     # Simple procedures
     "naive": NaiveQA,
     "minimal": Minimal,
@@ -23,7 +26,6 @@ PROCEDURE_REGISTRY = {
     # QA-based procedures
     "advanced": AdvancedQA,
     "first_result": FirstResult,
-    "infact": InFact,
     "no_evidence": NoEvidence,
     "no_interpretation": NoInterpretation,
     "no_query_generation": NoQueryGeneration,

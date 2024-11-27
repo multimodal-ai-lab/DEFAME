@@ -1,4 +1,4 @@
-from defame.common import FCDocument, Action, logger
+from defame.common import Report, Action, logger
 from defame.common.misc import WebSource
 from defame.procedure.variants.qa_based.infact import InFact
 from defame.prompts.prompts import ProposeQuerySimple
@@ -8,7 +8,7 @@ class SimpleQA(InFact):
     """InFact but without interpretation, uses only one query per question and takes first search result.
     (Never used in AVeriTeC challenge)."""
 
-    def propose_queries_for_question(self, question: str, doc: FCDocument) -> list[Action]:
+    def propose_queries_for_question(self, question: str, doc: Report) -> list[Action]:
         prompt = ProposeQuerySimple(question)
 
         n_tries = 0
@@ -32,7 +32,7 @@ class SimpleQA(InFact):
     def answer_question(self,
                         question: str,
                         results: list[WebSource],
-                        doc: FCDocument = None) -> (str, WebSource):
+                        doc: Report = None) -> (str, WebSource):
         relevant_result = results[0]
         answer = self.attempt_answer_question(question, relevant_result, doc)
         return answer, relevant_result

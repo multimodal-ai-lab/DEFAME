@@ -39,9 +39,10 @@ class Tool(ABC):
         return {}
 
 
-def get_available_actions(tools: list[Tool], available_actions: list[Action]) -> set[type[Action]]:
+def get_available_actions(tools: list[Tool], available_actions: Optional[list[Action]]) -> set[type[Action]]:
     actions = set()
     for tool in tools:
         actions.update(tool.actions)
-    actions = actions.intersection(set(available_actions))
+    if available_actions is not None:
+        actions = actions.intersection(set(available_actions))
     return actions

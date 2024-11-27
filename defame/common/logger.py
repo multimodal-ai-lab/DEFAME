@@ -13,7 +13,7 @@ import pandas as pd
 import yaml
 
 from config.globals import result_base_dir
-from defame.common.document import FCDocument
+from defame.common.report import Report
 from defame.common.label import Label
 from defame.common.medium import media_registry
 from defame.utils.console import remove_string_formatters, bold, red, orange, yellow, gray
@@ -38,6 +38,7 @@ logging.getLogger('sentence_transformers').setLevel(logging.ERROR)
 logging.getLogger('httpcore').setLevel(logging.ERROR)
 logging.getLogger('httpx').setLevel(logging.ERROR)
 logging.getLogger('urllib3.connection').setLevel(logging.ERROR)
+logging.getLogger('markdown_it').setLevel(logging.WARNING)
 
 LOG_LEVELS = {
     "critical": 50,
@@ -54,7 +55,6 @@ class Logger:
 
     log_filename = "log.txt"
     model_comm_filename = "model_communication.txt"
-    doc_filename = "doc.md"
     averitec_out_filename = "averitec_out.json"
     config_filename = "config.yaml"
     predictions_filename = "predictions.csv"
@@ -171,10 +171,6 @@ class Logger:
         return self.target_dir / self.averitec_out_filename
 
     @property
-    def fc_doc_path(self) -> Path:
-        return self.target_dir / self.doc_filename
-
-    @property
     def log_path(self) -> Path:
         return self.target_dir / self.log_filename
 
@@ -274,27 +270,6 @@ class Logger:
             return df
         else:
             return pd.DataFrame()
-
-    def save_fc_doc(self, doc: FCDocument):
-        assert self.experiment_dir is not None
-        doc_str = str(doc)
-
-        # Replace all media references with actual file paths for human-readability
-        media = media_registry.get_media_from_text(doc_str)
-        for medium in media:
-            markdown_ref = f"![{medium.data_type} {medium.id}](media/{medium.path_to_file.name})"
-            doc_str = doc_str.replace(medium.reference, markdown_ref)
-
-        # Save the markdown file
-        with open(self.fc_doc_path, "w") as f:
-            f.write(doc_str)
-
-        # Save all associated media in separate media dir
-        media_dir = self.target_dir / "media"
-        media_dir.mkdir(exist_ok=True)
-        for medium in media:
-            medium_copy_path = media_dir / medium.path_to_file.name
-            shutil.copy(medium.path_to_file, medium_copy_path)
 
     def _init_averitec_out(self):
         assert self.experiment_dir is not None

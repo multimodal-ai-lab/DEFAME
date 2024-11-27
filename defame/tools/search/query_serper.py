@@ -183,7 +183,7 @@ class SerperAPI(RemoteSearchAPI):
                     result_date = datetime.strptime(result['date'], "%b %d, %Y").date()
                 except (ValueError, KeyError):
                     result_date = None
-                results.append(WebSource(url=url, text=text, query=query, rank=i, date=result_date))
+                results.append(WebSource(url=url, content=text, query=query, rank=i, date=result_date))
 
         return results
 

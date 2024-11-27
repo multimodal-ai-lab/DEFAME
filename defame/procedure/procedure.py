@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Any
 
-from defame.common import FCDocument, Label, Model
+from defame.common import Report, Label, Model
 from defame.common.misc import WebSource
 from defame.modules import Judge, Actor, Planner
 from defame.prompts.prompts import DevelopPrompt
@@ -19,7 +19,7 @@ class Procedure(ABC):
         self.planner = planner
         self.max_attempts = max_attempts
 
-    def apply_to(self, doc: FCDocument) -> (Label, dict[str, Any]):
+    def apply_to(self, doc: Report) -> (Label, dict[str, Any]):
         """Receives a fact-checking document (including a claim) and performs a fact-check on the claim.
         Returns the estimated veracity of the claim along with a dictionary, hosting any additional, procedure-
         specific meta information."""
@@ -28,7 +28,7 @@ class Procedure(ABC):
     def retrieve_resources(
             self,
             search_queries: list[WebSearch],
-            doc: FCDocument = None,
+            doc: Report = None,
             summarize: bool = False
     ) -> list[WebSource]:
         search_results = []
@@ -38,7 +38,7 @@ class Procedure(ABC):
                 search_results.extend(evidence.raw.sources)
         return search_results
 
-    def _develop(self, doc: FCDocument):
+    def _develop(self, doc: Report):
         """Analyzes the currently available information and infers new insights."""
         prompt = DevelopPrompt(doc)
         response = self.llm.generate(prompt)
