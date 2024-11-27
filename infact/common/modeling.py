@@ -178,6 +178,10 @@ class Model(ABC):
         response, n_attempts = "", 0
         system_prompt = self.system_prompt
         while not response and n_attempts < max_attempts:
+            # Less capable LLMs sometimes need a reminder for the correct formatting. Add it here:
+            if n_attempts > 0 and prompt.retry_instruction is not None:
+                prompt.text += f"\n{prompt.retry_instruction}"
+
             n_attempts += 1
 
             # Trim prompt if too long
@@ -209,13 +213,7 @@ class Model(ABC):
 
             try:
                 response = prompt.extract(response)
-                from infact.prompts.prompts import JudgePrompt
-                if isinstance(prompt, JudgePrompt) and not response["verdict"]:
-                    #TODO: Remove this as soon as LLMs are capable enough
-                    prompt.text += " (do not forget to choose one option from Decision Options and enclose it in backticks like `this`): "
-                    response = self._generate(prompt, temperature=temperature, top_p=top_p, top_k=top_k,
-                                      system_prompt=system_prompt)
-                    response = prompt.extract(response)
+
             except Exception as e:
                 logger.warning("Unable to extract contents from response:\n" + original_response)
                 logger.warning(repr(e))

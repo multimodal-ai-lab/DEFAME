@@ -53,8 +53,8 @@ class Judge:
         response = self.llm.generate(prompt)
 
         if not response["verdict"]:
-            logger.warning(
-                f"Error while generating verdict for response: {response['response']}\n\nDefaulting to REFUSED.")
+            logger.warning(f"Error while generating verdict for response: {response['response']}"
+                           f"\nDefaulting to REFUSED.")
             self.latest_reasoning = ""
             return Label.REFUSED_TO_ANSWER
 
