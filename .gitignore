@@ -26,3 +26,5 @@ MANIFEST
 out/
 /Dockerfile
 /config/google_service_account_key.json
+
+.idea/

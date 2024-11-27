@@ -46,15 +46,18 @@ If you want to set up the current repository, you'll have to do it manually. To 
 
 
 ## Usage
-All execution scripts are located in (subfolders of) `scripts/`.
+All execution scripts are located in (subfolders of) `scripts/`. Make sure to run the scripts from the project root's folder as the working directory.
 
 **Hardware requirements**: CPU-only is sufficient if you refrain from using a local LLM and if you do not use the `Geolocator` tool.
 
 ### Run Your Own Fact-Check
-With `scripts/run.py`, you can fact-check your own claim. The script shows how it is done with an exemplary image-text claim.
+With `scripts/run.py`, you can fact-check your own claim. The script shows how it is done with an exemplary image-text claim. The command to run it from the project root is
+```bash
+python -m scripts.run
+```
 
 ### Run a Benchmark Evaluation
-If you want to execute evaluation on a specific benchmark, execute `run_experiments.py` with the according `CONFIG_DIR` specified. The `CONFIG_DIR` is the path to the directory which contains the experiment YAML configuration file(s). If multiple files provided, they will be processed one after another.
+If you want to execute evaluation on a specific benchmark, execute `run_config.py` with the `config_file_path` set accordingly. See `config/verite` for a bunch of config file examples.
 
 
 ## APIs
