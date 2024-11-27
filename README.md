@@ -1,27 +1,35 @@
-# Multimodal Automated Fact-Checking (MAFC)
+# DEFAME: Dynamic Evidence-based FAct-checking with Multimodal Experts
 
-MAFC is a long-term project dedicated to automatically fact-checking both textual and visual content, with a particular focus on social media. 
+|![Teaser.jpg](resources%2FTeaser.jpg) | ![Concept.png](resources%2FConcept.png)|
+|---|---|
+
+This is the implementation of Dynamic Evidence-based FAct-checking with Multimodal Experts (DEFAME), a strong multimodal fact-checking system. DEFAME decomposes the fact-checking task into a dynamic 6-stage pipeline, leveraging an MLLM to accomplish sub-tasks like planning, reasoning, and evidence summarization.
+
+DEFAME is the successor of our challenge-winning unimodal fact-checking system, [InFact](https://aclanthology.org/2024.fever-1.12/).
+
+This repository is under constant development. See the respective releases to access the original InFact and DEFAME systems.
+
 
 ## Table of Contents
-
 - [Installation](#installation)
 - [Usage](#usage)
-  - [Image Loading](#image-loading)
-- [Adding a New Tool](#adding-a-new-tool)
-- [Contributing](#contributing)
+- [APIs](#apis)
+- [Adding a New Tool](#add-a-custom-tool)
 - [License](#license)
 
-## Installation
 
-Follow these steps to set up the MAFC environment:
+## Installation
+For the installation of InFact and DEFAME, we provide you with a respective Docker image. Please refer to the corresponding release.
+
+If you want to set up the current repository, you'll have to do it manually. To this end, follow these steps:
 
 1. **Clone the Repository**
     ```bash
-    git clone https://github.com/.../InFact.git
-    cd InFact
+    git https://github.com/multimodal-ai-lab/DEFAME
+    cd DEFAME
     ```
 
-2. **Set Up a Virtual Environment (Optional but Recommended)**
+2. **Optional: Set Up a Virtual Environment and Activate it**
     ```bash
     python -m venv venv
     source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -32,162 +40,67 @@ Follow these steps to set up the MAFC environment:
     pip install -r requirements.txt
     ```
 
-4. **Install SpaCy and Download the English Model**
-    ```bash
-    pip install spacy
-    python -m spacy download en_core_web_sm
-    ```
+4. **Configure API Keys**
 
-5. **Additional Dependencies**
-   
-   Ensure that you have the following packages installed for image processing and other functionalities:
-    ```bash
-    pip install torch torchvision transformers faiss-cpu pillow requests
-    ```
+   Insert all necessary API keys into the file `config/api_keys.yaml`. See [APIs](#APIs) for an overview of the available APIs.
 
-6. **Configure API Keys**
-   
-   Update the `config/globals.py` file with your necessary API keys, such as the Serper API key:
-    ```python
-    api_keys = {
-        "serper_api_key": "YOUR_SERPER_API_KEY",
-        # Add other API keys here
-    }
-    ```
 
-## Enable Tool APIs
-Many tools require external APIs to be functional. In most cases, you just need to insert the respective API key into `config/api_keys.yaml`. For all other tools, see the following setup guidelines.
+## Usage
+All execution scripts are located in (subfolders of) `scripts/`.
 
-### Google Cloud Vision API (needed for Image Reverse Search)
+**Hardware requirements**: CPU-only is sufficient if you refrain from using a local LLM and if you do not use the `Geolocator` tool.
+
+### Run Your Own Fact-Check
+With `scripts/run.py`, you can fact-check your own claim. The script shows how it is done with an exemplary image-text claim.
+
+### Run a Benchmark Evaluation
+If you want to execute evaluation on a specific benchmark, execute `run_experiments.py` with the according `CONFIG_DIR` specified. The `CONFIG_DIR` is the path to the directory which contains the experiment YAML configuration file(s). If multiple files provided, they will be processed one after another.
+
+
+## APIs
+LLMs and many tools require external APIs. For most of them, you just need to insert the respective API key into `config/api_keys.yaml`. A few tools need additional set up steps, see the tool-specific setup guidelines below. Here's an overview of all APIs.
+
+### OpenAI API
+You will need this API if you want to use any of OpenAI's GPT models.
+
+### 🤗 Hugging Face
+Required for the usage of open source LLMs on [🤗 Hugging Face](https://huggingface.co/).
+
+### Serper API
+The [Serper API](https://serper.dev/?utm_term=serpapi&gad_source=1&gclid=Cj0KCQiAo5u6BhDJARIsAAVoDWspQtWo419c8unYBBlVWOKTGUyJhoh2ZBQuWdRR2hDZf8gpIS3h7UEaAksZEALw_wcB) serves standard Google Search as well as Google Image Search. If you don't want to use DuckDuckGo (which is quit unstable, unfortunately), you will need this API.
+
+### Google Cloud Vision API
+The [Google Cloud Vision API](https://cloud.google.com/vision/?hl=en&utm_source=google&utm_medium=cpc&utm_campaign=emea-de-all-en-dr-bkws-all-all-trial-e-gcp-1707574&utm_content=text-ad-none-any-DEV_c-CRE_574683096392-ADGP_Hybrid%20%7C%20BKWS%20-%20EXA%20%7C%20Txt%20-%20AI%20And%20Machine%20Learning%20-%20Vision%20AI%20-%20v5-KWID_43700076827179891-kwd-203288731207-userloc_9044485&utm_term=KW_google%20cloud%20vision%20api-NET_g-PLAC_&&gad_source=1&gclid=Cj0KCQiAo5u6BhDJARIsAAVoDWsrq9lbMXzJHzooohJcQNyp-HVgzeeF__yyrpieYi-gEFpinOKnAeEaArmlEALw_wcB&gclsrc=aw.ds) is required to perform Image Reverse Search. Follow these steps, to set it up:
 1. In the [Google Cloud Console](https://console.cloud.google.com), create a new Project.
 2. Go to the [Service Account](https://console.cloud.google.com/iam-admin/serviceaccounts) overview and add a new Service Account.
 3. Open the new Service Account, go to "Keys" and generate a new JSON key file.
 4. Save the downloaded key file at the path `config/google_service_account_key.json`.
 
-## Usage
 
-### Image Loading
+## Add a Custom Tool
 
-To utilize multimodal capabilities, convert images into tensors by following one of the methods below:
+To extend the fact-checker with an additional tool, follow these steps:
 
-1. **Loading from a URL**
-    ```python
-    import requests
-    from PIL import Image
+1. **Implement the Tool**
 
-    image_url = "https://llava-vl.github.io/static/images/view.jpg"
-    image = Image.open(requests.get(image_url, stream=True).raw)
-    ```
+   It needs to inherit from the `Tool` class and implement all abstract methods. See there (and other tools) for details.
 
-2. **Loading from a Local Path**
-    ```python
-    from PIL import Image
-
-    image_path = "/pfss/mlde/workspaces/mlde_wsp_Rohrbach/data/raw/Fakeddit/public_images.tar.bz2"
-    image = Image.open(image_path)
-    ```
-
-Once loaded, pass the image tensor as the second argument to the `Factchecker.check` method:
-```python
-factchecker.check("Your text claim here", image)
-```
-
-## Adding a New Tool
-
-To extend the Factchecker with additional tools, follow these steps:
-
-1. **Register the Tool in Benchmarks**
+2. **Add a Usage Example to the `defame/prompts/plan_exemplars` folder**
    
-   Add the new tool to the `available_actions` list in the corresponding benchmark. For example:
-    ```python
-    available_actions = [
-        WebSearch,
-        DetectManipulation,
-        DetectObjects,
-        Geolocate,
-        ImageSearch,
-        NewTool,  # Your new tool
-    ]
-    ```
+   This exemplar is for the LLM to understand the purpose and format of the tool. You may consider existing exemplars from other tools to understand what's expected here.
 
-2. **Add an Exmaple Prompt in the plan_exemplars folder**
+3. **Register Your Tool in `defame/tools/__init__.py`**
    
-   Format:
+   Incorporate the new tool into the `TOOL_REGISTRY` list and its actions in the `ACTION_REGISTRY` set.
 
-    # Example: action()
-
-    ## Claim
-    Text: "The sign in <image:3> says 'No Trespassing'."
-
-    ...
-
-    ACTIONS:
-    ```
-    action(<image:3>)
-    ```
-
-3. **Configure the Tool in `evaluate.py`**
+4. **Configure the Tool in the execution script**
    
-   Add the tool's configuration to the `tools_config` dictionary in `evaluate.py`:
-    ```python
-    tools_config = dict(
-        searcher=dict(
-            search_engine_config=dict(
-                google=dict(),
-                duckduckgo=dict(),
-            ),
-            limit_per_search=3
-        ),
-        manipulation_detector=dict(),
-        object_detector=dict(),
-        geolocator=dict(),
-        new_tool=dict(  # Configuration for your new tool
-            # Add required parameters here
-        )
-    )
-    ```
+   Don't forget to specify the tool in your configuration (either the YAML configuration file or initialization of the `FactChecker`).
 
-4. **Update Registries in `__init__.py`**
+5. **Optional: Register the Tool in Benchmarks**
    
-   Incorporate the new tool into the registries within the `tools` folder's `__init__.py`:
-    ```python
-    TOOL_REGISTRY = [
-        CredibilityChecker,
-        FaceRecognizer,
-        Geolocator,
-        ObjectDetector,
-        Searcher,
-        TextExtractor,
-        ManipulationDetector,
-        NewTool,  # Your new tool
-    ]
+   This step is required only if you want to use your tool for evaluation on one of the benchmarks. To this end, navigate to the respective benchmark file under `defame/eval/<benchmark_name>/benchmark.py`. There, in the `available_actions` list, add your Tool.
 
-    ACTION_REGISTRY = {
-        WebSearch,
-        WikiDumpLookup,
-        DetectObjects,
-        WikiLookup,
-        ReverseSearch,
-        Geolocate,
-        FaceRecognition,
-        CredibilityCheck,
-        OCR,
-        DetectManipulation,
-        ImageSearch,
-        NewAction,  # Associated action for your new tool
-    }
-
-    IMAGE_ACTIONS = {
-        ReverseSearch,
-        Geolocate,
-        FaceRecognition,
-        OCR,
-        DetectManipulation,
-        DetectObjects,
-        ImageSearch,
-        NewImageAction,  # Associated image action if applicable
-    }
-    ```
 
 ## License
 
