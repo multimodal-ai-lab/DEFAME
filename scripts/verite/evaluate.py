@@ -1,7 +1,7 @@
 import warnings
 from multiprocessing import set_start_method
 
-from infact.eval.evaluate import evaluate
+from defame.eval.evaluate import evaluate
 
 warnings.filterwarnings("ignore")
 
@@ -35,9 +35,9 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
                          "image_search",
                          "reverse_search",
                          "geolocate"],
-        n_samples=None,
+        n_samples=1,
         sample_ids=None, # list of integers
         random_sampling=False,
         print_log_level="info",
-        n_workers=8,
+        n_workers=1,
     )

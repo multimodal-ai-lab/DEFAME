@@ -1,6 +1,6 @@
 import time
 
-from infact.tools.search.knowledge_base import KnowledgeBase
+from defame.tools.search.knowledge_base import KnowledgeBase
 
 # Instantiate the KnowledgeBase
 kb = KnowledgeBase(variant="dev")

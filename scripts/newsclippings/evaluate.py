@@ -1,7 +1,7 @@
 import warnings
 from multiprocessing import set_start_method
 
-from infact.eval.evaluate import evaluate
+from defame.eval.evaluate import evaluate
 
 warnings.filterwarnings("ignore")
 

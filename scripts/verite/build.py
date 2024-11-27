@@ -4,7 +4,7 @@
 import pandas as pd
 from tqdm import tqdm
 
-from infact.common.modeling import Model
+from defame.common.modeling import Model
 from config.globals import data_base_dir
 
 llm = Model("gpt_4o")
