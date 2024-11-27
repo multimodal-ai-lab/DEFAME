@@ -53,7 +53,7 @@ class AVeriTeC(Benchmark):
         for i, d in enumerate(data_raw):
             date = d["claim_date"]
             content = Content(
-                text=d["claim"],
+                content=d["claim"],
                 author=d["speaker"],
                 date=datetime.strptime(date, "%d-%m-%Y") if date else None,
                 origin=d["original_claim_url"],

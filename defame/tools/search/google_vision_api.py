@@ -76,7 +76,7 @@ class GoogleVisionAPI(RemoteSearchAPI):
                 web_sources.append(WebSource(
                     url=url,
                     title=title,
-                    text=str(scraped),
+                    content=str(scraped),
                     query=query,
                     rank=len(web_sources) + 1
                 ))
