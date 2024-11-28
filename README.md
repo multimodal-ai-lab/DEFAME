@@ -40,6 +40,17 @@ If you want to set up the current repository, you'll have to do it manually. To 
     pip install -r requirements.txt
     ```
 
+    If you have a CUDA-enabled GPU and the CUDA toolkit installed, also run:
+    ```bash
+    pip install -r requirements_gpu.txt
+    ```
+
+    Afterwards run:
+    ```bash
+    python -m spacy download en_core_web_sm 
+    ```
+
+
 4. **Configure API Keys**
 
    Insert all necessary API keys into the file `config/api_keys.yaml`. See [APIs](#APIs) for an overview of the available APIs.
@@ -63,6 +74,34 @@ If you want to execute evaluation on a specific benchmark, execute `run_config.p
 ## APIs
 LLMs and many tools require external APIs. For most of them, you just need to insert the respective API key into `config/api_keys.yaml`. A few tools need additional set up steps, see the tool-specific setup guidelines below. Here's an overview of all APIs.
 
+
+## Data Path Configuration
+
+The data path should be set to the parent directory that contains all datasets. For example, if you have datasets for **MOCHEG**, **VERITE**, and **AVeriTeC**, ensure they are located within a single folder, and set the data path to this folder.
+
+### Directory Structure Example:
+
+```plaintext
+data/
+├── MOCHEG/
+│   ├── images/
+│   ├── train/
+│   └── ...
+├── VERITE/
+│   ├── images/
+│   ├── VERITE.csv
+│   └── ...
+└── AVeriTeC/
+    ├── train.json
+    ├── dev.json
+    └── ...
+```
+
+### How to Set the Data Path:
+1. Set the path variable in `config/globals.py` to the `data` folder as the parent directory.
+2. The program will automatically locate and process the datasets within `MOCHEG`, `VERITE`, and `AVeriTeC`.
+
+
 ### OpenAI API
 You will need this API if you want to use any of OpenAI's GPT models.
 
@@ -79,6 +118,9 @@ The [Google Cloud Vision API](https://cloud.google.com/vision/?hl=en&utm_source=
 3. Open the new Service Account, go to "Keys" and generate a new JSON key file.
 4. Save the downloaded key file at the path `config/google_service_account_key.json`.
 
+### WebScraping
+
+This project uses **BeautifulSoup** as a fallback for web scraping. To reproduce the results from the paper, you need to install and run the **FireCrawl** server. Instructions are available at [FireCrawl Documentation](https://github.com/mendableai/firecrawl.git).
 
 ## Add a Custom Tool
 
