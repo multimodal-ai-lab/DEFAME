@@ -14,6 +14,7 @@ This repository is under constant development. See the respective releases to ac
 - [Installation](#installation)
 - [Usage](#usage)
 - [APIs](#apis)
+- [Data Path Configuration](#data-path-configuration)
 - [Adding a New Tool](#add-a-custom-tool)
 - [License](#license)
 
