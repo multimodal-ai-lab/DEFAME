@@ -1,11 +1,11 @@
 # [InFact: A Strong Baseline for Automated Fact-Checking](https://aclanthology.org/2024.fever-1.12/)
 
-This is the implementation of **Information-Retrieving Fact-Checker (InFact)**, the system that won the [AVeriTeC fact-checking challenge](https://fever.ai/task.html), see also the [AVeriTeC Leaderboard](https://eval.ai/web/challenges/challenge-page/2285/leaderboard/5655) ("Test Phase").
+This is the implementation of **Information-Retrieving Fact-Checker (InFact)**, the text-only claim verification system that won the [AVeriTeC fact-checking challenge](https://fever.ai/task.html), see also the [AVeriTeC Leaderboard](https://eval.ai/web/challenges/challenge-page/2285/leaderboard/5655).
 
 > [!NOTE]
 > InFact got superseded by its multimodal successor [DEFAME](https://github.com/multimodal-ai-lab/DEFAME). If you want to run the latest and most capable fact-checking system, pick DEFAME. Otherwise, if your focus is to exactly reproduce the results from the InFact paper, we recommend the InFact code. (Yes, DEFAME has the capabilities to "imitate" InFact, but there are minor differences.)
 
-<img src="resources%2FConcept%20Figure.png" style="width: 100%; max-width: 25em !important;">
+<img src="resources%2FConcept%20Figure.png" width="500">
 
 InFact is a text-only, 6-stage LLM pipeline for fact-checking with external evidence retrieval through Google Search. For evaluation on benchmarks that provide a knowledge store (like on AVeriTeC or FEVER), it supports the retrieval of relevant evidence by leveraging an embedding model to perform semantic search.
 
@@ -59,7 +59,7 @@ Simply run the script `scripts/averitec/build.py`with
 ```bash
 python -m scripts.averitec.build
 ```
-This will download, extract, and embed the entire AVeriTeC KB for `train`, `dev`, and `test`.
+This will download, extract, and embed the entire AVeriTeC KB for `train`, `dev`, and `test`. It may take a while.
 
 
 ## Usage
