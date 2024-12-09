@@ -15,10 +15,6 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         )),
         fact_checker_kwargs=dict(
             procedure_variant="infact",
-            interpret=False,
-            decompose=False,
-            decontextualize=False,
-            filter_check_worthy=False,
             max_iterations=3,
             max_result_len=64_000,  # characters
         ),

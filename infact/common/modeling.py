@@ -67,7 +67,7 @@ class OpenAIAPI:
     def __call__(self, prompt: str, **kwargs):
         completion = self.client.chat.completions.create(
             model=self.model,
-            messages=[  # TODO: May add a system prompt, add images
+            messages=[
                 {"role": "user", "content": prompt}
             ],
             **kwargs
@@ -212,7 +212,6 @@ class GPTModel(Model):
 
     def _generate(self, prompt: Prompt, temperature: float, top_p: float, top_k: int,
                   system_prompt: Prompt = None) -> str:
-        # TODO: include system prompt
         try:
             return self.api(
                 str(prompt),
@@ -228,7 +227,7 @@ class GPTModel(Model):
         return ""
 
     def count_tokens(self, prompt: Prompt | str) -> int:
-        return len(self.encoding.encode(str(prompt)))  # TODO: Handle image tokens
+        return len(self.encoding.encode(str(prompt)))
 
 
 class HuggingFaceModel(Model, ABC):

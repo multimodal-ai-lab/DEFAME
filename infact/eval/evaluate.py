@@ -33,8 +33,6 @@ def evaluate(
         fact_checker_kwargs: dict = None,
         llm_kwargs: dict = None,
         benchmark_kwargs: dict = None,
-        mllm: str = None,
-        mllm_kwargs: dict = None,
         n_samples: int = None,
         sample_ids: list[int] = None,
         random_sampling: bool = False,
@@ -46,8 +44,6 @@ def evaluate(
 
     if llm_kwargs is None:
         llm_kwargs = dict()
-    if mllm_kwargs is None:
-        mllm_kwargs = dict()
 
     benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
     is_test = benchmark.variant == "test"
@@ -140,7 +136,7 @@ def evaluate(
         target_dir=logger.target_dir
     )
 
-    worker_args = (llm, llm_kwargs, mllm, mllm_kwargs, fact_checker_kwargs,
+    worker_args = (llm, llm_kwargs, fact_checker_kwargs,
                    tools_config, logger_kwargs, is_averitec, input_queue, output_queue, devices_queue)
 
     print(f"Evaluating {n_samples} samples using {n_workers} workers...")
@@ -336,7 +332,7 @@ def save_stats(stats: dict, target_dir: Path):
     print("Results:\n" + stats_str)
 
 
-def fact_check(llm: str, llm_kwargs: dict, mllm: str, mllm_kwargs: dict,
+def fact_check(llm: str, llm_kwargs: dict,
                fact_checker_kwargs: dict, tools_config: dict, logger_kwargs: dict,
                is_averitec: bool, input_queue: Queue, output_queue: Queue, devices_queue: Queue):
     device = f"cuda:{devices_queue.get()}"
@@ -345,15 +341,12 @@ def fact_check(llm: str, llm_kwargs: dict, mllm: str, mllm_kwargs: dict,
 
     tools = initialize_tools(tools_config, logger=logger, device=device)
 
-    # Initialize model(s)
+    # Initialize model
     llm = make_model(llm, logger=logger, device=device, **llm_kwargs)
-    if mllm is not None:
-        mllm = make_model(specifier=mllm, logger=logger, device=device, **mllm_kwargs)
 
     # Setup fact-checker
     fc = FactChecker(
         llm=llm,
-        mllm=mllm,
         tools=tools,
         logger=logger,
         **fact_checker_kwargs,

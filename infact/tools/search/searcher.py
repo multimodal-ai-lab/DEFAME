@@ -3,6 +3,7 @@ from typing import Any
 
 import numpy as np
 
+from config.globals import api_keys
 from infact.common.action import WebSearch, WikiDumpLookup, Search
 from infact.common.results import SearchResult
 from infact.tools.search.duckduckgo import DuckDuckGo
@@ -25,7 +26,6 @@ class Searcher(Tool):
     a list of specified search engines. The list defines the precedence of the search
     engines meaning that if search_engine[0] did not yield any results, search_engine[1]
     will be tried next."""
-    # TODO: Rank or annotate the websites according to their credibility, like MUSE
     name = "searcher"
     search_apis: dict[str, SearchAPI]
     stats: dict[str, int]
@@ -41,8 +41,9 @@ class Searcher(Tool):
         super().__init__(**kwargs)
 
         if search_engine_config is None:
-            self.logger.log("No search engine specified. Falling back to DuckDuckGo.")
-            search_engine_config = {"duckduckgo": {}}
+            search_engine = "google" if api_keys["serper_api_key"] else "duckduckgo"
+            self.logger.log(f"No search engine specified. Using {search_engine}.")
+            search_engine_config = {search_engine: {}}
 
         # Add device to knowledge base kwargs
         if "averitec_kb" in search_engine_config:

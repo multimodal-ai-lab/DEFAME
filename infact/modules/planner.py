@@ -2,15 +2,13 @@ import re
 from typing import Optional, Collection
 
 import pyparsing as pp
-from PIL import Image
 
-from infact.common.action import (Action, ACTION_REGISTRY, IMAGE_ACTIONS, WebSearch)
-from infact.common.content import Content
+from infact.common.action import Action, ACTION_REGISTRY
 from infact.common.document import FCDocument
-from infact.common.modeling import Model
 from infact.common.logger import Logger
-from infact.prompts.prompt import PlanPrompt, ProposeQuerySimple
-from infact.utils.parsing import extract_last_code_block, remove_code_blocks, find_code_span, strip_string
+from infact.common.modeling import Model
+from infact.prompts.prompt import PlanPrompt
+from infact.utils.parsing import extract_last_code_block, remove_code_blocks
 
 
 class Planner:
@@ -31,19 +29,7 @@ class Planner:
         self.extra_rules = extra_rules
         self.fallback_action = fall_back
 
-    def get_available_actions(self, doc: FCDocument):
-        available_actions = []
-        completed_actions = set(type(a) for a in doc.get_all_actions())
-
-        if doc.claim.has_image():  # TODO: enable multiple image actions for multiple images
-            available_actions += [a for a in IMAGE_ACTIONS if a not in completed_actions]
-
-        # TODO: finish this method
-
-        return available_actions
-
     def plan_next_actions(self, doc: FCDocument) -> (list[Action], str):
-        # TODO: include image in planning
         performed_actions = doc.get_all_actions()
         new_valid_actions = []
 
@@ -67,7 +53,7 @@ class Planner:
         while True:
             n_tries += 1
             answer = self.llm.generate(prompt)
-            actions = self._extract_actions(answer, doc.claim.original_context)
+            actions = self._extract_actions(answer)
             reasoning = self._extract_reasoning(answer)
 
             # Filter out actions that have been performed before
@@ -78,8 +64,8 @@ class Planner:
 
             self.logger.log("WARNING: No new actions were found. Retrying...")
 
-    def _extract_actions(self, answer: str, context: Content = None) -> list[Action]:
-        actions_str = extract_last_code_block(answer).replace("markdown","")
+    def _extract_actions(self, answer: str) -> list[Action]:
+        actions_str = extract_last_code_block(answer).replace("markdown", "")
         if not actions_str:
             candidates = []
             for action in ACTION_REGISTRY:
@@ -92,7 +78,7 @@ class Planner:
         raw_actions = actions_str.split('\n')
         actions = []
         for raw_action in raw_actions:
-            action = self._parse_single_action(raw_action, context.images)
+            action = self._parse_single_action(raw_action)
             if action:
                 actions.append(action)
         return actions
@@ -100,8 +86,7 @@ class Planner:
     def _extract_reasoning(self, answer: str) -> str:
         return remove_code_blocks(answer).strip()
 
-    def _parse_single_action(self, raw_action: str, images: Optional[list[Image.Image]] = None) -> Optional[Action]:
-        arguments = None
+    def _parse_single_action(self, raw_action: str) -> Optional[Action]:
         if not raw_action:
             return None
         elif raw_action[0] == '"':
@@ -121,10 +106,6 @@ class Planner:
                 arguments = f'"{match.group(1)}"' if match else f'"{raw_action}"'
                 first_part = raw_action.split(' ')[0]
                 action_name = re.sub(r'[^a-zA-Z0-9_]', '', first_part)
-
-            if "image" in arguments:
-                # TODO: implement multi image argument
-                arguments = images[0]
 
             for action in ACTION_REGISTRY:
                 if action_name == action.name:

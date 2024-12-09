@@ -23,9 +23,4 @@ DEFAULT_LABEL_DEFINITIONS = {
     Label.CONFLICTING: "The knowledge from the fact-check contains conflicting evidence from multiple "
                        "RELIABLE sources. Even trying to resolve the conflicting sources through additional "
                        "investigation was not successful.",
-    Label.OUT_OF_CONTEXT: "The image is used out of context. This means that while the caption may be factually"
-                          "correct, the image does not relate to the caption or is used in a misleading way to "
-                          "convey a false narrative.",
-    Label.MISCAPTIONED: "The claim has a true image, but the caption does not accurately describe the image, "
-                        "providing incorrect information.",
 }

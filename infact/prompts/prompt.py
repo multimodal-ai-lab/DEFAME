@@ -88,7 +88,7 @@ class DecontextualizePrompt(Prompt):
     def __init__(self, claim: Claim):
         placeholder_targets = {
             "[ATOMIC_FACT]": claim.text,
-            "[CONTEXT]": claim.original_context.text,  # TODO: improve this, add images etc.
+            "[CONTEXT]": claim.original_context.text,
         }
         super().__init__(placeholder_targets)
 
@@ -158,7 +158,6 @@ class PlanPrompt(Prompt):
         super().__init__(placeholder_targets)
 
     def load_exemplars(self, valid_actions) -> str:
-        # TODO: Check the Note files for the new actions
         if WikiDumpLookup in valid_actions:
             return read_md_file("infact/prompts/plan_exemplars/wiki_dump.md")
         elif WebSearch in valid_actions:
@@ -267,7 +266,7 @@ class AnswerQuestionNoEvidence(Prompt):
         super().__init__(placeholder_targets)
 
 
-class ReiteratePrompt(Prompt):  # TODO: Summarize each evidence instead of collection of all results
+class ReiteratePrompt(Prompt):
     template_file_path = "infact/prompts/consolidate.md"
 
     def __init__(self, doc: FCDocument, evidences: Collection[Evidence]):

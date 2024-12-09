@@ -15,7 +15,6 @@ class Actor:
         self.result_summarizer = ResultSummarizer(llm, logger)
 
     def perform(self, actions: list[Action], doc: FCDocument = None, summarize: bool = True) -> list[Evidence]:
-        # TODO: Parallelize
         all_evidence = []
         for action in actions:
             all_evidence.append(self._perform_single(action, doc, summarize=summarize))
@@ -27,7 +26,7 @@ class Actor:
         if summarize:
             assert doc is not None
             results = self.result_summarizer.summarize(results, doc)
-        summary = ""  # TODO: Summarize result summaries
+        summary = ""
         return Evidence(summary, list(results))
 
     def get_corresponding_tool_for_action(self, action: Action) -> Tool:

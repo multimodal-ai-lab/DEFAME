@@ -29,7 +29,7 @@ class EvidenceBlock:
     evidences: Collection[Evidence]
 
     def __str__(self):
-        return f"## Results\nRetrieved {self.num_useful_results} new useful results."  # TODO: Rename to evidence
+        return f"## Results\nRetrieved {self.num_useful_results} new useful results."
 
     @property
     def num_useful_results(self):

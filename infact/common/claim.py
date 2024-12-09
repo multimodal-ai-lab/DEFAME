@@ -17,12 +17,3 @@ class Claim:
         if origin := self.original_context.origin:
             claim_str += f"\nClaim origin: {origin}"
         return claim_str
-
-    def has_image(self) -> bool:
-        return "<image_" in self.text
-
-    def has_audio(self) -> bool:
-        return "<audio_" in self.text
-
-    def has_video(self) -> bool:
-        return "<video_" in self.text

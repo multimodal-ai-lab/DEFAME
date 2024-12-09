@@ -1,14 +1,14 @@
 import time
-from typing import Sequence, Optional, Any
+from typing import Sequence, Any
 
-from infact.common.action import *
+import numpy as np
+
 from infact.common.claim import Claim
 from infact.common.content import Content
 from infact.common.document import FCDocument
 from infact.common.label import Label
 from infact.common.modeling import Model, make_model
 from infact.modules.actor import Actor
-from infact.modules.claim_extractor import ClaimExtractor
 from infact.modules.doc_summarizer import DocSummarizer
 from infact.modules.judge import Judge
 from infact.modules.planner import Planner
@@ -22,14 +22,9 @@ class FactChecker:
 
     def __init__(self,
                  llm: str | Model = "gpt_4o_mini",
-                 mllm: Optional[str | Model] = None,
                  tools: list[Tool] = None,
                  search_engines: dict[str, dict] = None,
                  procedure_variant: str = "infact",
-                 interpret: bool = False,
-                 decompose: bool = False,
-                 decontextualize: bool = False,
-                 filter_check_worthy: bool = False,
                  max_iterations: int = 5,
                  max_result_len: int = None,
                  logger: Logger = None,
@@ -38,7 +33,7 @@ class FactChecker:
                  extra_prepare_rules: str = None,
                  extra_plan_rules: str = None,
                  extra_judge_rules: str = None,
-                 print_log_level: str = "warning",
+                 print_log_level: str = "info",
                  ):
         assert not tools or not search_engines, \
             "You are allowed to specify either tools or search engines."
@@ -47,23 +42,20 @@ class FactChecker:
 
         self.llm = make_model(llm, logger=self.logger) if isinstance(llm, str) else llm
 
-        self.claim_extractor = ClaimExtractor(llm=self.llm,
-                                              interpret=interpret,
-                                              decompose=decompose,
-                                              decontextualize=decontextualize,
-                                              filter_check_worthy=filter_check_worthy,
-                                              logger=self.logger)
-
         if classes is None:
             if class_definitions is None:
                 classes = [Label.SUPPORTED, Label.NEI, Label.REFUTED]
             else:
                 classes = list(class_definitions.keys())
 
+        self.extra_prepare_rules = extra_prepare_rules
+        self.max_iterations = max_iterations
+        self.max_result_len = max_result_len
+
         if tools is None:
             tools = self._initialize_tools(search_engines)
         self.fall_back_action = tools[0].actions[0]
-        logger.log(f"Selecting {self.fall_back_action.name} as fallback option if no action can be matched.")
+        self.logger.log(f"Selecting {self.fall_back_action.name} as fallback option if no action can be matched.")
 
         available_actions = get_available_actions(tools)
 
@@ -84,10 +76,6 @@ class FactChecker:
 
         self.doc_summarizer = DocSummarizer(self.llm, self.logger)
 
-        self.extra_prepare_rules = extra_prepare_rules
-        self.max_iterations = max_iterations
-        self.max_result_len = max_result_len
-
         self.procedure = get_procedure(procedure_variant,
                                        llm=self.llm,
                                        actor=self.actor,
@@ -101,18 +89,7 @@ class FactChecker:
         # Unimodal tools
         tools = [
             Searcher(search_engines, max_result_len=self.max_result_len, logger=self.logger),
-            CredibilityChecker(logger=self.logger)
         ]
-
-        # Multimodal tools
-        tools.extend([
-            ObjectDetector(logger=self.logger),
-            Geolocator(top_k=10, logger=self.logger),
-            #  TODO: add an image reverse searcher
-            FaceRecognizer(logger=self.logger),
-            TextExtractor(logger=self.logger)
-        ])
-
         return tools
 
     def check_content(self, content: Content | str) -> (Label, list[FCDocument], list[dict[str, Any]]):
@@ -127,13 +104,13 @@ class FactChecker:
 
         self.logger.info(bold(f"Content to be checked:\n'{light_blue(str(content))}'"))
 
-        claims = self.claim_extractor.extract_claims(content)
+        claims = [Claim(content.text, content)]
 
         # Verify each single extracted claim
         self.logger.log(bold("Verifying the claims..."))
         docs = []
         metas = []
-        for claim in claims:  # TODO: parallelize
+        for claim in claims:
             doc, meta = self.verify_claim(claim)
             docs.append(doc)
             metas.append(meta)

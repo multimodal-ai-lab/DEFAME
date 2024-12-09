@@ -1,19 +1,9 @@
-from infact.tools.credibility_checker import CredibilityChecker
 from infact.common.logger import Logger
-from infact.tools.face_recognizer import FaceRecognizer
-from infact.tools.geolocator import Geolocator
-from infact.tools.object_detector import ObjectDetector
 from infact.tools.search.searcher import Searcher
-from infact.tools.text_extractor import TextExtractor
 from infact.tools.tool import Tool, get_available_actions
 
 TOOL_REGISTRY = [
-    CredibilityChecker,
-    FaceRecognizer,
-    Geolocator,
-    ObjectDetector,
     Searcher,
-    TextExtractor,
 ]
 
 

@@ -50,8 +50,6 @@ class Logger:
                  model_name: str = None,
                  print_log_level: str = "warning",
                  target_dir: str | Path = None):
-        # TODO: Enable Logger to have NO target dir
-
         # Set up the target directory storing all logs and results
         self.target_dir = _determine_target_dir(benchmark_name, procedure_name, model_name) \
             if target_dir is None else Path(target_dir)
@@ -192,10 +190,11 @@ class RemoveStringFormattingFormatter(logging.Formatter):
 
 
 def _determine_target_dir(benchmark_name: str, procedure_name: str = None, model_name: str = None) -> Path:
-    assert benchmark_name is not None
-
     # Construct target directory path
-    target_dir = Path(result_base_dir) / benchmark_name
+    target_dir = Path(result_base_dir)
+
+    if benchmark_name:
+        target_dir /= benchmark_name
 
     if procedure_name:
         target_dir /= procedure_name
