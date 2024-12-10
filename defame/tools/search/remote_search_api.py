@@ -10,7 +10,7 @@ import requests
 from bs4 import BeautifulSoup
 from PIL import Image as PillowImage, UnidentifiedImageError
 
-from config.globals import temp_dir
+from config.globals import temp_dir, firecrawl_url
 from defame.common.misc import Query
 from defame.common import logger, MultimediaSnippet, Image
 from defame.tools.search.search_api import SearchAPI
@@ -225,7 +225,6 @@ def scrape_firecrawl(url: str) -> Optional[MultimediaSnippet]:
     headers = {
         'Content-Type': 'application/json',
     }
-    firecrawl_url = "http://localhost:3002/v1/scrape"
     json_data = {
         "url": url,
         "formats": ["markdown"],
@@ -233,7 +232,7 @@ def scrape_firecrawl(url: str) -> Optional[MultimediaSnippet]:
     }
 
     try:
-        response = requests.post(firecrawl_url,
+        response = requests.post(firecrawl_url + "/v1/scrape",
                                  json=json_data,
                                  headers=headers,
                                  timeout=10 * 60)  # Firecrawl scrapes usually take 2 to 4s, but a 1700-page PDF takes 5 min
@@ -330,7 +329,7 @@ def _resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
 def _firecrawl_is_running():
     """Returns True iff Firecrawl is running."""
     try:
-        response = requests.get("http://localhost:3002")
+        response = requests.get(firecrawl_url)
     except (requests.exceptions.ConnectionError, requests.exceptions.RetryError):
         return False
     return response.status_code == 200
@@ -378,7 +377,7 @@ def log_error_url(url: str, message: str):
 
 
 if __name__ == '__main__':
-    logger.info("Running scrapes...")
+    logger.info("Running scrapes with Firecrawl...")
     urls_to_scrape = [
         "https://www.washingtonpost.com/video/national/cruz-calls-trump-clinton-two-new-york-liberals/2016/04/07/da3b78a8-fcdf-11e5-813a-90ab563f0dde_video.html",
         "https://nypost.com/2024/10/11/us-news/meteorologists-hit-with-death-threats-after-debunking-hurricane-conspiracy-theories/",
@@ -387,7 +386,7 @@ if __name__ == '__main__':
         "https://edition.cnn.com/2024/10/07/business/property-damange-hurricane-helene-47-billion/index.html"
     ]
     for url in urls_to_scrape:
-        scraped = scrape_firecrawl(url, logger)
+        scraped = scrape_firecrawl(url)
         if scraped:
             print(scraped, "\n\n\n")
         else:

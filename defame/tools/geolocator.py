@@ -64,6 +64,7 @@ class Geolocator(Tool):
         :param use_multiple_gpus: Whether to use multiple GPUs if available.
         """
         # FIXME: Print warning if no GPU available
+        logger.log("Initializing geolocator...")
         self.model_name = model_name
         self.processor = AutoProcessor.from_pretrained(model_name)
         self.model = AutoModel.from_pretrained(model_name)

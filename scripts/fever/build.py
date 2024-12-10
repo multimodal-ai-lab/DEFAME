@@ -2,7 +2,7 @@
 the DB and saves them in an extra file."""
 # TODO: Test this script
 
-from config.globals import data_base_dir
+from config.globals import data_root_dir
 from defame.tools.search.wiki_dump import WikiDumpAPI
 from defame.utils.parsing import extract_nth_sentence
 from tqdm import tqdm
@@ -10,7 +10,7 @@ import orjsonl
 
 # Construct the DB
 wiki_dump = WikiDumpAPI()
-wiki_dump._build_db(data_base_dir + "FEVER/wiki-raw/")
+wiki_dump._build_db(data_root_dir + "FEVER/wiki-raw/")
 wiki_dump._build_knn()
 
 
@@ -34,10 +34,10 @@ def retrieve_justification(instance):
 
 variant = "dev"
 for version in [1, 2]:
-    raw_data = orjsonl.load(data_base_dir + f"FEVER/fever{version}_{variant}.jsonl")
+    raw_data = orjsonl.load(data_root_dir + f"FEVER/fever{version}_{variant}.jsonl")
     justifications = []
     for i in tqdm(range(len(raw_data)), desc="Retrieving justifications"):
         instance = raw_data[i]
         justifications.append(retrieve_justification(instance))
-    save_path = data_base_dir + f"FEVER/gt_justification_fever{version}_{variant}.jsonl"
+    save_path = data_root_dir + f"FEVER/gt_justification_fever{version}_{variant}.jsonl"
     orjsonl.save(save_path, justifications)

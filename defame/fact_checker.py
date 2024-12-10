@@ -17,6 +17,7 @@ from defame.procedure import get_procedure
 from defame.tools import *
 from defame.tools.tool import get_available_actions
 from defame.utils.console import gray, light_blue, bold, sec2mmss
+from defame.utils.config import keys_configured, configure_keys
 
 
 class FactChecker:
@@ -44,6 +45,9 @@ class FactChecker:
                  extra_judge_rules: str = None):
         assert not tools or not search_engines, \
             "You are allowed to specify either tools or search engines."
+
+        if not keys_configured():
+            configure_keys()
 
         self.llm = make_model(llm) if isinstance(llm, str) else llm
 

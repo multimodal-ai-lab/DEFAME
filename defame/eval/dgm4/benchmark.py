@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Iterator
 
 from defame.common.medium import Image
-from config.globals import data_base_dir, random_seed
+from config.globals import data_root_dir, random_seed
 from defame.common import Label, Content
 from defame.eval.benchmark import Benchmark
 from defame.tools.manipulation_detector import DetectManipulation
@@ -51,8 +51,8 @@ class DGM4(Benchmark):
 
     def __init__(self, variant="train"):
         super().__init__(f"DGM4 ({variant})", variant)
-        self.data_file_path = Path(data_base_dir + f"DGM4/metadata/{variant}.json")
-        self.base_image_path = Path(data_base_dir)
+        self.data_file_path = Path(data_root_dir + f"DGM4/metadata/{variant}.json")
+        self.base_image_path = Path(data_root_dir)
         self.data = self.load_data() #TODO: Shift the sampling to the parent class Benchmark like a (sample() function)
 
     def load_data(self) -> list[dict]:

@@ -5,7 +5,7 @@ import random
 
 import orjsonl
 
-from config.globals import data_base_dir
+from config.globals import data_root_dir
 from defame.common import Label, Content
 from defame.tools import WikiDumpLookup
 from defame.eval.benchmark import Benchmark
@@ -76,8 +76,8 @@ class FEVER(Benchmark):
 
     def __init__(self, version=1, variant="dev"):
         super().__init__(f"FEVER V{version} ({variant})", variant)
-        self.file_path = Path(data_base_dir + f"FEVER/fever{version}_{variant}.jsonl")
-        self.justifications_file_path = Path(data_base_dir + f"FEVER/gt_justification_fever{version}_{variant}.jsonl")
+        self.file_path = Path(data_root_dir + f"FEVER/fever{version}_{variant}.jsonl")
+        self.justifications_file_path = Path(data_root_dir + f"FEVER/gt_justification_fever{version}_{variant}.jsonl")
 
         self.data = self.load_data(variant)
 

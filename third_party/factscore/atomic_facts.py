@@ -1,5 +1,7 @@
 # Copyright 2024 Google LLC
 #
+# Minor modifications applied by Technical University of Darmstadt, FG Multimodal Grounded Learning.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +19,7 @@ import json
 import os
 import re
 import string
-from typing import Optional
+from typing import Optional, Any
 
 import nltk
 import numpy as np
@@ -26,7 +28,6 @@ import spacy
 #from absl import app
 from nltk import tokenize
 
-from defame.utils.utils import open_file_wrapped
 from defame.utils.parsing import replace
 from defame.common import modeling
 from config.globals import api_keys
@@ -540,5 +541,9 @@ def main(_) -> None:
     print(para_breaks)
 
 
-if __name__ == '__main__':
-    app.run(main)
+# if __name__ == '__main__':
+#     app.run(main)
+
+
+def open_file_wrapped(filepath: str, **kwargs) -> Any:
+    return open(filepath, **kwargs)

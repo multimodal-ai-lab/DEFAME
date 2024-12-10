@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator
 
-from config.globals import data_base_dir, random_seed
+from config.globals import data_root_dir, random_seed
 from defame.common import Label, Content
 from defame.tools import WebSearch, ImageSearch
 from defame.eval.benchmark import Benchmark
@@ -43,7 +43,7 @@ class AVeriTeC(Benchmark):
 
     def __init__(self, variant: str ="dev"):
         super().__init__(name=f"AVeriTeC ({variant})", variant=variant)
-        self.file_path = Path(data_base_dir + f"AVeriTeC/{variant}.json")
+        self.file_path = Path(data_root_dir + f"AVeriTeC/{variant}.json")
 
         # Load the data
         with open(self.file_path, 'r') as f:

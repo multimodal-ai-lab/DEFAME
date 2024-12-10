@@ -5,7 +5,7 @@ from typing import Iterator
 import pandas as pd
 
 from defame.common.medium import Image
-from config.globals import data_base_dir
+from config.globals import data_root_dir
 from defame.common import Label, Content
 from defame.eval.benchmark import Benchmark
 from defame.tools.text_extractor import OCR
@@ -49,7 +49,7 @@ class VERITE(Benchmark):
 
     def __init__(self, variant="dev"):
         super().__init__(f"VERITE ({variant})", variant)
-        self.file_path = Path(data_base_dir + "VERITE/VERITE.csv")
+        self.file_path = Path(data_root_dir + "VERITE/VERITE.csv")
         self.data = self.load_data()
 
     def load_data(self) -> list[dict]:
@@ -57,7 +57,7 @@ class VERITE(Benchmark):
         df = pd.read_csv(self.file_path)
         data = []
         for i, row in df.iterrows():
-            image_path = Path(data_base_dir + f"VERITE/{row['image_path']}")
+            image_path = Path(data_root_dir + f"VERITE/{row['image_path']}")
             if not os.path.exists(image_path):
                 continue  # TODO: Complete all missing images
             #if row["label"] == "out-of-context":
