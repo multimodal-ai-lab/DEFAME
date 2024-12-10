@@ -12,7 +12,7 @@ import torch
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
-from config.globals import data_base_dir, embedding_model
+from config.globals import data_root_dir, embedding_model
 from defame.common.misc import Query, WebSource
 from defame.common.embedding import EmbeddingModel
 from defame.common import logger
@@ -59,7 +59,7 @@ class KnowledgeBase(LocalSearchAPI):
         self.max_search_results = max_search_results
 
         # Setup paths and dirs
-        self.kb_dir = Path(data_base_dir + f"AVeriTeC/knowledge_base/{variant}/")
+        self.kb_dir = Path(data_root_dir + f"AVeriTeC/knowledge_base/{variant}/")
         os.makedirs(self.kb_dir, exist_ok=True)
         self.download_dir = self.kb_dir / "download"
         self.resources_dir = self.kb_dir / "resources"  # stores all .jsonl files extracted from the .zip in download

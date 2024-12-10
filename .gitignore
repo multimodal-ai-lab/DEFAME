@@ -24,7 +24,7 @@ share/python-wheels/
 MANIFEST
 
 out/
-/Dockerfile
+/Dockerfile_42
 /config/google_service_account_key.json
 
 .idea/

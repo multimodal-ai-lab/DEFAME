@@ -2,10 +2,10 @@ huggingface_user_access_token: ''
 
 openai_api_key: ''
 
-anthropic_api_key: ''
+# anthropic_api_key: ''
 
 serper_api_key: ''  # for Google Search
 
-x_bearer_token: ''
-x_api_key: ''  # same as "consumer key"
-x_api_key_secret: ''  # same as "consumer secret"
+# x_bearer_token: ''
+# x_api_key: ''  # same as "consumer key"
+# x_api_key_secret: ''  # same as "consumer secret"

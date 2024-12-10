@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Ensure the correct working directory
-# cd /mafc/firecrawl/apps/api
-
 # Start the Redis server
 redis-server &
 

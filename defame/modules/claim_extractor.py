@@ -2,7 +2,6 @@ from defame.common import logger, Model, Content, Claim
 from defame.prompts.prompts import SYMBOL, NOT_SYMBOL, DecontextualizePrompt, FilterCheckWorthyPrompt, InterpretPrompt
 from defame.utils.console import light_blue
 from defame.utils.parsing import extract_first_square_brackets, extract_first_code_block
-from third_party.factscore.atomic_facts import AtomicFactGenerator
 
 
 class ClaimExtractor:
@@ -20,6 +19,8 @@ class ClaimExtractor:
         self.do_filtering = filter_check_worthy
 
         if self.do_decomposition:
+            # Requires `python -m spacy download en_core_web_sm`
+            from third_party.factscore.atomic_facts import AtomicFactGenerator
             self.atomic_fact_generator = AtomicFactGenerator(
                 api_key='', gpt3_cache_file='', other_lm=self.llm
             )

@@ -5,10 +5,10 @@ import pandas as pd
 from tqdm import tqdm
 
 from defame.common.modeling import Model
-from config.globals import data_base_dir
+from config.globals import data_root_dir
 
 llm = Model("gpt_4o")
-verite_path = data_base_dir + "VERITE/VERITE.csv"
+verite_path = data_root_dir + "VERITE/VERITE.csv"
 df = pd.read_csv(verite_path)
 
 for i in tqdm(range(0, len(df), 3), desc="Generating Justifications"):

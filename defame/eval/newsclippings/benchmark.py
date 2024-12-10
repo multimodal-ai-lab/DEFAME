@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Iterator
 
 from defame.common.medium import Image
-from config.globals import data_base_dir, random_seed
+from config.globals import data_root_dir, random_seed
 from defame.common import Label, Content
 from defame.eval.benchmark import Benchmark
 from defame.tools.text_extractor import OCR
@@ -44,14 +44,14 @@ class NewsCLIPpings(Benchmark):
     * If the image and caption match the event, the verdict is SUPPORTED.
     * If you do not find any apparent contradictions then the sample is probably SUPPORTED."""
 
-    base_path = Path(data_base_dir + "NewsCLIPings/news_clippings/visual_news/origin/")
+    base_path = Path(data_root_dir + "NewsCLIPings/news_clippings/visual_news/origin/")
 
     available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
 
     def __init__(self, variant="val", n_samples: int=None):
         super().__init__(f"NewsCLIPings ({variant})", variant)
-        self.visual_news_file_path = Path(data_base_dir + "NewsCLIPings/news_clippings/visual_news/origin/data.json")
-        self.data_file_path = Path(data_base_dir + f"NewsCLIPings/news_clippings/news_clippings/data/merged_balanced/{variant}.json")
+        self.visual_news_file_path = Path(data_root_dir + "NewsCLIPings/news_clippings/visual_news/origin/data.json")
+        self.data_file_path = Path(data_root_dir + f"NewsCLIPings/news_clippings/news_clippings/data/merged_balanced/{variant}.json")
         self.visual_news_data_mapping = self.load_visual_news_data()
         self.data = self.load_data(n_samples)
 

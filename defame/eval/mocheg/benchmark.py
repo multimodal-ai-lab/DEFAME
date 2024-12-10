@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Iterator
 import pandas as pd
 
-from config.globals import data_base_dir, random_seed
+from config.globals import data_root_dir, random_seed
 from defame.common import Label, Content
 from defame.common.medium import Image
 from defame.eval.benchmark import Benchmark
@@ -32,8 +32,8 @@ class MOCHEG(Benchmark):
 
     def __init__(self, variant="val"):
         super().__init__(f"MOCHEG ({variant})", variant)
-        self.file_path = Path(data_base_dir + f"MOCHEG/{variant}/Corpus2.csv")
-        self.image_path = Path(data_base_dir + f"MOCHEG/{variant}/images/")
+        self.file_path = Path(data_root_dir + f"MOCHEG/{variant}/Corpus2.csv")
+        self.image_path = Path(data_root_dir + f"MOCHEG/{variant}/images/")
         self.data = self.load_data()
 
     def load_data(self) -> list[dict]:

@@ -11,7 +11,7 @@ import unicodedata
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
-from config.globals import data_base_dir
+from config.globals import data_root_dir
 from defame.utils.parsing import replace
 from defame.tools.search.semantic_search_db import SemanticSearchDB, df_embedding_to_np_embedding
 
@@ -20,11 +20,11 @@ class WikiDumpAPI(SemanticSearchDB):
     """Class for querying the local SQLite database from the FEVER challenge."""
     name = "wiki_dump"
 
-    title_knn_path = data_base_dir + "FEVER/title_knn.pckl"
-    body_knn_path = data_base_dir + "FEVER/body_knn.pckl"
+    title_knn_path = data_root_dir + "FEVER/title_knn.pckl"
+    body_knn_path = data_root_dir + "FEVER/body_knn.pckl"
 
     def __init__(self, **kwargs):
-        super().__init__(db_file_path=data_base_dir + "FEVER/wiki.db", **kwargs)
+        super().__init__(db_file_path=data_root_dir + "FEVER/wiki.db", **kwargs)
         self._load_embeddings()
 
     def _load_embeddings(self):
