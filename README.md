@@ -1,4 +1,5 @@
-# [InFact: A Strong Baseline for Automated Fact-Checking](https://aclanthology.org/2024.fever-1.12/)
+# InFact: A Strong Baseline for Automated Fact-Checking
+[📄 Paper](https://aclanthology.org/2024.fever-1.12/)
 
 This is the implementation of **Information-Retrieving Fact-Checker (InFact)**, the text-only claim verification system that won the [AVeriTeC fact-checking challenge](https://fever.ai/task.html), see also the [AVeriTeC Leaderboard](https://eval.ai/web/challenges/challenge-page/2285/leaderboard/5655).
 
@@ -7,7 +8,7 @@ This is the implementation of **Information-Retrieving Fact-Checker (InFact)**, 
 
 <img src="resources%2FConcept%20Figure.png" width="500">
 
-InFact is a text-only, 6-stage LLM pipeline for fact-checking with external evidence retrieval through Google Search. For evaluation on benchmarks that provide a knowledge store (like on AVeriTeC or FEVER), it supports the retrieval of relevant evidence by leveraging an embedding model to perform semantic search.
+InFact is a text-only, 6-stage LLM pipeline for fact-checking with external evidence retrieval through Google Search. For evaluation on benchmarks that provide a knowledge store (like AVeriTeC or FEVER), it supports the retrieval of relevant evidence by leveraging an embedding model to perform semantic search.
 
 > [!NOTE]
 > The execution of the embedding model and the Llama LLMs requires GPUs.
@@ -40,6 +41,7 @@ You can also find the Docker image [here](https://hub.docker.com/r/tudamailab/in
       pip install -r requirements.txt
       ```
 
+
 ## Configuration & Building
 ### 1. Configure API Keys
 To this end, run the script `scripts/setup.py` with
@@ -52,7 +54,8 @@ python -m scripts.setup
 Alternatively, you may manually insert all necessary API keys into the file `config/api_keys.yaml`.
 
 ### 2. Optional: Configure Datasets & Results Paths
-In `config/globals.py`, insert the paths to the respective input/output directories.
+In `config/globals.py`, insert the paths to the respective input/output directories. If you want to evaluate on AVeriTeC, you'll need to download the benchmark separately [here](https://huggingface.co/chenxwh/AVeriTeC/tree/main/data).
+
 
 ### 3. Optional: Build AVeriTeC Knowledge Base (KB)
 Simply run the script `scripts/averitec/build.py`with
@@ -72,7 +75,7 @@ With `scripts/run.py`, you can fact-check your own claims. The command to run it
 ```bash
 python -m scripts.run
 ```
-If you provided a Serper API key, this will use Google Search to verify your claim.
+If you configured a Serper API key, InFact will automatically use Google Search to verify your claim, otherwise it falls back to DuckDuckGo (which has strong rate limits).
 
 ### Reproduce InFact Paper Results
 To reproduce InFact's result on AVeriTeC using its default hyperparameters, run
@@ -80,3 +83,7 @@ To reproduce InFact's result on AVeriTeC using its default hyperparameters, run
 python -m scripts.averitec.evaluate
 ```
 The number of workers executing the evaluation is based on the number of GPUs in your machine.
+
+
+## License
+This repository and all its contents are licensed under the [Apache 2.0 License](http://www.apache.org/licenses/LICENSE-2.0).
