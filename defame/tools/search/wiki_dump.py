@@ -20,11 +20,11 @@ class WikiDumpAPI(SemanticSearchDB):
     """Class for querying the local SQLite database from the FEVER challenge."""
     name = "wiki_dump"
 
-    title_knn_path = data_root_dir + "FEVER/title_knn.pckl"
-    body_knn_path = data_root_dir + "FEVER/body_knn.pckl"
+    title_knn_path = data_root_dir / "FEVER/title_knn.pckl"
+    body_knn_path = data_root_dir / "FEVER/body_knn.pckl"
 
     def __init__(self, **kwargs):
-        super().__init__(db_file_path=data_root_dir + "FEVER/wiki.db", **kwargs)
+        super().__init__(db_file_path=data_root_dir / "FEVER/wiki.db", **kwargs)
         self._load_embeddings()
 
     def _load_embeddings(self):

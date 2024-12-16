@@ -43,7 +43,10 @@ class AVeriTeC(Benchmark):
 
     def __init__(self, variant: str ="dev"):
         super().__init__(name=f"AVeriTeC ({variant})", variant=variant)
-        self.file_path = Path(data_root_dir + f"AVeriTeC/{variant}.json")
+        self.file_path = data_root_dir / f"AVeriTeC/{variant}.json"
+        if not self.file_path.exists():
+            raise ValueError(f"Unable to locate AVeriTeC at {data_root_dir.as_posix()}. "
+                             f"See README.md for setup instructions.")
 
         # Load the data
         with open(self.file_path, 'r') as f:

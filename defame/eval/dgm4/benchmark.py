@@ -51,8 +51,12 @@ class DGM4(Benchmark):
 
     def __init__(self, variant="train"):
         super().__init__(f"DGM4 ({variant})", variant)
-        self.data_file_path = Path(data_root_dir + f"DGM4/metadata/{variant}.json")
-        self.base_image_path = Path(data_root_dir)
+        self.data_file_path = data_root_dir / f"DGM4/metadata/{variant}.json"
+        if not self.file_path.exists():
+            raise ValueError(f"Unable to locate DGM4 at {data_root_dir.as_posix()}. "
+                             f"See README.md for setup instructions.")
+
+        self.base_image_path = data_root_dir
         self.data = self.load_data() #TODO: Shift the sampling to the parent class Benchmark like a (sample() function)
 
     def load_data(self) -> list[dict]:

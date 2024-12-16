@@ -44,14 +44,18 @@ class NewsCLIPpings(Benchmark):
     * If the image and caption match the event, the verdict is SUPPORTED.
     * If you do not find any apparent contradictions then the sample is probably SUPPORTED."""
 
-    base_path = Path(data_root_dir + "NewsCLIPings/news_clippings/visual_news/origin/")
+    base_path = data_root_dir / "NewsCLIPpings/news_clippings/visual_news/origin/"
 
     available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
 
     def __init__(self, variant="val", n_samples: int=None):
-        super().__init__(f"NewsCLIPings ({variant})", variant)
-        self.visual_news_file_path = Path(data_root_dir + "NewsCLIPings/news_clippings/visual_news/origin/data.json")
-        self.data_file_path = Path(data_root_dir + f"NewsCLIPings/news_clippings/news_clippings/data/merged_balanced/{variant}.json")
+        super().__init__(f"NewsCLIPpings ({variant})", variant)
+        self.visual_news_file_path = data_root_dir / "NewsCLIPings/news_clippings/visual_news/origin/data.json"
+        self.data_file_path = data_root_dir / f"NewsCLIPings/news_clippings/news_clippings/data/merged_balanced/{variant}.json"
+        if not self.data_file_path.exists():
+            raise ValueError(f"Unable to locate NewsCLIPpings at {data_root_dir.as_posix()}. "
+                             f"See README.md for setup instructions.")
+
         self.visual_news_data_mapping = self.load_visual_news_data()
         self.data = self.load_data(n_samples)
 

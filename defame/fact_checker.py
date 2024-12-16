@@ -17,7 +17,7 @@ from defame.procedure import get_procedure
 from defame.tools import *
 from defame.tools.tool import get_available_actions
 from defame.utils.console import gray, light_blue, bold, sec2mmss
-from defame.utils.config import keys_configured, configure_keys
+from config.globals import keys_configured, configure_keys
 
 
 class FactChecker:
@@ -45,9 +45,6 @@ class FactChecker:
                  extra_judge_rules: str = None):
         assert not tools or not search_engines, \
             "You are allowed to specify either tools or search engines."
-
-        if not keys_configured():
-            configure_keys()
 
         self.llm = make_model(llm) if isinstance(llm, str) else llm
 
@@ -120,12 +117,9 @@ class FactChecker:
 
         content = Content(content) if isinstance(content, str) else content
 
-        logger.info(bold(f"Content to be checked:\n'{light_blue(str(content))}'"))
-
         claims = self.claim_extractor.extract_claims(content)
 
         # Verify each single extracted claim
-        logger.log(bold("Verifying the claims..."))
         docs = []
         metas = []
         for claim in claims:  # TODO: parallelize
@@ -147,13 +141,15 @@ class FactChecker:
         if isinstance(claim, list):
             claim = Claim(claim)
 
+        logger.info(f"Verifying {bold(str(claim))}")
+
         stats = {}
         self.actor.reset()  # remove all past search evidences
         if self.restrict_results_to_claim_date:
             self.actor.set_search_date_restriction(claim.date)
         if not self.llm:
             worker_name = multiprocessing.current_process().name
-            print(f"No LLM was loaded. Stopping execution for {worker_name}.")
+            logger.critical(f"No LLM was loaded. Stopping execution for {worker_name}.")
             sys.exit(1)  # Exits the process for this worker
         self.llm.reset_stats()
 
