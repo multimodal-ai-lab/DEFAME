@@ -51,15 +51,15 @@ class KnowledgeBase(LocalSearchAPI):
     embedding_knns: dict[int, NearestNeighbors]
     embedding_model: EmbeddingModel = None
 
-    def __init__(self, variant, logger=None,
+    def __init__(self, variant,
                  device: str | torch.device = None,
                  max_search_results: int = None):
-        super().__init__(logger=logger)
+        super().__init__()
         self.variant = variant
         self.max_search_results = max_search_results
 
         # Setup paths and dirs
-        self.kb_dir = Path(data_root_dir + f"AVeriTeC/knowledge_base/{variant}/")
+        self.kb_dir = data_root_dir / f"AVeriTeC/knowledge_base/{variant}/"
         os.makedirs(self.kb_dir, exist_ok=True)
         self.download_dir = self.kb_dir / "download"
         self.resources_dir = self.kb_dir / "resources"  # stores all .jsonl files extracted from the .zip in download

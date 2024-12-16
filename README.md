@@ -1,4 +1,5 @@
 # DEFAME: Dynamic Evidence-based FAct-checking with Multimodal Experts
+[📄 Paper]()
 
 |![Teaser.jpg](resources%2FTeaser.jpg) | ![Concept.png](resources%2FConcept.png)|
 |---|---|
@@ -36,7 +37,7 @@ docker compose exec defame bash
 This will download and execute the [latest images](https://hub.docker.com/r/tudamailab/defame) we have built for you. It opens a shell. You can continue with [Usage](#usage) from here.
 
 ### Option B: Manual Installation (Most Flexible)
-Choose this option if you want to _develop_ with DEFAME.
+Choose this option if you want to _modify_ DEFAME.
 
 Follow these steps:
 
@@ -92,6 +93,8 @@ All execution scripts are located in (subfolders of) `scripts/`.
 > Whenever running a script, ensure the project root to be the working directory. You can accomplish that by using the `-m` parameter as in the commands below (note the script path notation):
 
 **Hardware requirements**: CPU-only is sufficient if you refrain from using a local LLM.
+
+**Output location**: All generated reports, statistics, logs etc. will be saved in `out/` by default. You may change this in the `config/globals.py` file.
 
 ### Run Your Own Fact-Check
 With `scripts/run.py`, you can fact-check any image-text claim. The script already contains an example. Execute it with

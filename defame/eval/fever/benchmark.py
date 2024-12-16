@@ -76,8 +76,12 @@ class FEVER(Benchmark):
 
     def __init__(self, version=1, variant="dev"):
         super().__init__(f"FEVER V{version} ({variant})", variant)
-        self.file_path = Path(data_root_dir + f"FEVER/fever{version}_{variant}.jsonl")
-        self.justifications_file_path = Path(data_root_dir + f"FEVER/gt_justification_fever{version}_{variant}.jsonl")
+        self.file_path = data_root_dir / f"FEVER/fever{version}_{variant}.jsonl"
+        if not self.file_path.exists():
+            raise ValueError(f"Unable to locate FEVER at {data_root_dir.as_posix()}. "
+                             f"See README.md for setup instructions.")
+
+        self.justifications_file_path = data_root_dir / f"FEVER/gt_justification_fever{version}_{variant}.jsonl"
 
         self.data = self.load_data(variant)
 

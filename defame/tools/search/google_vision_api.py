@@ -1,6 +1,5 @@
 import os
 from io import BytesIO
-from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import urlparse
 
@@ -8,6 +7,7 @@ import requests
 from PIL import Image as pillowImage
 from google.cloud import vision
 
+from config.globals import google_service_account_key_path
 from defame.common import logger
 from defame.common.medium import Image
 from defame.common.misc import ImageQuery, WebSource
@@ -19,14 +19,10 @@ from defame.tools.search.remote_search_api import scrape, is_fact_checking_site,
 class GoogleVisionAPI(RemoteSearchAPI):
     """Class for performing image reverse search using Google Cloud Vision API."""
     name = "google_vision"
-    key_file_path = Path("config/google_service_account_key.json")
 
-    def __init__(self, logger: Any = None, activate_cache: bool = True, **kwargs):
-        super().__init__(logger=logger, activate_cache=activate_cache, **kwargs)
-        if not self.key_file_path.exists():
-            raise RuntimeError(f"No Google Cloud key file provided. In order to use the Google Vision API, "
-                               f"you must save a valid key file at '{self.key_file_path}' first.")
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = self.key_file_path.as_posix()
+    def __init__(self, activate_cache: bool = True, **kwargs):
+        super().__init__(activate_cache=activate_cache, **kwargs)
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = google_service_account_key_path.as_posix()
         self.client = vision.ImageAnnotatorClient()
 
     def _call_api(self, query: ImageQuery) -> ReverseSearchResult:

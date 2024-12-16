@@ -28,7 +28,7 @@ class ClaimExtractor:
         self.max_retries = 3
 
     def extract_claims(self, content: Content) -> list[Claim]:
-        logger.log("Starting claim extraction.")
+        logger.log(f"Extracting claims from {content}")
 
         if self.do_interpretation:
             logger.log("Interpreting...")

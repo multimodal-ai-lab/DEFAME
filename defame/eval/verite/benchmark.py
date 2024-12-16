@@ -49,7 +49,10 @@ class VERITE(Benchmark):
 
     def __init__(self, variant="dev"):
         super().__init__(f"VERITE ({variant})", variant)
-        self.file_path = Path(data_root_dir + "VERITE/VERITE.csv")
+        self.file_path = data_root_dir / "VERITE/VERITE.csv"
+        if not self.file_path.exists():
+            raise ValueError(f"Unable to locate VERITE at {data_root_dir.as_posix()}. "
+                             f"See README.md for setup instructions.")
         self.data = self.load_data()
 
     def load_data(self) -> list[dict]:
@@ -57,7 +60,7 @@ class VERITE(Benchmark):
         df = pd.read_csv(self.file_path)
         data = []
         for i, row in df.iterrows():
-            image_path = Path(data_root_dir + f"VERITE/{row['image_path']}")
+            image_path = data_root_dir / f"VERITE/{row['image_path']}"
             if not os.path.exists(image_path):
                 continue  # TODO: Complete all missing images
             #if row["label"] == "out-of-context":

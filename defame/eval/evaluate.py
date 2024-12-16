@@ -362,6 +362,8 @@ def finalize_evaluation(stats: dict,
     stats["Predictions"] = metric_stats
     save_stats(stats, target_dir=experiment_dir)
 
+    logger.info(f"All outputs saved in {experiment_dir.as_posix()}.")
+
     if not is_test:
         benchmark_classes = benchmark.get_classes()
         # if is_averitec:

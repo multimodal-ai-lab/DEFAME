@@ -32,8 +32,12 @@ class MOCHEG(Benchmark):
 
     def __init__(self, variant="val"):
         super().__init__(f"MOCHEG ({variant})", variant)
-        self.file_path = Path(data_root_dir + f"MOCHEG/{variant}/Corpus2.csv")
-        self.image_path = Path(data_root_dir + f"MOCHEG/{variant}/images/")
+        self.file_path = data_root_dir / f"MOCHEG/{variant}/Corpus2.csv"
+        if not self.file_path.exists():
+            raise ValueError(f"Unable to locate MOCHEG at {data_root_dir.as_posix()}. "
+                             f"See README.md for setup instructions.")
+
+        self.image_path = data_root_dir / f"MOCHEG/{variant}/images/"
         self.data = self.load_data()
 
     def load_data(self) -> list[dict]:
