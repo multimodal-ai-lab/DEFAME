@@ -1,5 +1,5 @@
-# Copyright 2024 Google LLC
 # Major modifications applied by Technical University of Darmstadt, FG Multimodal Grounded Learning.
+# Copyright 2024 Google LLC
 
 
 """Class for querying the Google Serper API."""

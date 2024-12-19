@@ -1,5 +1,5 @@
 # DEFAME: Dynamic Evidence-based FAct-checking with Multimodal Experts
-[📄 Paper]()
+[📄 Paper](https://arxiv.org/abs/2412.10510)
 
 |![Teaser.jpg](resources%2FTeaser.jpg) | ![Concept.png](resources%2FConcept.png)|
 |---|---|
@@ -175,10 +175,19 @@ To extend the fact-checker with an additional tool, follow these steps:
    This step is required only if you want to use your tool for evaluation on one of the benchmarks. To this end, navigate to the respective benchmark file under `defame/eval/<benchmark_name>/benchmark.py`. There, in the `available_actions` list, add your Tool.
 
 
-## License
+## [License](LICENSE)
 This repository and all its contents (except for the contents inside `third_party/`) are licensed under the [Apache 2.0 License](http://www.apache.org/licenses/LICENSE-2.0).
 
-Please use the following to refer to the authors:
+Please use the following BibTeX to refer to the authors:
 ```bibtex
-TODO: Insert Bibtex 
+@article{braun2024defamedynamicevidencebasedfactchecking,
+   title={DEFAME: Dynamic Evidence-based FAct-checking with Multimodal Experts}, 
+   author={Tobias Braun and Mark Rothermel and Marcus Rohrbach and Anna Rohrbach},
+   year={2024},
+   eprint={2412.10510},
+   archivePrefix={arXiv},
+   primaryClass={cs.CV},
+   url={https://arxiv.org/abs/2412.10510}, 
+   journal={arXiv preprint arXiv:2412.10510},
+}
 ```
