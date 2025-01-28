@@ -7,9 +7,15 @@ from defame.common.medium import MultimediaSnippet, Medium
 class Claim(MultimediaSnippet):
     original_context: Content
 
-    def __init__(self, text: str | list[str | Medium], original_context: Optional[Content] = None):
+    def __init__(self, text: str | list[str | Medium],
+                 original_context: Optional[Content] = None,
+                 identifier: int | str = None):
         super().__init__(text)
-        self.original_context = original_context  # The input the claim was extracted from
+        if original_context is None:
+            original_context = Content(text)
+        self.original_context = original_context  # rhe input the claim was extracted from
+        self.scope: (int, int) = None  # TODO: the range in the original context's text that belongs to this claim
+        self.id: str = str(identifier)
 
     @property
     def author(self):

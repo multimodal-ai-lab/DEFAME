@@ -46,12 +46,12 @@ class Benchmark(ABC, Iterable):
         random.seed(random_seed)
         random.shuffle(self.data)
 
-    def get_by_id(self, claim_id: int):
+    def get_by_id(self, claim_id: str):
         """Returns the instance with the given ID (different from the instance's index)."""
         for instance in self:
             if instance["id"] == claim_id:
                 return instance
-        raise ValueError(f"No instance with ID {claim_id} was found.")
+        raise ValueError(f"Benchmark does not contain any instance with ID {claim_id}.")
 
     def get_class_name(self, label: Label) -> str:
         """Returns the original class name for the given standard Label."""

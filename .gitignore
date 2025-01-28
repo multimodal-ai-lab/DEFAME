@@ -23,8 +23,9 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Custom
 out/
-/Dockerfile_42
+*Dockerfile_42
 /config/google_service_account_key.json
 
 .idea/

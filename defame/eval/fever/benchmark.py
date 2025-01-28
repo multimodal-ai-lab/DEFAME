@@ -108,8 +108,8 @@ class FEVER(Benchmark):
             content = Content(row["claim"])
             label = self.class_mapping[row["label"].lower()] if variant in ["train", "dev"] else None
             justification = justifications[i] if justifications is not None else None
-            id = row["id"]
-            data.append({"id": id,
+            identifier = str(row["id"])
+            data.append({"id": identifier,
                          "content": content,
                          "label": label,
                          "justification": justification})

@@ -31,11 +31,11 @@ class ClaimExtractor:
         logger.log(f"Extracting claims from {content}")
 
         if self.do_interpretation:
-            logger.log("Interpreting...")
+            logger.log("Interpreting...", send=True)
             self.interpret(content, self.prepare_rules)
 
         if self.do_decomposition:
-            logger.log("Decomposing...")
+            logger.log("Decomposing...", send=True)
             claims = self.decompose(content)
             for atomic_fact in claims:
                 logger.log(light_blue(f"'{atomic_fact}'"))
@@ -43,17 +43,20 @@ class ClaimExtractor:
             claims = [Claim(content.text, original_context=content)]
 
         if self.do_decontextualization:
-            logger.log("Decontextualizing...")
+            logger.log("Decontextualizing...", send=True)
             for claim in claims:
                 self.decontextualize(claim)
                 logger.log(light_blue(f"'{claim}'"))
 
         if self.do_filtering:
-            logger.log("Filtering for unique, check-worthy claims...")
+            logger.log("Filtering for unique, check-worthy claims...", send=True)
             claims = [claim for claim in claims if self.is_check_worthy(claim)]
 
         for claim in claims:
             logger.log(light_blue(f"'{claim}'"))
+
+        # Add claims to content object
+        content.claims = claims
 
         return claims
 

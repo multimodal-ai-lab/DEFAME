@@ -91,9 +91,9 @@ class NewsCLIPpings(Benchmark):
                 claim_text = f"{image.reference} {caption}"
                 # id = f'{ann_data["id"]}_{ann_data["image_id"]}'
                 entry = {
-                    "id": i,
+                    "id": str(i),
                     "content": Content(content=claim_text,
-                                       id_number=i,
+                                       identifier=str(i),
                                        meta_info="Published: some date between 2005 and 2020."),
                     "label": self.class_mapping[str(ann["falsified"])],
                     "justification": ann.get("justification", "")

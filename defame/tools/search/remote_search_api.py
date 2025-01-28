@@ -164,7 +164,8 @@ def scrape(url: str) -> Optional[MultimediaSnippet]:
         scraped = scrape_firecrawl(url)
         
     else:
-        logger.warning(f"Firecrawl is not running! Falling back to Beautiful Soup.")
+        # TODO: Log only once
+        logger.warning(f"Firecrawl is not running at {firecrawl_url}! Falling back to Beautiful Soup.")
         scraped = scrape_naive(url)
 
     if scraped and is_relevant_content(str(scraped)):

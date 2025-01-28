@@ -73,10 +73,10 @@ class DGM4(Benchmark):
             if image_path and os.path.exists(image_path):
                 image = Image(image_path)
                 claim_text = f'{ann["text"]} {image.reference}'
-                id = ann["id"]
+                identifier = str(ann["id"])
                 entry = {
                     "id": id,
-                    "content": Content(content=claim_text, id_number=id),
+                    "content": Content(content=claim_text, identifier=identifier),
                     "label": self.class_mapping.get(ann["fake_cls"], Label.REFUTED),  # Map fake_cls to label
                     "justification": f'The image manipulation class is {ann["fake_cls"]}.'
                 }

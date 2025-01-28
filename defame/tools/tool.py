@@ -15,6 +15,8 @@ class Tool(ABC):
         self.device = device
         self.llm = llm
 
+        self.current_claim_id: Optional[str] = None  # used by few tools to adjust claim-specific behavior
+
     def perform(self, action: Action, summarize: bool = True, **kwargs) -> Evidence:
         result = self._perform(action)
         summary = self._summarize(result, **kwargs) if summarize else None
@@ -37,6 +39,9 @@ class Tool(ABC):
     def get_stats(self) -> dict[str, Any]:
         """Returns the tool's usage statistics as a dictionary."""
         return {}
+
+    def set_claim_id(self, claim_id: str):
+        self.current_claim_id = claim_id
 
 
 def get_available_actions(tools: list[Tool], available_actions: Optional[list[Action]]) -> set[type[Action]]:

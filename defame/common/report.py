@@ -134,3 +134,7 @@ class Report:
             if isinstance(block, ActionsBlock):
                 all_actions.extend(block.actions)
         return all_actions
+
+    def get_result_as_dict(self) -> dict:
+        """Returns the final verdict and the justification as a dictionary."""
+        return {"verdict": self.verdict.name, "justification": self.justification}

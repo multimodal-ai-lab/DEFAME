@@ -31,7 +31,10 @@ def plot_confusion_matrix(predictions: Sequence[Label],
                           classes: Sequence[Label],
                           benchmark_name: str,
                           save_dir: Path = None):
-    class_conversion = {c: v for v, c in enumerate(classes)}
+    """Generates and shows a confusion matrix for the given predictions and ground truth. The order of the classes
+    displayed follows the order of the `classes` parameter."""
+
+    class_indices = {c: v for v, c in enumerate(classes)}
 
     # Construct confusion matrix
     confusion_matrix = np.zeros((len(classes), len(classes)), dtype="float")
@@ -39,8 +42,8 @@ def plot_confusion_matrix(predictions: Sequence[Label],
         if isinstance(pred, str):
             pred = Label[pred]
             gt = Label[gt]
-        if pred != Label.REFUSED_TO_ANSWER and (gt in class_conversion) and (pred in class_conversion):
-            confusion_matrix[class_conversion[gt], class_conversion[pred]] += 1
+        if pred != Label.REFUSED_TO_ANSWER and (gt in classes) and (pred in classes):
+            confusion_matrix[class_indices[gt], class_indices[pred]] += 1
 
     correct = np.copy(confusion_matrix)
     wrong = np.copy(confusion_matrix)

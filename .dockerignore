@@ -2,6 +2,6 @@ out/
 config/google_service_account_key.json
 .idea
 .cadence
-Dockerfile_42
+*/Dockerfile_42
 .gitignore
 .git/

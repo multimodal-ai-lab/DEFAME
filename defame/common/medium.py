@@ -14,6 +14,8 @@ from PIL.Image import Image as PillowImage, open as pillow_open
 from config.globals import temp_dir
 from defame.utils.parsing import MEDIA_REF_REGEX, MEDIA_SPECIFIER_REGEX
 
+import warnings
+warnings.simplefilter("ignore")  # hide all warnings
 
 class Medium(ABC):
     """Superclass of all images, videos, and audios."""
@@ -109,11 +111,11 @@ class MultimediaSnippet:
     for video with ID 2. Unresolvable references will be deleted automatically,
     logging a warning."""
 
-    def __init__(self, content: str | list[str | Medium]):
-        if isinstance(content, list):
-            content = interleaved_to_string(content)
-        assert isinstance(content, str)
-        self.text = content
+    def __init__(self, data: str | list[str | Medium]):
+        if isinstance(data, list):
+            data = interleaved_to_string(data)
+        assert isinstance(data, str)
+        self.text = data
 
         # Verify if all medium references in the text are valid
         if not media_registry.validate(self.text):
@@ -184,7 +186,7 @@ class MediaRegistry:
         if not self.db_location.parent.exists():
             self.db_location.parent.mkdir(exist_ok=True, parents=True)
         is_new = not self.db_location.exists()
-        self.conn = sqlite3.connect(self.db_location, timeout=10)
+        self.conn = sqlite3.connect(self.db_location, timeout=10, check_same_thread=False)
         self.conn.execute("PRAGMA journal_mode=WAL;")
         self.cur = self.conn.cursor()
         if is_new:
