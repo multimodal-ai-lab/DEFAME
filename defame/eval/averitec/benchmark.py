@@ -17,8 +17,8 @@ class AVeriTeC(Benchmark):
     class_mapping = {
         "Supported": Label.SUPPORTED,
         "Not Enough Evidence": Label.NEI,
-        "Refuted": Label.REFUTED,
         "Conflicting Evidence/Cherrypicking": Label.CONFLICTING,
+        "Refuted": Label.REFUTED,
     }
 
     class_definitions = {
@@ -28,11 +28,11 @@ class AVeriTeC(Benchmark):
         Label.NEI:
             """The fact-check does not contain sufficient information to come to a conclusion. In particular,
             there is substantial lack of both supporting and refuting evidence.""",
+        Label.CONFLICTING:
+            """The Claim has both supporting and refuting evidence from multiple sources or the Claim is technically true but misleads by excluding important context. """,
         Label.REFUTED:
             """The knowledge from the fact-check explicitly and clearly refutes at least substantial parts
             if not even the whole the Claim.""",
-        Label.CONFLICTING:
-            """The Claim has both supporting and refuting evidence from multiple sources or the Claim is technically true but misleads by excluding important context. """,
     }
 
     extra_judge_rules = """* **Do not commit the "argument from ignorance" fallacy**: The absence of evidence
