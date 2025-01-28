@@ -126,6 +126,7 @@ def evaluate(
         benchmark.shuffle()  # TODO: Add seed
 
     if n_samples:
+        assert 0 < n_samples <= len(benchmark)
         samples = benchmark[:n_samples]
     elif sample_ids:
         samples = [benchmark.get_by_id(i) for i in sample_ids]
@@ -145,8 +146,17 @@ def evaluate(
             # sample["id"] should be convertable into a number type for indexing
             if int(sample["id"]) not in checked_claim_ids:
                 samples_to_evaluate.append(sample)
+
+        stats_file_path = logger.target_dir / 'results.json'
+        if stats_file_path.exists():
+            with open(stats_file_path, "r") as f:
+                stats = json.load(f)
+        else:
+            stats = dict()
+
     else:
         samples_to_evaluate = samples
+        stats = dict()
 
     # Update number of to-be-checked samples
     n_samples = len(samples_to_evaluate)
@@ -205,12 +215,12 @@ def evaluate(
     end_time = time.time()
     duration = end_time - start_time
 
-    stats = {
+    stats.update({
         "Number of workers": n_workers,
-        "Total run duration": duration,
-    }
+        "Total run duration": duration + stats.get("Total run duration", 0)
+    })
 
-    finalize_evaluation(stats, logger.target_dir, benchmark)
+    finalize_evaluation(logger.target_dir, benchmark, stats)
 
 
 def process_output(doc: Report, meta: dict, benchmark: Benchmark, is_test: bool):
@@ -270,9 +280,9 @@ def aggregate_stats(instance_stats: pd.DataFrame, category: str) -> dict[str, fl
     return unroll_dict(aggregated_stats)
 
 
-def finalize_evaluation(stats: dict,
-                        experiment_dir: str | Path,
-                        benchmark: Benchmark):
+def finalize_evaluation(experiment_dir: str | Path,
+                        benchmark: Benchmark,
+                        stats: dict = None):
     """Takes a dictionary of experiment statistics, computes experiment metrics, and saves
     all the values in a YAML file. Also plots a confusion matrix if ground truth is available."""
     experiment_dir = Path(experiment_dir)
@@ -284,6 +294,16 @@ def finalize_evaluation(stats: dict,
     except Exception:
         print("Terminated before instance_stats.csv was created. ")
         return
+
+    # If stats are not specified, check if there already exist some
+    if stats is None:
+        stats_file_path = experiment_dir / 'results.json'
+        if stats_file_path.exists():
+            with open(stats_file_path, "r") as f:
+                stats = json.load(f)
+
+    if stats is None:
+        stats = dict()
 
     # Add aggregated statistics from individual claims
     stats.update({"Time per claim": instance_stats["Duration"].mean()})
@@ -317,23 +337,19 @@ def finalize_evaluation(stats: dict,
 
     logger.info(f"All outputs saved in {experiment_dir.as_posix()}.")
 
-    if not is_test:
-        benchmark_classes = benchmark.get_classes()
-        # if is_averitec:
-        #    benchmark_classes.remove(Label.CHERRY_PICKING)
+    benchmark_classes = benchmark.get_classes()
+    plot_confusion_matrix(predicted_labels,
+                          ground_truth_labels,
+                          benchmark_classes,
+                          benchmark_name=benchmark.name,
+                          save_dir=experiment_dir)
 
-        plot_confusion_matrix(predicted_labels,
-                              ground_truth_labels,
-                              benchmark_classes,
-                              benchmark_name=benchmark.name,
-                              save_dir=experiment_dir)
-
-        if is_averitec:
-            averitec_out_path = experiment_dir / logger.averitec_out_filename
-            scores = compute_averitec_score(benchmark.file_path, averitec_out_path)
-            scores_path = experiment_dir / "averitec_scores.yaml"
-            with open(scores_path, "w") as f:
-                yaml.dump(scores, f, sort_keys=False)
+    if is_averitec:
+        averitec_out_path = experiment_dir / logger.averitec_out_filename
+        scores = compute_averitec_score(benchmark.file_path, averitec_out_path)
+        scores_path = experiment_dir / "averitec_scores.yaml"
+        with open(scores_path, "w") as f:
+            yaml.dump(scores, f, sort_keys=False)
 
 
 def compute_metrics(predicted_labels: np.ndarray,
@@ -430,7 +446,8 @@ def save_stats(stats: dict, target_dir: Path):
 
     # Create a human-readable version
     stats_human_readable = stats.copy()
-    stats_human_readable["Total run duration"] = sec2hhmmss(stats["Total run duration"])
+    if "Total run duration" in stats:
+        stats_human_readable["Total run duration"] = sec2hhmmss(stats["Total run duration"])
     stats_human_readable["Time per claim"] = sec2mmss(stats["Time per claim"])
     acc = stats["Predictions"].get("Accuracy")
     if acc is not None:

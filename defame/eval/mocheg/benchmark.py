@@ -15,17 +15,17 @@ class MOCHEG(Benchmark):
 
     class_mapping = {
         "supported": Label.SUPPORTED,
-        "refuted": Label.REFUTED,
         "nei": Label.NEI,
+        "refuted": Label.REFUTED,
     }
 
     class_definitions = {
         Label.SUPPORTED:
             "A claim is considered supported when the provided evidence backs up the claim.",
+        Label.NEI:
+            "A claim is marked as NEI when there isn't enough evidence to support or refute the claim.",
         Label.REFUTED:
             "A claim is considered refuted when the evidence contradicts the claim.",
-        Label.NEI:
-            "A claim is marked as NEI when there isn't enough evidence to support or refute the claim."
     }
 
     available_actions = [WebSearch, ImageSearch, ReverseSearch, Geolocate]
