@@ -1,12 +1,6 @@
-import warnings
-from multiprocessing import set_start_method
-
-from defame.eval.evaluate import evaluate
-
-warnings.filterwarnings("ignore")
-
 if __name__ == '__main__':  # evaluation uses multiprocessing
-    set_start_method("spawn")
+    from defame.eval.evaluate import evaluate
+
     evaluate(
         llm="gpt_4o",
         tools_config=dict(
@@ -35,9 +29,9 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
                          "image_search",
                          "reverse_search",
                          "geolocate"],
-        n_samples=1,
+        n_samples=20,
         sample_ids=None, # list of integers
         random_sampling=False,
         print_log_level="info",
-        n_workers=1,
+        n_workers=8,
     )

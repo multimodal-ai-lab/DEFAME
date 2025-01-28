@@ -8,6 +8,7 @@ from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
+from multiprocessing.connection import Connection
 
 import pandas as pd
 import yaml
@@ -62,8 +63,9 @@ class Logger:
 
     def __init__(self):
         self.experiment_dir = None
-        self._current_fact_check_id = None
+        self._current_fact_check_id: Optional[str] = None
         self.print_log_level = "debug"
+        self.connection: Optional[Connection] = None
         self.separator = "_" * 25
         self.is_averitec_run = None
 
@@ -88,7 +90,7 @@ class Logger:
                            procedure_name: str = None,
                            model_name: str = None,
                            experiment_name: str = None):
-        """Specify the experiment directory to print the logs into.
+        """Specify the experiment directory to print the logs and experiment results into.
 
         Args:
             path: If specified, re-uses an existing directory, i.e., it appends logs
@@ -118,10 +120,13 @@ class Logger:
             if isinstance(handler, logging.StreamHandler):
                 handler.setLevel(LOG_LEVELS[level])
 
-    def set_current_fc_id(self, index: int):
+    def set_current_fc_id(self, identifier: str):
         """Sets the current fact-check ID and initializes related loggers."""
-        self._current_fact_check_id = index
+        self._current_fact_check_id = identifier
         self._update_file_handler()
+
+    def set_connection(self, message_conn: Connection):
+        self.connection = message_conn
 
     def _update_file_handler(self):
         """If a fact-check ID is set, writes to the fact-check-specific folder, otherwise
@@ -152,7 +157,7 @@ class Logger:
         if self._current_fact_check_id is None:
             return self.experiment_dir
         else:
-            return self.experiment_dir / "fact-checks" / str(self._current_fact_check_id)
+            return self.experiment_dir / "fact-checks" / self._current_fact_check_id
 
     @property
     def config_path(self) -> Path:
@@ -178,23 +183,43 @@ class Logger:
     def model_comm_path(self) -> Path:
         return self.target_dir / self.model_comm_filename
 
-    def critical(self, msg: str):
+    def send(self, msg: str):
+        """Sends the message through the connection."""
+        if self.connection is not None and self._current_fact_check_id is not None:
+            self.connection.send(dict(
+                task_id=self._current_fact_check_id,
+                status_message=msg,
+            ))
+
+    def critical(self, msg: str, send: bool = True):
         self.logger.critical(bold(red(msg)))
+        if send:
+            self.send(msg)
 
-    def error(self, msg: str):
+    def error(self, msg: str, send: bool = True):
         self.logger.error(red(msg))
+        if send:
+            self.send(msg)
 
-    def warning(self, msg: str):
+    def warning(self, msg: str, send: bool = False):
         self.logger.warning(orange(msg))
+        if send:
+            self.send(msg)
 
-    def info(self, msg: str):
+    def info(self, msg: str, send: bool = False):
         self.logger.info(yellow(msg))
+        if send:
+            self.send(msg)
 
-    def log(self, msg: str, level=15):
+    def log(self, msg: str, level=15, send: bool = False):
         self.logger.log(level, msg)
+        if send:
+            self.send(msg)
 
-    def debug(self, msg: str):
+    def debug(self, msg: str, send: bool = False):
         self.logger.debug(gray(msg))
+        if send:
+            self.send(msg)
 
     def log_model_comm(self, msg: str):
         """Logs model communication using a separate logger."""

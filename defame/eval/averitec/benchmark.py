@@ -55,17 +55,18 @@ class AVeriTeC(Benchmark):
         data = []
         for i, d in enumerate(data_raw):
             date = d["claim_date"]
+            identifier = str(i)
             content = Content(
                 content=d["claim"],
                 author=d["speaker"],
                 date=datetime.strptime(date, "%d-%m-%Y") if date else None,
                 origin=d["original_claim_url"],
-                id_number=i
+                identifier=identifier
             )
             label = self.class_mapping[d["label"]] if variant in ["train", "dev"] else None
             justification = d["justification"] if variant in ["train", "dev"] else None
 
-            data.append({"id": i, "content": content, "label": label, "justification": justification})
+            data.append({"id": identifier, "content": content, "label": label, "justification": justification})
 
         self.data = data
 

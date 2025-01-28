@@ -73,12 +73,12 @@ class MOCHEG(Benchmark):
             claim_text = row["Claim"]
             text_evidence = row["Evidence"]
             label = self.class_mapping[row["cleaned_truthfulness"].lower()]
-            id = row["claim_id"]
+            identifier = str(row["claim_id"])
 
             # Create an entry for each claim
             entry = {
-                "id": id,
-                "content": Content(content=claim_text, id_number=id),
+                "id": identifier,
+                "content": Content(content=claim_text, identifier=identifier),
                 "label": label,
                 "justification": row.get("ruling_outline", "")
             }

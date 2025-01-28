@@ -6,7 +6,7 @@ import pandas as pd
 
 from defame.common.medium import Image
 from config.globals import data_root_dir
-from defame.common import Label, Content
+from defame.common import Label, Content, Claim
 from defame.eval.benchmark import Benchmark
 from defame.tools.text_extractor import OCR
 from defame.tools.geolocator import Geolocate
@@ -66,11 +66,11 @@ class VERITE(Benchmark):
             #if row["label"] == "out-of-context":
             #    continue
             image = Image(image_path)
-            assert isinstance(i, int)
             claim_text = f"{image.reference} {row['caption']}"
+            identifier = str(i)
             entry = {
-                "id": i,
-                "content": Content(content=claim_text, id_number=i),
+                "id": identifier,
+                "input": Claim(claim_text, identifier=identifier),
                 "label": self.class_mapping[row["label"]],
                 "justification": row.get("ground_truth_justification", "")
             }

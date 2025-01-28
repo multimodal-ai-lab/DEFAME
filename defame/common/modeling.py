@@ -271,6 +271,10 @@ class GPTModel(Model):
             logger.critical(f"OpenAI rate limit hit!")
             logger.critical(repr(e))
             quit()
+        except openai.AuthenticationError as e:
+            logger.critical(f"Authentication at OpenAI API was unsuccessful!")
+            logger.critical(e)
+            quit()
         except Exception as e:
             logger.warning("Error while calling the LLM! Continuing with empty response.\n" + str(e))
             logger.warning("Prompt used:\n" + str(prompt))

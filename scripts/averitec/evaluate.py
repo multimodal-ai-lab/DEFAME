@@ -1,10 +1,7 @@
-from defame.eval.evaluate import evaluate
-from multiprocessing import set_start_method
-
-variant = "dev"
-
 if __name__ == '__main__':  # evaluation uses multiprocessing
-    set_start_method("spawn")
+    from defame.eval.evaluate import evaluate
+
+    variant = "dev"
     evaluate(
         llm="gpt_4o",
         tools_config=dict(searcher=dict(

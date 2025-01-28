@@ -4,7 +4,6 @@ import json
 import re
 import time
 import traceback
-from multiprocessing import Process, Queue
 from pathlib import Path
 from queue import Empty
 from typing import Sequence, Optional
@@ -28,8 +27,9 @@ from defame.eval.averitec.compute_score import compute_averitec_score
 from defame.eval.benchmark import Benchmark
 from defame.eval.mocheg.benchmark import MOCHEG
 from defame.fact_checker import FactChecker
-from defame.tools import initialize_tools, Searcher
-from defame.tools.search.knowledge_base import KnowledgeBase
+from defame.helpers.parallelization.pool import FactCheckerPool
+from defame.helpers.parallelization.task import Task
+from defame.tools import initialize_tools
 from defame.utils.console import green, red, bold, sec2hhmmss, sec2mmss, num2text
 from defame.utils.plot import plot_confusion_matrix
 from defame.utils.utils import unroll_dict
@@ -62,14 +62,15 @@ def evaluate(
     if llm_kwargs is None:
         llm_kwargs = dict()
 
+    if fact_checker_kwargs is None:
+        fact_checker_kwargs = dict()
+
     benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
     is_test = benchmark.variant == "test"
 
     llm = model_specifier_to_shorthand(llm) if llm not in AVAILABLE_MODELS["Shorthand"].values else llm
-    if fact_checker_kwargs is None or "procedure_variant" not in fact_checker_kwargs:
-        procedure_variant = FactChecker.default_procedure
-    else:
-        procedure_variant = fact_checker_kwargs["procedure_variant"]
+
+    procedure_variant = fact_checker_kwargs.get("procedure_variant", FactChecker.default_procedure)
 
     logger.set_experiment_dir(path=continue_experiment_dir,
                               benchmark_name=benchmark.shorthand,
@@ -159,94 +160,47 @@ def evaluate(
 
     start_time = time.time()
 
-    input_queue = Queue()
-    output_queue = Queue()
-    devices_queue = Queue()
-    error_queue = Queue()
-
-    fact_checker_kwargs.update(dict(
-        available_actions=allowed_actions,
-        class_definitions=benchmark.class_definitions,
-        extra_prepare_rules=benchmark.extra_prepare_rules,
-        extra_plan_rules=benchmark.extra_plan_rules,
-        extra_judge_rules=benchmark.extra_judge_rules,
-    ))
-
     print(f"Evaluating {n_samples} samples using {n_workers} workers...")
 
-    for d in range(n_workers):
-        devices_queue.put(d % n_devices if n_devices > 0 else None)
+    pool = FactCheckerPool(n_workers=n_workers,
+                           llm=llm,
+                           llm_kwargs=llm_kwargs,
+                           tools_config=tools_config,
+                           available_actions=allowed_actions,
+                           class_definitions=benchmark.class_definitions,
+                           extra_prepare_rules=benchmark.extra_prepare_rules,
+                           extra_plan_rules=benchmark.extra_plan_rules,
+                           extra_judge_rules=benchmark.extra_judge_rules,
+                           print_log_level=print_log_level,
+                           target_dir=logger.target_dir,
+                           **fact_checker_kwargs)
 
-    # Fill the input queue with benchmark instances
+    # Fill the pool's task queue with benchmark instances
     for instance in samples_to_evaluate:
-        content = instance["content"]
-        input_queue.put(content)
+        task = Task(instance["input"], identifier=instance["id"])
+        pool.add_task(task)
 
-    # Optionally, add sentinel values to indicate shutdown after all tasks are done
-    for _ in range(n_workers):
-        input_queue.put(None)
+    progress = tqdm(range(n_samples), smoothing=0.02)
 
-    # Initialize and start worker processes
-    workers = []
-    for i in range(n_workers):
-        p = Process(
-            target=fact_check,
-            args=(
-                llm,
-                llm_kwargs,
-                fact_checker_kwargs,
-                tools_config,
-                print_log_level,
-                logger.target_dir,
-                is_averitec,
-                input_queue,
-                output_queue,
-                devices_queue,
-                error_queue,
-                i  # worker_id
-            )
-        )
-        p.start()
-        workers.append(p)
-        logger.info(f"Started Worker {i} with PID {p.pid}.")
-
-    process = tqdm(range(n_samples), smoothing=0.02)
-    n_completed = 0
+    pool.wait_until_ready()
 
     try:
-        while n_completed < n_samples:
+        while progress.n + pool.n_failed_tasks < n_samples:
             try:
-                doc, meta = output_queue.get(timeout=60)
+                doc, meta = pool.get_result(timeout=60)
                 process_output(doc, meta, benchmark, is_test)
-                n_completed += 1
-                process.update(1)
+                progress.update(1)
 
             except Empty as e:
-                # Check the status of each worker
-                for i, worker in enumerate(workers):
-                    if not worker.is_alive() and worker.exitcode != 0:
-                        logger.error(f"Worker {i} has died unexpectedly. Exit code: {worker.exitcode}")
-
-                # Log any potential error reported by workers
-                while not error_queue.empty():
-                    error_message = error_queue.get()
-                    logger.error(error_message)
-
-                # Quit if all workers are dead
-                if np.all([not worker.is_alive() for worker in workers]):
+                if not pool.is_running():
+                    logger.warning("Worker pool stopped running early. Terminating evaluation.")
                     break
 
     except Exception as e:
-        logger.fatal(f"An unexpected error occurred in the main process:")
-        logger.fatal(traceback.format_exc())
+        logger.critical(f"An unexpected error occurred in the main process:")
+        logger.critical(traceback.format_exc())
 
-    finally:
-        for i, worker in enumerate(workers):
-            if worker.is_alive():
-                worker.terminate()
-                worker.join()
-                logger.info(f"Worker {i} has been terminated gracefully.")
-        logger.info("All workers are terminated.")
+    pool.close()
 
     end_time = time.time()
     duration = end_time - start_time
@@ -260,9 +214,8 @@ def evaluate(
 
 
 def process_output(doc: Report, meta: dict, benchmark: Benchmark, is_test: bool):
-    content = doc.claim.original_context
-    claim_id = content.id_number
-    instance = benchmark.get_by_id(claim_id)
+    claim = doc.claim
+    instance = benchmark.get_by_id(claim.id)
     prediction = doc.verdict
 
     # Special output processing for AVeriTeC
@@ -273,8 +226,8 @@ def process_output(doc: Report, meta: dict, benchmark: Benchmark, is_test: bool)
 
         pred_label = benchmark.get_class_name(prediction)
         averitec_out_instance = {
-            "claim_id": claim_id,
-            "claim": content.text,
+            "claim_id": claim.id,
+            "claim": claim.text,
             "pred_label": pred_label
         }
 
@@ -284,7 +237,7 @@ def process_output(doc: Report, meta: dict, benchmark: Benchmark, is_test: bool)
         logger.save_next_averitec_out(averitec_out_instance)
 
     logger.save_next_prediction(
-        sample_index=claim_id,
+        sample_index=claim.id,
         claim=doc.claim.text,
         target=instance.get("label"),
         justification=doc.justification,
@@ -496,66 +449,6 @@ def save_stats(stats: dict, target_dir: Path):
         f.write(stats_str)
 
     print("Results:\n" + stats_str)
-
-
-def fact_check(llm: str, llm_kwargs: dict,
-               fact_checker_kwargs: dict, tools_config: dict,
-               print_log_level: str, logging_target_dir: str | Path,
-               is_averitec: bool, input_queue: Queue, output_queue: Queue, devices_queue: Queue,
-               error_queue: Queue, worker_id: int):
-    device_id = devices_queue.get()
-    device = None if device_id is None else f"cuda:{device_id}"
-
-    logger.set_experiment_dir(logging_target_dir)
-    logger.set_log_level(print_log_level)
-
-    # Initialize model(s)
-    llm = make_model(llm, device=device, **llm_kwargs)
-
-    tools = initialize_tools(tools_config, llm, device=device)
-
-    # Setup fact-checker
-    fc = FactChecker(
-        llm=llm,
-        tools=tools,
-        **fact_checker_kwargs,
-    )
-
-    # Get the knowledge base object
-    if is_averitec:
-        searcher = tools[0]
-        assert isinstance(searcher, Searcher)
-        if 'averitec_kb' in searcher.search_apis:
-            kb = searcher.search_apis["averitec_kb"]
-            assert isinstance(kb, KnowledgeBase)
-    else:
-        kb = None
-
-    # Run fact-checks as long as there is work to do
-    while True:
-        try:
-            content = input_queue.get(timeout=10)
-            if content is None:
-                break
-        except Empty:
-            break
-
-        try:
-            if is_averitec and 'averitec_kb' in searcher.search_apis:
-                # Restrict the KB to the current claim's resources
-                kb.current_claim_id = content.id_number
-            logger.set_current_fc_id(content.id_number)
-            _, docs, metas = fc.check_content(content)
-            doc = docs[0]
-            meta = metas[0]
-            output_queue.put((doc, meta))
-
-        except Exception as e:
-            error_message = f"Worker {worker_id} encountered an error while processing claim {content.id_number}:\n"
-            error_message += traceback.format_exc()
-            error_queue.put(error_message)
-
-    logger.info(f"Worker {worker_id} is done and terminates gracefully.")
 
 
 def load_results(path: str):

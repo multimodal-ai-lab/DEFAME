@@ -34,6 +34,10 @@ class Actor:
         for tool in self.tools:
             tool.reset()
 
+    def set_current_claim_id(self, claim_id: str):
+        for tool in self.tools:
+            tool.set_claim_id(claim_id)
+
     def get_tool_stats(self):
         return {t.name: t.get_stats() for t in self.tools}
 

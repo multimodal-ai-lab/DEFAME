@@ -27,7 +27,9 @@ class FactChecker:
 
     def __init__(self,
                  llm: str | Model = "gpt_4o_mini",
+                 llm_kwargs: dict = None,
                  tools: list[Tool] = None,
+                 tools_config: dict = None,
                  available_actions: list[Action] = None,
                  search_engines: dict[str, dict] = None,
                  procedure_variant: str = None,
@@ -42,11 +44,18 @@ class FactChecker:
                  class_definitions: dict[Label, str] = None,
                  extra_prepare_rules: str = None,
                  extra_plan_rules: str = None,
-                 extra_judge_rules: str = None):
-        assert not tools or not search_engines, \
-            "You are allowed to specify either tools or search engines."
+                 extra_judge_rules: str = None,
+                 device: str = None):
+        assert not (tools or tools_config) or not search_engines, \
+            "You are allowed to specify only either tools or search engines."
 
-        self.llm = make_model(llm) if isinstance(llm, str) else llm
+        if llm_kwargs is None:
+            llm_kwargs = {}
+
+        if device is not None:
+            llm_kwargs.update(device=device)
+
+        self.llm = make_model(llm, **llm_kwargs) if isinstance(llm, str) else llm
 
         self.claim_extractor = ClaimExtractor(llm=self.llm,
                                               prepare_rules=extra_prepare_rules,
@@ -101,11 +110,16 @@ class FactChecker:
         tools = [
             Searcher(search_engines, max_result_len=self.max_result_len, llm=self.llm),
             # CredibilityChecker(),
-            Geolocator(top_k=10),
+            # Geolocator(top_k=10),
             # ManipulationDetector(),
         ]
 
         return tools
+
+    def extract_claims(self, content: Content | str) -> list[Claim]:
+        if not isinstance(content, Content):
+            content = Content(content)
+        return self.claim_extractor.extract_claims(content)
 
     def check_content(self, content: Content | str) -> tuple[Label, list[Report], list[dict[str, Any]]]:
         """
@@ -115,9 +129,7 @@ class FactChecker:
         """
         start = time.time()
 
-        content = Content(content) if isinstance(content, str) else content
-
-        claims = self.claim_extractor.extract_claims(content)
+        claims = self.extract_claims(content)
 
         # Verify each single extracted claim
         docs = []
@@ -141,10 +153,12 @@ class FactChecker:
         if isinstance(claim, list):
             claim = Claim(claim)
 
-        logger.info(f"Verifying {bold(str(claim))}")
+        logger.info(f"Verifying claim.", send=True)
+        logger.info(f"{bold(str(claim))}")
 
         stats = {}
         self.actor.reset()  # remove all past search evidences
+        self.actor.set_current_claim_id(claim.original_context.id)  # TODO: Test on AVeriTeC
         if self.restrict_results_to_claim_date:
             self.actor.set_search_date_restriction(claim.date)
         if not self.llm:
