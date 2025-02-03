@@ -4,6 +4,8 @@ openai_api_key: ''
 
 # anthropic_api_key: ''
 
+deepseek_api_key: ''
+
 serper_api_key: ''  # for Google Search
 
 # x_bearer_token: ''
