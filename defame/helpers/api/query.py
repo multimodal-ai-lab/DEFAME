@@ -1,6 +1,7 @@
-import io
 from secrets import token_urlsafe
 from typing import Any, Optional
+from io import BytesIO
+import base64
 
 from PIL import Image as PillowImage
 from fastapi import HTTPException
@@ -179,7 +180,7 @@ def process_query(user_query: UserQuery) -> Content:
         if block_type.lower() == "text":
             processed.append(block_content)
         elif block_type.lower() == "image":
-            img = PillowImage.open(io.BytesIO(block_content))
+            img = PillowImage.open(BytesIO(base64.b64decode(block_content)))
             image = Image(pillow_image=img)
             processed.append(image)
         else:

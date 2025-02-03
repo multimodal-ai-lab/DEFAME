@@ -1,7 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from defame.helpers.api.run import app, API_KEY
+from defame.helpers.api.main import app, API_KEY
+from defame.common import Image
 
 client = TestClient(app)
 query_id = None
@@ -17,7 +18,9 @@ def test_verify():
     headers = {"api-key": API_KEY, "Content-Type": "application/json"}
     body = dict(
         data=[
-            ("text", "Trump has an orange face.")
+            ("text", "The image"),
+            ("image", Image("in/example/sahara.webp").get_base64_encoded()),
+            ("text", "shows the Sahara in 2023 covered with snow!")
         ]
     )
     response = client.post("/verify", json=body, headers=headers)
