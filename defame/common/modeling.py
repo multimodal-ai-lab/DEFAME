@@ -1,26 +1,28 @@
+import copy
+import re
 from abc import ABC
 from typing import Callable
 
 import numpy as np
 import openai
 import pandas as pd
+import requests
 import tiktoken
 import torch
-import copy
-import re
 from openai import OpenAI
-from transformers import pipeline, MllamaForConditionalGeneration, AutoProcessor, StoppingCriteria, StoppingCriteriaList, Pipeline
-
-# from llava.mm_utils import get_model_name_from_path, process_images, tokenizer_image_token
-# from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN, IGNORE_INDEX
-# from llava.conversation import conv_templates, SeparatorStyle
+from transformers import pipeline, MllamaForConditionalGeneration, AutoProcessor, StoppingCriteria, \
+    StoppingCriteriaList, Pipeline
 
 from config.globals import api_keys
 from defame.common import logger
 from defame.common.medium import Image
 from defame.common.prompt import Prompt
-from defame.utils.parsing import is_guardrail_hit, GUARDRAIL_WARNING, format_for_llava, find
 from defame.utils.console import bold
+from defame.utils.parsing import is_guardrail_hit, GUARDRAIL_WARNING, format_for_llava, find
+
+# from llava.mm_utils import get_model_name_from_path, process_images, tokenizer_image_token
+# from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN, IGNORE_INDEX
+# from llava.conversation import conv_templates, SeparatorStyle
 
 # Each model should use the following system prompt
 DEFAULT_SYSTEM_PROMPT = """You are a professional fact-checker. Your mission is to verify a given Claim. Make 
@@ -97,6 +99,55 @@ class OpenAIAPI:
             **kwargs
         )
         return completion.choices[0].message.content
+
+
+class DeepSeekAPI:
+    def __init__(self, model: str):
+        self.model = model
+        if not api_keys["deepseek_api_key"]:
+            raise ValueError("No DeepSeek API key provided. Add it to config/api_keys.yaml")
+        self.key = api_keys["deepseek_api_key"]
+
+    def __call__(self, prompt: Prompt, system_prompt: str, **kwargs):
+        if prompt.has_videos():
+            raise ValueError(f"{self.model} does not support videos.")
+
+        if prompt.has_audios():
+            raise ValueError(f"{self.model} does not support audios.")
+
+        return self.completion(prompt, system_prompt, **kwargs)
+
+    def completion(self, prompt: Prompt, system_prompt: str, **kwargs):
+        url = "https://api.deepseek.com/chat/completions"
+        messages = []
+        if system_prompt:
+            messages.append(dict(
+                content=system_prompt,
+                role="system",
+            ))
+        for block in prompt.to_interleaved():
+            if isinstance(block, str):
+                message = dict(
+                    content=block,
+                    role="user",
+                )
+            else:
+                messages = ...
+                raise NotImplementedError
+            messages.append(message)
+        headers = {"Authorization": f"Bearer {self.key}", "Content-Type": "application/json"}
+        body = dict(
+            model=self.model,
+            messages=messages,
+            **kwargs,
+        )
+        response = requests.post(url, body, headers=headers)
+
+        if response.status_code != 200:
+            raise RuntimeError("Requesting the DeepSeek API failed: " + response.text)
+
+        completion = response.json()["object"]
+        return completion
 
 
 class Model(ABC):
@@ -188,8 +239,8 @@ class Model(ABC):
             prompt_length = self.count_tokens(prompt) + len(system_prompt)
             if prompt_length > self.context_window:
                 logger.debug(f"Prompt has {prompt_length} tokens which is too long "
-                                  f"for the context window of length {self.context_window} "
-                                  f"tokens. Truncating the prompt.")
+                             f"for the context window of length {self.context_window} "
+                             f"tokens. Truncating the prompt.")
                 prompt.text = prompt.text[:self.context_window - len(system_prompt)]
 
             self.n_calls += 1
@@ -199,8 +250,8 @@ class Model(ABC):
             logger.log_model_comm(f"{prompt.name} - QUERY:\n\n{prompt}\n\n\n\n===== > RESPONSE:  < =====\n{response}")
             self.n_output_tokens += self.count_tokens(response)
             original_response = response
-            
-            if response and is_guardrail_hit(response): # Handle guardrail hits
+
+            if response and is_guardrail_hit(response):  # Handle guardrail hits
                 logger.warning(GUARDRAIL_WARNING)
                 logger.log(f"PROMPT: {str(prompt)}\nRESPONSE: {response}")
                 if isinstance(self, GPTModel):
@@ -290,6 +341,29 @@ class GPTModel(Model):
         return 85 + 170 * n_tiles
 
 
+class DeepSeekModel(Model):
+    open_source = True
+    encoding = tiktoken.get_encoding("cl100k_base")
+    accepts_images = True
+
+    def load(self, model_name: str) -> Pipeline | DeepSeekAPI:
+        return DeepSeekAPI(model=model_name)
+
+    def _generate(self, prompt: Prompt, temperature: float, top_p: float, top_k: int,
+                  system_prompt: Prompt = None) -> str:
+        try:
+            return self.api(
+                prompt,
+                temperature=temperature,
+                top_p=top_p,
+                system_prompt=system_prompt,
+            )
+        except Exception as e:
+            logger.warning("Error while calling the LLM! Continuing with empty response.\n" + str(e))
+            logger.warning("Prompt used:\n" + str(prompt))
+        return ""
+
+
 class HuggingFaceModel(Model, ABC):
     open_source = True
     api: Pipeline
@@ -335,7 +409,6 @@ class HuggingFaceModel(Model, ABC):
             logger.warning("Error while calling the LLM! Continuing with empty response.\n" + str(e))
             return ""
 
-
     def count_tokens(self, prompt: Prompt | str) -> int:
         if self.tokenizer:
             tokens = self.tokenizer.encode(str(prompt))
@@ -345,7 +418,7 @@ class HuggingFaceModel(Model, ABC):
 
 
 class LlamaModel(HuggingFaceModel):
-    accepts_images = True 
+    accepts_images = True
     accepts_videos = False
     accepts_audio = False
 
@@ -367,7 +440,7 @@ fact-check any presented content."""
         Model specific processing of the prompt using the model's tokenizer with a specific template.
         Handles both standard text-only LLaMA models and multimodal LLaMA 3.2.
         """
-        
+
         if system_prompt is None:
             system_prompt = self.system_prompt
 
@@ -448,7 +521,8 @@ fact-check any presented content."""
 
         return super()._finalize_load("text-generation", model_name)
 
-    def _generate(self, prompt: Prompt, temperature: float, top_p: float, top_k: int, system_prompt: Prompt = None) -> str:
+    def _generate(self, prompt: Prompt, temperature: float, top_p: float, top_k: int,
+                  system_prompt: Prompt = None) -> str:
         """
         Generates responses for both standard LLaMA models and LLaMA 3.2.
         Adjusts based on the model type for multimodal handling.
@@ -466,7 +540,6 @@ fact-check any presented content."""
         return super()._generate(prompt, temperature, top_p, top_k, system_prompt)
 
 
-
 class LlavaModel(HuggingFaceModel):
     accepts_images = True
     accepts_videos = False
@@ -482,20 +555,24 @@ the instructions and keep the output to the minimum."""
             from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration
             self.processor = LlavaNextProcessor.from_pretrained(model_name)
             self.tokenizer = self.processor.tokenizer
-            return LlavaNextForConditionalGeneration.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
-        
+            return LlavaNextForConditionalGeneration.from_pretrained(model_name, torch_dtype=torch.float16,
+                                                                     device_map="auto")
+
         elif "llava-onevision" in model_name:
             from llava.model.builder import load_pretrained_model
-            self.processor, self.model, self.image_processor, self.max_length = load_pretrained_model(model_name, None, "llava_qwen", device_map="auto")
+            self.processor, self.model, self.image_processor, self.max_length = load_pretrained_model(model_name, None,
+                                                                                                      "llava_qwen",
+                                                                                                      device_map="auto")
             self.tokenizer = self.processor
             self.model.eval()
 
         return self.model
 
-    def _generate(self, prompt: Prompt, temperature: float, top_k: int, top_p: int, system_prompt: Prompt = None) -> str:
+    def _generate(self, prompt: Prompt, temperature: float, top_k: int, top_p: int,
+                  system_prompt: Prompt = None) -> str:
         inputs, formatted_prompt = self.handle_prompt(prompt, system_prompt)
         stopping_criteria = StoppingCriteriaList([RepetitionStoppingCriteria(self.tokenizer)])
-        
+
         try:
             out = self.api.generate(
                 **inputs,
@@ -507,7 +584,8 @@ the instructions and keep the output to the minimum."""
             )
         except IndexError as e:
             image_count = formatted_prompt.count("<image>")
-            logger.error(f"IndexError: cur_image_idx out of range. Number of Images. {len(inputs['images'])}\nPrompt:\n{prompt}\n\n\nFormatted Prompt:\n{formatted_prompt}\n\n\nNumber of ImageTokens in the Formatted Prompt: {image_count}")
+            logger.error(
+                f"IndexError: cur_image_idx out of range. Number of Images. {len(inputs['images'])}\nPrompt:\n{prompt}\n\n\nFormatted Prompt:\n{formatted_prompt}\n\n\nNumber of ImageTokens in the Formatted Prompt: {image_count}")
             response = ""
             return response
 
@@ -520,14 +598,16 @@ the instructions and keep the output to the minimum."""
     def handle_prompt(self, original_prompt: Prompt, system_prompt: str = None) -> str:
         if system_prompt is None:
             system_prompt = self.system_prompt
-    
-        #images = [image.image for image in original_prompt.images] if original_prompt.is_multimodal() else None
-        images = [block.image for block in original_prompt.to_interleaved() if isinstance(block, Image)] if original_prompt.is_multimodal() else None
+
+        # images = [image.image for image in original_prompt.images] if original_prompt.is_multimodal() else None
+        images = [block.image for block in original_prompt.to_interleaved() if
+                  isinstance(block, Image)] if original_prompt.is_multimodal() else None
 
         try:
             if "llava_next" in self.name:
                 if len(original_prompt.images) > 1:
-                    logger.warning("Prompt contains more than one image; only the first image will be processed. Be aware of semantic confusions!")
+                    logger.warning(
+                        "Prompt contains more than one image; only the first image will be processed. Be aware of semantic confusions!")
                 formatted_prompt = self.format_for_llava_next(original_prompt, system_prompt)
                 inputs = self.processor(images=images, text=formatted_prompt, return_tensors="pt").to(self.device)
             elif "llava_onevision" in self.name:
@@ -539,7 +619,8 @@ the instructions and keep the output to the minimum."""
                     image_tensors = None
                     image_sizes = None
                 formatted_prompt = self.format_for_llava_onevision(original_prompt, system_prompt)
-                input_ids = tokenizer_image_token(formatted_prompt, self.processor, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(self.device)
+                input_ids = tokenizer_image_token(formatted_prompt, self.processor, IMAGE_TOKEN_INDEX,
+                                                  return_tensors="pt").unsqueeze(0).to(self.device)
                 inputs = dict(inputs=input_ids, images=image_tensors, image_sizes=image_sizes)
         except Exception as e:
             logger.warning(f"Error formatting prompt: {str(e)}")
@@ -610,14 +691,16 @@ def make_model(name: str, **kwargs) -> Model:
                 print(f"CUDA out of memory error occurred: {e}")
                 print("Consider reducing n_workers or batch size, or freeing up GPU memory.")
                 torch.cuda.empty_cache()  # Optionally clear the cache to free up memory.
-                #raise  # Re-raise the exception or handle it as needed (e.g., fallback to CPU)
+                # raise  # Re-raise the exception or handle it as needed (e.g., fallback to CPU)
+        case "deepseek":
+            return DeepSeekModel(specifier, **kwargs)
         case "google":
             raise NotImplementedError("Google models not integrated yet.")
         case "anthropic":
             raise NotImplementedError("Anthropic models not integrated yet.")
         case _:
             raise ValueError(f"Unknown LLM API '{api_name}'.")
-        
+
 
 class RepetitionStoppingCriteria(StoppingCriteria):
     def __init__(self, tokenizer, repetition_threshold=20, repetition_penalty=1.5):
@@ -628,10 +711,10 @@ class RepetitionStoppingCriteria(StoppingCriteria):
     def __call__(self, input_ids, scores, **kwargs) -> bool:
         # Convert token IDs to strings for comparison
         generated_text = self.tokenizer.decode(input_ids[0])
-        
+
         # Split the text into tokens/words and check for repetition
         token_list = generated_text.split()
-        
+
         if len(token_list) >= self.repetition_threshold:
             last_chunk = token_list[-self.repetition_threshold:]
             earlier_text = " ".join(token_list[:-self.repetition_threshold])

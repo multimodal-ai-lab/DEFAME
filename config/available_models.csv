@@ -21,3 +21,4 @@ ladybird,HUGGINGFACE,bobofrut/ladybird-base-7B-v8,8_000,0,0
 llava_next,HUGGINGFACE,llava-hf/llama3-llava-next-8b-hf,4096,0,0
 llava_onevision,HUGGINGFACE,lmms-lab/llava-onevision-qwen2-7b-ov,128_000,0,0
 llama32_90b,HUGGINGFACE,meta-llama/Llama-3.2-90B-Vision-Instruct,128_000,0,0
+deepseek,DEEPSEEK,deepseek-chat,64_000,0.14,0.28
