@@ -175,6 +175,12 @@ To extend the fact-checker with an additional tool, follow these steps:
    This step is required only if you want to use your tool for evaluation on one of the benchmarks. To this end, navigate to the respective benchmark file under `defame/eval/<benchmark_name>/benchmark.py`. There, in the `available_actions` list, add your Tool.
 
 
+## DEFAME API
+DEFAME ships with its own API backend, allowing the user to access DEFAME's functionalities through HTTP requests. Simply run `scripts/run_api.py` to activate the server which will be accessible on `http://0.0.0.0:3003`. The API documentation is then available under http://0.0.0.0:3003/docs.
+
+Don't forget to [run Firecrawl](#Manual-Firecrawl-Setup) if you want to use it.
+
+
 ## [License](LICENSE)
 This repository and all its contents (except for the contents inside `third_party/`) are licensed under the [Apache 2.0 License](http://www.apache.org/licenses/LICENSE-2.0).
 

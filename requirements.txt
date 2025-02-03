@@ -8,7 +8,7 @@ click==8.1.7
 datasets==1.17.0
 duckduckgo_search==6.1.0
 einops==0.8.0
-fastapi~=0.115.6
+fastapi[standard]~=0.115.6
 google==3.0.0
 google-cloud-vision==3.7.4
 huggingface-hub>=0.23.2
@@ -42,5 +42,6 @@ torchvision>=0.15.2
 transformers>=4.45.2
 tqdm>=4.66.3
 tweepy~=4.14.0
+uvicorn
 wandb==0.18.0
 yacs==0.1.8

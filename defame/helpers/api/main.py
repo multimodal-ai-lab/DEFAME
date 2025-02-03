@@ -13,6 +13,32 @@ API_KEY = "sdfg8rtjzuo5we68g54654rehz9tghr65465df414qq"
 SAVE_DIR = Path("out/api/")
 
 
+title = "DEFAME API"
+version = "0.0.1"
+description = """This is the API backend of DEFAME, a multimodal AI fact-checker.
+The API enables you to run HTTP requests in order to submit fact-checks and retrieve their results.
+This documentation is semi-automatically generated via FastAPI.
+
+## Authentication
+To submit new content to be fact-checked (via `/verify`), you need to authenticate with an API key.
+Ask [Mark Rothermel](mailto:mark.rothermel@tu-darmstadt.de) if you want to get access.
+
+## `/status` Websocket
+Besides the API calls below, you can get real-time updates via a websocket available at
+`/status/{query_id}`. You can connect to it with
+ ```ws://<api_domain>:<api_port>/status/{query_id}```
+First, you will receive a full status message. Then, as long as the fact-check is running,
+the websocket will send you live updates on (only) *the changes* regarding the fact-check's
+status and output results.
+"""
+tags_metadata = [
+    {
+        "name": "API Calls",
+        "description": "All available API endpoints.",
+    },
+]
+
+
 def ensure_authentication(api_key: str):
     if not api_key == API_KEY:
         raise HTTPException(
@@ -21,7 +47,17 @@ def ensure_authentication(api_key: str):
         )
 
 
-app = FastAPI()
+app = FastAPI(title=title, description=description, version=version,
+              openapi_tags=tags_metadata,
+              contact={
+                  "name": "Mark Rothermel",
+                  "email": "mark.rothermel@tu-darmstadt.de",
+              },
+              license_info={
+                  "name": "Apache 2.0",
+                  "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+              },
+              )
 
 header_scheme = APIKeyHeader(name="api-key")
 
@@ -30,14 +66,26 @@ pool = FactCheckerPool(target_dir=SAVE_DIR, n_workers=8)
 query_manager = QueryManager(pool)
 
 
-@app.get("/")
+@app.get("/", summary="Use this to see if the API is running.", tags=["API Calls"])
 async def root():
     return "DEFAME API is up and running!"
 
 
-@app.post("/verify/")
+@app.post("/verify/", summary="Submit new content to be decomposed and fact-checked.", tags=["API Calls"])
 async def verify(user_query: UserQuery, api_key: str = Depends(header_scheme)):
-    """Adds the user-submitted content to the fact-checking task pool. Returns the task ID."""
+    """Adds the provided content to the fact-checking worker pool. Returns the query's ID
+    with which the results can be retrieved. Expects the content to be JSON-formatted, for example:
+    ```json
+    {
+        "data": [
+            ("text", "The image"),
+            ("image", <base64_encoded_image_string>),
+            ("text", "shows the Sahara in 2023 covered with snow!),
+        ]
+    }
+    ```
+    This endpoint requires authentication through an API key.
+    """
     ensure_authentication(api_key)
     query_id = query_manager.add_query(user_query)
     return {"query_id": query_id}
@@ -46,7 +94,7 @@ async def verify(user_query: UserQuery, api_key: str = Depends(header_scheme)):
 @app.websocket("/status/{query_id}")
 async def websocket_endpoint(websocket: WebSocket, query_id: str):
     """Delivers the current state immediately, followed by real-time updates (containing
-    just the changes). Closes automatically when fact-check is done or failed."""
+    just the changes). Closes automatically when fact-check terminated."""
     await websocket.accept()
 
     # Send initial query status
@@ -70,16 +118,22 @@ async def websocket_endpoint(websocket: WebSocket, query_id: str):
     await websocket.close()
 
 
-@app.get("/results/{query_id}")
+@app.get("/results/{query_id}",
+         summary="Get the status/results of a previously submitted fact-checking query.",
+         tags=["API Calls"])
 async def get_query_results(query_id: str):
-    """Returns the fact-checking results for this query among with its current status. If
-    the query is not finished yet, returns just the status."""
+    """Returns the fact-checking results for the query specified with `query_id`. Contains
+    the query's status and, if available, the corresponding decomposition and verification
+    results. If the query is not finished yet, returns just the status."""
     return await query_manager.get_latest_query_info(query_id)
 
 
-@app.get("/results/{query_id}/{claim_id}/report.pdf")
+@app.get("/results/{query_id}/{claim_id}/report.pdf",
+         summary="Download the report PDF of a fact-check.",
+         tags=["API Calls"])
 async def get_report_pdf(query_id: str, claim_id: int):
-    """For downloading the Report PDF."""
+    """Downloads the report PDF of the fact-check of the claim specified with `query_id` and
+    `claim_id`."""
 
     # Ensure that task is done
     query = query_manager.get_query(query_id)
