@@ -25,8 +25,12 @@ class MOCHEG(Benchmark):
         Label.REFUTED:
             "A claim is considered refuted when the evidence contradicts the claim.",
         Label.NEI:
-            "A claim is marked as NEI when there isn't enough evidence to support or refute the claim."
+            "A claim is marked as NEI when there isn't enough evidence to support or refute the claim or a claim has significant elements of both truth and falsity to it such that it could not fairly be described by any other rating."
     }
+
+    extra_judge_rules = """* **Do not commit the "argument from ignorance" fallacy**: The absence of evidence
+    for the Claim does NOT prove that the Claim is refuted. Instead, the Claim is simply unsupported--which is a case of 
+    'not enough information'."""
 
     available_actions = [WebSearch, ImageSearch, ReverseSearch, Geolocate]
 
