@@ -237,7 +237,7 @@ def process_output(doc: Report, meta: dict, benchmark: Benchmark, is_test: bool)
         pred_label = benchmark.get_class_name(prediction)
         averitec_out_instance = {
             "claim_id": claim.id,
-            "claim": claim.text,
+            "claim": claim.data,
             "pred_label": pred_label
         }
 
@@ -248,7 +248,7 @@ def process_output(doc: Report, meta: dict, benchmark: Benchmark, is_test: bool)
 
     logger.save_next_prediction(
         sample_index=claim.id,
-        claim=doc.claim.text,
+        claim=doc.claim.data,
         target=instance.get("label"),
         justification=doc.justification,
         predicted=prediction,

@@ -76,7 +76,7 @@ class DGM4(Benchmark):
                 identifier = str(ann["id"])
                 entry = {
                     "id": id,
-                    "content": Content(content=claim_text, identifier=identifier),
+                    "content": Content(data=claim_text, identifier=identifier),
                     "label": self.class_mapping.get(ann["fake_cls"], Label.REFUTED),  # Map fake_cls to label
                     "justification": f'The image manipulation class is {ann["fake_cls"]}.'
                 }

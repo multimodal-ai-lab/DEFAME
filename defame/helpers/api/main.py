@@ -1,20 +1,17 @@
 import asyncio
-from pathlib import Path
 
 from fastapi import FastAPI, status, HTTPException, Depends, Response, WebSocket
-from fastapi.encoders import jsonable_encoder
 from fastapi.security import APIKeyHeader
+from websockets import ConnectionClosed
 
-from defame.helpers.api.query import UserQuery, QueryManager, Status
+from defame.helpers.api.job import UserSubmission, JobManager, Status
 from defame.helpers.parallelization.pool import FactCheckerPool
-
-API_KEY = "sdfg8rtjzuo5we68g54654rehz9tghr65465df414qq"
-
-SAVE_DIR = Path("out/api/")
-
+from .config import save_dir
+from defame.common import logger
+from .util import ensure_authentication, encode_status_msg
 
 title = "DEFAME API"
-version = "0.0.1"
+version = "0.0.2"
 description = """This is the API backend of DEFAME, a multimodal AI fact-checker.
 The API enables you to run HTTP requests in order to submit fact-checks and retrieve their results.
 This documentation is semi-automatically generated via FastAPI.
@@ -25,8 +22,8 @@ Ask [Mark Rothermel](mailto:mark.rothermel@tu-darmstadt.de) if you want to get a
 
 ## `/status` Websocket
 Besides the API calls below, you can get real-time updates via a websocket available at
-`/status/{query_id}`. You can connect to it with
- ```ws://<api_domain>:<api_port>/status/{query_id}```
+`/status/{job_id}`. You can connect to it with
+ ```ws://<api_domain>:<api_port>/status/{job_id}```
 First, you will receive a full status message. Then, as long as the fact-check is running,
 the websocket will send you live updates on (only) *the changes* regarding the fact-check's
 status and output results.
@@ -37,15 +34,6 @@ tags_metadata = [
         "description": "All available API endpoints.",
     },
 ]
-
-
-def ensure_authentication(api_key: str):
-    if not api_key == API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key"
-        )
-
 
 app = FastAPI(title=title, description=description, version=version,
               openapi_tags=tags_metadata,
@@ -61,9 +49,13 @@ app = FastAPI(title=title, description=description, version=version,
 
 header_scheme = APIKeyHeader(name="api-key")
 
-pool = FactCheckerPool(target_dir=SAVE_DIR, n_workers=8)
+pool = FactCheckerPool(target_dir=save_dir, n_workers=8, print_log_level="debug")
 
-query_manager = QueryManager(pool)
+job_manager = JobManager(pool)
+
+# Initialize logger
+logger.set_experiment_dir(save_dir)
+logger.info("API backend successfully initialized.")
 
 
 @app.get("/", summary="Use this to see if the API is running.", tags=["API Calls"])
@@ -71,9 +63,9 @@ async def root():
     return "DEFAME API is up and running!"
 
 
-@app.post("/verify/", summary="Submit new content to be decomposed and fact-checked.", tags=["API Calls"])
-async def verify(user_query: UserQuery, api_key: str = Depends(header_scheme)):
-    """Adds the provided content to the fact-checking worker pool. Returns the query's ID
+@app.post("/verify", summary="Submit new content to be decomposed and fact-checked.", tags=["API Calls"])
+async def verify(user_submission: UserSubmission, api_key: str = Depends(header_scheme)):
+    """Adds the provided content to the fact-checking worker pool. Returns the job's ID
     with which the results can be retrieved. Expects the content to be JSON-formatted, for example:
     ```json
     {
@@ -87,67 +79,70 @@ async def verify(user_query: UserQuery, api_key: str = Depends(header_scheme)):
     This endpoint requires authentication through an API key.
     """
     ensure_authentication(api_key)
-    query_id = query_manager.add_query(user_query)
-    return {"query_id": query_id}
+    job_id = job_manager.add_job(user_submission)
+    return {"job_id": job_id}
 
 
-@app.websocket("/status/{query_id}")
-async def websocket_endpoint(websocket: WebSocket, query_id: str):
+@app.websocket("/status/{job_id}")
+async def websocket_endpoint(websocket: WebSocket, job_id: str):
     """Delivers the current state immediately, followed by real-time updates (containing
     just the changes). Closes automatically when fact-check terminated."""
-    await websocket.accept()
+    try:
+        job = job_manager.get_job(job_id)
 
-    # Send initial query status
-    query = query_manager.get_query(query_id)
-    query_status = await query.get_updated_info()
-    await websocket.send_json(jsonable_encoder(query_status))
+        await websocket.accept()
 
-    # Send all updates in real time while the query is running
-    while not query.terminated:
-        update = await query.update()
-        if update:
-            await websocket.send_json(jsonable_encoder(update))
-        await asyncio.sleep(0.1)
+        # Send initial job status
+        job_status = job.get_update(report_only_changes=False)
+        await websocket.send_json(job_status)
 
-    # Send final termination signal
-    if query.is_done:
-        await websocket.send_json(jsonable_encoder(dict(status=Status.DONE.value)))
-    else:
-        await websocket.send_json(jsonable_encoder(dict(status=Status.FAILED.value)))
+        # Send all updates in real time while the job is running
+        while True:
+            if update := job.get_update():
+                await websocket.send_json(update)
 
-    await websocket.close()
+            if job.terminated:
+                break
+            else:
+                await asyncio.sleep(0.1)
+
+        await websocket.close()
+
+    except ConnectionClosed:
+        print("Websocket connection closed unexpectedly.")
 
 
-@app.get("/results/{query_id}",
-         summary="Get the status/results of a previously submitted fact-checking query.",
+@app.get("/results/{job_id}",
+         summary="Get the status/results of a previously submitted fact-checking job.",
          tags=["API Calls"])
-async def get_query_results(query_id: str):
-    """Returns the fact-checking results for the query specified with `query_id`. Contains
-    the query's status and, if available, the corresponding decomposition and verification
-    results. If the query is not finished yet, returns just the status."""
-    return await query_manager.get_latest_query_info(query_id)
+async def get_job_results(job_id: str):
+    """Returns the fact-checking results for the job specified with `job_id`. Contains
+    the job's status and, if available, the corresponding decomposition and verification
+    results. If the job is not finished yet, returns just the status."""
+    job = job_manager.get_job(job_id)
+    return encode_status_msg(job.get_update(report_only_changes=False))
 
 
-@app.get("/results/{query_id}/{claim_id}/report.pdf",
+@app.get("/results/{job_id}/{claim_id}/report.pdf",
          summary="Download the report PDF of a fact-check.",
          tags=["API Calls"])
-async def get_report_pdf(query_id: str, claim_id: int):
-    """Downloads the report PDF of the fact-check of the claim specified with `query_id` and
+async def get_report_pdf(job_id: str, claim_id: int):
+    """Downloads the report PDF of the fact-check of the claim specified with `job_id` and
     `claim_id`."""
 
     # Ensure that task is done
-    query = query_manager.get_query(query_id)
-    if not query.is_done:
-        if query.failed:
-            detail = f"No report PDF available for task {query_id} because the task failed."
+    job = job_manager.get_job(job_id)
+    if not job.is_done:
+        if job.failed:
+            detail = f"No report PDF available for task {job_id} because the task failed."
         else:
-            detail = f"No report PDF available as the task {query_id} is not finished yet."
+            detail = f"No report PDF available as the task {job_id} is not finished yet."
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=detail
         )
 
-    report_path = SAVE_DIR / "fact-checks" / query_id / str(claim_id) / "report.pdf"
+    report_path = save_dir / "fact-checks" / job_id / str(claim_id) / "report.pdf"
     with open(report_path, "rb") as f:
         pdf_bytes = f.read()
     headers = {'Content-Disposition': 'inline; filename="report.pdf"'}

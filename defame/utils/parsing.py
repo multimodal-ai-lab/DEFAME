@@ -190,6 +190,8 @@ def read_md_file(file_path: str | Path) -> str:
 def fill_placeholders(text: str, placeholder_targets: dict[str, Any]) -> str:
     """Replaces all specified placeholders in placeholder_targets with the
     respective target content."""
+    if placeholder_targets is None:
+        return text
     for placeholder, target in placeholder_targets.items():
         if placeholder not in text:
             raise ValueError(f"Placeholder '{placeholder}' not found in prompt template:\n{text}")
@@ -197,7 +199,7 @@ def fill_placeholders(text: str, placeholder_targets: dict[str, Any]) -> str:
     return text
 
 def format_for_llava(prompt):
-    text = prompt.text
+    text = prompt.data
     image_pattern = re.compile(r'<image:\d+>')
     formatted_list = []
     current_pos = 0

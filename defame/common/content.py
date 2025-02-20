@@ -1,37 +1,37 @@
 from datetime import datetime
 from typing import Optional
 
-from defame.common.medium import MultimediaSnippet, Medium
 from defame.common.label import Label
+from defame.common.medium import MultimediaSnippet, Medium
 
 
 class Content(MultimediaSnippet):
     """The raw content to be interpreted, decomposed, decontextualized, etc. before
     being checked. Media resources are referred in the text """
 
+    claims: Optional[list] = None  # the claims contained in this content
+    verdict: Optional[Label] = None  # the overall verdict aggregated from the individual claims
+
     def __init__(self,
-                 content: str | list[str | Medium],
+                 *args,
                  author: str = None,
                  date: datetime = None,
                  origin: str = None,  # URL
                  meta_info: str = None,
                  interpretation: str = None,  # Added during claim extraction
-                 identifier: int | str = None,  # Used by some benchmarks to identify contents
+                 id: str = None,  # Used by some benchmarks to identify contents
+                 **kwargs,
                  ):
-        super().__init__(data=content)
+        super().__init__(*args, **kwargs)
+
         self.author = author
         self.date = date
-        self.origin = origin
+        self.origin = origin  # URL
         self.meta_info = meta_info
-        self.interpretation = interpretation
-        self.id: str = str(identifier)
-        self.claims: Optional[list] = None # the claims contained in this content
+        self.interpretation = interpretation  # added during claim extraction
+        self.id = id  # used by some benchmarks and the API backend to identify contents
+        self.claims: Optional[list] = None  # the claims contained in this content
         self.verdict: Optional[Label] = None  # the overall verdict aggregated from the individual claims
 
-    def __str__(self):
-        return f"Content: {super().__str__()}"
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        state.pop('claims', None)
-        return state
+    def __repr__(self):
+        return f"Content(\"{super().__str__()}\")"

@@ -1,8 +1,8 @@
 import base64
 import re
 import sqlite3
+import warnings
 from abc import ABC
-from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -13,9 +13,10 @@ from PIL.Image import Image as PillowImage, open as pillow_open
 
 from config.globals import temp_dir
 from defame.utils.parsing import MEDIA_REF_REGEX, MEDIA_SPECIFIER_REGEX
+from .logger import logger
 
-import warnings
 warnings.simplefilter("ignore")  # hide all warnings
+
 
 class Medium(ABC):
     """Superclass of all images, videos, and audios."""
@@ -105,21 +106,17 @@ class Audio(Medium):
 
 
 class MultimediaSnippet:
-    """Piece of data holding text which, optionally, refers to media, i.e.,
-    images, videos, and audios. Media objects are referenced in the text
+    """Piece of data holding text which, optionally, contains references
+    to media, i.e., images, videos, and audios. Media objects are referenced in the text
     in-line, for example, `<image:0>` for image with ID 0, or `<video:2>`
-    for video with ID 2. Unresolvable references will be deleted automatically,
-    logging a warning."""
+    for video with ID 2. Unresolvable references will trigger a warning."""
+    data: str
 
     def __init__(self, data: str | list[str | Medium]):
-        if isinstance(data, list):
-            data = interleaved_to_string(data)
-        assert isinstance(data, str)
-        self.text = data
-
-        # Verify if all medium references in the text are valid
-        if not media_registry.validate(self.text):
-            print("Warning: There are unresolvable media references.")
+        assert data is not None
+        self.data = data if isinstance(data, str) else interleaved_to_string(data)
+        if not media_registry.validate(self.data):
+            logger.warning("There are unresolvable media references.")
 
     def has_images(self) -> bool:
         return len(self.images) > 0
@@ -135,35 +132,27 @@ class MultimediaSnippet:
 
     @property
     def images(self) -> list[Image]:
-        return media_registry.get_media_from_text(self.text, medium_type="image")
+        return media_registry.get_media_from_text(self.data, medium_type="image")
 
     @property
     def videos(self) -> list[Video]:
-        return media_registry.get_media_from_text(self.text, medium_type="video")
+        return media_registry.get_media_from_text(self.data, medium_type="video")
 
     @property
     def audios(self) -> list[Audio]:
-        return media_registry.get_media_from_text(self.text, medium_type="audio")
+        return media_registry.get_media_from_text(self.data, medium_type="audio")
 
     def __str__(self):
-        string_representation = f"{self.text}"
-        # if self.is_multimodal():
-        #     media_info = []
-        #     if self.has_images():
-        #         media_info.append(f"{len(self.images)} Image(s)")
-        #     if self.has_videos():
-        #         media_info.append(f"{len(self.videos)} Video(s)")
-        #     if self.has_audios():
-        #         media_info.append(f"{len(self.audios)} Audio(s)")
-        #     media_info = ", ".join(media_info)
-        #     string_representation += f"\n{media_info}"
-        return string_representation
+        return f"{self.data}"
+
+    def __repr__(self):
+        return f"MultimediaSnippet({self.__str__()})"
 
     def to_interleaved(self) -> list[str | Medium]:
         """Returns a list of interleaved string and media objects representing
         this multimedia snippet. I.e., all the media references are replaced by
         the actual medium object."""
-        split = re.split(MEDIA_REF_REGEX, self.text)
+        split = re.split(MEDIA_REF_REGEX, self.data)
         # Replace each reference with its actual medium object
         for i in range(len(split)):
             substr = split[i]
@@ -172,6 +161,10 @@ class MultimediaSnippet:
                 if medium is not None:
                     split[i] = medium
         return split
+
+    def get_summary(self) -> dict:
+        """TODO: Add media"""
+        return dict(data=self.data)
 
 
 class MediaRegistry:
@@ -367,10 +360,10 @@ def is_medium_ref(string: str) -> bool:
 def interleaved_to_string(interleaved: list[str | Medium]) -> str:
     """Takes a list of strings and media and turns them into a single string
     where each medium is replaced by its reference."""
-    out = ""
+    substrings = []
     for item in interleaved:
         if isinstance(item, Medium):
-            out += f" {item.reference} "
+            substrings.append(item.reference)
         else:
-            out += item
-    return out
+            substrings.append(item)
+    return " ".join(substrings)

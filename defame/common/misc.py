@@ -76,14 +76,15 @@ class WebSource(MultimediaSnippet):
     """Output when searching the web or a local knowledge base."""
 
     def __init__(self,
-                 content: str | list[str | Medium],
+                 *args,
                  url: str,
                  title: str = "",
                  date: Date = None,
                  summary: MultimediaSnippet = None,
                  query: Query = None,
-                 rank: int = None):
-        super().__init__(content)
+                 rank: int = None,
+                 **kwargs):
+        super().__init__(*args, **kwargs)
         self.url = url
         self.title = title
         self.date = date
@@ -95,15 +96,15 @@ class WebSource(MultimediaSnippet):
         """Returns true if the summary contains information helpful for the fact-check."""
         if self.summary is None:
             return None
-        elif self.summary.text == "":
+        elif self.summary.data == "":
             return False
         else:
-            return "NONE" not in self.summary.text
+            return "NONE" not in self.summary.data
 
     def __str__(self):
         """Differentiates between direct citation (original text) and
         indirect citation (if summary is available)."""
-        text = self.summary.text if self.summary is not None else f'"{self.text}"'
+        text = self.summary.data if self.summary is not None else f'"{self.data}"'
         return f'From [Source]({self.url}): {self.title}\nContent: {text}'
 
     def __eq__(self, other):

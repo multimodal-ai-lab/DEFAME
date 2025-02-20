@@ -1,44 +1,39 @@
-from typing import Any
 from pathlib import Path
+from typing import Optional
 
 from defame.common.medium import MultimediaSnippet
-from defame.utils.parsing import (strip_string, read_md_file,
-                                  fill_placeholders)
+from defame.utils.parsing import strip_string, read_md_file, fill_placeholders
+
+
+def compose_prompt(template_file_path: str | Path, placeholder_targets: dict) -> str:
+    """Turns a template prompt into a ready-to-send prompt string."""
+    template = read_md_file(template_file_path)
+    return strip_string(fill_placeholders(template, placeholder_targets))
 
 
 class Prompt(MultimediaSnippet):
-    template_file_path: str
-    name: str = "DefaultPrompt"
-    retry_instruction: str
+    template_file_path: Optional[str] = None
+    name: Optional[str]
+    retry_instruction: Optional[str]
 
     def __init__(self,
-                 placeholder_targets: dict[str, Any] = None,
                  text: str = None,
                  name: str = None,
-                 template_file_path: str | Path = None):
-        if name:
-            self.name = name
-        if text is None:
-            text = self.compose_prompt(template_file_path, placeholder_targets)
+                 placeholder_targets: dict = None,
+                 template_file_path: str = None):
+        if template_file_path is not None:
+            self.template_file_path = template_file_path
+        if self.template_file_path is not None:
+            if text is not None:
+                raise AssertionError("A prompt can be specified either by `text`, "
+                                     "or by a template (`template_file_path`), not both.")
+            text = compose_prompt(self.template_file_path, placeholder_targets)
         super().__init__(text)
+        self.name = name
 
-    def compose_prompt(self, template_file_path: str | Path = None,
-                       placeholder_targets: dict[str, Any] = None) -> str:
-        """Turns a template prompt into a ready-to-send prompt string."""
-        template = self.get_template(template_file_path)
-        if placeholder_targets is None:
-            text = template
-        else:
-            text = fill_placeholders(template, placeholder_targets)
-        return strip_string(text)
-
-    def get_template(self, template_file_path: str | Path = None) -> str:
-        """Collects and combines all pieces to form a template prompt, optionally
-        containing placeholders to be replaced."""
-        if template_file_path is None:
-            assert self.template_file_path is not None
-            template_file_path = self.template_file_path
-        return read_md_file(template_file_path)
+    @property
+    def text(self):
+        return self.data
 
     def extract(self, response: str) -> dict | str | None:
         """Takes the model's output string and extracts the expected data.
@@ -46,7 +41,7 @@ class Prompt(MultimediaSnippet):
         return response  # default implementation
 
     def __str__(self):
-        return self.text
+        return self.data
 
     def __len__(self):
         return len(self.__str__())

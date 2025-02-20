@@ -57,7 +57,7 @@ class AVeriTeC(Benchmark):
             date = d["claim_date"]
             identifier = str(i)
             content = Content(
-                content=d["claim"],
+                data=d["claim"],
                 author=d["speaker"],
                 date=datetime.strptime(date, "%d-%m-%Y") if date else None,
                 origin=d["original_claim_url"],

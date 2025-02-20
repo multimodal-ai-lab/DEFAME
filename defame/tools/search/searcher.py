@@ -176,7 +176,7 @@ class Searcher(Tool):
     def _postprocess_results(self, results: list[WebSource]) -> list[WebSource]:
         """Modifies the results text to avoid jinja errors when used in prompt."""
         for result in results:
-            result.text = self.postprocess_result(result.text, result.query)
+            result.data = self.postprocess_result(result.data, result.query)
         return results
 
     def postprocess_result(self, result: str, query: str, filter_relevant: bool = True):

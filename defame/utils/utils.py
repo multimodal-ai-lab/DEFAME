@@ -1,10 +1,11 @@
 """Shared utility functions."""
 
-import shutil
-from typing import Any
-from tqdm import tqdm
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any
+
 import yaml
+from tqdm import tqdm
 
 
 def my_hook(pbar: tqdm):
@@ -66,3 +67,37 @@ def unroll_dict(flat_dict: dict[str, Any]) -> dict[str, Any]:
                     tmp_dict[key_part] = dict()
                     tmp_dict = tmp_dict[key_part]
     return unrolled_dict
+
+
+def deep_diff(a, b, keep: Sequence = None) -> Mapping | Sequence | None:
+    """
+    TODO: Rather rudimentary implementation.
+    Compute the deep difference between two nested dictionaries `a` and `b`.
+    Returns a dictionary/list containing only the entries where `b` differs from `a`.
+    Returns None or an empty dict/list if no difference is found.
+    """
+    if isinstance(a, Mapping) and isinstance(b, Mapping):
+        diff = {}
+        for key in b:
+            if key not in a or keep and key in keep:
+                diff[key] = b[key]  # New key in `b`
+            else:
+                sub_diff = deep_diff(a[key], b[key])
+                if sub_diff:  # Only add differences
+                    diff[key] = sub_diff
+        return diff
+    elif isinstance(a, Sequence) and isinstance(b, Sequence) and not isinstance(a, (str, bytes)):
+        if a != b:
+            if len(a) == len(b):
+                diff = []
+                for i in range(len(a)):
+                    sub_diff = deep_diff(a[i], b[i])
+                    if sub_diff:
+                        diff.append(sub_diff)
+                return diff
+            else:
+                return b  # Replace list entirely if different
+        else:
+            return []
+    else:
+        return b if a != b else None  # Replace if different

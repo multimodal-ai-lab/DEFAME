@@ -3,7 +3,8 @@ HTTP requests."""
 
 import uvicorn
 from defame.helpers.api.main import app
+from defame.helpers.api.config import host, port
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=3003)
+    uvicorn.run(app, host=host, port=port)
