@@ -40,20 +40,20 @@ class ClaimExtractor:
             for atomic_fact in claims:
                 logger.log(light_blue(f"'{atomic_fact}'"))
         else:
-            claims = [Claim(content.text, original_context=content)]
+            claims = [Claim(data=content.data, context=content)]
 
         if self.do_decontextualization:
             logger.log("Decontextualizing...", send=True)
             for claim in claims:
                 self.decontextualize(claim)
-                logger.log(light_blue(f"'{claim}'"))
 
         if self.do_filtering:
             logger.log("Filtering for unique, check-worthy claims...", send=True)
             claims = [claim for claim in claims if self.is_check_worthy(claim)]
 
+        logger.log("Extracted claims:")
         for claim in claims:
-            logger.log(light_blue(f"'{claim}'"))
+            logger.log(light_blue(f"{claim}"))
 
         # Add claims to content object
         content.claims = claims

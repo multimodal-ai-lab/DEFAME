@@ -1,14 +1,14 @@
 import atexit
 import time
+import traceback
 from multiprocessing import Queue
 from queue import Empty
-from typing import Callable
 from threading import Thread
+from typing import Callable
 
 import torch
-from scipy.optimize import anderson
 
-from defame.common import logger
+from defame.common import logger, Content
 from defame.helpers.parallelization.task import Task
 from defame.helpers.parallelization.worker import execute, Worker, Status
 
@@ -47,10 +47,26 @@ class WorkerPool:
         """Runs in an own thread, supervises workers, processes their messages, and reports logs."""
         self._run_workers()
         while self.is_running():
-            self.process_meta_messages()
-            self.report_errors()
-            time.sleep(0.1)
+            try:
+                self.process_messages()
+                # self._update_tasks()
+                self.report_errors()
+                time.sleep(0.1)
+            except Exception:
+                logger.error("Error encountered in worker pool main thread:")
+                logger.error(traceback.format_exc())
         self.close()
+
+    # def _update_tasks(self):
+    #     """Iterates over each worker and processes their messages to
+    #     update the running tasks accordingly."""
+    #     for worker in self.workers:
+    #         if worker.is_alive():
+    #             for update in worker.task_updates():
+    #                 task_id = update.get("task_id")
+    #                 if task_id is not None:
+    #                     task = self.tasks[task_id]
+    #                     task.apply_changes(update)
 
     def _get_default_device_assignments(self):
         """Distributes workers evenly across available CUDA devices."""
@@ -98,20 +114,27 @@ class WorkerPool:
     def n_failed_tasks(self) -> int:
         return len([t for t in self.tasks.values() if t.failed])
 
-    def process_meta_messages(self):
+    def process_messages(self):
         """Iterates over all waiting meta messages (like a worker reporting that it
         started working at task XY) and updates the tasks accordingly."""
         for worker_id, worker in enumerate(self.workers):
             if worker.is_alive():
-                for msg in worker.get_meta_messages():
+                for msg in worker.get_messages():
                     assert msg.get("worker_id") in [None, worker_id]
+                    status = msg.get("status")
+                    if status == Status.FAILED:
+                        logger.error(msg.get('status_message'))
+                        # TODO: Move entire error message processing here
                     task_id = msg.get("task_id")
                     if task_id is not None:
                         task = self.tasks[task_id]
                         task.assign_worker(self.workers[worker_id])
                         task.apply_changes(msg)
-                    if msg.get("status") == Status.FAILED:
-                        logger.error(msg.get('status_message'))
+                        # if status == Status.DONE and isinstance(task.payload, Content):
+                        #     content = task.payload
+                        #     claims = content.claims
+                        #     for i, claim in enumerate(claims):
+                        #         self.add_task(Task(claim, identifier=f"{content.id}/{i}"))
 
     def report_errors(self):
         # Forward error logs

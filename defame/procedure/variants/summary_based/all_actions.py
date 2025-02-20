@@ -13,7 +13,7 @@ class AllActionsSummary(DynamicSummary):
             logger.log("Not enough information yet. Continuing fact-check...")
             n_iterations += 1
             actions, reasoning = self.planner.plan_next_actions(doc, all_actions=True)
-            text = f'"{doc.claim.text.split(">", 1)[1].strip()}"'
+            text = f'"{doc.claim.data.split(">", 1)[1].strip()}"'
             actions.append(WebSearch(text))
             actions.append(ImageSearch(text))
             if len(reasoning) > 32:  # Only keep substantial reasoning

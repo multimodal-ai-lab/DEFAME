@@ -2,21 +2,18 @@ import csv
 import json
 import logging
 import os.path
-import shutil
 import sys
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
+from multiprocessing.connection import Connection
 from pathlib import Path
 from typing import Optional
-from multiprocessing.connection import Connection
 
 import pandas as pd
 import yaml
 
 from config.globals import result_base_dir
-from defame.common.report import Report
 from defame.common.label import Label
-from defame.common.medium import media_registry
 from defame.utils.console import remove_string_formatters, bold, red, orange, yellow, gray
 from defame.utils.utils import flatten_dict
 
@@ -53,6 +50,7 @@ LOG_LEVELS = {
 
 class Logger:
     """Takes care of saving any information (logs, results etc.) related to an evaluation run."""
+    # TODO: Separate general logging tasks from experiment-specific tasks
 
     log_filename = "log.txt"
     model_comm_filename = "model_communication.txt"
@@ -149,7 +147,7 @@ class Logger:
         for l in [self.logger, self.model_comm_logger]:
             for handler in l.handlers:
                 if isinstance(handler, RotatingFileHandler):
-                    self.logger.removeHandler(handler)
+                    l.removeHandler(handler)
                     handler.close()  # Release the file
 
     @property
@@ -327,10 +325,9 @@ def _determine_target_dir(benchmark_name: str = "testing",
                           procedure_name: str = None,
                           model_name: str = None,
                           experiment_name: str = None) -> Path:
-    #assert benchmark_name is not None
+    # assert benchmark_name is not None
 
     benchmark_name = benchmark_name if benchmark_name else "testing"
-
 
     # Construct target directory path
     target_dir = Path(result_base_dir) / benchmark_name

@@ -6,5 +6,5 @@ def continue_evaluation(experiment_dir: str, **kwargs):
     experiment_params = load_experiment_parameters(experiment_dir)
     experiment_params["continue_experiment_dir"] = experiment_dir
     if kwargs:
-        experiment_params.update(kwargs)
+        experiment_params.get_update(kwargs)
     evaluate(**experiment_params)

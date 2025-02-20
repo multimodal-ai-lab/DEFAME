@@ -1,0 +1,24 @@
+from fastapi import HTTPException
+from starlette import status
+
+from defame.helpers.api.config import api_key
+from fastapi.encoders import jsonable_encoder
+
+
+def ensure_authentication(presented_key: str):
+    if not presented_key == api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key"
+        )
+
+
+# Not needed data in the status message
+exclude_from_status_msg = {
+    # "content": {"payload": True},
+    # "claims": {"__all__": {"context": True}}
+}
+
+
+def encode_status_msg(status_msg: dict):
+    return jsonable_encoder(status_msg, exclude=exclude_from_status_msg)

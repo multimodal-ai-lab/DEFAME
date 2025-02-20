@@ -7,7 +7,7 @@ from markdown_pdf import MarkdownPdf, Section
 import pandas as pd
 
 EXPERIMENT_DIRS = [
-    "/pfss/mlde/workspaces/mlde_wsp_Rohrbach/users/tb17xity/InFact/out/verite/summary/dynamic/gpt_4o/2024-11-12_08-26 default_config-acc-81-full",
+    "path/to/experiment/directory",
 ]
 
 ONLY_SUCCESS_CASES = True

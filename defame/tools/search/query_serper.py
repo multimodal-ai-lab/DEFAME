@@ -15,7 +15,7 @@ from PIL import Image as PillowImage
 
 from config.globals import api_keys
 from defame.common import logger, Image
-from defame.common.misc import Query, WebSource
+from defame.common.misc import WebSource, TextQuery
 from defame.tools.search.remote_search_api import RemoteSearchAPI, scrape, is_fact_checking_site, is_unsupported_site
 from .common import SearchResult
 from .google_vision_api import get_base_domain
@@ -47,7 +47,7 @@ class SerperAPI(RemoteSearchAPI):
             'search': 'organic',
         }
 
-    def _call_api(self, query: Query) -> SearchResult:
+    def _call_api(self, query: TextQuery) -> SearchResult:
         """Run query through GoogleSearch and parse result."""
         assert self.serper_api_key, 'Missing serper_api_key.'
         assert query, 'Searching Google with empty query'
@@ -114,7 +114,7 @@ class SerperAPI(RemoteSearchAPI):
         search_results = response.json()
         return search_results
 
-    def _parse_results(self, response: dict[Any, Any], query: Query) -> list[WebSource]:
+    def _parse_results(self, response: dict[Any, Any], query: TextQuery) -> list[WebSource]:
         """Parse results from API response."""
 
         snippets = []
@@ -187,7 +187,7 @@ class SerperAPI(RemoteSearchAPI):
                     result_date = datetime.strptime(result['date'], "%b %d, %Y").date()
                 except (ValueError, KeyError):
                     result_date = None
-                results.append(WebSource(url=url, content=text, query=query, rank=i, date=result_date))
+                results.append(WebSource(url=url, data=text, query=query, rank=i, date=result_date, title=title))
 
         return results
 

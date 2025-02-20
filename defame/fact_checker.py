@@ -151,14 +151,14 @@ class FactChecker:
         This is the core of the fact-checking implementation. Here, the fact-checking
         document is constructed incrementally."""
         if isinstance(claim, list):
-            claim = Claim(claim)
+            claim = Claim(text=claim)
 
         logger.info(f"Verifying claim.", send=True)
         logger.info(f"{bold(str(claim))}")
 
         stats = {}
         self.actor.reset()  # remove all past search evidences
-        self.actor.set_current_claim_id(claim.original_context.id)  # TODO: Test on AVeriTeC
+        self.actor.set_current_claim_id(claim.id)  # TODO: Test on AVeriTeC
         if self.restrict_results_to_claim_date:
             self.actor.set_search_date_restriction(claim.date)
         if not self.llm:
@@ -181,7 +181,7 @@ class FactChecker:
             logger.warning("The model refused to answer.")
         else:
             doc.justification = self.doc_summarizer.summarize(doc)
-            logger.info(bold(f"The claim '{light_blue(str(claim.text))}' is {label.value}."))
+            logger.info(bold(f"The claim '{light_blue(str(claim.data))}' is {label.value}."))
             logger.info(f'Justification: {gray(doc.justification)}')
         doc.verdict = label
 

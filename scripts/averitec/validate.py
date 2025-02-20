@@ -20,7 +20,7 @@ for i in range(n_claims):
     if i not in checked_claims.keys():
         print(f"Claim {i} is missing!")
         complete = False
-    elif checked_claims[i] != averitec.get_by_id(i)["content"].text:
+    elif checked_claims[i] != averitec.get_by_id(i)["content"].data:
         consistent = False
         print(f"Claim {i} is different from original claim!")
 

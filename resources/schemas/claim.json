@@ -1,0 +1,7 @@
+{
+  "id": int,
+  "data": MultimediaSnippet,
+  "scope": [int, int],
+  "verdict": Label,
+  "justification": MultimediaSnippet,
+}

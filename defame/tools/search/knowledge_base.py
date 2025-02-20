@@ -153,7 +153,7 @@ class KnowledgeBase(LocalSearchAPI):
             url, text, date = self.retrieve(index)
             result = WebSource(
                 url=url,
-                text=text,
+                data=text,
                 query=query,
                 rank=i,
                 date=date

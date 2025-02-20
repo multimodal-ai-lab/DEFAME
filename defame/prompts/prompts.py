@@ -34,7 +34,7 @@ class JudgePrompt(Prompt):
             "[CLASSES]": class_str,
             "[EXTRA_RULES]": "" if extra_rules is None else remove_non_symbols(extra_rules),
         }
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
     def extract(self, response: str) -> dict | str | None:
         verdict = extract_verdict(response, classes=self.classes)
@@ -50,10 +50,10 @@ class DecontextualizePrompt(Prompt):
 
     def __init__(self, claim: Claim):
         placeholder_targets = {
-            "[ATOMIC_FACT]": claim.text,
-            "[CONTEXT]": claim.original_context.text,  # TODO: improve this, add images etc.
+            "[ATOMIC_FACT]": claim.data,
+            "[CONTEXT]": claim.context.data,  # TODO: improve this, add images etc.
         }
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
 
 class FilterCheckWorthyPrompt(Prompt):
@@ -65,13 +65,13 @@ class FilterCheckWorthyPrompt(Prompt):
             "[SYMBOL]": SYMBOL,
             "[NOT_SYMBOL]": NOT_SYMBOL,
             "[ATOMIC_FACT]": claim,
-            "[CONTEXT]": claim.original_context,
+            "[CONTEXT]": claim.context,
         }
         if filter_method == "custom":
             self.template_file_path = "defame/prompts/custom_checkworthy.md"
         else:
             self.template_file_path = "defame/prompts/default_checkworthy.md"
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
 
 class SummarizeResultPrompt(Prompt):
@@ -83,7 +83,7 @@ class SummarizeResultPrompt(Prompt):
             "[SEARCH_RESULT]": str(search_result),
             "[DOC]": str(doc),
         }
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
 
 class SummarizeManipulationResultPrompt(Prompt):
@@ -94,7 +94,7 @@ class SummarizeManipulationResultPrompt(Prompt):
         placeholder_targets = {
             "[MANIPULATION_RESULT]": str(manipulation_result),
         }
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
 
 class SummarizeDocPrompt(Prompt):
@@ -102,7 +102,7 @@ class SummarizeDocPrompt(Prompt):
     name = "SummarizeDocPrompt"
 
     def __init__(self, doc: Report):
-        super().__init__({"[DOC]": doc})
+        super().__init__(placeholder_targets={"[DOC]": doc})
 
 
 class PlanPrompt(Prompt):
@@ -113,7 +113,6 @@ class PlanPrompt(Prompt):
                  valid_actions: list[type[Action]],
                  extra_rules: str = None,
                  all_actions: bool = False):
-        self.context = doc.claim.original_context
         valid_action_str = "\n\n".join([f"* `{a.name}`\n"
                                         f"   * Description: {remove_non_symbols(a.description)}\n"
                                         f"   * How to use: {remove_non_symbols(a.how_to)}\n"
@@ -122,13 +121,14 @@ class PlanPrompt(Prompt):
         if all_actions:
             extra_rules = "Very Important: No need to be frugal. Choose all available actions at least once."
 
+        # TODO: Integrate the context in the prompt
         placeholder_targets = {
             "[DOC]": doc,
             "[VALID_ACTIONS]": valid_action_str,
             "[EXEMPLARS]": load_exemplars(valid_actions),
             "[EXTRA_RULES]": extra_rules,
         }
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
     def extract(self, response: str) -> dict:
         # TODO: Prevent the following from happening at all.
@@ -167,7 +167,7 @@ class PoseQuestionsPrompt(Prompt):
             self.template_file_path = "defame/prompts/pose_questions.md"
         else:
             self.template_file_path = "defame/prompts/pose_questions_no_interpretation.md"
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
     def extract(self, response: str) -> dict:
         questions = find_code_span(response)
@@ -187,7 +187,7 @@ class ProposeQueries(Prompt):
             "[DOC]": doc,
             "[QUESTION]": question,
         }
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
     def extract(self, response: str) -> dict:
         queries = extract_queries(response)
@@ -206,7 +206,7 @@ class ProposeQuerySimple(Prompt):
         placeholder_targets = {
             "[QUESTION]": question,
         }
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
     def extract(self, response: str) -> dict:
         queries = extract_queries(response)
@@ -225,7 +225,7 @@ class ProposeQueriesNoQuestions(Prompt):
         placeholder_targets = {
             "[DOC]": doc,
         }
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
     def extract(self, response: str) -> dict:
         queries = extract_queries(response)
@@ -249,7 +249,7 @@ class AnswerCollectively(Prompt):
             "[QUESTION]": question,
             "[RESULTS]": results_str,
         }
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
     def extract(self, response: str) -> dict:
         """Extract result ID and answer to the question from response"""
@@ -284,7 +284,7 @@ class AnswerQuestion(Prompt):
             "[QUESTION]": question,
             "[RESULT]": result,
         }
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
     def extract(self, response: str) -> dict:
         """Extract result ID and answer to the question from response"""
@@ -312,7 +312,7 @@ class AnswerQuestionNoEvidence(Prompt):
             "[DOC]": doc,
             "[QUESTION]": question,
         }
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
 
 class DevelopPrompt(Prompt):
@@ -321,7 +321,7 @@ class DevelopPrompt(Prompt):
 
     def __init__(self, doc: Report):
         placeholder_targets = {"[DOC]": doc}
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
 
 class InterpretPrompt(Prompt):
@@ -335,7 +335,7 @@ class InterpretPrompt(Prompt):
             "[CONTENT]": content,
             "[GUIDELINES]": guidelines,
         }
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
 
 class JudgeNaively(Prompt):
@@ -354,7 +354,7 @@ class JudgeNaively(Prompt):
             "[CLAIM]": claim,
             "[CLASSES]": class_str,
         }
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
     def extract(self, response: str) -> dict:
         verdict = extract_verdict(response, classes=self.classes)
@@ -374,7 +374,7 @@ class InitializePrompt(Prompt):
         placeholder_targets = {
             "[CLAIM]": claim,
         }
-        super().__init__(placeholder_targets)
+        super().__init__(placeholder_targets=placeholder_targets)
 
 
 def load_exemplars(valid_actions: list[type[Action]]) -> str:
