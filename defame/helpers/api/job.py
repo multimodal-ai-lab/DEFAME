@@ -1,22 +1,38 @@
-from secrets import token_urlsafe
-from typing import Any, Optional
-from io import BytesIO
-import base64
+from typing import Optional
 
-from PIL import Image as PillowImage
-from fastapi import HTTPException
-from pydantic import BaseModel
-from starlette import status
+from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel, Field
 
-from defame.common import Content, Image, Claim, Label
-from defame.helpers.parallelization.pool import FactCheckerPool, Status
-from defame.helpers.parallelization.task import Task
+from defame.common import Content, Claim, Label, MultimediaSnippet
+from defame.helpers.api.common import ClaimInfo, get_claim_info, ContentInfo, get_content_info
+from defame.helpers.common import Status
+from defame.helpers.parallelization.pool import Pool
+from defame.helpers.parallelization.task import Task, TaskInfo
 from defame.utils.utils import deep_diff
 
 
-class UserSubmission(BaseModel):
-    """User-submitted, raw content to be fact-checked."""
-    data: list[tuple[str, Any]]  # list of text and image bytes
+class JobInfo(BaseModel):
+    job_id: str
+    status: str
+    status_message: str
+    tasks: dict[str, TaskInfo] = Field(examples=[{
+        "<task_id>": TaskInfo(task_id="<task_id>",
+                              status="PENDING",
+                              status_message="In queue.")}])
+
+
+class StatusResponse(BaseModel):
+    job_info: JobInfo
+    content: ContentInfo
+    claims: Optional[dict[int, ClaimInfo]] = Field(examples=[{
+        0: ClaimInfo(claim_id="<job_id>/0",
+                     verdict=None,
+                     justification=None),
+        1: ClaimInfo(claim_id="<job_id>/1",
+                     verdict="SUPPORTED",
+                     justification=[["text", "The claim is supported, because the image"],
+                                    ["image", "<base64_encoded_image_string>"],
+                                    ["text", "shows clear signs of deepfake generation."]])}])
 
 
 class Job:
@@ -25,12 +41,15 @@ class Job:
     there is one task per extracted claim, making 1 + n tasks. The ID of the claim
     extraction task has the same ID as the query."""
 
-    def __init__(self, identifier: str, content: Content, pool: FactCheckerPool):
+    def __init__(self, identifier: str, content: Content, pool: Pool):
         self.id = identifier
         self._pool = pool
-        self.content_task = Task(content, identifier=identifier, status_message="Scheduled for extraction.")
+        self.content_task = Task(content,
+                                 identifier=identifier,
+                                 status_message="Scheduled for extraction.",
+                                 callback=self.register_claims)
         self.claim_tasks: Optional[list[Task]] = None
-        self._latest_update = None  # used to track changes
+        self._latest_status = None  # used to track changes
 
     @property
     def tasks(self) -> list[Task]:
@@ -77,32 +96,39 @@ class Job:
     def claims(self) -> Optional[list[Claim]]:
         return self.content.claims
 
-    def set_claims(self, claims: list[Claim]):
-        """Saves the claims belonging to the querie's content. Also adds the claims
+    def register_claims(self, task: Task):
+        """Saves the claims belonging to the query's content. Also adds the claims
         as tasks to the worker pool."""
-        self.content.claims = claims
+        claims: list[Claim] = task.result
 
         # Create new tasks from claims
         self.claim_tasks = []
         for i, claim in enumerate(claims):
             claim.id = self.content_task.id + f"/{i}"
-            task = Task(claim, identifier=claim.id)
+            task = Task(claim, identifier=claim.id, callback=self.register_verification_results)
             self.claim_tasks.append(task)
             self._pool.add_task(task)
 
+        self.content.claims = claims
+
+    def register_verification_results(self, task: Task):
+        claim = task.payload
+        claim.verdict = task.result["verdict"]
+        claim.justification = MultimediaSnippet(task.result["justification"])
+
     @property
     def n_claims(self) -> Optional[int]:
-        claims = self.content.claims
-        return len(claims) if claims is not None else None
+        return len(self.claims) if self.claims is not None else None
 
     @property
     def aggregated_verdict(self) -> Optional[Label]:
         return self.content.verdict
 
-    def get_claim(self, claim_id: int) -> Optional[Claim]:
+    def get_claim(self, claim_idx: int) -> Optional[Claim]:
+        """Returns the corresponding claim for the given integer index."""
         claims = self.content.claims
         if claims is not None:
-            return claims[claim_id]
+            return claims[claim_idx]
 
     def get_status_message(self) -> str:
         match self.status:
@@ -112,104 +138,51 @@ class Job:
                 if self.content_task.is_running:
                     return "Extracting claims."
                 else:
-                    return "Verifying claims."
+                    return "Verifying claim(s)."
             case Status.DONE:
                 return "Job completed successfully."
             case Status.FAILED:
                 return "Job failed, see the corresponding task for details."
+        return "Unknown status."
 
-    def get_update(self, report_only_changes: bool = True) -> Optional[dict]:
-        """Updates all tasks related to this query. Returns a summary of all changes,
-        following the schema for status messages."""
-        if self.content.claims is not None and self.claim_tasks is None:
-            # Add new claims to pool as new tasks
-            self.set_claims(self.content.claims)
+    def get_status(self) -> StatusResponse:
+        """Returns a full status report of the job and all (available) results."""
+        job_info = self.get_info()
+        content = get_content_info(self.content)
+        claims = self.get_claims_info()
+        return StatusResponse(job_info=job_info, content=content, claims=claims)
 
-        # Gather summary info and compose it into an update message
-        job_info = self.get_summary()
-        content = self.content.get_summary()
-        claims = {c.id: c.get_summary() for c in self.claims} if self.claims is not None else None
-        update = dict(job_info=job_info, content=content, claims=claims)
+    def get_claims_info(self):
+        if self.claims is None:
+            return None
+        claims = dict()
+        for claim in self.claims:
+            index = int(claim.id.split("/")[-1])
+            info = get_claim_info(claim)
+            claims[index] = info
+        return claims
 
-        # Remove unchanged entries
-        if report_only_changes:
-            message = self.get_changes(update)
-        else:
-            message = update
-        self._latest_update = update
+    def get_changes_update(self, report_all: bool = False) -> Optional[dict]:
+        """Similar to `get_status()` but only reports **changes** that occurred since the last
+        call to `get_changes_update()`. If no changes occurred, returns None."""
+        status = jsonable_encoder(self.get_status())
+        update = self.keep_changes(status) if not report_all else status
+        self._latest_status = status
+        if update:
+            return update
 
-        if message:
-            return message
-
-    def get_changes(self, update_message: dict, **kwargs) -> dict:
+    def keep_changes(self, new_status: dict, **kwargs) -> dict:
         """Keeps only the changes in the update message."""
-        if self._latest_update is not None:
-            difference = deep_diff(self._latest_update, update_message, **kwargs)
+        if self._latest_status is not None:
+            difference = deep_diff(self._latest_status, new_status, **kwargs)
         else:
-            difference = update_message
+            difference = new_status
         return difference
 
-    def get_summary(self):
+    def get_info(self) -> JobInfo:
         """Used to construct the response message."""
-        tasks = {t.id: t.get_summary() for t in self.tasks}
-        return dict(job_id=self.id,
-                    status=self.status.value,
-                    status_message=self.get_status_message(),
-                    tasks=tasks)
-
-
-class JobManager:
-    def __init__(self, pool: FactCheckerPool):
-        self.pool = pool
-        self.job_registry: dict[str, Job | None] = dict()  # TODO: Make persistent
-
-    def add_job(self, job: Job | UserSubmission) -> str:
-        """Adds the query to the query registry and returns the query's ID."""
-        if isinstance(job, UserSubmission):
-            content = process_submission(job)
-            job_id = self.generate_job_id()
-            content.id = job_id
-            job = Job(job_id, content, self.pool)
-        self.job_registry[job.id] = job
-        self.pool.add_task(job.content_task)
-        return job.id
-
-    def generate_job_id(self):
-        while query_id := token_urlsafe(16):
-            if query_id not in self.job_registry:
-                self.job_registry[query_id] = None  # register the ID
-                return query_id
-
-    def validate_query_id(self, query_id: str):
-        if query_id not in self.job_registry:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Query with ID {query_id} not found."
-            )
-
-    def get_job(self, job_id: str) -> Job:
-        self.validate_query_id(job_id)
-        return self.job_registry[job_id]
-
-
-def process_submission(user_query: UserSubmission) -> Content:
-    processed = []
-    for block in user_query.data:
-        block_type, block_content = block
-        if block_type.lower() == "text":
-            processed.append(block_content)
-        elif block_type.lower() == "image":
-            img = PillowImage.open(BytesIO(base64.b64decode(block_content)))
-            image = Image(pillow_image=img)
-            processed.append(image)
-        else:
-            raise ValueError(f"Invalid block type: {block_type}")
-    return Content(data=processed)
-
-
-# def task_id_to_job_and_claim_id(task_id: str) -> (str, Optional[int]):
-#     if "/" in task_id:
-#         query_id, claim_id = task_id.split("/")
-#         return query_id, int(claim_id)
-#     else:
-#         return task_id, None
+        tasks = {t.id: t.get_info() for t in self.tasks}
+        return JobInfo(job_id=self.id,
+                       status=self.status.name,
+                       status_message=self.get_status_message(),
+                       tasks=tasks)

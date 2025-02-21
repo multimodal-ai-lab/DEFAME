@@ -2,3 +2,6 @@ host: 0.0.0.0
 port: 3003
 api_key: sdfg8rtjzuo5we68g54654rehz9tghr65465df414qq
 save_dir: out/api/
+fact_checker:
+  max_iterations: 1
+  llm: gpt_4o_mini

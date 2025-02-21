@@ -162,10 +162,6 @@ class MultimediaSnippet:
                     split[i] = medium
         return split
 
-    def get_summary(self) -> dict:
-        """TODO: Add media"""
-        return dict(data=self.data)
-
 
 class MediaRegistry:
     """Keeps track of the paths of all referenced media (images, videos, and audios).

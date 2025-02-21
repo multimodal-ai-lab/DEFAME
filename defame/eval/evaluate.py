@@ -27,7 +27,7 @@ from defame.eval.averitec.compute_score import compute_averitec_score
 from defame.eval.benchmark import Benchmark
 from defame.eval.mocheg.benchmark import MOCHEG
 from defame.fact_checker import FactChecker
-from defame.helpers.parallelization.pool import FactCheckerPool
+from defame.helpers.parallelization.pool import Pool
 from defame.helpers.parallelization.task import Task
 from defame.tools import initialize_tools
 from defame.utils.console import green, red, bold, sec2hhmmss, sec2mmss, num2text
@@ -172,18 +172,18 @@ def evaluate(
 
     print(f"Evaluating {n_samples} samples using {n_workers} workers...")
 
-    pool = FactCheckerPool(n_workers=n_workers,
-                           llm=llm,
-                           llm_kwargs=llm_kwargs,
-                           tools_config=tools_config,
-                           available_actions=allowed_actions,
-                           class_definitions=benchmark.class_definitions,
-                           extra_prepare_rules=benchmark.extra_prepare_rules,
-                           extra_plan_rules=benchmark.extra_plan_rules,
-                           extra_judge_rules=benchmark.extra_judge_rules,
-                           print_log_level=print_log_level,
-                           target_dir=logger.target_dir,
-                           **fact_checker_kwargs)
+    pool = Pool(n_workers=n_workers,
+                llm=llm,
+                llm_kwargs=llm_kwargs,
+                tools_config=tools_config,
+                available_actions=allowed_actions,
+                class_definitions=benchmark.class_definitions,
+                extra_prepare_rules=benchmark.extra_prepare_rules,
+                extra_plan_rules=benchmark.extra_plan_rules,
+                extra_judge_rules=benchmark.extra_judge_rules,
+                print_log_level=print_log_level,
+                target_dir=logger.target_dir,
+                **fact_checker_kwargs)
 
     # Fill the pool's task queue with benchmark instances
     for instance in samples_to_evaluate:

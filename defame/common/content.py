@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from defame.common.label import Label
-from defame.common.medium import MultimediaSnippet, Medium
+from defame.common.medium import MultimediaSnippet
 
 
 class Content(MultimediaSnippet):

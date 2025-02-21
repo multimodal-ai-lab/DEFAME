@@ -4,24 +4,22 @@ import traceback
 from multiprocessing import Queue
 from queue import Empty
 from threading import Thread
-from typing import Callable
 
 import torch
 
-from defame.common import logger, Content
+from defame.common import logger
+from defame.helpers.common import Status
 from defame.helpers.parallelization.task import Task
-from defame.helpers.parallelization.worker import execute, Worker, Status
+from defame.helpers.parallelization.worker import FactCheckerWorker
 
 
-class WorkerPool:
-    """Manages a set of workers (sub-processes) executing queued tasks"""
+class Pool:
+    """Manages a set of workers (sub-processes) executing queued tasks."""
 
     def __init__(self,
                  n_workers: int,
-                 target: Callable,
                  device_assignments: list[int] = None,
                  **kwargs):
-        self.target = target
         self.kwargs = kwargs
         self.n_workers = n_workers
 
@@ -37,11 +35,15 @@ class WorkerPool:
 
         self.n_tasks_received = 0
 
-        atexit.register(self.close)
-
-        self.workers: list[Worker] = []
+        self.workers: list[FactCheckerWorker] = []
 
         Thread(target=self.run, daemon=True).start()
+
+        # Setup termination handling
+        atexit.register(self.stop)
+        # import signal
+        # signal.signal(signal.SIGTERM, self.close)
+        # signal.signal(signal.SIGINT, self.close)
 
     def run(self):
         """Runs in an own thread, supervises workers, processes their messages, and reports logs."""
@@ -49,24 +51,11 @@ class WorkerPool:
         while self.is_running():
             try:
                 self.process_messages()
-                # self._update_tasks()
                 self.report_errors()
                 time.sleep(0.1)
             except Exception:
                 logger.error("Error encountered in worker pool main thread:")
                 logger.error(traceback.format_exc())
-        self.close()
-
-    # def _update_tasks(self):
-    #     """Iterates over each worker and processes their messages to
-    #     update the running tasks accordingly."""
-    #     for worker in self.workers:
-    #         if worker.is_alive():
-    #             for update in worker.task_updates():
-    #                 task_id = update.get("task_id")
-    #                 if task_id is not None:
-    #                     task = self.tasks[task_id]
-    #                     task.apply_changes(update)
 
     def _get_default_device_assignments(self):
         """Distributes workers evenly across available CUDA devices."""
@@ -76,20 +65,17 @@ class WorkerPool:
     def _run_workers(self):
         for i in range(self.n_workers):
             device = self.device_assignments[i]
-            worker = Worker(
+            worker = FactCheckerWorker(
                 identifier=i,
-                target=self.target,
                 kwargs=dict(**self.kwargs,
                             input_queue=self._scheduled_tasks,
                             output_queue=self._results,
-                            error_queue=self._errors,
-                            worker_id=i,
                             device_id=device)
             )
             self.workers.append(worker)
             logger.info(f"Started worker {i} with PID {worker.pid}.")
 
-    def get_worker(self, worker_id: int) -> Worker:
+    def get_worker(self, worker_id: int) -> FactCheckerWorker:
         return self.workers[worker_id]
 
     def add_task(self, task: Task):
@@ -129,25 +115,24 @@ class WorkerPool:
                     if task_id is not None:
                         task = self.tasks[task_id]
                         task.assign_worker(self.workers[worker_id])
-                        task.apply_changes(msg)
-                        # if status == Status.DONE and isinstance(task.payload, Content):
-                        #     content = task.payload
-                        #     claims = content.claims
-                        #     for i, claim in enumerate(claims):
-                        #         self.add_task(Task(claim, identifier=f"{content.id}/{i}"))
+                        task.update(msg)
 
     def report_errors(self):
         # Forward error logs
         for error in self.errors():
             logger.error(error)
 
-    def close(self):
+    def stop(self):
+        self.close(None, None)
+
+    def close(self, signum, frame):
         if self.is_running():
             for i, worker in enumerate(self.workers):
                 if worker.is_alive():
                     worker.terminate()
-                    print(f"Worker {i} has been terminated gracefully.")
-            print("Worker pool closed.")
+                    print(f"Terminating worker {i}...")
+        else:
+            print("Worker pool already closed.")
 
     def is_running(self) -> bool:
         """Returns true if at least one worker is alive."""
@@ -162,8 +147,3 @@ class WorkerPool:
         """Sleeps until all workers are alive."""
         while not self.is_ready():
             time.sleep(0.1)
-
-
-class FactCheckerPool(WorkerPool):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, target=execute, **kwargs)

@@ -1,71 +1,60 @@
 from typing import Optional, Callable
 
+from pydantic import BaseModel
+
 from defame.common import Content, Claim
-from defame.helpers.parallelization.worker import Status, Worker
+from defame.helpers.parallelization.worker import Worker
+from defame.helpers.common import Status
+
+
+class TaskInfo(BaseModel):
+    task_id: str
+    status: str
+    status_message: str
 
 
 class Task:
+    """A unit of work to complete. Can be queued into worker pools
+    and transferred to different processes.
+
+        @param payload:
+        @param identifier:
+        @param status:
+        @param status_message:
+        @param callback: Function to be called after completion. Takes
+            the completed task itself as an argument.
+    """
+
     def __init__(self,
                  payload: Content | Claim,
                  identifier: str | int,
-                 status = Status.PENDING,
-                 status_message: str = None):
+                 status: Status = Status.PENDING,
+                 status_message: str = "Pending.",
+                 callback: Callable = None):
         self.id = str(identifier)
         self.payload = payload
         self.status = status
         self.status_message = status_message
 
-        # self._get_next_task_update: Optional[Callable] = None
         self.worker_id: Optional[int] = None
+        self.callback = callback
 
-        self.result: Optional[dict] = None
+        self.result = None
 
     def assign_worker(self, worker: Worker):
         self.worker_id = worker.id
-        # self._get_next_task_update = worker.get_next_task_update
         self.status = Status.RUNNING
 
-    # async def update(self, blocking=False) -> Optional[dict]:
-    #     """Retrieves all waiting status messages for this task and updates the task's
-    #     information accordingly. Returns only the changes."""
-    #     message = await self._get_next_update(blocking)
-    #     if message:
-    #         assert message.get("task_id") in [None, self.id]
-    #         self.apply_changes(message)
-    #         return message
-
-    def apply_changes(self, message: dict):
+    def update(self, message: dict):
+        """Applies the values from the message to the task."""
         if "status" in message:
             self.status = message["status"]
         if "status_message" in message:
             self.status_message = message["status_message"]
         if "result" in message:
             self.result = message["result"]
-            if isinstance(self.payload, Content):
-                # Register new claims
-                claims_dict = message["result"]
-                claims = [c for i, c in sorted(claims_dict.items())]
-                self.payload.claims = claims
-            elif isinstance(self.payload, Claim):
-                result = message["result"]
-                self.payload.verdict = result["verdict"]
-                self.payload.justification = result["justification"]
-
-    # async def _get_next_update(self, blocking: bool = True) -> Optional[dict]:
-    #     """Waits for and returns the next update information for the specified task.
-    #     If there are multiple updates available already, merges them into a single update."""
-    #     if self.terminated or self.is_pending:
-    #         return None
-    #
-    #     try:
-    #         message = self._get_next_task_update(task_id=self.id, blocking=blocking)
-    #     except RuntimeError as e:
-    #         message = dict(
-    #             status=Status.FAILED,
-    #             message=str(e)
-    #         )
-    #
-    #     return message
+            if self.callback:
+                self.callback(self)
 
     @property
     def is_pending(self) -> bool:
@@ -91,7 +80,13 @@ class Task:
     def type(self):
         return "claim" if isinstance(self.payload, Claim) else "content"
 
-    def get_summary(self):
-        return dict( # task_id=self.id,
-                    status=self.status.value,
-                    status_message=self.status_message)
+    def get_info(self) -> TaskInfo:
+        return TaskInfo(task_id=self.id,
+                        status=self.status.name,
+                        status_message=self.status_message)
+
+    def __getstate__(self):
+        """Callbacks can interfere with multithreading/processing."""
+        state = self.__dict__.copy()
+        del state["callback"]
+        return state

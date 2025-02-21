@@ -8,3 +8,4 @@ host = config["host"]
 port = config["port"]
 api_key = config["api_key"]
 save_dir = Path(config["save_dir"])
+fact_checker_kwargs = config["fact_checker"]

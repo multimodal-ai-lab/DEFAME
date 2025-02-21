@@ -1,7 +1,7 @@
 from typing import Optional
 
-from defame.common.label import Label
 from defame.common.content import Content
+from defame.common.label import Label
 from defame.common.medium import MultimediaSnippet
 
 
@@ -52,12 +52,3 @@ class Claim(MultimediaSnippet):
 
     def __repr__(self):
         return f"Claim(\"{self.data}\", context={self.context.__repr__()})"
-
-    def get_summary(self) -> dict:
-        summary = super().get_summary()
-        summary.update(dict(  # id=self.id,
-            scope=self.scope,
-            verdict=self.verdict,
-            justification=self.justification
-        ))
-        return summary

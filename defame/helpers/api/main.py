@@ -4,14 +4,16 @@ from fastapi import FastAPI, status, HTTPException, Depends, Response, WebSocket
 from fastapi.security import APIKeyHeader
 from websockets import ConnectionClosed
 
-from defame.helpers.api.job import UserSubmission, JobManager, Status
-from defame.helpers.parallelization.pool import FactCheckerPool
-from .config import save_dir
 from defame.common import logger
-from .util import ensure_authentication, encode_status_msg
+from .job_manager import JobManager
+from defame.helpers.parallelization.pool import Pool
+from .common import UserSubmission
+from .job import StatusResponse
+from .config import save_dir, fact_checker_kwargs
+from .util import ensure_authentication
 
 title = "DEFAME API"
-version = "0.0.2"
+version = "0.1.0"
 description = """This is the API backend of DEFAME, a multimodal AI fact-checker.
 The API enables you to run HTTP requests in order to submit fact-checks and retrieve their results.
 This documentation is semi-automatically generated via FastAPI.
@@ -49,7 +51,7 @@ app = FastAPI(title=title, description=description, version=version,
 
 header_scheme = APIKeyHeader(name="api-key")
 
-pool = FactCheckerPool(target_dir=save_dir, n_workers=8, print_log_level="debug")
+pool = Pool(target_dir=save_dir, n_workers=8, print_log_level="debug", **fact_checker_kwargs)
 
 job_manager = JobManager(pool)
 
@@ -66,17 +68,7 @@ async def root():
 @app.post("/verify", summary="Submit new content to be decomposed and fact-checked.", tags=["API Calls"])
 async def verify(user_submission: UserSubmission, api_key: str = Depends(header_scheme)):
     """Adds the provided content to the fact-checking worker pool. Returns the job's ID
-    with which the results can be retrieved. Expects the content to be JSON-formatted, for example:
-    ```json
-    {
-        "data": [
-            ("text", "The image"),
-            ("image", <base64_encoded_image_string>),
-            ("text", "shows the Sahara in 2023 covered with snow!),
-        ]
-    }
-    ```
-    This endpoint requires authentication through an API key.
+    with which the results can be retrieved. This endpoint requires authentication through an API key.
     """
     ensure_authentication(api_key)
     job_id = job_manager.add_job(user_submission)
@@ -92,13 +84,13 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
 
         await websocket.accept()
 
-        # Send initial job status
-        job_status = job.get_update(report_only_changes=False)
+        # Send full job status
+        job_status = job.get_changes_update(report_all=True)
         await websocket.send_json(job_status)
 
-        # Send all updates in real time while the job is running
+        # Send changes in real time while the job is running
         while True:
-            if update := job.get_update():
+            if update := job.get_changes_update():
                 await websocket.send_json(update)
 
             if job.terminated:
@@ -115,12 +107,10 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
 @app.get("/results/{job_id}",
          summary="Get the status/results of a previously submitted fact-checking job.",
          tags=["API Calls"])
-async def get_job_results(job_id: str):
-    """Returns the fact-checking results for the job specified with `job_id`. Contains
-    the job's status and, if available, the corresponding decomposition and verification
-    results. If the job is not finished yet, returns just the status."""
+async def get_job_results(job_id: str) -> StatusResponse:
+    """Returns the full job status incl. any results for the job specified with `job_id`."""
     job = job_manager.get_job(job_id)
-    return encode_status_msg(job.get_update(report_only_changes=False))
+    return job.get_status()
 
 
 @app.get("/results/{job_id}/{claim_id}/report.pdf",
