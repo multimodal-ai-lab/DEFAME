@@ -195,7 +195,8 @@ def fill_placeholders(text: str, placeholder_targets: dict[str, Any]) -> str:
     for placeholder, target in placeholder_targets.items():
         if placeholder not in text:
             raise ValueError(f"Placeholder '{placeholder}' not found in prompt template:\n{text}")
-        text = text.replace(placeholder, str(target))
+        target = str(target) if not target is None else ""
+        text = text.replace(placeholder, target)
     return text
 
 def format_for_llava(prompt):

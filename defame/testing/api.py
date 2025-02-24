@@ -46,7 +46,7 @@ def test_verify():
         content=[
             ("text", "The image"),
             ("image", Image("in/example/sahara.webp").get_base64_encoded()),
-            ("text", "shows the Sahara in 2023 covered with snow!")
+            ("text", "shows the Sahara in 2023 covered with snow! Did you know, Obi-Wan got killed by Anakin?")
         ],
         author="Some social media user.",
         date="2025-02-21"

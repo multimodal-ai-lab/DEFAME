@@ -1,5 +1,6 @@
 from defame.common import logger, Model, Content, Claim
-from defame.prompts.prompts import SYMBOL, NOT_SYMBOL, DecontextualizePrompt, FilterCheckWorthyPrompt, InterpretPrompt
+from defame.prompts.prompts import (SYMBOL, NOT_SYMBOL, DecontextualizePrompt, FilterCheckWorthyPrompt, InterpretPrompt,
+                                    DecomposePrompt)
 from defame.utils.console import light_blue
 from defame.utils.parsing import extract_first_square_brackets, extract_first_code_block
 
@@ -18,29 +19,32 @@ class ClaimExtractor:
         self.do_decontextualization = decontextualize
         self.do_filtering = filter_check_worthy
 
-        if self.do_decomposition:
-            # Requires `python -m spacy download en_core_web_sm`
-            from third_party.factscore.atomic_facts import AtomicFactGenerator
-            self.atomic_fact_generator = AtomicFactGenerator(
-                api_key='', gpt3_cache_file='', other_lm=self.llm
-            )
+        # if self.do_decomposition:
+        #     # Requires `python -m spacy download en_core_web_sm`
+        #     from third_party.factscore.atomic_facts import AtomicFactGenerator
+        #     self.atomic_fact_generator = AtomicFactGenerator(
+        #         api_key='', gpt3_cache_file='', other_lm=self.llm
+        #     )
 
         self.max_retries = 3
 
     def extract_claims(self, content: Content) -> list[Claim]:
-        logger.log(f"Extracting claims from {content}")
+        logger.log(f"Extracting claims from {content.__repr__()}")
 
         if self.do_interpretation:
             logger.log("Interpreting...", send=True)
             self.interpret(content, self.prepare_rules)
+            logger.log(content.interpretation)
 
         if self.do_decomposition:
             logger.log("Decomposing...", send=True)
             claims = self.decompose(content)
-            for atomic_fact in claims:
-                logger.log(light_blue(f"'{atomic_fact}'"))
+            for statement in claims:
+                logger.log(light_blue(f"'{statement}'"))
         else:
             claims = [Claim(data=content.data, context=content)]
+
+        # TODO: Replace *claims* with *statements* here
 
         if self.do_decontextualization:
             logger.log("Decontextualizing...", send=True)
@@ -65,12 +69,13 @@ class ClaimExtractor:
         prompt = InterpretPrompt(content, prepare_rules)
         content.interpretation = self.llm.generate(prompt)
 
-    def decompose(self, content: Content):
-        """Splits up the content into atomic facts."""
-        interpretation = content.interpretation
-        result, _ = self.atomic_fact_generator.run(interpretation)
-        atomic_facts = [fact for _, facts in result for fact in facts]
-        return atomic_facts
+    def decompose(self, content: Content) -> list[Claim]:
+        """Splits up the content into smaller, isolated statements."""
+        # result, _ = self.atomic_fact_generator.run(interpretation)
+        # atomic_facts = [fact for _, facts in result for fact in facts]
+        prompt = DecomposePrompt(content)
+        response = self.llm.generate(prompt)
+        return response["statements"]
 
     def decontextualize(self, claim: Claim):
         """Modify the atomic fact to be self-contained."""
