@@ -88,12 +88,14 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
         job_status = job.get_changes_update(report_all=True)
         await websocket.send_json(job_status)
 
-        # Send changes in real time while the job is running
+        # Send changes in real-time while the job is running
         while True:
             if update := job.get_changes_update():
                 await websocket.send_json(update)
 
-            if job.terminated:
+            # Check if job has terminated
+            if "job_info" in update and "status" in update["job_info"] \
+                and update["job_info"]["status"] in ["DONE", "FAILED"]:
                 break
             else:
                 await asyncio.sleep(0.1)

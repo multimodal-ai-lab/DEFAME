@@ -26,9 +26,11 @@ class StatusResponse(BaseModel):
     content: ContentInfo
     claims: Optional[dict[int, ClaimInfo]] = Field(examples=[{
         0: ClaimInfo(claim_id="<job_id>/0",
+                     data=[["text", "This is the first claim."]],
                      verdict=None,
                      justification=None),
         1: ClaimInfo(claim_id="<job_id>/1",
+                     data=[["text", "This is another claim."]],
                      verdict="SUPPORTED",
                      justification=[["text", "The claim is supported, because the image"],
                                     ["image", "<base64_encoded_image_string>"],
@@ -104,7 +106,7 @@ class Job:
         # Create new tasks from claims
         self.claim_tasks = []
         for i, claim in enumerate(claims):
-            claim.id = self.content_task.id + f"/{i}"
+            claim.id = self.id + f"/{i}"
             task = Task(claim, identifier=claim.id, callback=self.register_verification_results)
             self.claim_tasks.append(task)
             self._pool.add_task(task)
@@ -162,14 +164,13 @@ class Job:
             claims[index] = info
         return claims
 
-    def get_changes_update(self, report_all: bool = False) -> Optional[dict]:
+    def get_changes_update(self, report_all: bool = False) -> dict:
         """Similar to `get_status()` but only reports **changes** that occurred since the last
         call to `get_changes_update()`. If no changes occurred, returns None."""
         status = jsonable_encoder(self.get_status())
         update = self.keep_changes(status) if not report_all else status
         self._latest_status = status
-        if update:
-            return update
+        return update
 
     def keep_changes(self, new_status: dict, **kwargs) -> dict:
         """Keeps only the changes in the update message."""

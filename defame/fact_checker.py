@@ -116,12 +116,12 @@ class FactChecker:
 
         return tools
 
-    def extract_claims(self, content: Content | str) -> list[Claim]:
+    def extract_claims(self, content: Content | list[str | Medium]) -> list[Claim]:
         if not isinstance(content, Content):
             content = Content(content)
         return self.claim_extractor.extract_claims(content)
 
-    def check_content(self, content: Content | str) -> tuple[Label, list[Report], list[dict[str, Any]]]:
+    def check_content(self, content: Content | list[str | Medium]) -> tuple[Label, list[Report], list[dict[str, Any]]]:
         """
         Fact-checks the given content ent-to-end by first extracting all check-worthy claims and then
         verifying each claim individually. Returns the aggregated veracity and the list of corresponding
@@ -138,7 +138,8 @@ class FactChecker:
             doc, meta = self.verify_claim(claim)
             docs.append(doc)
             metas.append(meta)
-            doc.save_to(logger.target_dir)
+            target_dir = logger.target_dir if logger.target_dir else "out/fact_check"
+            doc.save_to(target_dir)
 
         aggregated_veracity = aggregate_predictions([doc.verdict for doc in docs])
         logger.log(bold(f"So, the overall veracity is: {aggregated_veracity.value}"))
@@ -150,8 +151,8 @@ class FactChecker:
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it.
         This is the core of the fact-checking implementation. Here, the fact-checking
         document is constructed incrementally."""
-        if isinstance(claim, list):
-            claim = Claim(text=claim)
+        if not isinstance(claim, Claim):
+            claim = Claim(claim)
 
         logger.info(f"Verifying claim.", send=True)
         logger.info(f"{bold(str(claim))}")
