@@ -328,14 +328,30 @@ class InterpretPrompt(Prompt):
     template_file_path = "defame/prompts/interpret.md"
     name = "InterpretPrompt"
 
-    def __init__(self, content: Content, guidelines: str = ''):
-        if guidelines:
-            guidelines = "# Guidelines\n" + guidelines
+    def __init__(self, content: Content, guidelines: str = None):
         placeholder_targets = {
             "[CONTENT]": content,
             "[GUIDELINES]": guidelines,
         }
         super().__init__(placeholder_targets=placeholder_targets)
+
+
+class DecomposePrompt(Prompt):
+    template_file_path = "defame/prompts/decompose.md"
+    name = "DecomposePrompt"
+
+    def __init__(self, content: Content):
+        self.content = content
+        placeholder_targets = {
+            "[CONTENT]": content,
+            "[INTERPRETATION]": content.interpretation
+        }
+        super().__init__(placeholder_targets=placeholder_targets)
+
+    def extract(self, response: str) -> dict:
+        statements = response.split("---")
+        return dict(statements=[Claim(s.strip(), context=self.content) for s in statements],
+                    response=response)
 
 
 class JudgeNaively(Prompt):
