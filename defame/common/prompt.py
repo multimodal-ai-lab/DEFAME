@@ -36,8 +36,7 @@ class Prompt(MultimediaSnippet):
         return self.data
 
     def extract(self, response: str) -> dict | str | None:
-        """Takes the model's output string and extracts the expected data.
-        Returns the data as a dictionary."""
+        """Takes the model's output string and extracts the expected data."""
         return response  # default implementation
 
     def __str__(self):

@@ -28,6 +28,7 @@ class UserSubmission(BaseModel):
 
 class ClaimInfo(BaseModel):
     claim_id: str
+    data: MultimediaSequence
     verdict: Optional[str] = Field(default=None, examples=[Label.SUPPORTED.name,
                                                            Label.REFUTED.name,
                                                            Label.NEI.name,
@@ -49,6 +50,7 @@ class ContentInfo(BaseModel):
 def get_claim_info(claim: Claim) -> ClaimInfo:
     return ClaimInfo(
         claim_id=claim.id,
+        data=to_sequence(claim),
         verdict=claim.verdict,
         justification=to_sequence(claim.justification) if claim.justification else None
     )

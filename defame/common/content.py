@@ -35,3 +35,16 @@ class Content(MultimediaSnippet):
 
     def __repr__(self):
         return f"Content(\"{super().__str__()}\")"
+
+    def __str__(self):
+        out_string = ""
+        if self.author:
+            out_string += f"**Author**: {self.author}\n"
+        if self.date:
+            out_string += f"**Date**: {self.date.strftime('%B %d, %Y')}\n"
+        if self.origin:
+            out_string += f"**Origin**: {self.origin}\n"
+        if self.meta_info:
+            out_string += f"**Meta info**: {self.meta_info}\n"
+        out_string += f"**Content**: {self.data}"
+        return out_string
