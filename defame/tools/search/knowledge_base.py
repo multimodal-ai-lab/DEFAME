@@ -193,6 +193,8 @@ class KnowledgeBase(LocalSearchAPI):
 
     def _extract(self):
         print("Extracting knowledge base...")
+        if self.resources_dir.exists():
+            os.remove(self.resources_dir)
         zip_files = os.listdir(self.download_dir)
         for zip_file in tqdm(zip_files):
             zip_path = self.download_dir / zip_file
