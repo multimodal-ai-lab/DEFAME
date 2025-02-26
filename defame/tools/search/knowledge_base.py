@@ -62,6 +62,7 @@ class KnowledgeBase(LocalSearchAPI):
         self.kb_dir = data_root_dir / f"AVeriTeC/knowledge_base/{variant}/"
         os.makedirs(self.kb_dir, exist_ok=True)
         self.download_dir = self.kb_dir / "download"
+        self.extracted_dir = self.kb_dir / "extracted"
         self.resources_dir = self.kb_dir / "resources"  # stores all .jsonl files extracted from the .zip in download
         self.embedding_knns_path = self.kb_dir / "embedding_knns.pckl"
 
@@ -192,16 +193,18 @@ class KnowledgeBase(LocalSearchAPI):
 
     def _extract(self):
         print("Extracting knowledge base...")
-        # os.makedirs(self.resources_dir, exist_ok=True)
         zip_files = os.listdir(self.download_dir)
         for zip_file in tqdm(zip_files):
             zip_path = self.download_dir / zip_file
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(self.resources_dir)
-        if self.variant == "dev":
-            os.rename(self.resources_dir / f"output_dev", self.resources_dir)
-        elif self.variant == "train":
-            os.rename(self.resources_dir / f"data_store/train", self.resources_dir)
+                zip_ref.extractall(self.extracted_dir)
+        match self.variant:
+            case "dev":
+                os.rename(self.extracted_dir / f"output_dev", self.resources_dir)
+            case "train":
+                os.rename(self.extracted_dir / f"data_store/train", self.resources_dir)
+            case "test":
+                os.rename(self.extracted_dir, self.resources_dir)
 
     def _build(self):
         """Downloads, extracts and creates the SQLite database."""
