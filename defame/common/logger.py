@@ -179,18 +179,23 @@ class Logger:
         return self.target_dir / self.model_comm_filename
 
     def critical(self, msg: str):
+        msg = msg.encode("utf-8", "ignore").decode("utf-8")
         self.logger.critical(bold(red(msg)))
 
     def error(self, msg: str):
+        msg = msg.encode("utf-8", "ignore").decode("utf-8")
         self.logger.error(red(msg))
 
     def warning(self, msg: str):
+        msg = msg.encode("utf-8", "ignore").decode("utf-8")
         self.logger.warning(orange(msg))
 
     def info(self, msg: str):
+        msg = msg.encode("utf-8", "ignore").decode("utf-8")
         self.logger.info(yellow(msg))
 
     def log(self, msg: str, level=15):
+        msg = msg.encode("utf-8", "ignore").decode("utf-8")
         self.logger.log(level, msg)
 
     def debug(self, msg: str):

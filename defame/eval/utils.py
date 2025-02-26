@@ -7,9 +7,6 @@ from pathlib import Path
 from defame.eval.evaluate import evaluate
 from defame.utils.utils import load_config
 
-from defame.eval.evaluate import evaluate
-from defame.utils.utils import load_config
-
 set_start_method("spawn")
 
 
@@ -28,8 +25,8 @@ def run_multiple_experiments(config_dir: str):
     while configs := os.listdir(config_dir):
         config_path = config_dir / configs[0]
         experiment_params = load_config(config_path)
-        os.remove(config_path)
         evaluate(experiment_name=config_path.stem,
                  **experiment_params)
+        os.remove(config_path)
 
     print("Finished! No more experiments to run.")
