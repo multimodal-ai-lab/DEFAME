@@ -28,3 +28,4 @@ out/
 /config/google_service_account_key.json
 
 .idea/
+**/.DS_Store
