@@ -8,8 +8,6 @@ from .manipulation_detector import ManipulationDetector, DetectManipulation
 from .object_detector import ObjectDetector, DetectObjects
 from .search.searcher import Searcher
 from .search.common import WebSearch, WikiDumpLookup, WikiLookup, ReverseSearch, ImageSearch
-from .social_media.common import RetrieveSocialMediaPost
-from .social_media.scraper import SocialMediaScraper
 from .text_extractor import TextExtractor, OCR
 from .tool import Tool
 
@@ -19,7 +17,6 @@ TOOL_REGISTRY = [
     Geolocator,
     ObjectDetector,
     Searcher,
-    SocialMediaScraper,
     TextExtractor,
     ManipulationDetector,
 ]
@@ -36,7 +33,6 @@ ACTION_REGISTRY = {
     OCR,
     DetectManipulation,
     ImageSearch,
-    RetrieveSocialMediaPost,
 }
 
 IMAGE_ACTIONS = {
@@ -65,17 +61,6 @@ def initialize_tools(config: dict[str, dict], llm: Optional[Model], device=None)
         kwargs.update({"llm": llm, "device": device})
         tool_class = get_tool_by_name(tool_name)
         t = tool_class(**kwargs)
-
-        if tool_name == "social_media_scraper" and "api_keys" in kwargs:
-            api_keys = kwargs["api_keys"]
-
-            # Register BlueskyScraper with API keys if provided
-            if all(k in api_keys for k in ["bluesky_username", "bluesky_password"]):
-                from defame.tools.social_media.bluesky import BlueSkyScraper
-                BlueSkyScraper(**kwargs)  # This will automatically register with the platform registry
-
-            # Initialize other social media scrapers with API keys if provided
-            # ...
 
         tools.append(t)
     return tools

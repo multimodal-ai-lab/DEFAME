@@ -1,10 +1,8 @@
-from defame.common import Action
-
 from dataclasses import dataclass, field
 from typing import Optional, List
 from datetime import datetime
 
-from defame.common import Result, Image, MultimediaSnippet
+from defame.common import Result, Image
 
 
 @dataclass
@@ -51,7 +49,7 @@ class SocialMediaPostResult(Result):
             self.text += "Engagement: " + ", ".join(engagement) + "\n"
             
         if self.is_reply and self.reply_to:
-            self.text += f"Reply to: @{self.reply_to}\n"
+            self.text += f"Reply to: {self.reply_to}\n"
             
         if self.hashtags:
             self.text += "Hashtags: " + " ".join([f"#{tag}" for tag in self.hashtags]) + "\n"
@@ -77,32 +75,83 @@ class SocialMediaPostResult(Result):
         return self.text
 
     def is_useful(self) -> Optional[bool]:
-        # Post results are useful if we found a valid post with either text or media
-        return (self.post_url != "" and 
-                (self.post_text.strip() != "" or len(self.media) > 0))
+        # Post results are useful if we found a valid post (verify we have username)
+        return self.author_username != ""
+    
+    @staticmethod
+    def create_error_result(url: str, error_message: str) -> 'SocialMediaPostResult':
+        """Create a SocialMediaPostResult that indicates an error occurred."""
+        return SocialMediaPostResult(
+            platform="unknown",
+            post_url=url,
+            author_username="",
+            post_text=f"Error: {error_message}",
+        )
 
 
-class RetrieveSocialMediaPost(Action):
-    name = "retrieve_post"
-    description = "Retrieves a social media post including its text and media content."
-    how_to = "Provide the URL of the post."
-    format = "retrieve_post(<url:s>)"
-    is_multimodal = True
-    is_limited = False
+@dataclass
+class SocialMediaProfileResult(Result):
+    platform: str
+    profile_url: str
+    username: str
+    display_name: Optional[str] = None
+    bio: Optional[str] = None
+    is_verified: bool = False
+    follower_count: Optional[int] = None
+    following_count: Optional[int] = None
+    post_count: Optional[int] = None
+    website: Optional[str] = None
+    external_links: List[str] = field(default_factory=list)
+    profile_image: Optional[Image] = None
+    cover_image: Optional[Image] = None
+    text: str = field(init=False)
 
-    def __init__(self, url: str):
-        self.url = url
-        self.platform = get_platform(url)
+    def __post_init__(self):
+        # Create a human-readable text representation
+        self.text = f"Profile: @{self.username}"
+        if self.display_name:
+            self.text += f" ({self.display_name})"
+        if self.is_verified:
+            self.text += " ✓"
+        self.text += f"\n\n{self.bio}\n\n"
+        
+        if self.follower_count is not None:
+            self.text += f"Followers: {self.follower_count:,}\n"
+        if self.following_count is not None:
+            self.text += f"Following: {self.following_count:,}\n"
+        if self.post_count is not None:
+            self.text += f"Posts: {self.post_count:,}\n"
+            
+        if self.website:
+            self.text += f"Website: {self.website}\n"
+        
+        if self.external_links:
+            self.text += "External Links: " + " ".join(self.external_links) + "\n"
+        
+        if self.profile_image:
+            self.text += f"Profile Image: {self.profile_image.reference}\n"
+        
+        if self.cover_image:
+            self.text += f"Cover Image: {self.cover_image.reference}\n"
 
     def __str__(self):
-        return f'{self.name}("{self.url}")'
-
-    def __eq__(self, other):
-        return isinstance(other, RetrieveSocialMediaPost) and self.url == other.url
-
-    def __hash__(self):
-        return hash((self.name, self.url))
+        return self.text
     
+    def is_useful(self) -> Optional[bool]:
+        # Profile results are useful if we found a valid profile with a username
+        return self.username != ""
+    
+    @staticmethod
+    def create_error_result(url: str, error_message: str) -> 'SocialMediaProfileResult':
+        """Create a SocialMediaProfileResult that indicates an error occurred."""
+        return SocialMediaProfileResult(
+            platform="unknown",
+            profile_url=url,
+            username="",
+            bio=f"Error: {error_message}",
+        )
+
+
 
 def get_platform(url: str):
     # Extract platform from URL for routing to correct scraper
