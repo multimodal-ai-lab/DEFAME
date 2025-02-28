@@ -61,6 +61,5 @@ def initialize_tools(config: dict[str, dict], llm: Optional[Model], device=None)
         kwargs.update({"llm": llm, "device": device})
         tool_class = get_tool_by_name(tool_name)
         t = tool_class(**kwargs)
-
         tools.append(t)
     return tools
