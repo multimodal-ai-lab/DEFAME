@@ -5,58 +5,53 @@ from PIL import Image as PillowImage
 from atproto import Client
 
 from defame.common import Image, logger
-from defame.tools.social_media import SocialMediaScraper, SocialMediaPostResult, RetrieveSocialMediaPost
-from defame.tools.social_media.platform_registry import register_platform_handler
+from defame.tools.social_media import SocialMediaPostResult, SocialMediaProfileResult
 from defame.utils.parsing import is_image_url
+from config.globals import api_keys
 
-class BlueSkyScraper(SocialMediaScraper):
-    """Scraper for the Bluesky social media platform."""
-    
-    name = "bluesky_scraper"
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Bluesky-specific initialization
-        self.api_calls = 0
-        self.errors = 0
 
-        # Register this handler for the Bluesky platform
-        register_platform_handler(self.supported_platforms(), self)
-        
-        # Use the atproto client
-        self.client = Client()
-        
-        # Authentication status
+class BSkyAPI:
+
+    def __init__(self, username: str, password: str):
+        if not username or not password:
+            logger.error("Bluesky username and password must be provided")
+            raise ValueError("Bluesky username and password must be provided")
+
+        self.username = username
+        self.password = password
+        self.n_api_calls = 0
+        self.n_errors = 0
         self.authenticated = False
-        if 'bluesky_username' in self.api_keys and 'bluesky_password' in self.api_keys:
-            self.authenticate()
+        self.client = Client()
+        self.cache = {}
+        self._authenticate()
     
     def supported_platforms(self) -> list[str]:
         """Returns the platforms supported by this scraper."""
         return ["bsky"]
     
+    def retrieve(self, url: str) -> SocialMediaPostResult | SocialMediaProfileResult:
+        """Retrieve a post from the given URL."""
+        if not self.authenticated:
+            logger.error("Bluesky API is not authenticated")
+            return SocialMediaPostResult.create_error_result(url, "API not authenticated")
+        
+        if url in self.cache:
+            return self.cache[url]
+        
+        if "bsky.app" not in url:
+            return SocialMediaPostResult.create_error_result(url, "Invalid Bluesky URL")
+        
+        if "post" in url:
+            result = self._retrieve_post(url)
+        else:
+            result = self._retrieve_profile(url)
 
-    def _perform(self, action: RetrieveSocialMediaPost) -> SocialMediaPostResult:
-        """Retrieve a post from the Bluesky platform."""
-        return self.retrieve_post(action.url)
+        self.cache[url] = result
+        return result
+        
     
-    def authenticate(self) -> bool:
-        """Authenticate with Bluesky using provided credentials."""
-        try:
-            self.client.login(
-                self.api_keys['bluesky_username'], 
-                self.api_keys['bluesky_password']
-            )
-            self.authenticated = True
-            self.api_calls += 1
-            logger.info(f"Successfully authenticated with Bluesky as {self.api_keys['bluesky_username']}")
-            return True
-        except Exception as e:
-            logger.error(f"Error authenticating with Bluesky: {str(e)}")
-            self.errors += 1
-            return False
-    
-    def retrieve_post(self, url: str) -> SocialMediaPostResult:
+    def _retrieve_post(self, url: str) -> SocialMediaPostResult:
         """Retrieve a post from the given Bluesky URL."""
         # Extract post URI from the URL - Bluesky URLs typically look like:
         # https://bsky.app/profile/username.bsky.social/post/abcdef123
@@ -64,7 +59,7 @@ class BlueSkyScraper(SocialMediaScraper):
             # Parse URL to extract components for building the AT URI
             parts = url.split('/')
             if len(parts) < 5 or "bsky.app" not in url:
-                return self._create_error_result(url, "Invalid Bluesky URL format")
+                return SocialMediaPostResult.create_error_result(url, "Invalid Bluesky URL format")
             
             # Find the profile part of the URL
             profile_idx = -1
@@ -74,7 +69,7 @@ class BlueSkyScraper(SocialMediaScraper):
                     break
             
             if profile_idx < 0 or profile_idx + 3 >= len(parts):
-                return self._create_error_result(url, "Could not extract profile or post ID")
+                return SocialMediaPostResult.create_error_result(url, "Could not extract profile or post ID")
                 
             handle = parts[profile_idx + 1]
             post_id = parts[profile_idx + 3]
@@ -90,18 +85,18 @@ class BlueSkyScraper(SocialMediaScraper):
             
         except Exception as e:
             logger.error(f"Error retrieving Bluesky post: {str(e)}")
-            self.errors += 1
-            return self._create_error_result(url, f"Error: {str(e)}")
-    
+            self.n_errors += 1
+            return SocialMediaPostResult.create_error_result(url, f"Error: {str(e)}")
+        
     def _resolve_handle(self, handle: str) -> str:
         """Resolve a handle to a DID."""
         try:
             response = self.client.resolve_handle(handle)
-            self.api_calls += 1
+            self.n_api_calls += 1
             return response.did
         except Exception as e:
             logger.error(f"Error resolving handle: {str(e)}")
-            self.errors += 1
+            self.n_errors += 1
             return handle  # Return the handle itself as fallback
     
     def _get_post_thread(self, uri: str, original_url: str) -> SocialMediaPostResult:
@@ -111,7 +106,7 @@ class BlueSkyScraper(SocialMediaScraper):
         try:
             # Get post thread using client method
             thread_response = self.client.get_post_thread(uri=uri, depth=0, parent_height=0)
-            self.api_calls += 1
+            self.n_api_calls += 1
             
             # The thread object contains the post and its context
             thread = thread_response.thread
@@ -121,9 +116,9 @@ class BlueSkyScraper(SocialMediaScraper):
                 # Use dictionary-style access for properties with $ in their name
                 thread_type = getattr(thread, 'py_type')
                 if thread_type == 'app.bsky.feed.defs#notFoundPost':
-                    return self._create_error_result(original_url, "Post not found")
+                    return SocialMediaPostResult.create_error_result(original_url, "Post not found")
                 if thread_type == 'app.bsky.feed.defs#blockedPost':
-                    return self._create_error_result(original_url, "Post is blocked")
+                    return SocialMediaPostResult.create_error_result(original_url, "Post is blocked")
             
             # Extract post data
             post_view = thread.post
@@ -189,13 +184,11 @@ class BlueSkyScraper(SocialMediaScraper):
                 # Get the parent post's author
                 if hasattr(record.reply, 'parent') and hasattr(record.reply.parent, 'uri'):
                     parent_uri = record.reply.parent.uri
-                    # Extract the DID from the parent URI
-                    parent_parts = parent_uri.split('/')
-                    if len(parent_parts) > 3:
-                        parent_did = parent_parts[2]
-                        # Try to resolve the DID to a handle
-                        parent_handle = self._resolve_did_to_handle(parent_did)
-                        reply_to = parent_handle
+                    post_id = parent_uri.split('/')[-1]
+                    reply_to_post = self.client.get_posts([parent_uri]).posts[0]
+                    self.n_api_calls += 1
+                    reply_to_author = reply_to_post.author
+                    reply_to = f"https://bsky.app/profile/{reply_to_author.handle}/post/{post_id}"
             
             # Create the post result
             return SocialMediaPostResult(
@@ -219,14 +212,70 @@ class BlueSkyScraper(SocialMediaScraper):
             
         except Exception as e:
             logger.error(f"Error getting Bluesky post data: {str(e)}")
-            self.errors += 1
-            return self._create_error_result(original_url, f"Error: {str(e)}")
-    
-    def _resolve_did_to_handle(self, did: str) -> str:
-        """Resolve a DID to a handle."""
+            self.n_errors += 1
+            return SocialMediaPostResult.create_error_result(original_url, f"Error: {str(e)}")
+        
+    def _retrieve_profile(self, url: str) -> SocialMediaProfileResult:
+        """Retrieve a profile from the given Bluesky URL."""
         try:
-            response = self.client.get_handle(did)
-            self.api_calls += 1
-            return response.handle
-        except Exception:
-            return did  # Return the DID itself as fallback
+            profile = self.client.get_profile(url.split('/')[-1])
+            self.n_api_calls += 1
+            profile_image, cover_image = None, None
+
+            if profile.avatar:
+                try:
+                    image_response = requests.get(profile.avatar, timeout=10)
+                    pil_img = PillowImage.open(BytesIO(image_response.content))
+                    profile_image = Image(pillow_image=pil_img)
+                except Exception as img_err:
+                    logger.warning(f"Failed to download profile image: {str(img_err)}")
+            
+            if profile.banner:
+                try:
+                    image_response = requests.get(profile.banner, timeout=10)
+                    pil_img = PillowImage.open(BytesIO(image_response.content))
+                    cover_image = Image(pillow_image=pil_img)
+                except Exception as img_err:
+                    logger.warning(f"Failed to download cover image: {str(img_err)}")
+
+            return SocialMediaProfileResult(
+                platform="bluesky",
+                profile_url=url,
+                username=profile.handle,
+                display_name=profile.display_name,
+                bio=profile.description,
+                is_verified=False,
+                follower_count=profile.followers_count,
+                following_count=profile.follows_count,
+                post_count=profile.posts_count,
+                website=None,
+                external_links=None,
+                profile_image=profile_image,
+                cover_image=cover_image,
+            )
+        except Exception as e:
+            logger.error(f"Error retrieving Bluesky profile: {str(e)}")
+            self.n_errors += 1
+            return SocialMediaProfileResult.create_error_result(url, f"Error: {str(e)}")
+
+
+    def _authenticate(self) -> bool:
+        """Authenticate with Bluesky using provided credentials."""
+        try:
+            self.client.login(self.username, self.password)
+            self.authenticated = True
+            self.n_api_calls += 1
+            logger.info(f"Successfully authenticated with Bluesky as {self.username}")
+            return True
+        except Exception as e:
+            logger.error(f"Error authenticating with Bluesky: {str(e)}")
+            self.n_errors += 1
+            return False
+
+
+bluesky_api = BSkyAPI(api_keys.get("bluesky_username"), api_keys.get("bluesky_password"))
+
+if __name__ == "__main__":
+    url = "https://bsky.app/profile/kiddiespeak.bsky.social/post/3lja5miockc2v"
+    res = bluesky_api._retrieve_post(url)
+    print(res)

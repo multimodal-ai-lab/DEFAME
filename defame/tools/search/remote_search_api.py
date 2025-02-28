@@ -15,8 +15,6 @@ from defame.common.misc import Query
 from defame.common import logger, MultimediaSnippet, Image
 from defame.tools.search.search_api import SearchAPI
 from defame.tools.search.common import SearchResult
-from defame.tools.social_media.scraper import SocialMediaScraper, is_supported_sm_platform
-from defame.tools.social_media.common import RetrieveSocialMediaPost
 from defame.utils.parsing import md, get_markdown_hyperlinks, is_image_url, get_domain
 
 MAX_MEDIA_PER_PAGE = 32  # Any media URLs in a webpage exceeding this limit will be ignored.
@@ -159,10 +157,6 @@ class RemoteSearchAPI(SearchAPI):
 def scrape(url: str) -> Optional[MultimediaSnippet]:
     """Scrapes the contents of the specified webpage."""
     if is_unsupported_site(url):
-        if is_supported_sm_platform(url):
-            sm_scraper = SocialMediaScraper()
-            evidence = sm_scraper.perform(RetrieveSocialMediaPost(url))
-            return evidence.summary
         logger.log(f"Skipping unsupported site {url}.")
         return None
 
