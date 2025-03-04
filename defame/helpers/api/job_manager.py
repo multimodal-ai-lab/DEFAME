@@ -3,7 +3,7 @@ from datetime import datetime
 from io import BytesIO
 from secrets import token_urlsafe
 
-from PIL import Image as PillowImage
+from PIL import UnidentifiedImageError, Image as PillowImage
 from fastapi import HTTPException
 from starlette import status as http_status
 
@@ -54,7 +54,12 @@ def process_submission(submission: UserSubmission) -> Content:
         if block_type.lower() == "text":
             processed.append(block_content)
         elif block_type.lower() == "image":
-            img = PillowImage.open(BytesIO(base64.b64decode(block_content)))
+            try:
+                img = PillowImage.open(BytesIO(base64.b64decode(block_content)))
+            except UnidentifiedImageError:
+                raise HTTPException(http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                    detail="The provided string is not a valid Base64-encoding of an image:\n" +
+                                           block_content)
             image = Image(pillow_image=img)
             processed.append(image)
         else:

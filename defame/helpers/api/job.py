@@ -8,7 +8,6 @@ from defame.helpers.api.common import ClaimInfo, get_claim_info, ContentInfo, ge
 from defame.helpers.common import Status
 from defame.helpers.parallelization.pool import Pool
 from defame.helpers.parallelization.task import Task, TaskInfo
-from defame.utils.utils import deep_diff
 
 
 class JobInfo(BaseModel):
@@ -51,7 +50,6 @@ class Job:
                                  status_message="Scheduled for extraction.",
                                  callback=self.register_claims)
         self.claim_tasks: Optional[list[Task]] = None
-        self._latest_status = None  # used to track changes
 
     @property
     def tasks(self) -> list[Task]:
@@ -147,12 +145,13 @@ class Job:
                 return "Job failed, see the corresponding task for details."
         return "Unknown status."
 
-    def get_status(self) -> StatusResponse:
+    def get_status(self):
         """Returns a full status report of the job and all (available) results."""
         job_info = self.get_info()
         content = get_content_info(self.content)
         claims = self.get_claims_info()
-        return StatusResponse(job_info=job_info, content=content, claims=claims)
+        response = StatusResponse(job_info=job_info, content=content, claims=claims)
+        return jsonable_encoder(response)
 
     def get_claims_info(self):
         if self.claims is None:
@@ -163,22 +162,6 @@ class Job:
             info = get_claim_info(claim)
             claims[index] = info
         return claims
-
-    def get_changes_update(self, report_all: bool = False) -> dict:
-        """Similar to `get_status()` but only reports **changes** that occurred since the last
-        call to `get_changes_update()`. If no changes occurred, returns None."""
-        status = jsonable_encoder(self.get_status())
-        update = self.keep_changes(status) if not report_all else status
-        self._latest_status = status
-        return update
-
-    def keep_changes(self, new_status: dict, **kwargs) -> dict:
-        """Keeps only the changes in the update message."""
-        if self._latest_status is not None:
-            difference = deep_diff(self._latest_status, new_status, **kwargs)
-        else:
-            difference = new_status
-        return difference
 
     def get_info(self) -> JobInfo:
         """Used to construct the response message."""
