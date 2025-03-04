@@ -11,9 +11,10 @@ from .common import UserSubmission
 from .job import StatusResponse
 from .config import save_dir, fact_checker_kwargs
 from .util import ensure_authentication
+from defame.utils.utils import deep_diff
 
 title = "DEFAME API"
-version = "0.1.0"
+version = "0.1.1"
 description = """This is the API backend of DEFAME, a multimodal AI fact-checker.
 The API enables you to run HTTP requests in order to submit fact-checks and retrieve their results.
 This documentation is semi-automatically generated via FastAPI.
@@ -78,24 +79,29 @@ async def verify(user_submission: UserSubmission, api_key: str = Depends(header_
 @app.websocket("/status/{job_id}")
 async def websocket_endpoint(websocket: WebSocket, job_id: str):
     """Delivers the current state immediately, followed by real-time updates (containing
-    just the changes). Closes automatically when fact-check terminated."""
+    just the changes). Closes automatically when fact-check terminated. Can handle multiple
+    connections for the same job concurrently."""
     try:
         job = job_manager.get_job(job_id)
 
         await websocket.accept()
 
         # Send full job status
-        job_status = job.get_changes_update(report_all=True)
+        job_status = job.get_status()
         await websocket.send_json(job_status)
 
         # Send changes in real-time while the job is running
         while True:
-            if update := job.get_changes_update():
+            new_status = job.get_status()
+
+            # Report only the changes
+            if update := deep_diff(job_status, new_status):
                 await websocket.send_json(update)
 
+            job_status = new_status
+
             # Check if job has terminated
-            if "job_info" in update and "status" in update["job_info"] \
-                and update["job_info"]["status"] in ["DONE", "FAILED"]:
+            if job_status["job_info"]["status"] in ["DONE", "FAILED"]:
                 break
             else:
                 await asyncio.sleep(0.1)
