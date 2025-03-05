@@ -53,6 +53,7 @@ python -m scripts.setup
 
 Alternatively, you may manually insert all necessary API keys into the file `config/api_keys.yaml`.
 
+
 ### 2. Optional: Configure Datasets & Results Paths
 In `config/globals.py`, insert the paths to the respective input/output directories. If you want to evaluate on AVeriTeC, you'll need to download the benchmark separately [here](https://huggingface.co/chenxwh/AVeriTeC/tree/main/data).
 
@@ -62,7 +63,11 @@ Simply run the script `scripts/averitec/build.py`with
 ```bash
 python -m scripts.averitec.build
 ```
-This will download, extract, and embed the entire AVeriTeC KB for `train`, `dev`, and `test`. It may take a while.
+This will download, extract, and embed the entire AVeriTeC KB for `train`, `dev`, and `test`. Embedding computation requires at least 1 GPU (with 24 GB VRAM) and will take a while.
+
+Alternatively, you can either
+1. Download the **pre-computed embedding kNN models** [here](https://huggingface.co/MaggiR/averitec_embeddings/blob/main/README.md), so you don't have to compute the embeddings or train the kNN models by yourself. Place the downloaded kNN model files in the corresponding locations and run the build script (see above) to automatically download the raw KB resource files.
+2. Or use a smaller, more efficient embedding model than `Alibaba-NLP/gte-base-en-v1.5`. You can change it in the `config/globals.py` file. You can find a list of public state-of-the-art embedding models in the [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard).
 
 
 ## Usage

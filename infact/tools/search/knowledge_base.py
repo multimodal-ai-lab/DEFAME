@@ -1,6 +1,7 @@
 import json
 import os.path
 import pickle
+import shutil
 import zipfile
 from datetime import datetime
 from multiprocessing import Pool, Queue
@@ -188,7 +189,7 @@ class KnowledgeBase(LocalSearchAPI):
     def _extract(self):
         print("Extracting knowledge base...")
         if self.resources_dir.exists():
-            os.remove(self.resources_dir)
+            shutil.rmtree(self.resources_dir)
         zip_files = os.listdir(self.download_dir)
         for zip_file in tqdm(zip_files):
             zip_path = self.download_dir / zip_file
@@ -218,29 +219,36 @@ class KnowledgeBase(LocalSearchAPI):
         else:
             print("Found extracted resource files.")
 
-        n_workers = torch.cuda.device_count()
+        if not os.path.exists(self.embedding_knns_path):
+            n_workers = torch.cuda.device_count()
+            assert n_workers > 0, "No GPUs found. Make sure to have at least 1 GPU and CUDA installed."
 
-        print(f"Constructing kNNs for embeddings using {n_workers} workers...")
+            print(f"Constructing kNNs for embeddings using {n_workers} workers...")
 
-        # Initialize and run the KB building pipeline
-        self.resource_queue = Queue()
-        self.embedding_queue = Queue()
-        devices_queue = Queue()
+            # Initialize and run the KB building pipeline
+            self.resource_queue = Queue()
+            self.embedding_queue = Queue()
+            devices_queue = Queue()
 
-        with Pool(n_workers, embed, (self.resource_queue, self.embedding_queue, devices_queue)):
-            for d in range(n_workers):
-                devices_queue.put(d)
-            self._read()
-            self._train_embedding_knn()
+            with Pool(n_workers, embed, (self.resource_queue, self.embedding_queue, devices_queue)):
+                for d in range(n_workers):
+                    devices_queue.put(d)
+                self._read()
+                self._train_embedding_knn()
+
+        else:
+            self._restore()
+
+        print(f"Successfully built the {self.variant} knowledge base!")
 
     def _read(self):
-        print("Reading and preparing resource files...")
+        print("\tReading and preparing resource files...")
         for claim_id in tqdm(range(self.get_num_claims())):
             resources = self._get_resources(claim_id)
             self.resource_queue.put((claim_id, resources))
 
     def _train_embedding_knn(self):
-        print("Fitting the k nearest neighbor learners...")
+        print("\tFitting the k nearest neighbor learners...")
 
         # Re-initialize connections (threads need to do that for any SQLite object anew)
         embedding_knns = dict()
@@ -257,8 +265,6 @@ class KnowledgeBase(LocalSearchAPI):
 
         with open(self.embedding_knns_path, "wb") as f:
             pickle.dump(embedding_knns, f)
-
-        print(f"Successfully built the {self.variant} knowledge base!")
 
         self.embedding_knns = embedding_knns
 
