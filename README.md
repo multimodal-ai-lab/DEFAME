@@ -146,6 +146,7 @@ If you installed DEFAME manually, you also need to run Firecrawl manually by exe
 ```bash
 docker run -d -p 3002:3002 tudamailab/firecrawl
 ```
+and to adjust the `config/globals.py` file by setting `firecrawl_url = "http://localhost:3002"`.
 
 If you really want to set up Firecrawl manually and without Docker, follow the [Firecrawl Documentation](https://github.com/mendableai/firecrawl.git). We do not recommend that because, in our experience, that setup procedure is rather involving. Therefore, we recommend to use the Firecrawl Docker Image we provide for this project. (You may modify and re-build the Firecrawl Image via the `Dockerfile` stored in `third_party/firecrawl`.)
 

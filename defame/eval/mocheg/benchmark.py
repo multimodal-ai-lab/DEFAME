@@ -28,6 +28,10 @@ class MOCHEG(Benchmark):
             "A claim is considered refuted when the evidence contradicts the claim.",
     }
 
+    extra_judge_rules = """* **Do not commit the "argument from ignorance" fallacy**: The absence of evidence
+    for the Claim does NOT prove that the Claim is refuted. Instead, the Claim is simply unsupported--which is a case of 
+    'not enough information'."""
+
     available_actions = [WebSearch, ImageSearch, ReverseSearch, Geolocate]
 
     def __init__(self, variant="val"):
