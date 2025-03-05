@@ -190,26 +190,31 @@ class Logger:
             ))
 
     def critical(self, msg: str, send: bool = True):
+        msg = msg.encode("utf-8", "ignore").decode("utf-8")
         self.logger.critical(bold(red(msg)))
         if send:
             self.send(msg)
 
     def error(self, msg: str, send: bool = True):
+        msg = msg.encode("utf-8", "ignore").decode("utf-8")
         self.logger.error(red(msg))
         if send:
             self.send(msg)
 
     def warning(self, msg: str, send: bool = False):
+        msg = msg.encode("utf-8", "ignore").decode("utf-8")
         self.logger.warning(orange(msg))
         if send:
             self.send(msg)
 
     def info(self, msg: str, send: bool = False):
+        msg = msg.encode("utf-8", "ignore").decode("utf-8")
         self.logger.info(yellow(msg))
         if send:
             self.send(msg)
 
     def log(self, msg: str, level=15, send: bool = False):
+        msg = msg.encode("utf-8", "ignore").decode("utf-8")
         self.logger.log(level, msg)
         if send:
             self.send(msg)
