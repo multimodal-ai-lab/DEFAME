@@ -16,8 +16,6 @@ from PIL import Image as PillowImage
 from config.globals import api_keys
 from defame.common import logger, Image
 from defame.common.misc import WebSource, TextQuery
-from defame.evidence_retrieval.integrations.scraping.scraper import scraper
-from defame.evidence_retrieval.integrations.scraping.excluded import is_fact_checking_site, is_unsupported_site
 from defame.evidence_retrieval.integrations.search_engines.common import SearchResults
 from defame.evidence_retrieval.integrations.search_engines.remote_search_api import RemoteSearchAPI
 from defame.utils.parsing import get_base_domain
@@ -157,17 +155,14 @@ class SerperAPI(RemoteSearchAPI):
                     break
                 text = result.get("snippet", "")
                 url = result.get("link", "")
-                if is_fact_checking_site(url):
-                    logger.log(f"Skipping fact-checking website: {url}")
-                    continue
-                if is_unsupported_site(url):
-                    logger.log(f"Skipping unsupported website: {url}")
-                    continue
+
 
                 image_url = result.get("imageUrl", "")
                 title = result.get('title')
 
                 if result_key == "organic":
+                    # TODO: Move scraping to tool
+                    from defame.evidence_retrieval.scraping.scraper import scraper
                     text = scraper.scrape(url=url)
                     if not text:
                         continue

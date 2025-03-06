@@ -5,6 +5,7 @@ from typing import Optional
 
 from defame.common import MultimediaSnippet, Image, Medium
 
+# TODO: Rework Queries
 
 @dataclass(frozen=True)
 class Query(ABC):

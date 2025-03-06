@@ -146,7 +146,8 @@ class MultimediaSnippet:
         return f"{self.data}"
 
     def __repr__(self):
-        return f"MultimediaSnippet({self.__str__()})"
+        return (f"MultimediaSnippet(len={len(self.__str__())}, no_images={len(self.images)}, "
+                f"no_videos={len(self.videos)}, no_audios={len(self.audios)})")
 
     def to_interleaved(self) -> list[str | Medium]:
         """Returns a list of interleaved string and media objects representing

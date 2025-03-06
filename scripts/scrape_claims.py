@@ -2,7 +2,7 @@ import requests
 import json
 from datetime import datetime
 from config.globals import api_keys
-from defame.evidence_retrieval.integrations.scraping.scraper import scrape
+from defame.evidence_retrieval.scraping.scraper import scraper
 
 # Google Fact Check API endpoint
 FACT_CHECK_API_URL = "https://factchecktools.googleapis.com/v1alpha1/claims:search"
@@ -60,7 +60,7 @@ def identify_claims_with_images(claims):
         if "claimReview" in claim:
             for review in claim["claimReview"]:
                 if review.get("url"):
-                    scraped = scrape(review["url"])
+                    scraped = scraper.scrape(review["url"])
                     if scraped.has_images():
                         claim["hasImages"] = True
                         claim["imageReferences"] = scraped.images

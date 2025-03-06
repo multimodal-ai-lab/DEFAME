@@ -5,11 +5,13 @@ import requests
 
 from config.globals import firecrawl_url
 from defame.common import MultimediaSnippet, logger
-from defame.evidence_retrieval.integrations.scraping.excluded import (is_unsupported_site, is_relevant_content,
-                                                                      is_fact_checking_site)
+from defame.evidence_retrieval.scraping.excluded import (is_unsupported_site, is_relevant_content,
+                                                         is_fact_checking_site)
+from defame.evidence_retrieval.integrations import RETRIEVAL_INTEGRATIONS
+from defame.utils.parsing import get_domain
 from .util import scrape_naive, find_firecrawl, firecrawl_is_running, log_error_url, resolve_media_hyperlinks
 
-firecrawl_urls = [
+FIRECRAWL_URLS = [
     firecrawl_url,
     "http://localhost:3002",
     "http://firecrawl:3002",
@@ -22,17 +24,23 @@ class Scraper:
     requiring an API and the API integration is implemented (e.g. X, Reddit etc.), the
     respective API will be used instead of direct HTTP requests."""
 
+    firecrawl_url: Optional[str]
+
     def __init__(self, allow_fact_checking_sites: bool = True):
         self.allow_fact_checking_sites = allow_fact_checking_sites
 
-        # Verify that Firecrawl is running
-        self.warning_issued = False
-        self.firecrawl_url = find_firecrawl(firecrawl_urls)
+        self.locate_firecrawl()
+        if not self.firecrawl_url:
+            logger.error(f"❌ Unable to locate Firecrawl! It is not running at: {firecrawl_url}")
+
+        self.n_scrapes = 0
+
+    def locate_firecrawl(self):
+        """Scans a list of URLs (included the user-specified one) to find a
+        running Firecrawl instance."""
+        self.firecrawl_url = find_firecrawl(FIRECRAWL_URLS)
         if self.firecrawl_url:
             logger.info(f"✅ Detected Firecrawl running at {self.firecrawl_url}.")
-        else:
-            logger.error(f"❌ Unable to locate Firecrawl! It is not running at {firecrawl_url}.")
-            self.warning_issued = True
 
     def scrape(self, url: str) -> Optional[MultimediaSnippet]:
         """Scrapes the contents of the specified webpage."""
@@ -44,21 +52,30 @@ class Scraper:
             logger.log(f"Skipping fact-checking site: {url}")
             return None
 
-        # Identify any applicable integration to use existing APIs for retrieval
-        # TODO: Insert integration calls here
+        # Identify and use any applicable integration to retrieve the URL contents
+        scraped = _retrieve_via_integration(url)
 
-        if self.firecrawl_url and firecrawl_is_running(self.firecrawl_url):
-            scraped = self._scrape_firecrawl(url)
-        else:
-            if not self.warning_issued:
-                logger.error(f"Firecrawl is not running at {firecrawl_url}! Falling back to Beautiful Soup.")
-                self.warning_issued = True
+        # Use Firecrawl to scrape from the URL
+        if not scraped:
+            # Try to find Firecrawl again if necessary
+            if self.firecrawl_url is None:
+                self.locate_firecrawl()
+
+            if self.firecrawl_url:
+                if firecrawl_is_running(self.firecrawl_url):
+                    scraped = self._scrape_firecrawl(url)
+                else:
+                    logger.error(f"Firecrawl stopped running! No response from {firecrawl_url}!. "
+                                 f"Falling back to Beautiful Soup until Firecrawl is available again.")
+                    self.firecrawl_url = None
+
+        # If the scrape still was not successful, use naive Beautiful Soup scraper
+        if scraped is None:
             scraped = scrape_naive(url)
 
         if scraped and is_relevant_content(str(scraped)):
+            self.n_scrapes += 1
             return scraped
-        else:
-            return None
 
     def _scrape_firecrawl(self, url: str) -> Optional[MultimediaSnippet]:
         """Scrapes the given URL using Firecrawl. Returns a Markdown-formatted
@@ -125,6 +142,13 @@ class Scraper:
             logger.info(str(response.content))
             log_error_url(url, error_message)
             return None
+
+
+def _retrieve_via_integration(url: str) -> Optional[MultimediaSnippet]:
+    domain = get_domain(url)
+    if domain in RETRIEVAL_INTEGRATIONS:
+        integration = RETRIEVAL_INTEGRATIONS[domain]
+        return integration.retrieve(url)
 
 
 scraper = Scraper()

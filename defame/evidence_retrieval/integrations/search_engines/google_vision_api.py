@@ -7,8 +7,6 @@ from config.globals import google_service_account_key_path
 from defame.common import logger
 from defame.common.medium import Image
 from defame.common.misc import ImageQuery, WebSource
-from defame.evidence_retrieval.integrations.scraping.scraper import scraper
-from defame.evidence_retrieval.integrations.scraping.excluded import is_fact_checking_site, is_unsupported_site
 from defame.evidence_retrieval.integrations.search_engines.common import ReverseSearchResult
 from defame.evidence_retrieval.integrations.search_engines.remote_search_api import RemoteSearchAPI
 from defame.utils.parsing import get_base_domain
@@ -34,16 +32,11 @@ def _parse_results(web_detection: vision.WebDetection, query: ImageQuery) -> Rev
     filtered_pages = filter_unique_stem_pages(web_detection.pages_with_matching_images)
     for page in filtered_pages:
         url = page.url
-        if is_fact_checking_site(url):
-            logger.log(f"Skipping fact-checking website: {url}")
-            continue
-
-        if is_unsupported_site(url):
-            logger.log(f"Skipping unsupported website: {url}")
-            continue
-
         title = f'Found exact image on website with title: {page.page_title}' if \
             hasattr(page, 'page_title') else "Found exact image on website"
+
+        # TODO: Move scraping to tool
+        from defame.evidence_retrieval.scraping.scraper import scraper
         scraped = scraper.scrape(url)
 
         if scraped:
