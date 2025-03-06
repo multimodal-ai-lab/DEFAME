@@ -12,10 +12,9 @@ from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
 from config.globals import embedding_model
-from defame.common.misc import Query, WebSource
 from defame.common.embedding import EmbeddingModel
 from defame.evidence_retrieval.integrations.search_engines.local_search_api import LocalSearchAPI
-from .common import SearchResults
+from .common import SearchResults, Query, WebSource
 
 
 class SemanticSearchDB(LocalSearchAPI):

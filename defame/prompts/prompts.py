@@ -4,7 +4,7 @@ from typing import Collection, Optional
 
 from defame.common import Report, Label, Claim, Action, Prompt, Content, logger
 from defame.common.label import DEFAULT_LABEL_DEFINITIONS
-from defame.common.misc import WebSource
+from defame.evidence_retrieval.integrations.search_engines.common import WebSource
 from defame.common.results import Results
 from defame.utils.parsing import (remove_non_symbols, extract_last_code_span, read_md_file,
                                   find_code_span, extract_last_paragraph, extract_last_code_block,

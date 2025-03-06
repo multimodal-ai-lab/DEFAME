@@ -6,13 +6,12 @@ from google.cloud import vision
 from config.globals import google_service_account_key_path
 from defame.common import logger
 from defame.common.medium import Image
-from defame.common.misc import ImageQuery, WebSource
-from defame.evidence_retrieval.integrations.search_engines.common import ReverseSearchResult
+from defame.evidence_retrieval.integrations.search_engines.common import ReverseSearchResult, WebSource, Query, SearchMode
 from defame.evidence_retrieval.integrations.search_engines.remote_search_api import RemoteSearchAPI
 from defame.utils.parsing import get_base_domain
 
 
-def _parse_results(web_detection: vision.WebDetection, query: ImageQuery) -> ReverseSearchResult:
+def _parse_results(web_detection: vision.WebDetection, query: Query) -> ReverseSearchResult:
     """Parse Google Vision API web detection results into SearchResult instances."""
 
     # Web Entities
@@ -60,9 +59,9 @@ class GoogleVisionAPI(RemoteSearchAPI):
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = google_service_account_key_path.as_posix()
         self.client = vision.ImageAnnotatorClient()
 
-    def _call_api(self, query: ImageQuery) -> ReverseSearchResult:
+    def _call_api(self, query: Query) -> ReverseSearchResult:
         """Run image reverse search through Google Vision API and parse results."""
-        assert query.image, 'Image path or URL is required for image search.'
+        assert query.has_image(), "Google Vision API requires an image in the query."
 
         image = vision.Image(content=query.image.get_base64_encoded())
         response = self.client.web_detection(image=image)
@@ -99,9 +98,9 @@ def filter_unique_stem_pages(pages: Sequence):
 
 
 if __name__ == "__main__":
-    example_query = ImageQuery(
+    example_query = Query(
         image=Image("in/example/sahara.webp"),
-        search_type="search"
+        search_mode=SearchMode.REVERSE,
     )
     api = GoogleVisionAPI()
     result = api.search(example_query)

@@ -8,15 +8,14 @@ import random
 import time
 from datetime import datetime
 from io import BytesIO
-from typing import Any, Optional, Literal
+from typing import Any, Optional
 
 import requests
 from PIL import Image as PillowImage
 
 from config.globals import api_keys
 from defame.common import logger, Image
-from defame.common.misc import WebSource, TextQuery
-from defame.evidence_retrieval.integrations.search_engines.common import SearchResults
+from defame.evidence_retrieval.integrations.search_engines.common import SearchResults, Query, WebSource
 from defame.evidence_retrieval.integrations.search_engines.remote_search_api import RemoteSearchAPI
 from defame.utils.parsing import get_base_domain
 
@@ -31,25 +30,18 @@ class SerperAPI(RemoteSearchAPI):
                  gl: str = 'us',
                  hl: str = 'en',
                  tbs: Optional[str] = None,
-                 search_type: Literal['news', 'search', 'places', 'images'] = 'search',
                  **kwargs):
         super().__init__(**kwargs)
         self.serper_api_key = api_keys["serper_api_key"]
         self.gl = gl
         self.hl = hl
         self.tbs = tbs
-        self.search_type = search_type
-        self.result_key_for_type = {
-            'news': 'news',
-            'places': 'places',
-            'images': 'images',
-            'search': 'organic',
-        }
 
-    def _call_api(self, query: TextQuery) -> SearchResults:
+    def _call_api(self, query: Query) -> SearchResults:
         """Run query through GoogleSearch and parse result."""
         assert self.serper_api_key, 'Missing serper_api_key.'
-        assert query, 'Searching Google with empty query'
+        assert query, 'Query must not be None.'
+        assert query.text, 'Query text must not be None.'
 
         if query.end_date is not None:
             end_date = query.end_date.strftime('%d/%m/%Y')
@@ -57,12 +49,14 @@ class SerperAPI(RemoteSearchAPI):
         else:
             tbs = self.tbs
 
+        search_type = "image" if query.has_image() else "search"
+
         output = self._call_serper_api(
             query.text,
             gl=self.gl,
             hl=self.hl,
             tbs=tbs,
-            search_type=query.search_type,
+            search_type=search_type,
         )
         web_sources = self._parse_results(output, query)
         return SearchResults(web_sources)
@@ -113,7 +107,7 @@ class SerperAPI(RemoteSearchAPI):
         search_results = response.json()
         return search_results
 
-    def _parse_results(self, response: dict[Any, Any], query: TextQuery) -> list[WebSource]:
+    def _parse_results(self, response: dict[Any, Any], query: Query) -> list[WebSource]:
         """Parse results from API response."""
 
         snippets = []
@@ -146,7 +140,7 @@ class SerperAPI(RemoteSearchAPI):
                 snippets.append(f'{title} {attribute}: {value}.')
 
         results = []
-        result_key = self.result_key_for_type[query.search_type]
+        result_key = "images" if query.has_image() else "organic"
         filtered_results = filter_unique_results_by_domain(response[result_key])
         if result_key in response:
             for i, result in enumerate(filtered_results):
@@ -155,7 +149,6 @@ class SerperAPI(RemoteSearchAPI):
                     break
                 text = result.get("snippet", "")
                 url = result.get("link", "")
-
 
                 image_url = result.get("imageUrl", "")
                 title = result.get('title')
@@ -218,7 +211,7 @@ def filter_unique_results_by_domain(results):
 
 
 if __name__ == "__main__":
-    example_query = TextQuery(
+    example_query = Query(
         text="Why are baby animals so cute?",
         limit=3,
         end_date=datetime(2025, 3, 5)
