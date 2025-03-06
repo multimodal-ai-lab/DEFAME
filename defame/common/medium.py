@@ -13,7 +13,6 @@ from PIL.Image import Image as PillowImage, open as pillow_open
 
 from config.globals import temp_dir
 from defame.utils.parsing import MEDIA_REF_REGEX, MEDIA_SPECIFIER_REGEX
-from .logger import logger
 
 warnings.simplefilter("ignore")  # hide all warnings
 
@@ -116,6 +115,7 @@ class MultimediaSnippet:
         assert data is not None
         self.data = data if isinstance(data, str) else interleaved_to_string(data)
         if not media_registry.validate(self.data):
+            from .logger import logger
             logger.warning("There are unresolvable media references.")
 
     def has_images(self) -> bool:

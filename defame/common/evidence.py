@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from defame.common.results import Result
+from defame.common.results import Results
 from defame.common.action import Action
 from defame.common.medium import MultimediaSnippet
 
@@ -10,17 +10,16 @@ from defame.common.medium import MultimediaSnippet
 class Evidence:
     """Any chunk of possibly helpful information found during the
     fact-check. Is typically the output of performing an Action."""
-    raw: Result  # The raw output from the executed tool
+    raw: Results  # The raw output from the executed tool
     action: Action  # The action which led to this evidence
-    summary: MultimediaSnippet = None  # Contains the key takeaways for the fact-check, if any
+    takeaways: Optional[MultimediaSnippet]  # Contains all info helpful for the fact-check, if any
 
-    def is_useful(self) -> Optional[bool]:
-        """Returns True if the contained information helps the fact-check."""
-        return self.summary is not None
+    def is_useful(self) -> bool:
+        """Returns True if the contained information helps the fact-check,
+        i.e., if there are any takeaways."""
+        return self.takeaways is not None
 
     def __str__(self):
-        action_name = f"### Evidence from `{self.action.name}`\n"
-        if self.is_useful():
-            return action_name + str(self.summary)
-        else:
-            return action_name + str(self.raw)
+        header = f"### Evidence from `{self.action.name}`\n"
+        body = str(self.takeaways if self.takeaways else self.raw)
+        return header + body

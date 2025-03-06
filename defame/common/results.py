@@ -1,9 +1,9 @@
 from abc import ABC
 
 
-class Result(ABC):
-    """Detailed and raw information piece retrieved by performing an action.
-    May contain any data but must implement the string function to enable
+class Results(ABC):
+    """The raw output of a tool after performing a specific action.
+    May contain any data. Must implement the string function to enable
     LLMs process this result."""
 
     def __str__(self):

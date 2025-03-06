@@ -29,7 +29,7 @@ from defame.eval.mocheg.benchmark import MOCHEG
 from defame.fact_checker import FactChecker
 from defame.helpers.parallelization.pool import Pool
 from defame.helpers.parallelization.task import Task
-from defame.tools import initialize_tools
+from defame.evidence_retrieval.tools import initialize_tools
 from defame.utils.console import green, red, bold, sec2hhmmss, sec2mmss, num2text
 from defame.utils.plot import plot_confusion_matrix
 from defame.utils.utils import unroll_dict

@@ -5,7 +5,7 @@ from typing import Collection, Optional
 from defame.common import Report, Label, Claim, Action, Prompt, Content, logger
 from defame.common.label import DEFAULT_LABEL_DEFINITIONS
 from defame.common.misc import WebSource
-from defame.common.results import Result
+from defame.common.results import Results
 from defame.utils.parsing import (remove_non_symbols, extract_last_code_span, read_md_file,
                                   find_code_span, extract_last_paragraph, extract_last_code_block,
                                   strip_string, remove_code_blocks)
@@ -90,7 +90,7 @@ class SummarizeManipulationResultPrompt(Prompt):
     template_file_path = "defame/prompts/summarize_manipulation_result.md"
     name = "SummarizeManipulationResultPrompt"
 
-    def __init__(self, manipulation_result: Result):
+    def __init__(self, manipulation_result: Results):
         placeholder_targets = {
             "[MANIPULATION_RESULT]": str(manipulation_result),
         }
@@ -408,7 +408,7 @@ def load_exemplars(valid_actions: list[type[Action]]) -> str:
 
 
 def parse_single_action(raw_action: str) -> Optional[Action]:
-    from defame.tools import ACTION_REGISTRY
+    from defame.evidence_retrieval.tools import ACTION_REGISTRY
 
     if not raw_action:
         return None
@@ -439,7 +439,7 @@ def parse_single_action(raw_action: str) -> Optional[Action]:
 
 
 def extract_actions(answer: str, limit=5) -> list[Action]:
-    from defame.tools import ACTION_REGISTRY
+    from defame.evidence_retrieval.tools import ACTION_REGISTRY
 
     actions_str = extract_last_code_block(answer).replace("markdown", "")
     if not actions_str:
@@ -487,7 +487,7 @@ def extract_verdict(response: str, classes: Collection[Label]) -> Optional[Label
 
 
 def extract_queries(response: str) -> list:
-    from defame.tools import WebSearch
+    from defame.evidence_retrieval.tools import WebSearch
     matches = find_code_span(response)
     queries = []
     for match in matches:

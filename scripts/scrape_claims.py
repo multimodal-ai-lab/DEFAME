@@ -2,7 +2,7 @@ import requests
 import json
 from datetime import datetime
 from config.globals import api_keys
-from defame.tools.search.remote_search_api import scrape
+from defame.evidence_retrieval.integrations.scraping.scraper import scrape
 
 # Google Fact Check API endpoint
 FACT_CHECK_API_URL = "https://factchecktools.googleapis.com/v1alpha1/claims:search"

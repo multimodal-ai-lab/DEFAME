@@ -2,7 +2,7 @@ from datetime import date
 from typing import Optional
 
 from defame.common import Action, Report, Evidence
-from defame.tools import Tool, Searcher
+from defame.evidence_retrieval.tools import Tool, Searcher
 
 
 class Actor:

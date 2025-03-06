@@ -2,7 +2,7 @@ from abc import ABC
 from typing import Optional
 
 from defame.common import Report, logger
-from defame.tools import WebSearch
+from defame.evidence_retrieval.tools import WebSearch
 from defame.common.misc import WebSource
 from defame.procedure.procedure import Procedure
 from defame.prompts.prompts import PoseQuestionsPrompt, ProposeQueries, AnswerQuestion

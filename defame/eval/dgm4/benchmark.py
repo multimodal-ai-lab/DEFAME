@@ -4,11 +4,11 @@ from pathlib import Path
 from typing import Iterator
 
 from defame.common.medium import Image
-from config.globals import data_root_dir, random_seed
+from config.globals import data_root_dir
 from defame.common import Label, Content
 from defame.eval.benchmark import Benchmark
-from defame.tools.manipulation_detector import DetectManipulation
-from defame.tools import WebSearch, ImageSearch, ReverseSearch
+from defame.evidence_retrieval.tools.manipulation_detector import DetectManipulation
+from defame.evidence_retrieval.tools import WebSearch, ImageSearch, ReverseSearch
 
 
 class DGM4(Benchmark):

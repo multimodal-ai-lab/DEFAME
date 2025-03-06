@@ -1,13 +1,10 @@
-import os
-from pathlib import Path
 from typing import Iterator
 import pandas as pd
 
-from config.globals import data_root_dir, random_seed
+from config.globals import data_root_dir
 from defame.common import Label, Content
-from defame.common.medium import Image
 from defame.eval.benchmark import Benchmark
-from defame.tools import WebSearch, ImageSearch, ReverseSearch, Geolocate
+from defame.evidence_retrieval.tools import WebSearch, ImageSearch, ReverseSearch, Geolocate
 
 class MOCHEG(Benchmark):
     shorthand = "mocheg"

@@ -3,7 +3,7 @@ from typing import Collection
 import pyparsing as pp
 
 from defame.common.action import (Action)
-from defame.tools import IMAGE_ACTIONS
+from defame.evidence_retrieval.tools import IMAGE_ACTIONS
 from defame.common import logger, Report, Model
 from defame.prompts.prompts import PlanPrompt
 

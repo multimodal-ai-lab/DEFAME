@@ -2,7 +2,7 @@ from typing import Any
 
 from defame.common import Report, Label, logger
 from defame.procedure.variants.summary_based.dynamic import DynamicSummary
-from defame.tools.search.common import WebSearch, ImageSearch
+from defame.evidence_retrieval.tools import WebSearch, ImageSearch
 
 
 class AllActionsSummary(DynamicSummary):

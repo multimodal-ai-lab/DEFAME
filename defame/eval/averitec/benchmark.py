@@ -1,11 +1,10 @@
 import json
 from datetime import datetime
-from pathlib import Path
 from typing import Iterator
 
-from config.globals import data_root_dir, random_seed
+from config.globals import data_root_dir
 from defame.common import Label, Content
-from defame.tools import WebSearch, ImageSearch
+from defame.evidence_retrieval.tools import WebSearch
 from defame.eval.benchmark import Benchmark
 
 

@@ -4,13 +4,10 @@ from pathlib import Path
 from typing import Iterator
 
 from defame.common.medium import Image
-from config.globals import data_root_dir, random_seed
+from config.globals import data_root_dir
 from defame.common import Label, Content
 from defame.eval.benchmark import Benchmark
-from defame.tools.text_extractor import OCR
-from defame.tools.geolocator import Geolocate
-from defame.tools.object_detector import DetectObjects
-from defame.tools import WebSearch, ImageSearch, ReverseSearch
+from defame.evidence_retrieval.tools import Geolocate, WebSearch, ImageSearch, ReverseSearch
 
 
 class NewsCLIPpings(Benchmark):

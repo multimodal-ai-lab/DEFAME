@@ -14,10 +14,10 @@ from defame.modules.doc_summarizer import DocSummarizer
 from defame.modules.judge import Judge
 from defame.modules.planner import Planner
 from defame.procedure import get_procedure
-from defame.tools import *
-from defame.tools.tool import get_available_actions
+from defame.evidence_retrieval import scraper
+from defame.evidence_retrieval.tools import *
+from defame.evidence_retrieval.tools.tool import get_available_actions
 from defame.utils.console import gray, light_blue, bold, sec2mmss
-from config.globals import keys_configured, configure_keys
 
 
 class FactChecker:
@@ -40,6 +40,7 @@ class FactChecker:
                  max_iterations: int = 5,
                  max_result_len: int = None,
                  restrict_results_to_claim_date: bool = True,
+                 allow_fact_checking_sites: bool = True,
                  classes: Sequence[Label] = None,
                  class_definitions: dict[Label, str] = None,
                  extra_prepare_rules: str = None,
@@ -75,6 +76,7 @@ class FactChecker:
         self.max_iterations = max_iterations
         self.max_result_len = max_result_len
         self.restrict_results_to_claim_date = restrict_results_to_claim_date
+        scraper.allow_fact_checking_sites = allow_fact_checking_sites
 
         if tools is None:
             tools = self._initialize_tools(search_engines)
