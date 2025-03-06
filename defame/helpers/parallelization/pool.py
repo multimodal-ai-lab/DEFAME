@@ -60,7 +60,10 @@ class Pool:
     def _get_default_device_assignments(self):
         """Distributes workers evenly across available CUDA devices."""
         n_devices = torch.cuda.device_count()
-        return [d % n_devices for d in range(self.n_workers)]
+        if n_devices == 0:
+            return [None] * self.n_workers
+        else:
+            return [d % n_devices for d in range(self.n_workers)]
 
     def _run_workers(self):
         for i in range(self.n_workers):
