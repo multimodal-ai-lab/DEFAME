@@ -4,7 +4,7 @@ from typing import List, Dict
 from duckduckgo_search import DDGS
 
 from defame.common import logger
-from defame.common.misc import Query, WebSource, TextQuery
+from defame.evidence_retrieval.integrations.search_engines.common import Query, WebSource
 from defame.evidence_retrieval.integrations.search_engines.remote_search_api import RemoteSearchAPI
 
 
@@ -22,8 +22,9 @@ class DuckDuckGo(RemoteSearchAPI):
         self.backoff_factor = backoff_factor
         self.total_searches = 0
 
-    def _call_api(self, query: TextQuery) -> list[WebSource]:
+    def _call_api(self, query: Query) -> list[WebSource]:
         """Run a search query and return structured results."""
+        assert query.has_text() and not query.has_image(), "DuckDuckGo only supports text queries."
         # TODO: Implement start and end date
         attempt = 0
         while attempt < self.max_retries:

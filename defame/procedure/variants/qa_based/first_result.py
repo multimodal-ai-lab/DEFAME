@@ -1,5 +1,5 @@
 from defame.common import Report
-from defame.common.misc import WebSource
+from defame.evidence_retrieval.integrations.search_engines.common import WebSource
 from defame.procedure.variants.qa_based.infact import InFact
 
 

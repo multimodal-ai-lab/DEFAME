@@ -8,7 +8,7 @@ from openai import APIError
 
 from config.globals import api_keys
 from defame.common import MultimediaSnippet, Report, Prompt, logger, Action, Image
-from defame.common.misc import WebSource, Query, ImageQuery, TextQuery
+from defame.evidence_retrieval.integrations.search_engines.common import Query, WebSource, SearchMode
 from defame.evidence_retrieval.tools.tool import Tool
 from defame.evidence_retrieval.integrations.search_engines import (SearchResults, SearchAPI, SEARCH_ENGINES,
                                                                    GoogleVisionAPI)
@@ -19,7 +19,7 @@ from defame.utils.console import gray, orange
 class Search(Action):
     api: str
     query_string: str
-    search_type: str
+    search_mode: SearchMode
     start_date: date
     end_date: date
 
@@ -41,7 +41,7 @@ class Search(Action):
 
 class WebSearch(Search):
     name = "web_search"
-    search_type = 'search'
+    search_mode = SearchMode.SEARCH
     description = """Run an open web search on Google or DuckDuckGO to retrieve any related webpage."""
     how_to = """Do not use this with a previously used or similar query from previous web searches.
     If a previous web search did not yield any results, use a very different query."""
@@ -52,7 +52,7 @@ class WebSearch(Search):
 
 class ImageSearch(Search):
     name = "image_search"
-    search_type = 'images'
+    search_mode = SearchMode.IMAGES
     description = """Run an image search on Google to retrieve related images for a given query."""
     how_to = """This is a helpful tool for fact-checking images. Use this to retrieve images associated with a specific keyword or phrase. 
     Ensure that the query is clear and specific to improve search accuracy. 
@@ -64,7 +64,7 @@ class ImageSearch(Search):
 
 class WikiDumpLookup(Search):
     name = "wiki_dump_lookup"
-    search_type = 'search'
+    search_mode = SearchMode.SEARCH
     description = """Look up something on the Wikipedia dump from 2017. Each article in the dump
     contains only the first few paragraphs of the article. In particular, the dump is incomplete
     and may miss much information. Use the dump to retrieve an article for a person, an entity, 
@@ -78,7 +78,7 @@ class WikiDumpLookup(Search):
 
 class WikiLookup(Search):
     name = "wiki_lookup"
-    search_type = 'search'
+    search_mode = SearchMode.SEARCH
     description = """Look up something on Wikipedia to retrieve an article for a person, an 
     entity, an event etc."""
     how_to = """Do not use this with a previously used or similar query from previous wiki lookup. 
@@ -90,7 +90,7 @@ class WikiLookup(Search):
 
 class ReverseSearch(Search):
     name = "reverse_search"
-    search_type = 'reverse'
+    search_mode = SearchMode.REVERSE
     description = "Performs a reverse image search to find similar images on the web."
     how_to = "Provide an image and the model will perform a reverse search to find similar images."
     format = "reverse_search(<image:k>), where `k` is the image's ID"
@@ -185,36 +185,28 @@ class Searcher(Tool):
             if end_date is None or action.end_date < end_date:
                 end_date = action.end_date
 
-        if action.search_type == "reverse" and isinstance(action, ReverseSearch):
-            query = ImageQuery(
-                text="",  # later on we can fill this to have keyword-guided scraping
-                image=action.image,
-                search_type=action.search_type,
-                limit=self.limit_per_search,
-                start_date=action.start_date,
-                end_date=end_date
-            )
-        else:
-            query = TextQuery(
-                text=action.query_string,
-                search_type=action.search_type,
-                limit=self.limit_per_search,
-                start_date=action.start_date,
-                end_date=end_date
-            )
+        image = action.image if isinstance(action, ReverseSearch) else None
+
+        query = Query(
+            text=action.query_string,
+            image=image,
+            search_mode=action.search_mode,
+            limit=self.limit_per_search,
+            start_date=action.start_date,
+            end_date=end_date
+        )
 
         return self.search(query)
 
     def search(self, query: Query) -> SearchResults:
         """Searches for evidence using the search APIs according to their precedence."""
 
+        # TODO: Convert into a dict lookup
         for search_engine in list(self.search_apis.values()):
-            if isinstance(query, ImageQuery) and query.search_type == 'reverse' and isinstance(search_engine,
-                                                                                               GoogleVisionAPI):
+            if query.search_mode == SearchMode.REVERSE and isinstance(search_engine, GoogleVisionAPI):
                 search_result = search_engine.search(query)
-            elif isinstance(query, TextQuery) and (
-                    query.search_type == 'search' or query.search_type == 'images') and not isinstance(search_engine,
-                                                                                                       GoogleVisionAPI):
+            elif (query.search_mode == SearchMode.SEARCH or query.search_mode == SearchMode.IMAGES and
+                  not isinstance(search_engine, GoogleVisionAPI)):
                 search_result = search_engine.search(query)
             else:
                 continue
@@ -261,10 +253,10 @@ class Searcher(Tool):
             result.data = self.postprocess_result(result.data, result.query)
         return results
 
-    def postprocess_result(self, result: str, query: TextQuery, filter_relevant: bool = True):
+    def postprocess_result(self, result: str, query: Query, filter_relevant: bool = True):
         """Removes all double curly braces to avoid conflicts with Jinja and optionally truncates
         the result text to a maximum length. Also filter the content according to keywords from the query."""
-        if filter_relevant and (query.search_type != "reverse") and (query.search_type != "images"):
+        if filter_relevant and (query.search_mode != SearchMode.REVERSE) and (query.search_mode != SearchMode.IMAGES):
             keywords = re.findall(r'\b\w+\b', query.text.lower()) or query.text
             relevant_content = filter_relevant_sentences(result, keywords)[:10]
             relevant_text = ' '.join(relevant_content)

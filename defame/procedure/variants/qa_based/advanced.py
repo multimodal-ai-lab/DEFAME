@@ -1,7 +1,7 @@
 from typing import Any
 
 from defame.common import Report, Label
-from defame.common.misc import WebSource
+from defame.evidence_retrieval.integrations.search_engines.common import WebSource
 from defame.procedure.variants.qa_based.base import QABased
 from defame.prompts.prompts import AnswerCollectively
 

@@ -6,7 +6,7 @@ import tweepy
 
 from config.globals import api_keys
 from defame.utils.parsing import extract_by_regex
-from defame.common.misc import WebSource
+from defame.evidence_retrieval.integrations.search_engines.common import WebSource
 
 USERNAME_REGEX = r"((\w){1,15})"
 TWEET_ID_REGEX = r"([0-9]{15,22})"

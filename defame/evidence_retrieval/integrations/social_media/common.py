@@ -5,7 +5,7 @@ from typing import Optional, List
 from defame.common import Image, MultimediaSnippet, Medium
 
 
-@dataclass
+@dataclass(frozen=True)
 class SocialMediaPost(MultimediaSnippet):
     """Warning: Do not change attributes after initialization."""
     content: MultimediaSnippet | str | list[str | Medium]  # text and media contained in this post
@@ -77,7 +77,7 @@ class SocialMediaPost(MultimediaSnippet):
         super().__init__(text)
 
 
-@dataclass
+@dataclass(frozen=True)
 class SocialMediaProfile(MultimediaSnippet):
     platform: str
     profile_url: str

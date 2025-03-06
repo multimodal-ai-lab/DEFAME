@@ -2,7 +2,7 @@ from abc import ABC
 from typing import Any
 
 from defame.common import Report, Label, Model
-from defame.common.misc import WebSource
+from defame.evidence_retrieval.integrations.search_engines.common import WebSource
 from defame.modules import Judge, Actor, Planner
 from defame.prompts.prompts import DevelopPrompt
 from defame.evidence_retrieval.tools import WebSearch

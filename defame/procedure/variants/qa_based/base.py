@@ -3,7 +3,7 @@ from typing import Optional
 
 from defame.common import Report, logger
 from defame.evidence_retrieval.tools import WebSearch
-from defame.common.misc import WebSource
+from defame.evidence_retrieval.integrations.search_engines.common import WebSource
 from defame.procedure.procedure import Procedure
 from defame.prompts.prompts import PoseQuestionsPrompt, ProposeQueries, AnswerQuestion
 from defame.utils.console import light_blue

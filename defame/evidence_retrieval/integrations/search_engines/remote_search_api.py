@@ -5,8 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from config.globals import temp_dir
-from defame.common.misc import Query
-from defame.evidence_retrieval.integrations.search_engines.common import SearchResults
+from defame.evidence_retrieval.integrations.search_engines.common import SearchResults, Query
 from defame.evidence_retrieval.integrations.search_engines.search_api import SearchAPI
 
 

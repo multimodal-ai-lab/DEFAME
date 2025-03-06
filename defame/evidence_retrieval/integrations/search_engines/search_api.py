@@ -1,9 +1,8 @@
 from abc import ABC
 
 from defame.common import logger
-from defame.common.misc import Query, TextQuery
 from defame.utils.console import yellow
-from .common import SearchResults
+from .common import SearchResults, Query
 
 
 class SearchAPI(ABC):
@@ -23,7 +22,7 @@ class SearchAPI(ABC):
     def search(self, query: Query | str) -> SearchResults:
         """Runs the API by submitting the query and obtaining a list of search results."""
         if isinstance(query, str):
-            query = TextQuery(text=query)
+            query = Query(text=query)
         self._before_search(query)
         return self._call_api(query)
 
