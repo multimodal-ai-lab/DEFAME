@@ -1,5 +1,5 @@
 from defame.common import Report, Action
-from defame.tools import WebSearch
+from defame.evidence_retrieval.tools import WebSearch
 from defame.procedure.variants.qa_based.infact import InFact
 
 

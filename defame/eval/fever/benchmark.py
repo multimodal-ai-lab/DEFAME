@@ -1,13 +1,11 @@
 import os
-from pathlib import Path
 from typing import Iterator
-import random
 
 import orjsonl
 
 from config.globals import data_root_dir
 from defame.common import Label, Content
-from defame.tools import WikiDumpLookup
+from defame.evidence_retrieval.tools import WikiDumpLookup
 from defame.eval.benchmark import Benchmark
 
 

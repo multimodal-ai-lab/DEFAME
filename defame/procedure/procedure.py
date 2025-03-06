@@ -5,7 +5,7 @@ from defame.common import Report, Label, Model
 from defame.common.misc import WebSource
 from defame.modules import Judge, Actor, Planner
 from defame.prompts.prompts import DevelopPrompt
-from defame.tools import WebSearch
+from defame.evidence_retrieval.tools import WebSearch
 
 
 class Procedure(ABC):

@@ -1,6 +1,6 @@
 import time
 
-from defame.tools.search.knowledge_base import KnowledgeBase
+from defame.evidence_retrieval.integrations.search_engines.knowledge_base import KnowledgeBase
 
 # Instantiate the KnowledgeBase
 kb = KnowledgeBase(variant="dev")

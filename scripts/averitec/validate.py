@@ -2,7 +2,7 @@
 
 import json
 from defame.utils.utils import load_experiment_parameters
-from defame.tools.search.knowledge_base import N_CLAIMS
+from defame.evidence_retrieval.integrations.search_engines.knowledge_base import N_CLAIMS
 from eval.averitec.benchmark import AVeriTeC
 
 path = ""

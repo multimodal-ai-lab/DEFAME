@@ -3,13 +3,13 @@ the DB and saves them in an extra file."""
 # TODO: Test this script
 
 from config.globals import data_root_dir
-from defame.tools.search.wiki_dump import WikiDumpAPI
+from defame.evidence_retrieval.integrations.search_engines.wiki_dump import WikiDump
 from defame.utils.parsing import extract_nth_sentence
 from tqdm import tqdm
 import orjsonl
 
 # Construct the DB
-wiki_dump = WikiDumpAPI()
+wiki_dump = WikiDump()
 wiki_dump._build_db(data_root_dir + "FEVER/wiki-raw/")
 wiki_dump._build_knn()
 

@@ -1,7 +1,7 @@
 from typing import Any
 
 from defame.common import Report, Label, logger
-from defame.tools import WebSearch
+from defame.evidence_retrieval.tools import WebSearch
 from defame.procedure.procedure import Procedure
 from defame.prompts.prompts import ProposeQueriesNoQuestions
 
