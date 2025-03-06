@@ -2,15 +2,16 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, List
 
-from defame.common import Results, Image, MultimediaSnippet
+from defame.common import Image, MultimediaSnippet, Medium
 
 
 @dataclass
-class SocialMediaPostResults(Results):
+class SocialMediaPost(MultimediaSnippet):
+    """Warning: Do not change attributes after initialization."""
+    content: MultimediaSnippet | str | list[str | Medium]  # text and media contained in this post
     platform: str
     post_url: str
     author_username: str
-    content: MultimediaSnippet  # text and media contained in this post
 
     created_at: Optional[datetime] = None
     author_display_name: Optional[str] = None
@@ -25,8 +26,11 @@ class SocialMediaPostResults(Results):
     mentions: List[str] = field(default_factory=list)
     external_links: List[str] = field(default_factory=list)
 
-    def __str__(self):
-        # Create a human-readable text representation
+    def __post_init__(self):
+        if not isinstance(self.content, MultimediaSnippet):
+            self.content = MultimediaSnippet(self.content)
+
+        # Compose the MultimediaSnippet
         text = f"Post by @{self.author_username}"
         if self.author_display_name:
             text += f" ({self.author_display_name})"
@@ -67,20 +71,18 @@ class SocialMediaPostResults(Results):
         for i, img in enumerate(self.media):
             media_references.append(img.reference)
 
-        # Actual post content (text and media)
-        text += "\n" + str(self.content)
+        # Add newline to separate from following post content
+        text += "\n" + self.content.data
 
-        return text
+        super().__init__(text)
 
-    def is_useful(self) -> Optional[bool]:
-        # Post results are useful if we found a valid post (verify we have username)
-        return self.author_username != ""
 
 @dataclass
-class SocialMediaProfileResults(Results):
+class SocialMediaProfile(MultimediaSnippet):
     platform: str
     profile_url: str
     username: str
+
     display_name: Optional[str] = None
     bio: Optional[str] = None
     is_verified: Optional[bool] = False
@@ -91,42 +93,36 @@ class SocialMediaProfileResults(Results):
     external_links: Optional[List[str]] = field(default_factory=list)
     profile_image: Optional[Image] = None
     cover_image: Optional[Image] = None
-    text: str = field(init=False)
 
     def __post_init__(self):
-        # Create a human-readable text representation
-        self.text = f"Profile: @{self.username}"
+        # Compose the MultimediaSnippet
+        text = f"Profile: @{self.username}"
         if self.display_name:
-            self.text += f" ({self.display_name})"
+            text += f" ({self.display_name})"
         if self.is_verified:
-            self.text += " ✓"
-        self.text += f"\n\n{self.bio}\n\n"
+            text += " ✓"
+        text += f"\n\n{self.bio}\n\n"
 
         if self.follower_count is not None:
-            self.text += f"Followers: {self.follower_count:,}\n"
+            text += f"Followers: {self.follower_count:,}\n"
         if self.following_count is not None:
-            self.text += f"Following: {self.following_count:,}\n"
+            text += f"Following: {self.following_count:,}\n"
         if self.post_count is not None:
-            self.text += f"Posts: {self.post_count:,}\n"
+            text += f"Posts: {self.post_count:,}\n"
 
         if self.website:
-            self.text += f"Website: {self.website}\n"
+            text += f"Website: {self.website}\n"
 
         if self.external_links:
-            self.text += "External Links: " + " ".join(self.external_links) + "\n"
+            text += "External Links: " + " ".join(self.external_links) + "\n"
 
         if self.profile_image:
-            self.text += f"Profile Image: {self.profile_image.reference}\n"
+            text += f"Profile Image: {self.profile_image.reference}\n"
 
         if self.cover_image:
-            self.text += f"Cover Image: {self.cover_image.reference}\n"
+            text += f"Cover Image: {self.cover_image.reference}\n"
 
-    def __str__(self):
-        return self.text
-
-    def is_useful(self) -> Optional[bool]:
-        # Profile results are useful if we found a valid profile with a username
-        return self.username != ""
+        super().__init__(text)
 
 
 def get_platform(url: str):

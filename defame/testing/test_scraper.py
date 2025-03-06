@@ -1,4 +1,4 @@
-from defame.evidence_retrieval.integrations.scraping.scraper import scraper
+from defame.evidence_retrieval import scraper
 
 
 def test_firecrawl_is_running():

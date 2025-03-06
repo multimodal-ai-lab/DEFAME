@@ -1,7 +1,7 @@
 import re
 from pathlib import Path
 
-from defame.evidence_retrieval.integrations.scraping.util import read_urls_from_file
+from defame.evidence_retrieval.scraping.util import read_urls_from_file
 from defame.utils.parsing import get_domain
 
 # These sites don't allow bot access/scraping. Must use a
@@ -50,7 +50,7 @@ def is_fact_checking_site(url: str) -> bool:
 def is_unsupported_site(url: str) -> bool:
     """Checks if the URL belongs to a known unsupported website."""
     domain = get_domain(url)
-    return ".gov" in url or domain in unsupported_domains or url in unscrapable_urls
+    return domain.endswith(".gov") or domain in unsupported_domains or url in unscrapable_urls
 
 
 

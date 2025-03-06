@@ -9,15 +9,18 @@ from atproto_client.exceptions import RequestErrorBase
 from atproto_client.models.common import XrpcError
 
 from config.globals import api_keys
-from defame.common import Image, logger, MultimediaSnippet
-from defame.evidence_retrieval.integrations.social_media import SocialMediaPostResults, SocialMediaProfileResults
+from defame.common import Image, logger
+from defame.evidence_retrieval.integrations.social_media import SocialMediaPost, SocialMediaProfile
 from defame.utils.parsing import is_image_url
+from defame.evidence_retrieval.integrations.integration import RetrievalIntegration
 
 
-class Bluesky:
+class Bluesky(RetrievalIntegration):
     """Integration for the Bluesky social media platform: https://bsky.app."""
+    domains = ["bsky.app"]
 
     def __init__(self, username: str, password: str):
+        super().__init__()
         if not username or not password:
             logger.error("Bluesky username and password must be provided in api_keys.yaml")
             raise ValueError("Bluesky username and password must be provided in api_keys.yaml")
@@ -28,33 +31,21 @@ class Bluesky:
         self.n_errors = 0
         self.authenticated = False
         self.client = Client()
-        self.cache = {}
         self._authenticate()
 
-    def supported_platforms(self) -> list[str]:
-        """Returns the platforms supported by this scraper."""
-        return ["bsky"]
-
-    def retrieve(self, url: str) -> SocialMediaPostResults | SocialMediaProfileResults | None:
+    def _retrieve(self, url: str) -> SocialMediaPost | SocialMediaProfile | None:
         """Retrieve a post from the given URL."""
         if not self.authenticated:
             raise "Bluesky API is not authenticated."
-
-        if url in self.cache:
-            return self.cache[url]
-
-        if "bsky.app" not in url:
-            raise ValueError("Invalid Bluesky URL")
 
         if "post" in url:
             result = self._retrieve_post(url)
         else:
             result = self._retrieve_profile(url)
 
-        self.cache[url] = result
         return result
 
-    def _retrieve_post(self, url: str) -> Optional[SocialMediaPostResults]:
+    def _retrieve_post(self, url: str) -> Optional[SocialMediaPost]:
         """Retrieve a post from the given Bluesky URL."""
         # Extract post URI from the URL - Bluesky URLs typically look like:
         # https://bsky.app/profile/username.bsky.social/post/abcdef123
@@ -103,7 +94,7 @@ class Bluesky:
             self.n_errors += 1
             return handle  # Return the handle itself as fallback
 
-    def _get_post_thread(self, uri: str, original_url: str) -> Optional[SocialMediaPostResults]:
+    def _get_post_thread(self, uri: str, original_url: str) -> Optional[SocialMediaPost]:
         """Get the post thread using the Bluesky client."""
         # create an result with default values that will be updated step by step in the following
 
@@ -195,12 +186,12 @@ class Bluesky:
                     reply_to = f"https://bsky.app/profile/{reply_to_author.handle}/post/{post_id}"
 
             # Create the post result
-            return SocialMediaPostResults(
+            return SocialMediaPost(
+                content=[post_text, *media],
                 platform="bluesky",
                 post_url=original_url,
                 author_username=author_username,
                 author_display_name=author_display_name,
-                content=MultimediaSnippet([post_text, *media]),
                 created_at=datetime.fromisoformat(created_at_str) if created_at_str else None,
                 like_count=like_count,
                 comment_count=comment_count,
@@ -218,7 +209,7 @@ class Bluesky:
             logger.error(f"Error getting Bluesky post data: {err_msg}")
             self.n_errors += 1
 
-    def _retrieve_profile(self, url: str) -> Optional[SocialMediaProfileResults]:
+    def _retrieve_profile(self, url: str) -> Optional[SocialMediaProfile]:
         """Retrieve a profile from the given Bluesky URL."""
         try:
             profile = self.client.get_profile(url.split('/')[-1])
@@ -241,7 +232,7 @@ class Bluesky:
                 except Exception as img_err:
                     logger.warning(f"Failed to download cover image: {str(img_err)}")
 
-            return SocialMediaProfileResults(
+            return SocialMediaProfile(
                 platform="bluesky",
                 profile_url=url,
                 username=profile.handle,
@@ -294,6 +285,6 @@ def error_to_string(error: RequestErrorBase | Exception) -> str:
 bluesky = Bluesky(api_keys.get("bluesky_username"), api_keys.get("bluesky_password"))
 
 if __name__ == "__main__":
-    url = "https://bsky.app/profile/mrothermel.bsky.social/post/3ldnyqymqgl2c"
-    res = bluesky.retrieve(url)
+    example_url = "https://bsky.app/profile/mrothermel.bsky.social/post/3ldnyqymqgl2c"
+    res = bluesky.retrieve(example_url)
     print(res)
