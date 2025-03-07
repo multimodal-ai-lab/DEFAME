@@ -7,14 +7,12 @@
 import random
 import time
 from datetime import datetime
-from io import BytesIO
 from typing import Any, Optional
 
 import requests
-from PIL import Image as PillowImage
 
 from config.globals import api_keys
-from defame.common import logger, Image
+from defame.common import logger
 from defame.evidence_retrieval.integrations.search_engines.common import SearchResults, Query, WebSource
 from defame.evidence_retrieval.integrations.search_engines.remote_search_api import RemoteSearchAPI
 from defame.utils.parsing import get_base_domain
@@ -37,7 +35,7 @@ class SerperAPI(RemoteSearchAPI):
         self.hl = hl
         self.tbs = tbs
 
-    def _call_api(self, query: Query) -> SearchResults:
+    def _call_api(self, query: Query) -> Optional[SearchResults]:
         """Run query through GoogleSearch and parse result."""
         assert self.serper_api_key, 'Missing serper_api_key.'
         assert query, 'Query must not be None.'
@@ -59,7 +57,7 @@ class SerperAPI(RemoteSearchAPI):
             search_type=search_type,
         )
         web_sources = self._parse_results(output, query)
-        return SearchResults(web_sources)
+        return SearchResults(sources=web_sources, query=query)
 
     def _call_serper_api(
             self,
@@ -147,36 +145,21 @@ class SerperAPI(RemoteSearchAPI):
                 limit = query.limit or self.max_search_results
                 if len(results) >= limit:  # somehow the num param does not restrict requests.post image search results
                     break
-                text = result.get("snippet", "")
-                url = result.get("link", "")
 
-                image_url = result.get("imageUrl", "")
+                url = result.get("link") if result_key == "organic" else result.get("imageUrl")
+                if not url:
+                    continue
+
+                from defame.evidence_retrieval.scraping.scraper import scraper
+                content = scraper.scrape(url=url)
+
                 title = result.get('title')
-
-                if result_key == "organic":
-                    # TODO: Move scraping to tool
-                    from defame.evidence_retrieval.scraping.scraper import scraper
-                    text = scraper.scrape(url=url)
-                    if not text:
-                        continue
-                    else:
-                        text = str(text)
-
-                elif result_key == "images":
-                    try:
-                        image_response = requests.get(image_url, timeout=10)
-                        image = Image(pillow_image=PillowImage.open(BytesIO(image_response.content)))
-                        if image:
-                            text += f"\n{image.reference}"
-
-                    except Exception as e:
-                        logger.log(f"Failed to download or open image: {e}")
 
                 try:
                     result_date = datetime.strptime(result['date'], "%b %d, %Y").date()
                 except (ValueError, KeyError):
                     result_date = None
-                results.append(WebSource(url=url, data=text, query=query, rank=i, date=result_date, title=title))
+                results.append(WebSource(reference=url, content=content, release_date=result_date, title=title))
 
         return results
 

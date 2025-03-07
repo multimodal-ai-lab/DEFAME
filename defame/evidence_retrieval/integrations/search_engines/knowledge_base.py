@@ -5,6 +5,7 @@ import shutil
 import zipfile
 from datetime import datetime
 from multiprocessing import Pool, Queue
+from typing import Optional
 from urllib.request import urlretrieve
 
 import langdetect
@@ -14,7 +15,7 @@ from tqdm import tqdm
 
 from config.globals import data_root_dir, embedding_model
 from defame.common.embedding import EmbeddingModel
-from defame.common import logger
+from defame.common import logger, MultimediaSnippet
 from defame.evidence_retrieval.integrations.search_engines.local_search_api import LocalSearchAPI
 from defame.utils.utils import my_hook
 from .common import SearchResults, Query, WebSource
@@ -153,16 +154,14 @@ class KnowledgeBase(LocalSearchAPI):
         for i, index in enumerate(indices):
             url, text, date = self.retrieve(index)
             result = WebSource(
-                url=url,
-                data=text,
-                query=query,
-                rank=i,
-                date=date
+                reference=url,
+                content=MultimediaSnippet(text),
+                release_date=date
             )
             results.append(result)
         return results
 
-    def _call_api(self, query: Query) -> SearchResults:
+    def _call_api(self, query: Query) -> Optional[SearchResults]:
         """Performs a vector search on the text embeddings of the resources of the currently active claim."""
         if self.current_claim_id is None:
             raise RuntimeError("No claim ID specified. You must set the current_claim_id to the "
@@ -178,7 +177,7 @@ class KnowledgeBase(LocalSearchAPI):
         try:
             distances, indices = knn.kneighbors(query_embedding, limit)
             sources = self._indices_to_search_results(indices[0], query)
-            return SearchResults(sources)
+            return SearchResults(sources=sources, query=query)
         except Exception as e:
             logger.warning(f"Resource retrieval from kNN failed: {e}")
             return None

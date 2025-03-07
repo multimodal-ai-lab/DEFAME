@@ -4,7 +4,7 @@ from typing import Collection, Optional
 
 from defame.common import Report, Label, Claim, Action, Prompt, Content, logger
 from defame.common.label import DEFAULT_LABEL_DEFINITIONS
-from defame.evidence_retrieval.integrations.search_engines.common import WebSource
+from defame.evidence_retrieval.integrations.search_engines.common import WebSource, Source
 from defame.common.results import Results
 from defame.utils.parsing import (remove_non_symbols, extract_last_code_span, read_md_file,
                                   find_code_span, extract_last_paragraph, extract_last_code_block,
@@ -78,9 +78,9 @@ class SummarizeResultPrompt(Prompt):
     template_file_path = "defame/prompts/summarize_result.md"
     name = "SummarizeResultPrompt"
 
-    def __init__(self, search_result: WebSource, doc: Report):
+    def __init__(self, source: Source, doc: Report):
         placeholder_targets = {
-            "[SEARCH_RESULT]": str(search_result),
+            "[SEARCH_RESULT]": str(source),
             "[DOC]": str(doc),
         }
         super().__init__(placeholder_targets=placeholder_targets)

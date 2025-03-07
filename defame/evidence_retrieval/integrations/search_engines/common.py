@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date as Date
+from datetime import date
 from enum import Enum
 from typing import Optional
 
@@ -19,8 +19,8 @@ class Query:
     text: Optional[str] = None
     image: Optional[Image] = None
     limit: Optional[int] = None
-    start_date: Optional[Date] = None
-    end_date: Optional[Date] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     search_mode: Optional[SearchMode] = None
 
     def __post_init__(self):
@@ -33,7 +33,14 @@ class Query:
         return self.image is not None
 
     def __eq__(self, other):
-        return isinstance(other, Query) and self.__hash__() == other.__hash__()
+        return isinstance(other, Query) and (
+            self.text == other.text and
+            self.image == other.image and
+            self.limit == other.limit and
+            self.start_date == other.start_date and
+            self.end_date == other.end_date and
+            self.search_mode == other.search_mode
+        )
 
     def __hash__(self):
         return hash((
@@ -46,71 +53,95 @@ class Query:
         ))
 
 
-class WebSource(MultimediaSnippet):
-    """Output when searching the web or a local knowledge base."""
+@dataclass
+class Source:
+    """A source of information. For example, a web page or an excerpt
+     of a local knowledge base. Each source must be clearly identifiable
+     (and ideally also retrievable) by its reference."""
+    reference: str  # e.g. URL
+    content: MultimediaSnippet = None  # the contained raw information, may require lazy scrape
+    takeaways: MultimediaSnippet = None  # an optional summary of the content's relevant info
 
-    def __init__(self,
-                 *args,
-                 url: str,
-                 title: str = "",
-                 date: Date = None,
-                 summary: MultimediaSnippet = None,
-                 query: Query = None,
-                 rank: int = None,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
-        self.url = url
-        self.title = title
-        self.date = date
-        self.summary = summary
-        self.query = query
-        self.rank = rank
+    def is_loaded(self) -> bool:
+        return self.content is not None
 
     def is_relevant(self) -> Optional[bool]:
-        """Returns true if the summary contains information helpful for the fact-check."""
-        if self.summary is None:
+        """Returns True if the summary contains information helpful for the fact-check."""
+        if self.takeaways is None:
             return None
-        elif self.summary.data == "":
+        elif self.takeaways.data == "":
             return False
         else:
-            return "NONE" not in self.summary.data
+            return "NONE" not in self.takeaways.data
+
+    def _get_content_str(self):
+        if self.is_relevant():
+            return f"Takeaways: {self.takeaways.data}"
+        elif self.is_loaded():
+            return f"Content: {self.content.data}"
+        else:
+            return "No content available because source wasn't loaded yet."
 
     def __str__(self):
-        """Differentiates between direct citation (original text) and
-        indirect citation (if summary is available)."""
-        text = self.summary.data if self.summary is not None else f'"{self.data}"'
-        return f'From [Source]({self.url}): {self.title}\nContent: {text}'
+        """Uses the summary if available, otherwise the raw content."""
+        text = f"Source {self.reference}\n"
+        return text + self._get_content_str()
 
     def __eq__(self, other):
-        return self.url == other.url
+        return isinstance(other, Source) and self.reference == other.reference
 
     def __hash__(self):
+        return hash(self.reference)
+
+    def __repr__(self):
+        return f"Source(reference='{self.reference}')"
+
+
+@dataclass
+class WebSource(Source):
+    """Any web page."""
+    title: str = None
+    release_date: date = None
+
+    @property
+    def url(self) -> str:
+        return self.reference
+
+    def __str__(self):
+        text = f"Web Source {self.url}\n"
+        if self.title is not None:
+            text += f"Title: {self.title}\n"
+        if self.release_date is not None:
+            text += f"Release Date: {self.release_date.strftime('%B %d, %Y')}\n"
+        return text + self._get_content_str()
+
+    def __repr__(self):
+        return f"WebSource(url='{self.url}')"
+
+    def __eq__(self, other):
+        """Needed because @dataclass overrides __eq__()."""
+        return isinstance(other, WebSource) and self.url == other.url
+
+    def __hash__(self):
+        """Needed because @dataclass overrides __hash__()."""
         return hash(self.url)
 
 
 @dataclass
 class SearchResults(Results):
-    """A collection of web sources."""
-    sources: list[WebSource]
+    """A list of sources."""
+    sources: list[Source]
+    query: Query  # the query that resulted in these sources
+
+    @property
+    def n_sources(self):
+        return len(self.sources)
 
     def __str__(self):
-        return "**Web Search Result**\n\n" + "\n\n".join(map(str, self.sources))
+        if self.n_sources == 0:
+            return "No search results found."
+        else:
+            return "**Search Results**\n\n" + "\n\n".join(map(str, self.sources))
 
-
-@dataclass
-class ReverseSearchResult(SearchResults):
-    """Ships with additional object detection information next to the list of web sources."""
-    entities: dict[str, float]  # mapping between entity description and confidence score
-    best_guess_labels: list[str]
-
-    def __str__(self):
-        string_repr = "Google Vision's outputs"
-        if self.entities:
-            string_repr += f"\nIdentified web entities (confidence in parenthesis):\n"
-            string_repr += "\n".join(f"{description} ({confidence * 100:.0f} %)"
-                                     for description, confidence in self.entities.items())
-        if self.best_guess_labels:
-            string_repr += (f"\nBest guess about the topic of "
-                            f"the image is {', '.join(self.best_guess_labels)}.\n Exact image matches found at:")
-        return "**Reverse Search Result** The exact image was found in the following sources:\n\n" + "\n\n".join(
-            map(str, self.sources))
+    def __repr__(self):
+        return f"SearchResults(n_sources={len(self.sources)}, sources={self.sources})"

@@ -4,7 +4,7 @@ import sqlite3
 import struct
 from datetime import datetime
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, Optional
 
 import numpy as np
 import pandas as pd
@@ -12,6 +12,7 @@ from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
 from config.globals import embedding_model
+from defame.common import MultimediaSnippet
 from defame.common.embedding import EmbeddingModel
 from defame.evidence_retrieval.integrations.search_engines.local_search_api import LocalSearchAPI
 from .common import SearchResults, Query, WebSource
@@ -56,11 +57,11 @@ class SemanticSearchDB(LocalSearchAPI):
         rows = self.cur.fetchall()
         return rows
 
-    def _call_api(self, query: Query) -> SearchResults:
+    def _call_api(self, query: Query) -> Optional[SearchResults]:
         query_embedding = self._embed(query).reshape(1, -1)
         indices = self._search_semantically(query_embedding, query.limit)
-        web_sources = self._indices_to_search_results(indices, query)
-        return SearchResults(web_sources)
+        web_sources = self._indices_to_search_results(indices)
+        return SearchResults(sources=web_sources, query=query)
 
     def _search_semantically(self, query_embedding, limit: int) -> list[int]:
         """Runs a semantic search using kNN. Returns the indices (starting at 0)
@@ -72,16 +73,14 @@ class SemanticSearchDB(LocalSearchAPI):
         and the date of the selected row's source."""
         raise NotImplementedError()
 
-    def _indices_to_search_results(self, indices: list[int], query: Query) -> list[WebSource]:
+    def _indices_to_search_results(self, indices: list[int]) -> list[WebSource]:
         results = []
         for i, index in enumerate(indices):
             url, text, date = self.retrieve(index)
             result = WebSource(
-                url=url,
-                data=text,
-                query=query,
-                rank=i,
-                date=date
+                reference=url,
+                content=MultimediaSnippet(text),
+                release_date=date
             )
             results.append(result)
         return results

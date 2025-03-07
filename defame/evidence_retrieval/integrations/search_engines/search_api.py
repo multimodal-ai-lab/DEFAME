@@ -1,4 +1,5 @@
 from abc import ABC
+from typing import Optional
 
 from defame.common import logger
 from defame.utils.console import yellow
@@ -19,12 +20,12 @@ class SearchAPI(ABC):
         self.total_searches += 1
         logger.log(yellow(f"Searching {self.name} with query: {query}"))
 
-    def search(self, query: Query | str) -> SearchResults:
+    def search(self, query: Query | str) -> Optional[SearchResults]:
         """Runs the API by submitting the query and obtaining a list of search results."""
         if isinstance(query, str):
             query = Query(text=query)
         self._before_search(query)
         return self._call_api(query)
 
-    def _call_api(self, query: Query) -> SearchResults:
+    def _call_api(self, query: Query) -> Optional[SearchResults]:
         raise NotImplementedError()
