@@ -62,7 +62,7 @@ class RemoteSearchAPI(SearchAPI):
         if result is not None:
             return pickle.loads(result[0])
 
-    def search(self, query: Query) -> SearchResults:
+    def search(self, query: Query) -> Optional[SearchResults]:
         # Try to load from cache
         if self.search_cached_first:
             cache_results = self._get_from_cache(query)

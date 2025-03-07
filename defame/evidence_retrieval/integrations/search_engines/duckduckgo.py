@@ -1,10 +1,10 @@
 import time
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from duckduckgo_search import DDGS
 
-from defame.common import logger
-from defame.evidence_retrieval.integrations.search_engines.common import Query, WebSource
+from defame.common import logger, MultimediaSnippet
+from defame.evidence_retrieval.integrations.search_engines.common import Query, WebSource, SearchResults
 from defame.evidence_retrieval.integrations.search_engines.remote_search_api import RemoteSearchAPI
 
 
@@ -22,7 +22,7 @@ class DuckDuckGo(RemoteSearchAPI):
         self.backoff_factor = backoff_factor
         self.total_searches = 0
 
-    def _call_api(self, query: Query) -> list[WebSource]:
+    def _call_api(self, query: Query) -> Optional[SearchResults]:
         """Run a search query and return structured results."""
         assert query.has_text() and not query.has_image(), "DuckDuckGo only supports text queries."
         # TODO: Implement start and end date
@@ -38,22 +38,20 @@ class DuckDuckGo(RemoteSearchAPI):
                 if not response:
                     logger.warning("DuckDuckGo is having issues. Run duckduckgo.py "
                                         "and check https://duckduckgo.com/ for more information.")
-                    return []
-                return self._parse_results(response, query)
+                    return None
+                return SearchResults(sources=self._parse_results(response), query=query)
             except Exception as e:
                 attempt += 1
                 logger.log(f"DuckDuckGo search attempt {attempt} failed: {e}. Retrying with modified query...")
         logger.warning("All attempts to reach DuckDuckGo have failed. Please try again later.")
 
-        return []
-
-    def _parse_results(self, response: List[Dict[str, str]], query: Query) -> list[WebSource]:
+    def _parse_results(self, response: List[Dict[str, str]]) -> list[WebSource]:
         """Parse results from DuckDuckGo search and return structured dictionary."""
         results = []
         for i, result in enumerate(response):
             url = result.get('href', '')
             title = result.get('title', '')
-            text = result.get('body', '')
+            content = MultimediaSnippet(result.get('body', ''))
 
-            results.append(WebSource(url=url, title=title, data=text, query=query, rank=i))
+            results.append(WebSource(reference=url, title=title, content=content))
         return results

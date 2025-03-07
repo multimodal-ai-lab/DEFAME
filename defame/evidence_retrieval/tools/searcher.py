@@ -8,10 +8,10 @@ from openai import APIError
 
 from config.globals import api_keys
 from defame.common import MultimediaSnippet, Report, Prompt, logger, Action, Image
-from defame.evidence_retrieval.integrations.search_engines.common import Query, WebSource, SearchMode
-from defame.evidence_retrieval.tools.tool import Tool
 from defame.evidence_retrieval.integrations.search_engines import (SearchResults, SearchAPI, SEARCH_ENGINES,
                                                                    GoogleVisionAPI)
+from defame.evidence_retrieval.integrations.search_engines.common import Query, SearchMode, Source
+from defame.evidence_retrieval.tools.tool import Tool
 from defame.prompts.prompts import SummarizeResultPrompt
 from defame.utils.console import gray, orange
 
@@ -174,7 +174,7 @@ class Searcher(Tool):
         self.debug = do_debug
 
         # Cut the result text, maintaining a little buffer for the summary prompt
-        self.known_web_sources = set()
+        self.known_sources: set[Source] = set()
 
         self.reset()
 
@@ -199,59 +199,57 @@ class Searcher(Tool):
         return self.search(query)
 
     def search(self, query: Query) -> SearchResults:
-        """Searches for evidence using the search APIs according to their precedence."""
+        """Searches for evidence using the search APIs according to their precedence.
+        TODO: Rework the entire method"""
 
         # TODO: Convert into a dict lookup
         for search_engine in list(self.search_apis.values()):
             if query.search_mode == SearchMode.REVERSE and isinstance(search_engine, GoogleVisionAPI):
-                search_result = search_engine.search(query)
+                results = search_engine.search(query)
             elif (query.search_mode == SearchMode.SEARCH or query.search_mode == SearchMode.IMAGES and
                   not isinstance(search_engine, GoogleVisionAPI)):
-                search_result = search_engine.search(query)
+                results = search_engine.search(query)
             else:
                 continue
 
             # Remove known websites from search result
-            search_result.sources = self._remove_known_web_sources(search_result.sources)
+            results.sources = self._remove_known_sources(results.sources)
 
             # Track search engine call
             self.stats[search_engine.name] += 1
 
-            # Log search result info
-            logger.log(f"Got {len(search_result.sources)} new web source(s):")
-            for i, web_source in enumerate(search_result.sources):
-                result_summary = f"\t{i + 1}."
-                if web_source.date is not None:
-                    result_summary += f" {web_source.date.strftime('%B %d, %Y')}"
-                result_summary += f" {web_source.url}"
-                logger.log(result_summary)
+            # Log search results
+            logger.log(f"Got {len(results.sources)} new source(s):")
+            if len(results.sources) > 0:
+                logger.log(str(results))
 
             # Modify the raw web source text to avoid jinja errors when used in prompt
-            search_result.sources = self._postprocess_results(search_result.sources)[:self.limit_per_search]
+            results.sources = self._postprocess_results(results.sources, query)[:self.limit_per_search]
 
             # If there is at least one new web source in the result, we were successful
-            if len(search_result.sources) > 0:
-                self._register_web_sources(search_result.sources)
-                return search_result
+            if len(results.sources) > 0:
+                self._register_sources(results.sources)
+                return results
 
-    def _remove_known_web_sources(self, web_sources: list[WebSource]) -> list[WebSource]:
-        """Removes already known websites from the list web_sources."""
-        return [r for r in web_sources if r not in self.known_web_sources]
+    def _remove_known_sources(self, sources: list[Source]) -> list[Source]:
+        """Removes already known sources from the list `sources`."""
+        return [r for r in sources if r not in self.known_sources]
 
-    def _register_web_sources(self, web_sources: list[WebSource]):
+    def _register_sources(self, sources: list[Source]):
         """Adds the provided list of results to the set of known results."""
-        self.known_web_sources |= set(web_sources)
+        self.known_sources |= set(sources)
 
     def reset(self):
         """Removes all known web sources and resets the statistics."""
-        self.known_web_sources = set()
+        self.known_sources = set()
         self.stats = {s.name: 0 for s in self.search_apis.values()}
 
-    def _postprocess_results(self, results: list[WebSource]) -> list[WebSource]:
+    def _postprocess_results(self, sources: list[Source], query: Query) -> list[Source]:
         """Modifies the results text to avoid jinja errors when used in prompt."""
-        for result in results:
-            result.data = self.postprocess_result(result.data, result.query)
-        return results
+        for source in sources:
+            if source.is_loaded():
+                source.content.data = self.postprocess_result(source.content.data, query)
+        return sources
 
     def postprocess_result(self, result: str, query: Query, filter_relevant: bool = True):
         """Removes all double curly braces to avoid conflicts with Jinja and optionally truncates
@@ -267,40 +265,40 @@ class Searcher(Tool):
             result = result[:self.max_result_len]
         return result
 
-    def _summarize(self, result: SearchResults, **kwargs) -> Optional[MultimediaSnippet]:
+    def _summarize(self, results: SearchResults, **kwargs) -> Optional[MultimediaSnippet]:
         doc = kwargs.get("doc")
-        if result:
-            for web_source in result.sources:
-                self._summarize_single_web_source(web_source, doc)
-            return self._summarize_summaries(result, doc)
+        if results:
+            for source in results.sources:
+                self._summarize_single_source(source, doc)
+            return self._summarize_summaries(results, doc)
         else:
             return None
 
-    def _summarize_single_web_source(self, web_source: WebSource, doc: Report):
-        prompt = SummarizeResultPrompt(web_source, doc)
+    def _summarize_single_source(self, source: Source, doc: Report):
+        prompt = SummarizeResultPrompt(source, doc)
 
         try:
             summary = self.llm.generate(prompt, max_attempts=3)
             if not summary:
                 summary = "NONE"
         except APIError as e:
-            logger.log(orange(f"APIError: {e} - Skipping the summary for {web_source.url}."))
+            logger.log(orange(f"APIError: {e} - Skipping the summary for {source.reference}."))
             logger.log(orange(f"Used prompt:\n{str(prompt)}"))
             summary = "NONE"
         except TemplateSyntaxError as e:
-            logger.log(orange(f"TemplateSyntaxError: {e} - Skipping the summary for {web_source.url}."))
+            logger.log(orange(f"TemplateSyntaxError: {e} - Skipping the summary for {source.reference}."))
             summary = "NONE"
         except ValueError as e:
-            logger.log(orange(f"ValueError: {e} - Skipping the summary for {web_source.url}."))
+            logger.log(orange(f"ValueError: {e} - Skipping the summary for {source.reference}."))
             summary = "NONE"
         except Exception as e:
-            logger.log(orange(f"Error while summarizing! {e} - Skipping the summary for {web_source.url}."))
+            logger.log(orange(f"Error while summarizing! {e} - Skipping the summary for {source.reference}."))
             summary = "NONE"
 
-        web_source.summary = MultimediaSnippet(summary)
+        source.takeaways = MultimediaSnippet(summary)
 
-        if web_source.is_relevant():
-            logger.log("Useful result: " + gray(str(web_source)))
+        if source.is_relevant():
+            logger.log("Useful result: " + gray(str(source)))
 
     def _summarize_summaries(self, result: SearchResults, doc: Report) -> Optional[MultimediaSnippet]:
         """Generates a summary, aggregating all relevant information from the
