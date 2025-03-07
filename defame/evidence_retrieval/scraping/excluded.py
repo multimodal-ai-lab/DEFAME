@@ -60,10 +60,6 @@ def is_relevant_content(content: str) -> bool:
     if not content:
         return False
 
-    # Check for suspiciously short content (less than 500 characters might indicate blocking)
-    if len(content.strip()) < 500:
-        return False
-
     for keyword in block_keywords:
         if re.search(keyword, content, re.IGNORECASE):
             return False

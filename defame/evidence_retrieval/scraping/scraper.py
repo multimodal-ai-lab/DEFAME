@@ -4,12 +4,13 @@ from typing import Optional
 import requests
 
 from config.globals import firecrawl_url
-from defame.common import MultimediaSnippet, logger
+from defame.common import MultimediaSnippet, logger, Image
+from defame.evidence_retrieval.integrations import RETRIEVAL_INTEGRATIONS
 from defame.evidence_retrieval.scraping.excluded import (is_unsupported_site, is_relevant_content,
                                                          is_fact_checking_site)
-from defame.evidence_retrieval.integrations import RETRIEVAL_INTEGRATIONS
+from defame.evidence_retrieval.scraping.util import scrape_naive, find_firecrawl, firecrawl_is_running, log_error_url, \
+    resolve_media_hyperlinks, is_media_url, download, is_image_url
 from defame.utils.parsing import get_domain
-from .util import scrape_naive, find_firecrawl, firecrawl_is_running, log_error_url, resolve_media_hyperlinks
 
 FIRECRAWL_URLS = [
     firecrawl_url,
@@ -54,6 +55,14 @@ class Scraper:
 
         # Identify and use any applicable integration to retrieve the URL contents
         scraped = _retrieve_via_integration(url)
+
+        # Check if URL points to a media file. If yes, download accordingly TODO: extend to videos/audios
+        if is_image_url(url):
+            try:
+                image = Image(binary_data=download(url))
+                scraped = MultimediaSnippet([image])
+            except Exception:
+                pass
 
         # Use Firecrawl to scrape from the URL
         if not scraped:
@@ -152,3 +161,7 @@ def _retrieve_via_integration(url: str) -> Optional[MultimediaSnippet]:
 
 
 scraper = Scraper()
+
+if __name__ == "__main__":
+    print(scraper.scrape("https://cdn.pixabay.com/photo/2017/11/08/22/28/camera-2931883_1280.jpg"))
+    # print(scraper.scrape("https://pixum-cms.imgix.net/7wL8j3wldZEONCSZB9Up6B/d033b7b6280687ce2e4dfe2d4147ff93/fab_mix_kv_perspektive_foto_liegend_desktop__3_.png?auto=compress,format&trim=false&w=2000"))
