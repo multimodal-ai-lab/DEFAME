@@ -1,6 +1,8 @@
 """A web scraping module to retrieve the contents of ANY website."""
+import asyncio
 from typing import Optional
 
+import aiohttp
 import requests
 
 from config.globals import firecrawl_url
@@ -9,7 +11,7 @@ from defame.evidence_retrieval.integrations import RETRIEVAL_INTEGRATIONS
 from defame.evidence_retrieval.scraping.excluded import (is_unsupported_site, is_relevant_content,
                                                          is_fact_checking_site)
 from defame.evidence_retrieval.scraping.util import scrape_naive, find_firecrawl, firecrawl_is_running, log_error_url, \
-    resolve_media_hyperlinks, is_media_url, download, is_image_url
+    resolve_media_hyperlinks, download, is_image_url
 from defame.utils.parsing import get_domain
 
 FIRECRAWL_URLS = [
@@ -43,8 +45,19 @@ class Scraper:
         if self.firecrawl_url:
             logger.info(f"✅ Detected Firecrawl running at {self.firecrawl_url}.")
 
+    def scrape_multiple(self, urls: list[str]) -> list[MultimediaSnippet | None]:
+        """Scrapes each URL concurrently. Synchronous wrapper for _scrape_multiple()."""
+        return asyncio.run(self._scrape_multiple(urls))
+
+    async def _scrape_multiple(self, urls: list[str]) -> list[MultimediaSnippet | None]:
+        tasks = [self._scrape(url) for url in urls]
+        return await asyncio.gather(*tasks)
+
     def scrape(self, url: str) -> Optional[MultimediaSnippet]:
-        """Scrapes the contents of the specified webpage."""
+        """Scrapes the contents of the specified webpage. Synchronous wrapper for _scrape()."""
+        return asyncio.run(self._scrape(url))
+
+    async def _scrape(self, url: str) -> Optional[MultimediaSnippet]:
         # Check exclusions first
         if is_unsupported_site(url):
             logger.log(f"Skipping unsupported site: {url}")
@@ -72,7 +85,7 @@ class Scraper:
 
             if self.firecrawl_url:
                 if firecrawl_is_running(self.firecrawl_url):
-                    scraped = self._scrape_firecrawl(url)
+                    scraped = await self._scrape_firecrawl(url)
                 else:
                     logger.error(f"Firecrawl stopped running! No response from {firecrawl_url}!. "
                                  f"Falling back to Beautiful Soup until Firecrawl is available again.")
@@ -86,7 +99,7 @@ class Scraper:
             self.n_scrapes += 1
             return scraped
 
-    def _scrape_firecrawl(self, url: str) -> Optional[MultimediaSnippet]:
+    async def _scrape_firecrawl(self, url: str) -> Optional[MultimediaSnippet]:
         """Scrapes the given URL using Firecrawl. Returns a Markdown-formatted
         multimedia snippet, containing any (relevant) media from the page."""
         assert self.firecrawl_url is not None
@@ -101,10 +114,45 @@ class Scraper:
         }
 
         try:
-            response = requests.post(self.firecrawl_url + "/v1/scrape",
-                                     json=json_data,
-                                     headers=headers,
-                                     timeout=10 * 60)  # Firecrawl scrapes usually take 2 to 4s, but a 1700-page PDF takes 5 min
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.firecrawl_url + "/v1/scrape",
+                                        json=json_data,
+                                        headers=headers,
+                                        timeout=10 * 60) as response:  # Firecrawl scrapes usually take 2 to 4s, but a 1700-page PDF takes 5 min
+
+                    if response.status != 200:
+                        logger.log(f"Failed to scrape {url}")
+                        error_message = f"Failed to scrape {url} - Status code: {response.status} - Reason: {response.reason}"
+                        log_error_url(url, error_message)
+                        match response.status:
+                            case 402:
+                                logger.log(f"Error 402: Access denied.")
+                            case 403:
+                                logger.log(f"Error 403: Forbidden.")
+                            case 408:
+                                logger.warning(f"Error 408: Timeout! Firecrawl overloaded or Webpage did not respond.")
+                            case 409:
+                                logger.log(f"Error 409: Access denied.")
+                            case 500:
+                                logger.log(f"Error 500: Server error.")
+                            case _:
+                                logger.log(f"Error {response.status}: {response.reason}.")
+                        logger.log("Skipping that URL.")
+                        return None
+
+                    json = await response.json()
+                    success = json["success"]
+                    if success and "data" in json:
+                        data = json["data"]
+                        text = data.get("markdown")
+                        return resolve_media_hyperlinks(text)
+                    else:
+                        error_message = f"Unable to read {url}. No usable data in response."
+                        logger.info(f"Unable to read {url}. Skipping it.")
+                        logger.info(str(json))
+                        log_error_url(url, error_message)
+                        return None
+
         except (requests.exceptions.RetryError, requests.exceptions.ConnectionError):
             logger.error(f"Firecrawl is not running!")
             return None
@@ -120,38 +168,6 @@ class Scraper:
             log_error_url(url, error_message)
             return None
 
-        if response.status_code != 200:
-            logger.log(f"Failed to scrape {url}")
-            error_message = f"Failed to scrape {url} - Status code: {response.status_code} - Reason: {response.reason}"
-            log_error_url(url, error_message)
-            match response.status_code:
-                case 402:
-                    logger.log(f"Error 402: Access denied.")
-                case 403:
-                    logger.log(f"Error 403: Forbidden.")
-                case 408:
-                    logger.warning(f"Error 408: Timeout! Firecrawl overloaded or Webpage did not respond.")
-                case 409:
-                    logger.log(f"Error 409: Access denied.")
-                case 500:
-                    logger.log(f"Error 500: Server error.")
-                case _:
-                    logger.log(f"Error {response.status_code}: {response.reason}.")
-            logger.log("Skipping that URL.")
-            return None
-
-        success = response.json()["success"]
-        if success and "data" in response.json():
-            data = response.json()["data"]
-            text = data.get("markdown")
-            return resolve_media_hyperlinks(text)
-        else:
-            error_message = f"Unable to read {url}. No usable data in response."
-            logger.info(f"Unable to read {url}. Skipping it.")
-            logger.info(str(response.content))
-            log_error_url(url, error_message)
-            return None
-
 
 def _retrieve_via_integration(url: str) -> Optional[MultimediaSnippet]:
     domain = get_domain(url)
@@ -163,5 +179,10 @@ def _retrieve_via_integration(url: str) -> Optional[MultimediaSnippet]:
 scraper = Scraper()
 
 if __name__ == "__main__":
-    print(scraper.scrape("https://cdn.pixabay.com/photo/2017/11/08/22/28/camera-2931883_1280.jpg"))
-    # print(scraper.scrape("https://pixum-cms.imgix.net/7wL8j3wldZEONCSZB9Up6B/d033b7b6280687ce2e4dfe2d4147ff93/fab_mix_kv_perspektive_foto_liegend_desktop__3_.png?auto=compress,format&trim=false&w=2000"))
+    print(scraper.scrape_multiple([
+        "https://www.washingtonpost.com/video/national/cruz-calls-trump-clinton-two-new-york-liberals/2016/04/07/da3b78a8-fcdf-11e5-813a-90ab563f0dde_video.html",
+        "https://cdn.pixabay.com/photo/2017/11/08/22/28/camera-2931883_1280.jpg",
+        "https://www.tagesschau.de/ausland/asien/libanon-israel-blauhelme-nahost-102.html",
+        "https://www.zeit.de/politik/ausland/2024-10/wolodymyr-selenskyj-berlin-olaf-scholz-militaerhilfe",
+        "https://pixum-cms.imgix.net/7wL8j3wldZEONCSZB9Up6B/d033b7b6280687ce2e4dfe2d4147ff93/fab_mix_kv_perspektive_foto_liegend_desktop__3_.png?auto=compress,format&trim=false&w=2000",
+    ]))

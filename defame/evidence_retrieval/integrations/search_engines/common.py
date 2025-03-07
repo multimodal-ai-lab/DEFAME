@@ -80,7 +80,7 @@ class Source:
         elif self.is_loaded():
             return f"Content: {self.content.data}"
         else:
-            return "No content available because source wasn't loaded yet."
+            return "⚠️ Content not yet loaded."
 
     def __str__(self):
         """Uses the summary if available, otherwise the raw content."""
@@ -102,6 +102,7 @@ class WebSource(Source):
     """Any web page."""
     title: str = None
     release_date: date = None
+    preview: str = None
 
     @property
     def url(self) -> str:
@@ -113,6 +114,8 @@ class WebSource(Source):
             text += f"Title: {self.title}\n"
         if self.release_date is not None:
             text += f"Release Date: {self.release_date.strftime('%B %d, %Y')}\n"
+        if self.preview is not None:
+            text += f"{self.preview}\n"
         return text + self._get_content_str()
 
     def __repr__(self):

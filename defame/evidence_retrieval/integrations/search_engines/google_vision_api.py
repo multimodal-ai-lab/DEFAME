@@ -19,17 +19,31 @@ class RisResults(SearchResults):
     entities: dict[str, float]  # mapping between entity description and confidence score
     best_guess_labels: list[str]
 
+    @property
+    def exact_matches(self):
+        return self.sources
+
     def __str__(self):
-        text = "Google Vision's outputs"
+        text = "**Reverse Image Search Results**"
+
         if self.entities:
-            text += f"\nIdentified web entities (confidence in parenthesis):\n"
-            text += "\n".join(f"{description} ({confidence * 100:.0f} %)"
-                                     for description, confidence in self.entities.items())
+            text += f"\n\nIdentified entities (confidence in parenthesis):\n"
+            text += "\n".join(f"- {name} ({confidence * 100:.0f} %)"
+                                     for name, confidence in self.entities.items())
+
         if self.best_guess_labels:
-            text += (f"\nBest guess about the topic of "
-                            f"the image is {', '.join(self.best_guess_labels)}.\n Exact image matches found at:")
-        return "**Reverse Search Result** The exact image was found in the following sources:\n\n" + "\n\n".join(
-            map(str, self.sources))
+            text += f"\n\nBest guess about the topic of the image: {', '.join(self.best_guess_labels)}."
+
+        if self.exact_matches:
+            text += "\n\nThe same image was found in the following sources:\n\n"
+            text += "\n\n".join(map(str, self.exact_matches))
+
+        return text
+
+    def __repr__(self):
+        return (f"RisResults(n_exact_matches={len(self.exact_matches)}, "
+                f"n_entities={len(self.entities)}, "
+                f"n_best_guess_labels={len(self.best_guess_labels)})")
 
 
 def _parse_results(web_detection: vision.WebDetection, query: Query) -> RisResults:
@@ -38,7 +52,8 @@ def _parse_results(web_detection: vision.WebDetection, query: Query) -> RisResul
     # Web Entities
     web_entities = {}
     for entity in web_detection.web_entities:
-        web_entities[entity.description] = entity.score
+        if entity.description:
+            web_entities[entity.description] = entity.score
 
     # Best Guess Labels
     best_guess_labels = []
@@ -47,24 +62,14 @@ def _parse_results(web_detection: vision.WebDetection, query: Query) -> RisResul
             if label.label:
                 best_guess_labels.append(label.label)
 
-    # Pages Relevant Images
+    # Pages with relevant images
     web_sources = []
     filtered_pages = filter_unique_stem_pages(web_detection.pages_with_matching_images)
     for page in filtered_pages:
         url = page.url
-        title = f'Found exact image on website with title: {page.page_title}' if \
-            hasattr(page, 'page_title') else "Found exact image on website"
-
-        # TODO: Move scraping to tool
-        from defame.evidence_retrieval.scraping.scraper import scraper
-        scraped = scraper.scrape(url)
-
-        if scraped:
-            web_sources.append(WebSource(
-                reference=url,
-                title=title,
-                content=scraped
-            ))
+        title = page.__dict__.get("page_title")
+        web_source = WebSource(reference=url, title=title)
+        web_sources.append(web_source)
 
     return RisResults(sources=web_sources, query=query, entities=web_entities, best_guess_labels=best_guess_labels)
 
