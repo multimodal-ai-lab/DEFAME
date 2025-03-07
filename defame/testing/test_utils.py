@@ -1,5 +1,6 @@
 import pytest
-from defame.utils.parsing import is_image_url
+from defame.evidence_retrieval.scraping.util import is_image_url
+
 
 @pytest.mark.parametrize("url,expected", [
     ("https://media.cnn.com/api/v1/images/stellar/prod/ap22087057359494.jpg?c=16x9&q=h_653,w_1160,c_fill/f_webp", True),
@@ -9,6 +10,9 @@ from defame.utils.parsing import is_image_url
     ("https://de.wikipedia.org/wiki/Datei:President_Barack_Obama.jpg", False),  # this is the image's article view
     ("https://bingekulture.com/wp-content/uploads/2021/08/cropped-cropped-logo.fw-removebg-preview.png?w=48", False),  # this URL redirects to a webpage
     ("https://www.popularmechanics.com/_assets/design-tokens/fre/static/icons/play.db7c035.svg?primary=%2523ffffff%20%22Play%22", False),  # this is a vector graphic
+    ("https://pixum-cms.imgix.net/7wL8j3wldZEONCSZB9Up6B/d033b7b6280687ce2e4dfe2d4147ff93/fab_mix_kv_perspektive_foto_liegend_desktop__3_.png?auto=compress,format&trim=false&w=2000", True),
+    ("https://cdn.pixabay.com/photo/2017/11/08/22/28/camera-2931883_1280.jpg", True),  # image is presented as a binary download stream
+    ("https://arxiv.org/pdf/2412.10510", False),  # this is a PDF download stream
 ])
 def test_is_image_url(url, expected):
     assert is_image_url(url) == expected

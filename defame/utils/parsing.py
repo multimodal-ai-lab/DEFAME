@@ -4,7 +4,6 @@ from typing import Optional, Any
 from urllib.parse import urlparse
 
 from markdownify import MarkdownConverter
-import requests
 
 from defame.utils.console import orange
 
@@ -236,18 +235,6 @@ def get_markdown_hyperlinks(text: str) -> list[tuple[str, str]]:
     pattern = re.compile(hyperlink_regex, re.DOTALL)
     hyperlinks = re.findall(pattern, text)
     return hyperlinks
-
-
-def is_image_url(url: str) -> bool:
-    """Returns True iff the URL points at an accessible _pixel_ image file."""
-    try:
-        response = requests.head(url, timeout=2)
-        content_type = response.headers.get('content-type')
-        return (content_type.startswith("image/") and not "svg" in response.headers.get('content-type') and
-                not "svg" in content_type and
-                not "eps" in content_type)
-    except Exception:
-        return False
 
 
 def get_domain(url: str) -> str:

@@ -45,8 +45,13 @@ class Image(Medium):
     data_type = "image"
     image: PillowImage
 
-    def __init__(self, path_to_file: str | Path = None, pillow_image: PillowImage = None):
-        assert path_to_file is not None or pillow_image is not None
+    def __init__(self, path_to_file: str | Path = None,
+                 pillow_image: PillowImage = None,
+                 binary_data: bytes = None):
+        assert path_to_file is not None or pillow_image is not None or binary_data is not None
+
+        if binary_data is not None:
+            pillow_image = pillow_open(BytesIO(binary_data))
 
         if pillow_image is not None:
             pillow_image = self._ensure_rgb_mode(pillow_image)

@@ -1,14 +1,19 @@
+import imghdr
 import io
 import re
-from typing import Optional
+from typing import Optional, Any
 
 import requests
+from PIL import Image
 from PIL import Image as PillowImage, UnidentifiedImageError
 from bs4 import BeautifulSoup
 
 from config.globals import temp_dir
 from defame.common import MultimediaSnippet, logger, Image
-from defame.utils.parsing import md, get_markdown_hyperlinks, is_image_url
+from defame.utils.parsing import md, get_markdown_hyperlinks
+
+
+MAX_MEDIA_PER_PAGE = 32  # Any media URLs in a webpage exceeding this limit will be ignored.
 
 
 def read_urls_from_file(file_path):
@@ -88,8 +93,9 @@ def resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
                         continue
 
             except (
-            requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout,
-            requests.exceptions.TooManyRedirects):
+                    requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError,
+                    requests.exceptions.ReadTimeout,
+                    requests.exceptions.TooManyRedirects):
                 # Webserver is not reachable (anymore)
                 pass
 
@@ -134,4 +140,50 @@ def firecrawl_is_running(url):
     return response.status_code == 200
 
 
-MAX_MEDIA_PER_PAGE = 32  # Any media URLs in a webpage exceeding this limit will be ignored.
+def is_media_url(url: str) -> bool:
+    """TODO: Also check for videos and audios."""
+    return is_image_url(url)
+
+
+def is_image_url(url: str) -> bool:
+    """Returns True iff the URL points at an accessible _pixel_ image file."""
+    try:
+        response = requests.head(url, timeout=2, allow_redirects=True)
+        content_type = response.headers.get('content-type')
+        if content_type.startswith("image/"):
+            return (not "svg" in response.headers.get('content-type') and
+                    not "svg" in content_type and
+                    not "eps" in content_type)
+        elif content_type == "binary/octet-stream":
+            # The content is a binary download stream. We need to download it
+            # to determine the file type.
+            binary_data = download(url)
+            return is_image(binary_data)
+        else:
+            return False
+
+    except Exception:
+        return False
+
+
+def is_image(binary_data: bytes) -> bool:
+    """Determines if the given binary data represents an image."""
+    # Check using imghdr module (looks at magic numbers)
+    if imghdr.what(None, h=binary_data):
+        return True
+
+    # Attempt to open with PIL (Pillow)
+    try:
+        image = Image.open(io.BytesIO(binary_data))
+        image.verify()  # Ensures it's a valid image file
+        return True
+    except (IOError, SyntaxError):
+        return False
+
+
+def download(url: str, max_size: int = None) -> Any:
+    """Downloads a binary file from a given URL.
+    TODO: Implement max file size."""
+    response = requests.get(url, stream=True)
+    response.raise_for_status()  # Raise an error for bad responses (4xx, 5xx)
+    return response.content
