@@ -8,9 +8,10 @@ from openai import APIError
 
 from config.globals import api_keys
 from defame.common import MultimediaSnippet, Report, Prompt, logger, Action, Image
+from defame.evidence_retrieval import scraper
 from defame.evidence_retrieval.integrations.search_engines import (SearchResults, SearchAPI, SEARCH_ENGINES,
                                                                    GoogleVisionAPI)
-from defame.evidence_retrieval.integrations.search_engines.common import Query, SearchMode, Source
+from defame.evidence_retrieval.integrations.search_engines.common import Query, SearchMode, Source, WebSource
 from defame.evidence_retrieval.tools.tool import Tool
 from defame.prompts.prompts import SummarizeResultPrompt
 from defame.utils.console import gray, orange
@@ -222,6 +223,14 @@ class Searcher(Tool):
             logger.log(f"Got {len(results.sources)} new source(s):")
             if len(results.sources) > 0:
                 logger.log(str(results))
+
+            # Scrape the pages of the results
+            sources_to_scrape = [s for s in results.sources if isinstance(s, WebSource) and s.content is None]
+            if sources_to_scrape:
+                urls = [s.url for s in sources_to_scrape]
+                scrape_results = scraper.scrape_multiple(urls)
+                for source, scraped in zip(sources_to_scrape, scrape_results):
+                    source.content = scraped
 
             # Modify the raw web source text to avoid jinja errors when used in prompt
             results.sources = self._postprocess_results(results.sources, query)[:self.limit_per_search]

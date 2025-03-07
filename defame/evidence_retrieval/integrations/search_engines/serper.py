@@ -6,6 +6,7 @@
 
 import random
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Optional
 
@@ -18,6 +19,31 @@ from defame.evidence_retrieval.integrations.search_engines.remote_search_api imp
 from defame.utils.parsing import get_base_domain
 
 _SERPER_URL = 'https://google.serper.dev'
+
+
+@dataclass
+class GoogleSearchResults(SearchResults):
+    answer: str = None  # sometimes, Google provides a comprehensive answer
+    knowledge_graph: str = None
+
+    def __str__(self):
+        if self.n_sources == 0:
+            return "No search results found."
+        else:
+            text = "**Google Search Results**\n\n"
+            if self.answer:
+                text += f"Answer: {self.answer}\n\n"
+            if self.knowledge_graph:
+                text += f"Knowledge Graph: {self.knowledge_graph}\n\n"
+            if self.sources:
+                text += "Sources:\n" + "\n\n".join(map(str, self.sources))
+            return text
+
+    def __repr__(self):
+        return (f"GoogleSearchResults(n_sources={len(self.sources)}, "
+                f"has_answer={self.answer is not None}, "
+                f"has_knowledge_graph={self.knowledge_graph is not None}, "
+                f"sources={self.sources})")
 
 
 class SerperAPI(RemoteSearchAPI):
@@ -56,8 +82,9 @@ class SerperAPI(RemoteSearchAPI):
             tbs=tbs,
             search_type=search_type,
         )
-        web_sources = self._parse_results(output, query)
-        return SearchResults(sources=web_sources, query=query)
+        answer, knowledge_graph, web_sources = self._parse_results(output, query)
+        return GoogleSearchResults(sources=web_sources, answer=answer,
+                                   knowledge_graph=knowledge_graph, query=query)
 
     def _call_serper_api(
             self,
@@ -105,53 +132,27 @@ class SerperAPI(RemoteSearchAPI):
         search_results = response.json()
         return search_results
 
-    def _parse_results(self, response: dict[Any, Any], query: Query) -> list[WebSource]:
+    def _parse_results(self, response: dict[Any, Any], query: Query) -> (str, str, list[WebSource]):
         """Parse results from API response."""
+        answer = _parse_answer_box(response)
+        knowledge_graph = _parse_knowledge_graph(response)
+        sources = self._parse_sources(response, query)
+        return answer, knowledge_graph, sources
 
-        snippets = []
-        if response.get('answerBox'):
-            answer_box = response.get('answerBox', {})
-            answer = answer_box.get('answer')
-            snippet = answer_box.get('snippet')
-            snippet_highlighted = answer_box.get('snippetHighlighted')
-
-            if answer and isinstance(answer, str):
-                snippets.append(answer)
-            if snippet and isinstance(snippet, str):
-                snippets.append(snippet.replace('\n', ' '))
-            if snippet_highlighted:
-                snippets.append(snippet_highlighted)
-
-        if response.get('knowledgeGraph'):
-            kg = response.get('knowledgeGraph', {})
-            title = kg.get('title')
-            entity_type = kg.get('type')
-            description = kg.get('description')
-
-            if entity_type:
-                snippets.append(f'{title}: {entity_type}.')
-
-            if description:
-                snippets.append(description)
-
-            for attribute, value in kg.get('attributes', {}).items():
-                snippets.append(f'{title} {attribute}: {value}.')
-
-        results = []
+    def _parse_sources(self, response: dict, query: Query) -> list[WebSource]:
+        # TODO: Process sitelinks
+        sources = []
         result_key = "images" if query.has_image() else "organic"
         filtered_results = filter_unique_results_by_domain(response[result_key])
         if result_key in response:
             for i, result in enumerate(filtered_results):
                 limit = query.limit or self.max_search_results
-                if len(results) >= limit:  # somehow the num param does not restrict requests.post image search results
+                if len(sources) >= limit:  # somehow the num param does not restrict requests.post image search results
                     break
 
                 url = result.get("link") if result_key == "organic" else result.get("imageUrl")
                 if not url:
                     continue
-
-                from defame.evidence_retrieval.scraping.scraper import scraper
-                content = scraper.scrape(url=url)
 
                 title = result.get('title')
 
@@ -159,9 +160,40 @@ class SerperAPI(RemoteSearchAPI):
                     result_date = datetime.strptime(result['date'], "%b %d, %Y").date()
                 except (ValueError, KeyError):
                     result_date = None
-                results.append(WebSource(reference=url, content=content, release_date=result_date, title=title))
+                sources.append(WebSource(reference=url, release_date=result_date, title=title))
+        return sources
 
-        return results
+
+def _parse_answer_box(response: dict) -> Optional[str]:
+    """Parses the "answer box" which Google sometimes returns."""
+    # TODO: If answer_box contains a source ('link' and 'snippet'), add it to the other sources
+    if answer_box := response.get('answerBox'):
+        answer = []
+        if answer_raw := answer_box.get('answer'):
+            answer.append(answer_raw)
+        if snippet := answer_box.get('snippet'):
+            answer.append(snippet)
+        if link := answer_box.get('link'):
+            answer.append(link)
+        if snippet_highlighted := answer_box.get('snippetHighlighted'):
+            answer.append(str(snippet_highlighted))
+        return "\n".join(answer)
+
+
+def _parse_knowledge_graph(response: dict) -> Optional[str]:
+    # TODO: Test this
+    if kg := response.get('knowledgeGraph'):
+        knowledge_graph = []
+        if title := kg.get('title'):
+            knowledge_graph.append(title)
+        if entity_type := kg.get('type'):
+            knowledge_graph.append(f'Type: {entity_type}')
+        if description := kg.get('description'):
+            knowledge_graph.append(description)
+        if attributes := kg.get('attributes'):
+            for attribute, value in attributes.items():
+                knowledge_graph.append(f'{attribute}: {value}')
+        return "\n".join(knowledge_graph)
 
 
 def filter_unique_results_by_domain(results):
@@ -195,16 +227,16 @@ def filter_unique_results_by_domain(results):
 
 if __name__ == "__main__":
     example_query = Query(
-        text="Why are baby animals so cute?",
-        limit=3,
+        text="What is the first element in the periodic table?",
+        limit=5,
         end_date=datetime(2025, 3, 5)
     )
     api = SerperAPI()
-    result = api.search(example_query)
-    print(result)
+    results = api.search(example_query)
+    print(results)
 
     # Test the cache (result should appear much faster)
     start = time.time()
-    result = api.search(example_query)
+    results = api.search(example_query)
     end = time.time()
     print(f"Second search with same query took {end - start:.3f} seconds.")
