@@ -40,6 +40,7 @@ class ContentInfo(BaseModel):
     data: MultimediaSequence
     author: Optional[str] = None
     date: Optional[str] = Field(default=None, examples=["2025-02-21"], description="Format is YYYY-MM-DD")
+    topic: Optional[str] = None
     verdict: Optional[str] = Field(default=None, examples=[Label.SUPPORTED.name,
                                                            Label.REFUTED.name,
                                                            Label.NEI.name,
@@ -61,6 +62,7 @@ def get_content_info(content: Content) -> ContentInfo:
         data=to_sequence(content),
         author=content.author,
         date=content.date.strftime('%Y-%m-%d') if content.date else None,
+        topic=content.topic,
         verdict=content.verdict
     )
 
