@@ -11,6 +11,7 @@ class Content(MultimediaSnippet):
 
     claims: Optional[list] = None  # the claims contained in this content
     verdict: Optional[Label] = None  # the overall verdict aggregated from the individual claims
+    topic: Optional[str] = None  # a short title-like description of the content's topic
 
     def __init__(self,
                  *args,
