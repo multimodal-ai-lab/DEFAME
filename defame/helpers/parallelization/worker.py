@@ -53,6 +53,7 @@ class FactCheckerWorker(Worker):
 
 class Runner:
     # TODO: Refactor
+    # TODO: Use multiprocessing.Manager (instead of Queues/Connection) to share data between pool & worker
     """The instance actually executing the routine inside the worker subprocess."""
 
     def __init__(self, worker_id: int = None):
@@ -121,7 +122,8 @@ class Runner:
                     output_queue.put(claims)
                     report("Claim extraction from content completed successfully.",
                            status=Status.DONE,
-                           result=claims)
+                           result=dict(claims=claims,
+                                       topic=payload.topic))
 
                 elif isinstance(payload, Claim):
                     # Task is claim verification

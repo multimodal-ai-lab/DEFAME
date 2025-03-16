@@ -335,6 +335,17 @@ class InterpretPrompt(Prompt):
         }
         super().__init__(placeholder_targets=placeholder_targets)
 
+    def extract(self, response: str) -> dict | str | None:
+        paragraphs = response.split("\n")
+        assert len(paragraphs) >= 2
+        interpretation = paragraphs[0]
+        topic = paragraphs[-1]
+        return dict(
+            interpretation=interpretation,
+            topic=topic,
+            response=response,
+        )
+
 
 class DecomposePrompt(Prompt):
     template_file_path = "defame/prompts/decompose.md"

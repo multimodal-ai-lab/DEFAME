@@ -99,7 +99,8 @@ class Job:
     def register_claims(self, task: Task):
         """Saves the claims belonging to the query's content. Also adds the claims
         as tasks to the worker pool."""
-        claims: list[Claim] = task.result
+        claims: list[Claim] = task.result["claims"]
+        topic: str = task.result["topic"]
 
         # Create new tasks from claims
         self.claim_tasks = []
@@ -110,6 +111,7 @@ class Job:
             self._pool.add_task(task)
 
         self.content.claims = claims
+        self.content.topic = topic
 
     def register_verification_results(self, task: Task):
         claim = task.payload
