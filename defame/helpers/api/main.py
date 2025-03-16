@@ -128,13 +128,19 @@ async def get_report_pdf(job_id: str, claim_id: int):
     """Downloads the report PDF of the fact-check of the claim specified with `job_id` and
     `claim_id`."""
 
-    # Ensure that task is done
     job = job_manager.get_job(job_id)
-    if not job.is_done:
-        if job.failed:
-            detail = f"No report PDF available for task {job_id} because the task failed."
+
+    # Ensure that task is done
+    claim_task = job.get_claim_task(claim_id)
+    if claim_task is None:
+        raise HTTPException(status_code=404, detail=f"Claim {claim_id} for job {job_id} not found.")
+
+    if not claim_task.is_done:
+        if claim_task.failed:
+            detail = f"No report PDF available for claim {job_id}/{claim_id} because the task failed."
         else:
-            detail = f"No report PDF available as the task {job_id} is not finished yet."
+            detail = (f"No report PDF available as the fact-check for "
+                      f"claim {job_id}/{claim_id} is not finished yet.")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=detail

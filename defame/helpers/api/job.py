@@ -130,6 +130,13 @@ class Job:
         if claims is not None:
             return claims[claim_idx]
 
+    def get_claim_task(self, claim_idx: int) -> Optional[Task]:
+        """Returns the corresponding task for the given integer index."""
+        if self.claim_tasks is None or claim_idx not in range(self.n_claims):
+            return None
+        else:
+            return self.claim_tasks[claim_idx]
+
     def get_status_message(self) -> str:
         match self.status:
             case Status.PENDING:
