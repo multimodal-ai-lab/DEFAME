@@ -361,7 +361,7 @@ class DecomposePrompt(Prompt):
 
     def extract(self, response: str) -> dict:
         statements = response.split("---")
-        return dict(statements=[Claim(s.strip(), context=self.content) for s in statements],
+        return dict(statements=[Claim(s.strip(), context=self.content) for s in statements if s],
                     response=response)
 
 
