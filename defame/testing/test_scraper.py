@@ -12,6 +12,7 @@ def test_scraper():
         "https://www.tagesschau.de/ausland/asien/libanon-israel-blauhelme-nahost-102.html",
         "https://www.zeit.de/politik/ausland/2024-10/wolodymyr-selenskyj-berlin-olaf-scholz-militaerhilfe",
         "https://edition.cnn.com/2024/10/07/business/property-damange-hurricane-helene-47-billion/index.html"
+        "https://www.getrichslowly.org/wp-content/uploads/5693979929_1cdcdcc674.jpg",
     ]
     for url in urls_to_scrape:
         result = scraper.scrape(url)

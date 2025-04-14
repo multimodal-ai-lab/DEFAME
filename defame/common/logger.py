@@ -190,37 +190,38 @@ class Logger:
                 status_message=msg,
             ))
 
-    def critical(self, msg: str, send: bool = True):
-        msg = msg.encode("utf-8", "ignore").decode("utf-8")
+    def critical(self, *args, send: bool = True):
+        msg = compose_message(*args)
         self.logger.critical(bold(red(msg)))
         if send:
             self.send(msg)
 
-    def error(self, msg: str, send: bool = True):
-        msg = msg.encode("utf-8", "ignore").decode("utf-8")
+    def error(self, *args, send: bool = True):
+        msg = compose_message(*args)
         self.logger.error(red(msg))
         if send:
             self.send(msg)
 
-    def warning(self, msg: str, send: bool = False):
-        msg = msg.encode("utf-8", "ignore").decode("utf-8")
+    def warning(self, *args, send: bool = False):
+        msg = compose_message(*args)
         self.logger.warning(orange(msg))
         if send:
             self.send(msg)
 
-    def info(self, msg: str, send: bool = False):
-        msg = msg.encode("utf-8", "ignore").decode("utf-8")
+    def info(self, *args, send: bool = False):
+        msg = compose_message(*args)
         self.logger.info(yellow(msg))
         if send:
             self.send(msg)
 
-    def log(self, msg: str, level=15, send: bool = False):
-        msg = msg.encode("utf-8", "ignore").decode("utf-8")
+    def log(self, *args, level=15, send: bool = False):
+        msg = compose_message(*args)
         self.logger.log(level, msg)
         if send:
             self.send(msg)
 
-    def debug(self, msg: str, send: bool = False):
+    def debug(self, *args, send: bool = False):
+        msg = compose_message(*args)
         self.logger.debug(gray(msg))
         if send:
             self.send(msg)
@@ -240,9 +241,8 @@ class Logger:
         with open(self.config_path, "w") as f:
             yaml.dump(hyperparams, f)
         if print_summary:
-            self.info(bold("Configuration summary:"))
-            self.info("Available actions: " + ", ".join([action.name for action in benchmark.available_actions]))
-            self.info(yaml.dump(hyperparams, sort_keys=False, indent=4))
+            self.log(bold("Configuration summary:"))
+            self.log(yaml.dump(hyperparams, sort_keys=False, indent=4))
 
     def _init_predictions_csv(self):
         assert self.experiment_dir is not None
@@ -366,6 +366,11 @@ def _make_file_handler(path: Path) -> logging.FileHandler:
     formatter = RemoveStringFormattingFormatter()
     file_handler.setFormatter(formatter)
     return file_handler
+
+
+def compose_message(*args) -> str:
+    msg = " ".join(args)
+    return msg.encode("utf-8", "ignore").decode("utf-8")  # remove invalid chars
 
 
 logger = Logger()

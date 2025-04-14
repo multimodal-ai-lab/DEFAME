@@ -1,19 +1,20 @@
 import random
 from abc import ABC
 from pathlib import Path
-from typing import MutableSequence, Iterable
+from typing import MutableSequence, Iterable, Sequence, Iterator
 
-from defame.common.action import Action
-from defame.common.label import Label
-from config.globals import random_seed
+from defame.common import logger, Label, Action
+from defame.utils.console import bold, green, red
+from config.globals import random_seed, data_root_dir
 
 
 class Benchmark(ABC, Iterable):
-    shorthand: str
+    """Abstract class for all benchmarks. Inherit from this class when you want to add
+    a new benchmark."""
+    name: str
+    shorthand: str  # Used for naming files/directories
 
     data: MutableSequence[dict]  # Each element is of the form {"id": ..., "content": ..., "label": ...}
-
-    is_multimodal: bool
 
     class_mapping: dict[str, Label]  # Maps the benchmark-specific class/label to the standard Label class
     class_definitions: dict[Label, str]  # Explains (to the LLM) the meaning of each class/label
@@ -26,11 +27,29 @@ class Benchmark(ABC, Iterable):
     extra_plan_rules: str = None  # Additional, benchmark-specific instructions to guide LLM's action planning
     extra_judge_rules: str = None  # Additional, benchmark-specific instructions to guide LLM's verdict prediction
 
-    def __init__(self, name: str, variant: str):
-        self.name = name
-        self.variant = variant  # 'train', 'dev' or 'test'
+    def __init__(self, variant: str, file_path: Path | str = None):
+        """
+        @param variant: The split to use, usually one of 'train', 'dev', 'test', or `val`
+        @param file_path: The path to the file (relative to the base data dir) that contains
+            the data of the specified split.
+        """
+        self.variant = variant
+        self.full_name = f"{self.name} ({variant})"
 
-    def get_labels(self) -> list[Label]:
+        if file_path:
+            self.file_path = data_root_dir / file_path
+            if not self.file_path.exists():
+                raise ValueError(f"Unable to locate {self.name} at '{self.file_path.as_posix()}'. "
+                                 f"See README.md for setup instructions.")
+
+        self.data = self._load_data()
+
+    def _load_data(self) -> MutableSequence[dict]:
+        """Reads the data from the disk and turns them into ready-to-use instances."""
+        raise NotImplementedError()
+
+    @property
+    def labels(self) -> list[Label]:
         """Returns the ground truth labels of this dataset as a list."""
         labels = []
         for instance in self:
@@ -66,6 +85,31 @@ class Benchmark(ABC, Iterable):
     def __getitem__(self, idx):
         return self.data[idx]
 
-    def __iter__(self):
-        for instance in self.data:
-            yield instance
+    def __iter__(self) -> Iterator[dict]:
+        return iter(self.data)
+
+    def process_output(self, output):
+        """Handles the model's output and evaluates whether it is correct."""
+        doc, meta = output
+        claim = doc.claim
+        instance = self.get_by_id(claim.id)
+        prediction = doc.verdict
+        self._save_prediction(doc, meta, claim, prediction, instance.get("label"), instance.get("justification"))
+
+    def _save_prediction(self, doc, meta, claim, prediction, target_label=None, gt_justification=None):
+        logger.save_next_prediction(
+            sample_index=claim.id,
+            claim=doc.claim.data,
+            target=target_label,
+            justification=doc.justification,
+            predicted=prediction,
+            gt_justification=gt_justification
+        )
+        logger.save_next_instance_stats(meta["Statistics"], claim.id)
+
+        if target_label:
+            prediction_is_correct = target_label == prediction
+            if prediction_is_correct:
+                logger.log(bold(green("✅ CORRECT\n")))
+            else:
+                logger.log(bold(red(f"❌ WRONG - Ground truth: {target_label.value}\n")))

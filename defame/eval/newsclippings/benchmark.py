@@ -1,16 +1,16 @@
 import json
 import os
 from pathlib import Path
-from typing import Iterator
 
-from defame.common.medium import Image
 from config.globals import data_root_dir
-from defame.common import Label, Content
+from defame.common import Label, Claim
+from defame.common.medium import Image
 from defame.eval.benchmark import Benchmark
 from defame.evidence_retrieval.tools import Geolocate, WebSearch, ImageSearch, ReverseSearch
 
 
 class NewsCLIPpings(Benchmark):
+    name = "NewsCLIPpings"
     shorthand = "newsclippings"
 
     is_multimodal = True
@@ -45,16 +45,11 @@ class NewsCLIPpings(Benchmark):
 
     available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
 
-    def __init__(self, variant="val", n_samples: int=None):
-        super().__init__(f"NewsCLIPpings ({variant})", variant)
+    def __init__(self, variant="val", n_samples: int = None):
+        self.n_samples = n_samples
+        super().__init__(variant, f"NewsCLIPings/news_clippings/news_clippings/data/merged_balanced/{variant}.json")
         self.visual_news_file_path = data_root_dir / "NewsCLIPings/news_clippings/visual_news/origin/data.json"
-        self.data_file_path = data_root_dir / f"NewsCLIPings/news_clippings/news_clippings/data/merged_balanced/{variant}.json"
-        if not self.data_file_path.exists():
-            raise ValueError(f"Unable to locate NewsCLIPpings at {data_root_dir.as_posix()}. "
-                             f"See README.md for setup instructions.")
-
         self.visual_news_data_mapping = self.load_visual_news_data()
-        self.data = self.load_data(n_samples)
 
     def load_visual_news_data(self) -> dict:
         """Load visual news data and map it by ID."""
@@ -62,16 +57,18 @@ class NewsCLIPpings(Benchmark):
             visual_news_data = json.load(file)
         return {ann["id"]: ann for ann in visual_news_data}
 
-    def load_data(self, n_samples: int=None) -> list[dict]:
+    def _load_data(self) -> list[dict]:
         """Load annotations data from the NewsCLIPings dataset and map captions to images."""
-        with open(self.data_file_path, "r", encoding="utf-8") as file:
+        # TODO: Load benchmark lazily
+
+        with open(self.file_path, "r", encoding="utf-8") as file:
             data = json.load(file)
         annotations = data["annotations"]
 
         # Pre-select instances
-        # TODO: Add random sampling
-        if n_samples:
-            annotations = annotations[:n_samples]
+        # TODO: Maybe perform random sampling before selection
+        if self.n_samples:
+            annotations = annotations[:self.n_samples]
 
         entries = []
         for i, ann in enumerate(annotations):
@@ -86,18 +83,14 @@ class NewsCLIPpings(Benchmark):
             if image_path and os.path.exists(image_path):
                 image = Image(image_path)
                 claim_text = f"{image.reference} {caption}"
-                # id = f'{ann_data["id"]}_{ann_data["image_id"]}'
                 entry = {
                     "id": str(i),
-                    "content": Content(data=claim_text,
-                                       identifier=str(i),
-                                       meta_info="Published: some date between 2005 and 2020."),
+                    "input": Claim(data=claim_text,
+                                   id=str(i),
+                                   meta_info="Published: some date between 2005 and 2020."),
                     "label": self.class_mapping[str(ann["falsified"])],
                     "justification": ann.get("justification", "")
                 }
                 entries.append(entry)
 
         return entries
-
-    def __iter__(self) -> Iterator[dict]:
-        return iter(self.data)

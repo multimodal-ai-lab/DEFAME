@@ -14,7 +14,7 @@ def compose_prompt(template_file_path: str | Path, placeholder_targets: dict) ->
 class Prompt(MultimediaSnippet):
     template_file_path: Optional[str] = None
     name: Optional[str]
-    retry_instruction: Optional[str]
+    retry_instruction: Optional[str] = None
 
     def __init__(self,
                  text: str = None,

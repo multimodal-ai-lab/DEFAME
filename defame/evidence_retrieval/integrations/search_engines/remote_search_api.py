@@ -49,8 +49,11 @@ class RemoteSearchAPI(SearchAPI):
             INSERT INTO Query(hash, results)
             VALUES (?, ?);
         """
-        self.cur.execute(stmt, (hash(query), pickle.dumps(search_result)))
-        self.conn.commit()
+        try:
+            self.cur.execute(stmt, (hash(query), pickle.dumps(search_result)))
+            self.conn.commit()
+        except sqlite3.IntegrityError:
+            pass
 
     def _get_from_cache(self, query: Query) -> Optional[SearchResults]:
         """Search the local in-memory data for matching results."""

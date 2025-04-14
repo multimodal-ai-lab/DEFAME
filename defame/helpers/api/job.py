@@ -46,7 +46,7 @@ class Job:
         self.id = identifier
         self._pool = pool
         self.content_task = Task(content,
-                                 identifier=identifier,
+                                 id=identifier,
                                  status_message="Scheduled for extraction.",
                                  callback=self.register_claims)
         self.claim_tasks: Optional[list[Task]] = None
@@ -106,7 +106,7 @@ class Job:
         self.claim_tasks = []
         for i, claim in enumerate(claims):
             claim.id = self.id + f"/{i}"
-            task = Task(claim, identifier=claim.id, callback=self.register_verification_results)
+            task = Task(claim, id=claim.id, callback=self.register_verification_results)
             self.claim_tasks.append(task)
             self._pool.add_task(task)
 

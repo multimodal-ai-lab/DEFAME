@@ -4,6 +4,7 @@ import json
 import re
 import time
 import traceback
+from multiprocessing import Process
 from pathlib import Path
 from queue import Empty
 from typing import Sequence, Optional
@@ -16,21 +17,22 @@ import yaml
 # from rouge_score import rouge_scorer
 # from datasets import load_metric
 from nltk.tokenize.treebank import TreebankWordDetokenizer
+from prettytable import PrettyTable
 from sklearn.metrics import precision_score, recall_score, f1_score
 from tqdm import tqdm
 
-from defame.common import Label, logger, Report
+from defame.common import Label, logger, Action
 from defame.common.modeling import model_specifier_to_shorthand, AVAILABLE_MODELS, make_model
 from defame.eval import load_benchmark
 from defame.eval.averitec.benchmark import AVeriTeC
 from defame.eval.averitec.compute_score import compute_averitec_score
 from defame.eval.benchmark import Benchmark
 from defame.eval.mocheg.benchmark import MOCHEG
+from defame.evidence_retrieval.tools import initialize_tools
 from defame.fact_checker import FactChecker
 from defame.helpers.parallelization.pool import Pool
 from defame.helpers.parallelization.task import Task
-from defame.evidence_retrieval.tools import initialize_tools
-from defame.utils.console import green, red, bold, sec2hhmmss, sec2mmss, num2text
+from defame.utils.console import bold, sec2hhmmss, sec2mmss, num2text
 from defame.utils.plot import plot_confusion_matrix
 from defame.utils.utils import unroll_dict
 
@@ -45,19 +47,13 @@ def evaluate(
         benchmark_kwargs: dict = None,
         allowed_actions: list[str] = None,
         n_samples: int = None,
-        sample_ids: list[int] = None,
+        sample_ids: list[int | str] = None,
         random_sampling: bool = False,
-        print_log_level: str = "info",
+        print_log_level: str = "log",
         continue_experiment_dir: str = None,
         n_workers: int = None,
 ):
     assert not n_samples or not sample_ids
-
-    is_resumed = continue_experiment_dir is not None
-
-    status_verb = "Resuming" if is_resumed else "Starting"
-    exp_name_str = f" '{bold(experiment_name)}'" if experiment_name else ""
-    print(f"{status_verb} evaluation{exp_name_str} on {benchmark_name}.")
 
     if llm_kwargs is None:
         llm_kwargs = dict()
@@ -65,8 +61,14 @@ def evaluate(
     if fact_checker_kwargs is None:
         fact_checker_kwargs = dict()
 
+    logger.set_log_level(print_log_level)
+
     benchmark = load_benchmark(benchmark_name, **benchmark_kwargs)
-    is_test = benchmark.variant == "test"
+
+    is_resumed = continue_experiment_dir is not None
+    status_verb = "Resuming" if is_resumed else "Starting"
+    exp_name_str = f" '{bold(experiment_name)}'" if experiment_name else ""
+    logger.info(f"{status_verb} evaluation{exp_name_str} on {benchmark.name}.")
 
     llm = model_specifier_to_shorthand(llm) if llm not in AVAILABLE_MODELS["Shorthand"].values else llm
 
@@ -77,7 +79,7 @@ def evaluate(
                               procedure_name=procedure_variant,
                               model_name=llm,
                               experiment_name=experiment_name)
-    logger.set_log_level(print_log_level)
+    logger.log("Saving all outputs to:", logger.target_dir.as_posix())
 
     n_devices = torch.cuda.device_count()
     if n_workers is None:
@@ -94,42 +96,24 @@ def evaluate(
         signature = inspect.signature(evaluate)
         logger.save_config(signature, locals(), benchmark)
 
-    # Load the tools for sanity check
-    tools = initialize_tools(tools_config, llm=None)
-
     if allowed_actions is None:
         allowed_actions = benchmark.available_actions
     else:
         allowed_actions = [a for a in benchmark.available_actions if a.name in allowed_actions]
 
-    # Verify that each tool is relevant (i.e. offers at least one allowed action)
-    for tool in tools:
-        for action in tool.actions:
-            if action in allowed_actions:
-                break
-        else:
-            logger.info(f"Tool {tool.name} offers only forbidden actions. You may exclude this tool.")
-
-    # Verify that each allowed action has a corresponding tool
-    for action in allowed_actions:
-        for tool in tools:
-            if action in tool.actions:
-                break
-        else:
-            logger.warning(f"No Tool available for action {action.name}.")
-
-    # TODO: Print a nice, colored list of tools and their usage
-
-    del tools
+    # Sanity check
+    p = Process(target=validate_config, args=(tools_config, allowed_actions))
+    p.start()
+    p.join()
 
     if random_sampling:
-        benchmark.shuffle()  # TODO: Add seed
+        benchmark.shuffle()
 
     if n_samples:
         assert 0 < n_samples <= len(benchmark)
         samples = benchmark[:n_samples]
     elif sample_ids:
-        samples = [benchmark.get_by_id(i) for i in sample_ids]
+        samples = [benchmark.get_by_id(str(i)) for i in sample_ids]
     else:
         samples = benchmark
 
@@ -185,9 +169,9 @@ def evaluate(
                 target_dir=logger.target_dir,
                 **fact_checker_kwargs)
 
-    # Fill the pool's task queue with benchmark instances
+    # Turn each sample into a task and add it to the pool's task queue
     for instance in samples_to_evaluate:
-        task = Task(instance["input"], identifier=instance["id"])
+        task = Task(instance["input"], id=instance["id"])
         pool.add_task(task)
 
     progress = tqdm(range(n_samples), smoothing=0.02)
@@ -197,8 +181,8 @@ def evaluate(
     try:
         while progress.n + pool.n_failed_tasks < n_samples:
             try:
-                doc, meta = pool.get_result(timeout=60)
-                process_output(doc, meta, benchmark, is_test)
+                output = pool.get_result(timeout=60)
+                benchmark.process_output(output)
                 progress.update(1)
 
             except Empty as e:
@@ -209,8 +193,6 @@ def evaluate(
     except Exception as e:
         logger.critical(f"An unexpected error occurred in the main process:")
         logger.critical(traceback.format_exc())
-
-    pool.close()
 
     end_time = time.time()
     duration = end_time - start_time
@@ -223,45 +205,43 @@ def evaluate(
     finalize_evaluation(logger.target_dir, benchmark, stats)
 
 
-def process_output(doc: Report, meta: dict, benchmark: Benchmark, is_test: bool):
-    claim = doc.claim
-    instance = benchmark.get_by_id(claim.id)
-    prediction = doc.verdict
+def validate_config(tools_config: dict[str, dict], allowed_actions: Sequence[Action]):
+    """Run this within in a subprocess to avoid errors with CUDA (which doesn't
+    like forking subprocesses, but spawning doesn't work either)."""
 
-    # Special output processing for AVeriTeC
-    if isinstance(benchmark, AVeriTeC):
-        if prediction == Label.CHERRY_PICKING:
-            # Merge cherry-picking and conflicting label
-            prediction = Label.CONFLICTING
+    # Load the tools
+    tools = initialize_tools(tools_config, llm=None)
 
-        pred_label = benchmark.get_class_name(prediction)
-        averitec_out_instance = {
-            "claim_id": claim.id,
-            "claim": claim.data,
-            "pred_label": pred_label
-        }
-
-        if "q_and_a" in meta:
-            averitec_out_instance["evidence"] = meta["q_and_a"]
-
-        logger.save_next_averitec_out(averitec_out_instance)
-
-    logger.save_next_prediction(
-        sample_index=claim.id,
-        claim=doc.claim.data,
-        target=instance.get("label"),
-        justification=doc.justification,
-        predicted=prediction,
-        gt_justification=instance.get("justification")
-    )
-    logger.save_next_instance_stats(meta["Statistics"], instance['id'])
-
-    if not is_test:
-        prediction_is_correct = instance["label"] == prediction
-        if prediction_is_correct:
-            logger.log(bold(green("CORRECT\n")))
+    # Verify that each tool is relevant (i.e. offers at least one allowed action)
+    for tool in tools:
+        for action in tool.actions:
+            if action in allowed_actions:
+                break
         else:
-            logger.log(bold(red("WRONG - Ground truth: " + instance["label"].value + "\n")))
+            logger.info(f"Tool {tool.name} offers only forbidden actions. You may exclude this tool.")
+
+    # Verify that each allowed action has a corresponding tool
+    for action in allowed_actions:
+        for tool in tools:
+            if action in tool.actions:
+                break
+        else:
+            logger.warning(f"No Tool available for action {action.name}.")
+
+    # Print a convenient table to see if available actions match with allowed actions
+    logger.log(bold("Action Summary:"))
+    table = PrettyTable()
+    table.align = "l"
+    table.field_names = ["Action", "Available", "Allowed"]
+    offered_actions = {action for tool in tools for action in tool.actions}
+    allowed_actions = set(allowed_actions)
+    for action in offered_actions | allowed_actions:
+        is_available = action in offered_actions
+        is_allowed = action in allowed_actions
+        table.add_row([action.name,
+                       "✅ Yes" if is_available else "❌ No",
+                       "✅ Yes" if is_allowed else "❌ No"])
+    logger.log(table.__repr__())
 
 
 def aggregate_stats(instance_stats: pd.DataFrame, category: str) -> dict[str, float]:
@@ -383,7 +363,7 @@ def compute_metrics(predicted_labels: np.ndarray,
                 f"{label}_F1_Score": float(round(f1, 3)),
             })
 
-        metric_summary.update({f"Macro-Averaged F1-Score:": float(round(macro_f1, 2))})
+        metric_summary[f"Macro-Averaged F1-Score"] = float(round(macro_f1, 2))
 
     except Exception as e:
         print(f"There was an error computing classification metrics: {str(e)}")

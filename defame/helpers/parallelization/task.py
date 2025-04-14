@@ -18,7 +18,7 @@ class Task:
     and transferred to different processes.
 
         @param payload:
-        @param identifier:
+        @param id:
         @param status:
         @param status_message:
         @param callback: Function to be called after completion. Takes
@@ -27,11 +27,11 @@ class Task:
 
     def __init__(self,
                  payload: Content | Claim,
-                 identifier: str | int,
+                 id: str | int,
                  status: Status = Status.PENDING,
                  status_message: str = "Pending.",
                  callback: Callable = None):
-        self.id = str(identifier)
+        self.id = str(id)
         self.payload = payload
         self.status = status
         self.status_message = status_message

@@ -1,16 +1,16 @@
 import os
-from typing import Iterator
 
 import pandas as pd
 
-from defame.common.medium import Image
 from config.globals import data_root_dir
 from defame.common import Label, Claim
+from defame.common.medium import Image
 from defame.eval.benchmark import Benchmark
 from defame.evidence_retrieval.tools import Geolocate, WebSearch, ImageSearch, ReverseSearch
 
 
 class VERITE(Benchmark):
+    name = "VERITE"
     shorthand = "verite"
 
     is_multimodal = True
@@ -44,35 +44,25 @@ class VERITE(Benchmark):
     available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
 
     def __init__(self, variant="dev"):
-        super().__init__(f"VERITE ({variant})", variant)
-        self.file_path = data_root_dir / "VERITE/VERITE.csv"
-        if not self.file_path.exists():
-            raise ValueError(f"Unable to locate VERITE at {data_root_dir.as_posix()}. "
-                             f"See README.md for setup instructions.")
-        self.data = self.load_data()
+        super().__init__(variant, "VERITE/VERITE.csv")
 
-    def load_data(self) -> list[dict]:
+    def _load_data(self) -> list[dict]:
         # TODO: Increase efficiency
         df = pd.read_csv(self.file_path)
         data = []
         for i, row in df.iterrows():
             image_path = data_root_dir / f"VERITE/{row['image_path']}"
             if not os.path.exists(image_path):
-                continue  # TODO: Complete all missing images
-            #if row["label"] == "out-of-context":
-            #    continue
+                continue
             image = Image(image_path)
             claim_text = f"{image.reference} {row['caption']}"
             identifier = str(i)
             entry = {
                 "id": identifier,
-                "input": Claim(claim_text, identifier=identifier),
+                "input": Claim(claim_text, id=identifier),
                 "label": self.class_mapping[row["label"]],
                 "justification": row.get("ground_truth_justification", "")
             }
             data.append(entry)
 
         return data
-
-    def __iter__(self) -> Iterator[dict]:
-        return iter(self.data)

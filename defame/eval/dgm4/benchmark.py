@@ -1,19 +1,19 @@
 import json
 import os
 from pathlib import Path
-from typing import Iterator
 
-from defame.common.medium import Image
 from config.globals import data_root_dir
-from defame.common import Label, Content
+from defame.common import Label, Claim
+from defame.common.medium import Image
 from defame.eval.benchmark import Benchmark
-from defame.evidence_retrieval.tools.manipulation_detector import DetectManipulation
 from defame.evidence_retrieval.tools import WebSearch, ImageSearch, ReverseSearch
+from defame.evidence_retrieval.tools.manipulation_detector import DetectManipulation
 
 
 class DGM4(Benchmark):
+    name = "DGM4"
     shorthand = "dgm4"
-    
+
     is_multimodal = True
 
     class_mapping = {
@@ -50,25 +50,19 @@ class DGM4(Benchmark):
     available_actions = [WebSearch, ImageSearch, ReverseSearch, DetectManipulation]
 
     def __init__(self, variant="train"):
-        super().__init__(f"DGM4 ({variant})", variant)
-        self.data_file_path = data_root_dir / f"DGM4/metadata/{variant}.json"
-        if not self.file_path.exists():
-            raise ValueError(f"Unable to locate DGM4 at {data_root_dir.as_posix()}. "
-                             f"See README.md for setup instructions.")
-
+        super().__init__(variant, f"DGM4/metadata/{variant}.json")
         self.base_image_path = data_root_dir
-        self.data = self.load_data() #TODO: Shift the sampling to the parent class Benchmark like a (sample() function)
 
-    def load_data(self) -> list[dict]:
+    def _load_data(self) -> list[dict]:
         """Load the DGM4 annotations and construct the entries."""
-        with open(self.data_file_path, "r", encoding="utf-8") as file:
+        with open(self.file_path, "r", encoding="utf-8") as file:
             data = json.load(file)
 
         entries = []
         for i, ann in enumerate(data):
             # Construct the image path
             image_path = self.base_image_path / Path(ann["image"])
-            
+
             # Ensure the image path exists
             if image_path and os.path.exists(image_path):
                 image = Image(image_path)
@@ -76,13 +70,9 @@ class DGM4(Benchmark):
                 identifier = str(ann["id"])
                 entry = {
                     "id": id,
-                    "content": Content(data=claim_text, identifier=identifier),
+                    "input": Claim(data=claim_text, id=identifier),
                     "label": self.class_mapping.get(ann["fake_cls"], Label.REFUTED),  # Map fake_cls to label
-                    "justification": f'The image manipulation class is {ann["fake_cls"]}.'
                 }
                 entries.append(entry)
 
         return entries
-
-    def __iter__(self) -> Iterator[dict]:
-        return iter(self.data)
