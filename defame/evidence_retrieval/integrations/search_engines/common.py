@@ -109,14 +109,16 @@ class WebSource(Source):
         return self.reference
 
     def __str__(self):
-        text = f"Web Source {self.url}\n"
+        text = f"Web Source {self.url}"
         if self.title is not None:
-            text += f"Title: {self.title}\n"
+            text += f"\nTitle: {self.title}"
         if self.release_date is not None:
-            text += f"Release Date: {self.release_date.strftime('%B %d, %Y')}\n"
+            text += f"\nRelease Date: {self.release_date.strftime('%B %d, %Y')}"
         if self.preview is not None:
-            text += f"{self.preview}\n"
-        return text + self._get_content_str()
+            text += f"\n{self.preview}"
+        if self.is_loaded():
+            text += "\n" + self._get_content_str()
+        return text
 
     def __repr__(self):
         return f"WebSource(url='{self.url}')"

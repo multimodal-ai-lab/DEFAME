@@ -39,6 +39,7 @@ class Worker(Process):
             msgs.append(dict(worker_id=self.id,
                              status=Status.FAILED,
                              status_message=f"Meta connection of worker {self.id} closed unexpectedly."))
+            self.terminate()
         return msgs
 
     def __getstate__(self):

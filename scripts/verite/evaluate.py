@@ -32,6 +32,6 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         n_samples=20,
         sample_ids=None, # list of integers
         random_sampling=False,
-        print_log_level="info",
+        print_log_level="log",
         n_workers=8,
     )

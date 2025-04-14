@@ -13,7 +13,8 @@ class DynamicSummary(Procedure):
         n_iterations = 0
         label = Label.NEI
         while label == Label.NEI and n_iterations < self.max_iterations:
-            logger.log("Not enough information yet. Continuing fact-check...")
+            if n_iterations > 0:
+                logger.log("Not enough information yet. Continuing fact-check...")
             n_iterations += 1
             actions, reasoning = self.planner.plan_next_actions(doc)
             if len(reasoning) > 32:  # Only keep substantial reasoning

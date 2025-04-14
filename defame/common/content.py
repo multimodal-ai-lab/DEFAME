@@ -20,7 +20,7 @@ class Content(MultimediaSnippet):
                  origin: str = None,  # URL
                  meta_info: str = None,
                  interpretation: str = None,  # Added during claim extraction
-                 id: str = None,  # Used by some benchmarks to identify contents
+                 id: str | int | None = None,  # Used by some benchmarks to identify contents
                  **kwargs,
                  ):
         super().__init__(*args, **kwargs)

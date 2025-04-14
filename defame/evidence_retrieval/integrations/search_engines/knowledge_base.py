@@ -67,7 +67,7 @@ class KnowledgeBase(LocalSearchAPI):
         self.resources_dir = self.kb_dir / "resources"  # stores all .jsonl files extracted from the .zip in download
         self.embedding_knns_path = self.kb_dir / "embedding_knns.pckl"
 
-        self.current_claim_id = None  # defines the behavior of the KB by preselecting the claim-relevant sources
+        self.current_claim_id: Optional[int] = None  # defines the behavior of the KB by preselecting the claim-relevant sources
 
         # For speeding up data loading
         self.cached_resources = None

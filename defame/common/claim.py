@@ -2,6 +2,7 @@ from typing import Optional
 
 from defame.common.content import Content
 from defame.common.label import Label
+from defame.common.medium import Medium
 from defame.common.medium import MultimediaSnippet
 
 
@@ -10,17 +11,18 @@ class Claim(MultimediaSnippet):
     scope: Optional[tuple[int, int]]  # TODO: the range in the original context's text that belongs to this claim
     id: Optional[str]
 
-    def __init__(self, *args,
-                 identifier: str | int | None = None,
+    def __init__(self,
+                 data: str | list[str | Medium],
+                 id: str | int | None = None,
                  context: Content = None,
                  scope: tuple[int, int] = None,
                  **kwargs):
-        self.id = str(identifier) if identifier is not None else None
-        self.context = context
+        self.id = str(id) if id is not None else None
+        self.context = context if context else Content(data=data, **kwargs)
         self.scope = scope
         self.verdict: Optional[Label] = None
         self.justification: Optional[MultimediaSnippet] = None
-        super().__init__(*args, **kwargs)
+        super().__init__(data=data)
 
     @property
     def author(self):

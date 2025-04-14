@@ -1,6 +1,6 @@
 """Use this script to (re)compute the final experiment results (metrics, confusion matrices etc.)."""
 
-experiment_dir = "/pfss/mlde/workspaces/mlde_wsp_Rohrbach/users/mr74vahu/DEFAME/out/mocheg/pure-gpt"
+experiment_dir = "/path/to/exp/dir"
 
 if __name__ == '__main__':  # evaluation uses multiprocessing
     from defame.eval.finalize import finalize_evaluation

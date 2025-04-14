@@ -93,7 +93,7 @@ class QABased(Procedure, ABC):
             qa_instance = {"question": question,
                            "answer": answer,
                            "url": relevant_result.url,
-                           "scraped_text": relevant_result.data}
+                           "scraped_text": relevant_result.content.data}
             return qa_instance
         else:
             logger.log("Got no answer.")

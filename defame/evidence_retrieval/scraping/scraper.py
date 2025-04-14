@@ -43,7 +43,7 @@ class Scraper:
         running Firecrawl instance."""
         self.firecrawl_url = find_firecrawl(FIRECRAWL_URLS)
         if self.firecrawl_url:
-            logger.info(f"✅ Detected Firecrawl running at {self.firecrawl_url}.")
+            logger.log(f"✅ Detected Firecrawl running at {self.firecrawl_url}.")
 
     def scrape_multiple(self, urls: list[str]) -> list[MultimediaSnippet | None]:
         """Scrapes each URL concurrently. Synchronous wrapper for _scrape_multiple()."""

@@ -345,11 +345,10 @@ class Searcher(Tool):
         self.restrict_results_until_date = until
 
     def set_claim_id(self, claim_id: str):
-        # TODO: Test this
         super().set_claim_id(claim_id)
         if "averitec_kb" in self.search_apis:
             kb = self.search_apis["averitec_kb"]
-            kb.current_claim_id = claim_id
+            kb.current_claim_id = int(claim_id)
 
 
 def filter_relevant_sentences(text, keywords):

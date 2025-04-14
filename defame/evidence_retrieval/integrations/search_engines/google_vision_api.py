@@ -35,8 +35,8 @@ class RisResults(SearchResults):
             text += f"\n\nBest guess about the topic of the image: {', '.join(self.best_guess_labels)}."
 
         if self.exact_matches:
-            text += "\n\nThe same image was found in the following sources:\n\n"
-            text += "\n\n".join(map(str, self.exact_matches))
+            text += "\n\nThe same image was found in the following sources:\n"
+            text += "\n".join(map(str, self.exact_matches))
 
         return text
 

@@ -48,6 +48,7 @@ class Pool:
     def run(self):
         """Runs in an own thread, supervises workers, processes their messages, and reports logs."""
         self._run_workers()
+        self.wait_until_ready()
         while self.is_running():
             try:
                 self.process_messages()
@@ -76,7 +77,7 @@ class Pool:
                             device_id=device)
             )
             self.workers.append(worker)
-            logger.info(f"Started worker {i} with PID {worker.pid}.")
+            logger.debug(f"Started worker {i} with PID {worker.pid}.")
 
     def get_worker(self, worker_id: int) -> FactCheckerWorker:
         return self.workers[worker_id]
@@ -126,9 +127,9 @@ class Pool:
             logger.error(error)
 
     def stop(self):
-        self.close(None, None)
+        self.close()
 
-    def close(self, signum, frame):
+    def close(self):
         if self.is_running():
             for i, worker in enumerate(self.workers):
                 if worker.is_alive():
@@ -142,7 +143,7 @@ class Pool:
         return any(worker.is_alive() for worker in self.workers)
 
     def is_ready(self) -> bool:
-        """Returns true if all workers are alive."""
+        """Returns true if all workers are initialized and alive."""
         return (len(self.workers) == self.n_workers and
                 all(worker.is_alive() for worker in self.workers))
 

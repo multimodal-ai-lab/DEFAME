@@ -5,7 +5,7 @@ from typing import Sequence, Any
 
 import numpy as np
 
-from defame.common import logger, Claim, Content, Report, Label, Medium, Action
+from defame.common import logger, Claim, Content, Report, Label, Medium, Action, Model
 from defame.common.label import DEFAULT_LABEL_DEFINITIONS
 from defame.common.modeling import make_model
 from defame.modules.actor import Actor
@@ -14,8 +14,8 @@ from defame.modules.doc_summarizer import DocSummarizer
 from defame.modules.judge import Judge
 from defame.modules.planner import Planner
 from defame.procedure import get_procedure
-from defame.evidence_retrieval import scraper
-from defame.evidence_retrieval.tools import *
+from defame.evidence_retrieval import scraper, Tool
+from defame.evidence_retrieval.tools import initialize_tools
 from defame.evidence_retrieval.tools.tool import get_available_actions
 from defame.utils.console import gray, light_blue, bold, sec2mmss
 
@@ -31,7 +31,6 @@ class FactChecker:
                  tools: list[Tool] = None,
                  tools_config: dict = None,
                  available_actions: list[Action] = None,
-                 search_engines: dict[str, dict] = None,
                  procedure_variant: str = None,
                  interpret: bool = False,
                  decompose: bool = False,
@@ -47,8 +46,6 @@ class FactChecker:
                  extra_plan_rules: str = None,
                  extra_judge_rules: str = None,
                  device: str = None):
-        assert not (tools or tools_config) or not search_engines, \
-            "You are allowed to specify only either tools or search engines."
 
         if llm_kwargs is None:
             llm_kwargs = {}
@@ -79,7 +76,7 @@ class FactChecker:
         scraper.allow_fact_checking_sites = allow_fact_checking_sites
 
         if tools is None:
-            tools = self._initialize_tools(search_engines)
+            tools = initialize_tools(tools_config, llm=self.llm)
 
         available_actions = get_available_actions(tools, available_actions)
 
@@ -106,17 +103,6 @@ class FactChecker:
                                        judge=self.judge,
                                        planner=self.planner,
                                        max_iterations=self.max_iterations)
-
-    def _initialize_tools(self, search_engines: dict[str, dict]) -> list[Tool]:
-        """Loads a default collection of tools."""
-        tools = [
-            Searcher(search_engines, max_result_len=self.max_result_len, llm=self.llm),
-            # CredibilityChecker(),
-            # Geolocator(top_k=10),
-            # ManipulationDetector(),
-        ]
-
-        return tools
 
     def extract_claims(self, content: Content | list[str | Medium]) -> list[Claim]:
         if not isinstance(content, Content):

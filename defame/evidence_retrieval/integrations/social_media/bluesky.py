@@ -258,10 +258,10 @@ class Bluesky(RetrievalIntegration):
             self.client.login(self.username, self.password)
             self.authenticated = True
             self.n_api_calls += 1
-            logger.info(f"Successfully authenticated with Bluesky as {self.username}")
+            logger.log(f"✅ Successfully authenticated with Bluesky as {self.username}")
             return True
         except Exception as e:
-            logger.error(f"Error authenticating with Bluesky: {str(e)}")
+            logger.error(f"❌ Error authenticating with Bluesky: {str(e)}")
             self.n_errors += 1
             return False
 

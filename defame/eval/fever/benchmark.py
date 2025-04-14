@@ -1,15 +1,15 @@
 import os
-from typing import Iterator
 
 import orjsonl
 
 from config.globals import data_root_dir
-from defame.common import Label, Content
-from defame.evidence_retrieval.tools import WikiDumpLookup
+from defame.common import Label, Claim
 from defame.eval.benchmark import Benchmark
+from defame.evidence_retrieval.tools import WikiDumpLookup
 
 
 class FEVER(Benchmark):
+    name = "FEVER"
     shorthand = "fever"
 
     is_multimodal = False
@@ -73,15 +73,10 @@ class FEVER(Benchmark):
     available_actions = [WikiDumpLookup]
 
     def __init__(self, version=1, variant="dev"):
-        super().__init__(f"FEVER V{version} ({variant})", variant)
-        self.file_path = data_root_dir / f"FEVER/fever{version}_{variant}.jsonl"
-        if not self.file_path.exists():
-            raise ValueError(f"Unable to locate FEVER at {data_root_dir.as_posix()}. "
-                             f"See README.md for setup instructions.")
+        self.name = f"FEVER V{version}"
+        super().__init__(variant, f"FEVER/fever{version}_{variant}.jsonl")
 
         self.justifications_file_path = data_root_dir / f"FEVER/gt_justification_fever{version}_{variant}.jsonl"
-
-        self.data = self.load_data(variant)
 
         if version == 1:
             self.extra_prepare_rules = self.extra_prepare_rules_v1
@@ -92,27 +87,24 @@ class FEVER(Benchmark):
         else:
             raise ValueError(f"Invalid FEVER version '{version}' specified.")
 
-    def load_data(self, variant) -> list[dict]:
+    def _load_data(self) -> list[dict]:
         # Read the files
         raw_data = orjsonl.load(self.file_path)
         if os.path.exists(self.justifications_file_path):
-                justifications = orjsonl.load(self.justifications_file_path)
+            justifications = orjsonl.load(self.justifications_file_path)
         else:
             justifications = None
 
         # Translate raw data into structured list of dicts
         data = []
         for i, row in enumerate(raw_data):
-            content = Content(row["claim"])
-            label = self.class_mapping[row["label"].lower()] if variant in ["train", "dev"] else None
-            justification = justifications[i] if justifications is not None else None
             identifier = str(row["id"])
+            claim = Claim(row["claim"], id=identifier)
+            label = self.class_mapping[row["label"].lower()] if self.variant in ["train", "dev"] else None
+            justification = justifications[i] if justifications is not None else None
             data.append({"id": identifier,
-                         "content": content,
+                         "input": claim,
                          "label": label,
                          "justification": justification})
 
         return data
-
-    def __iter__(self) -> Iterator[dict]:
-        return iter(self.data)

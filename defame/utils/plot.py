@@ -189,7 +189,7 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
         for j in range(data.shape[1]):
             if not np.ma.is_masked(data[i, j]):
                 kw.update(color=textcolors[int(im.norm(data[i, j]) > threshold)])
-                text = im.axes.data(j, i, valfmt(data[i, j]), **kw)
+                text = im.axes.text(j, i, valfmt(data[i, j]), **kw)
                 texts.append(text)
 
     return texts

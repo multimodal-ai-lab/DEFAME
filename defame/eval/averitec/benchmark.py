@@ -1,14 +1,13 @@
 import json
 from datetime import datetime
-from typing import Iterator
 
-from config.globals import data_root_dir
-from defame.common import Label, Content
-from defame.evidence_retrieval.tools import WebSearch
+from defame.common import Label, Claim, logger
 from defame.eval.benchmark import Benchmark
+from defame.evidence_retrieval.tools import WebSearch
 
 
 class AVeriTeC(Benchmark):
+    name = "AVeriTeC"
     shorthand = "averitec"
 
     is_multimodal = False
@@ -40,14 +39,10 @@ class AVeriTeC(Benchmark):
 
     available_actions = [WebSearch]
 
-    def __init__(self, variant: str ="dev"):
-        super().__init__(name=f"AVeriTeC ({variant})", variant=variant)
-        self.file_path = data_root_dir / f"AVeriTeC/{variant}.json"
-        if not self.file_path.exists():
-            raise ValueError(f"Unable to locate AVeriTeC at {data_root_dir.as_posix()}. "
-                             f"See README.md for setup instructions.")
+    def __init__(self, variant: str = "dev"):
+        super().__init__(variant=variant, file_path=f"AVeriTeC/{variant}.json")
 
-        # Load the data
+    def _load_data(self):
         with open(self.file_path, 'r') as f:
             data_raw = json.load(f)
 
@@ -55,19 +50,41 @@ class AVeriTeC(Benchmark):
         for i, d in enumerate(data_raw):
             date = d["claim_date"]
             identifier = str(i)
-            content = Content(
+            claim = Claim(
                 data=d["claim"],
                 author=d["speaker"],
                 date=datetime.strptime(date, "%d-%m-%Y") if date else None,
                 origin=d["original_claim_url"],
-                identifier=identifier
+                id=identifier
             )
-            label = self.class_mapping[d["label"]] if variant in ["train", "dev"] else None
-            justification = d["justification"] if variant in ["train", "dev"] else None
+            label = self.class_mapping[d["label"]] if self.variant in ["train", "dev"] else None
+            justification = d["justification"] if self.variant in ["train", "dev"] else None
 
-            data.append({"id": identifier, "content": content, "label": label, "justification": justification})
+            data.append({"id": identifier, "input": claim, "label": label, "justification": justification})
 
-        self.data = data
+        return data
 
-    def __iter__(self) -> Iterator[dict]:
-        return iter(self.data)
+    def process_output(self, output):
+        doc, meta = output
+        claim = doc.claim
+        instance = self.get_by_id(claim.id)
+        prediction = doc.verdict
+
+        # Special output processing for AVeriTeC
+        if prediction == Label.CHERRY_PICKING:
+            # Merge cherry-picking and conflicting label
+            prediction = Label.CONFLICTING
+
+        pred_label = self.get_class_name(prediction)
+        averitec_out_instance = {
+            "claim_id": claim.id,
+            "claim": claim.data,
+            "pred_label": pred_label
+        }
+
+        if "q_and_a" in meta:
+            averitec_out_instance["evidence"] = meta["q_and_a"]
+
+        logger.save_next_averitec_out(averitec_out_instance)
+
+        self._save_prediction(doc, meta, claim, prediction, instance.get("label"), instance.get("justification"))

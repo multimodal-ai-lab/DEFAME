@@ -26,7 +26,7 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         benchmark_name="dgm4",
         benchmark_kwargs=dict(variant="val"),
         n_samples=None,
-        print_log_level="info",
+        print_log_level="log",
         random_sampling=False,
         n_workers=1,
     )
