@@ -50,3 +50,5 @@ pydantic~=2.10.6
 websockets~=14.2
 starlette~=0.45.3
 atproto~=0.0.59
+prettytable~=3.16.0
+aiohttp~=3.11.11
