@@ -1,21 +1,21 @@
 # DEFAME: Dynamic Evidence-based FAct-checking with Multimodal Experts
-[📄 Paper](https://arxiv.org/abs/2412.10510)
 
-|![Teaser.jpg](resources%2FTeaser.jpg) | ![Concept.png](resources%2FConcept.png)|
-|---|---|
+[![Paper](https://img.shields.io/badge/Paper-EC6500?style=for-the-badge&logo=bookstack&logoColor=white)](https://arxiv.org/abs/2412.10510)&nbsp;&nbsp;&nbsp;[![License](https://img.shields.io/badge/License-Apache--2.0-F5A300?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
+
+![Teaser.png](resources%2FTeaser.png)
 
 This is the implementation of **Dynamic Evidence-based FAct-checking with Multimodal Experts (DEFAME)**, a strong multimodal claim verification system. DEFAME decomposes the fact-checking task into a dynamic 6-stage pipeline, leveraging an MLLM to accomplish sub-tasks like planning, reasoning, and evidence summarization.
 
-DEFAME is the successor of our challenge-winning unimodal fact-checking system, [InFact](https://aclanthology.org/2024.fever-1.12/). This repository is under constant development. You can access the original code of InFact [here](https://github.com/multimodal-ai-lab/DEFAME/tree/infact), the code of DEFAME here.
+DEFAME is the successor of our challenge-winning unimodal fact-checking system, [InFact](https://aclanthology.org/2024.fever-1.12/). This repository is under constant development. You can access the original code of InFact in [this release](https://github.com/multimodal-ai-lab/DEFAME/tree/infact), the original code of DEFAME – as used in our paper – in [that release](https://github.com/multimodal-ai-lab/DEFAME/tree/v2.0.0).
 
 
 ## Table of Contents
 - [Installation](#installation)
-- [Configuration](#configuration)
+- [Prepare Benchmarks](#prepare-benchmarks)
 - [Usage](#usage)
-- [APIs](#apis)
-- [Data Path Configuration](#data-path-configuration)
-- [Adding a New Tool](#add-a-custom-tool)
+- [Tools and Integrations](#tools-and-integrations)
+- [API](#api)
+- [Web Interface](#web-interface)
 - [License](#license)
 
 
@@ -27,7 +27,7 @@ You can install DEFAME either via Docker or manually. In any case, you first nee
  ```
 
 ### Option A: Docker (Easiest, Fastest)
-Choose this option if you're interested in _executing_ DEFAME.
+Choose this option if you're interested in _executing_ rather than modifying DEFAME.
 
 If you have [Docker](https://www.docker.com/) installed, from the project root simply run
 ```bash
@@ -37,7 +37,7 @@ docker compose exec defame bash
 This will download and execute the [latest images](https://hub.docker.com/r/tudamailab/defame) we have built for you. It opens a shell. You can continue with [Usage](#usage) from here.
 
 ### Option B: Manual Installation (Most Flexible)
-Choose this option if you want to _modify_ DEFAME.
+Choose this option if you want to _modify_ rather than just execute DEFAME.
 
 Follow these steps:
 
@@ -47,7 +47,7 @@ Follow these steps:
     source venv/bin/activate  # On Windows: venv\Scripts\activate
     ```
 
-2. Install required packages:
+2. Install all required packages:
     ```bash
     pip install -r requirements.txt
     python -c "import nltk; nltk.download('wordnet')"
@@ -66,6 +66,7 @@ If you want to evaluate DEFAME on a benchmark, you need to do the following:
    1. [AVeriTeC](https://huggingface.co/chenxwh/AVeriTeC/tree/main/data)
    2. [VERITE](https://github.com/stevejpapad/image-text-verification)
    3. [MOCHEG](https://docs.google.com/forms/d/e/1FAIpQLScAGehM6X9ARZWW3Fgt7fWMhc_Cec6iiAAN4Rn1BHAk6KOfbw/viewform)
+   4. ClaimReview2024+ (Link TBD)
    
 2. Order the benchmarks in the following directory structure:
    ```plaintext
@@ -92,7 +93,7 @@ All execution scripts are located in (subfolders of) `scripts/`.
 > [!NOTE]
 > Whenever running a script, ensure the project root to be the working directory. You can accomplish that by using the `-m` parameter as in the commands below (note the script path notation):
 
-**Hardware requirements**: CPU-only is sufficient if you refrain from using a local LLM.
+**Hardware requirements**: CPU-only is sufficient if you refrain from using a local LLM and disable the geolocator.
 
 **Output location**: All generated reports, statistics, logs etc. will be saved in `out/` by default. You may change this in the `config/globals.py` file.
 
@@ -101,7 +102,7 @@ With `scripts/run.py`, you can fact-check any image-text claim. The script alrea
 ```bash
 python -m scripts.run
 ```
-It will run DEFAME with the default configuration (using GPT-4o). When running this command the first time, you'll be prompted to enter API keys. Just enter the ones you need. (See the [APIs Section](#apis) which keys DEFAME requires.)
+It will run DEFAME with the default configuration (using GPT-4o). When running this command the first time, you'll be prompted to enter API keys. Just enter the ones you need. (See [Tools and Integrations](#tools-and-integrations) for which keys DEFAME requires.)
 
 ### Run a Benchmark Evaluation
 Benchmark evaluations can be run in two different ways. We recommend to use YAML configuration files. See `config/verite` for a bunch of examples. After you configured your own config, just copy the config's file path into `run_config.py` and run
@@ -110,8 +111,15 @@ python -m scripts.run_config
 ```
 
 
-## APIs
-LLMs and tools may require external APIs. All API keys are saved inside `config/api_keys.yaml`. A few tools need additional set up, see the tool-specific setup guidelines below. Here's an overview of all APIs:
+## Tools and Integrations
+DEFAME uses a Large Language Model (LLM) as the backbone which natively cannot retrieve evidence (reliably). Therefore, DEFAME leverages **tools** for evidence retrieval. A `Tool` can be anything that implements an I/O operation, executed via an `Action`. The implementations of each `Tool` can be found in `defame/evidence_retrieval/tools`.
+
+Often, a `Tool` requires access to an external API, e.g., the `Searcher` tool needs SerperAPI to run web searches. All external API **integrations** (wrappers, HTTP request handling etc.) are implemented inside `defame/evidence_retrieval/integrations`. All API keys go into `config/api_keys.yaml`.
+
+Some tools require additional setup. See the tool-specific setup guidelines below for any extra setup needed.
+
+### Integrated APIs
+Here's an overview of all APIs that are integrated into DEFAME.
 
 | API             | Free | Required for...                                   |
 |-----------------|------|---------------------------------------------------|
@@ -138,48 +146,58 @@ The [Google Cloud Vision API](https://cloud.google.com/vision/?hl=en&utm_source=
 3. Open the new Service Account, go to "Keys" and generate a new JSON key file.
 4. Save the downloaded key file at the path `config/google_service_account_key.json`.
 
+
+### Add a Custom Tool
+
+To extend the fact-checker with an own `Tool`, follow these steps:
+
+0. **Only if needed: Implement the integration**
+   
+   If your tool requires calling external resources, integrate the external resource by implementing a respective module inside `defame/evidence_retrieval/integrations`.
+
+1. **Implement the Tool**
+
+   Inside `defame/evidence_retrieval/tools`, create a new file and implement the tool, inheriting from the abstract `Tool` class. Make sure to implement all required methods. See there (and other tools) for details.
+
+2. **Add a Usage Example to the `defame/prompts/plan_exemplars` folder**
+   
+   This exemplar is for the LLM to understand the purpose and format of the tool. You may consider existing exemplars from other tools to understand what's expected here.
+
+3. **Register Your Tool in `defame/evidence_retrieval/tools/__init__.py`**
+   
+   Incorporate the new tool into the `TOOL_REGISTRY` list and its actions into the `ACTION_REGISTRY` set.
+
+4. **Configure the Tool in the execution script**
+   
+   Don't forget to specify the tool in the DEFAME hyperparameters or, alternatively, in your configuration (the YAML file that goes into `config/`).
+
+5. **Optional: Register the Tool in Benchmarks**
+   
+   This step is required only if you want to use your tool for evaluation on one of the benchmarks. To this end, navigate to the respective benchmark file under `defame/eval/<benchmark_name>/benchmark.py`. There, in the `available_actions` list, add your `Tool`.
+
 ### Web Scraping
-This project uses **Firecrawl** as the default web scraping service. It falls back to a simple **BeautifulSoup** implementation if Firecrawl is not running. Firecrawl runs automatically if you used `docker compose` to install DEFAME.
+This project uses **Firecrawl** as the default web scraping service. If Firecrawl is not available, DEFAME falls back to a simple **BeautifulSoup** implementation. Firecrawl runs automatically if you used `docker compose` to install DEFAME.
 
 #### Manual Firecrawl Setup
 If you installed DEFAME manually, you also need to run Firecrawl manually by executing
 ```bash
 docker run -d -p 3002:3002 tudamailab/firecrawl
 ```
-and to adjust the `config/globals.py` file by setting `firecrawl_url = "http://localhost:3002"`.
+DEFAME will automatically locate Firecrawl. If you use custom, non-standard ports or URLs, you must also update the `firecrawl_url` inside  `config/globals.py`.
 
 If you really want to set up Firecrawl manually and without Docker, follow the [Firecrawl Documentation](https://github.com/mendableai/firecrawl.git). We do not recommend that because, in our experience, that setup procedure is rather involving. Therefore, we recommend to use the Firecrawl Docker Image we provide for this project. (You may modify and re-build the Firecrawl Image via the `Dockerfile` stored in `third_party/firecrawl`.)
 
 
-## Add a Custom Tool
-
-To extend the fact-checker with an additional tool, follow these steps:
-
-1. **Implement the Tool**
-
-   It needs to inherit from the `Tool` class and implement all abstract methods. See there (and other tools) for details.
-
-2. **Add a Usage Example to the `defame/prompts/plan_exemplars` folder**
-   
-   This exemplar is for the LLM to understand the purpose and format of the tool. You may consider existing exemplars from other tools to understand what's expected here.
-
-3. **Register Your Tool in `defame/tools/__init__.py`**
-   
-   Incorporate the new tool into the `TOOL_REGISTRY` list and its actions in the `ACTION_REGISTRY` set.
-
-4. **Configure the Tool in the execution script**
-   
-   Don't forget to specify the tool in your configuration (either the YAML configuration file or initialization of the `FactChecker`).
-
-5. **Optional: Register the Tool in Benchmarks**
-   
-   This step is required only if you want to use your tool for evaluation on one of the benchmarks. To this end, navigate to the respective benchmark file under `defame/eval/<benchmark_name>/benchmark.py`. There, in the `available_actions` list, add your Tool.
-
-
-## DEFAME API
-DEFAME ships with its own API backend, allowing the user to access DEFAME's functionalities through HTTP requests. Simply run `scripts/run_api.py` to activate the server which will be accessible on `http://0.0.0.0:3003`. The API documentation is then available under http://0.0.0.0:3003/docs.
+## API
+DEFAME ships with its own API backend, allowing the user to access DEFAME's functionalities through HTTP requests. Simply execute the script `scripts/run_api.py` to activate the server which will be accessible at http://0.0.0.0:3003. The API documentation is then available under http://0.0.0.0:3003/docs.
 
 Don't forget to [run Firecrawl](#Manual-Firecrawl-Setup) if you want to use it.
+
+
+## Web Interface
+DEFAME provides a web-based graphical user interface, supporting the input and verification of textual _and_ visual content. As of now, our hosted web interface is **not public**, but you can host it yourself using [this repository](https://github.com/multimodal-ai-lab/DEFAME-Web-UI). (You also need to run the [DEFAME API](#api).)
+![UI.png](resources/UI.png)
+
 
 
 ## [License](LICENSE)
