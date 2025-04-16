@@ -1,4 +1,4 @@
-from defame.evidence_retrieval.integrations.search_engines.knowledge_base import KnowledgeBase
+from defame.evidence_retrieval.integrations.search.knowledge_base import KnowledgeBase
 
 
 if __name__ == '__main__':  # KB building uses multiprocessing

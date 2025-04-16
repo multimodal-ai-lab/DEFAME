@@ -1,7 +1,7 @@
 """All integrations need to be registered here."""
 
 from .integration import RetrievalIntegration
-from .search_engines import *
+from .search import *
 from .social_media import *
 
 # Dynamically build the registry of retrieval integrations

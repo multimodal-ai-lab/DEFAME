@@ -14,8 +14,8 @@ import requests
 
 from config.globals import api_keys
 from defame.common import logger
-from defame.evidence_retrieval.integrations.search_engines.common import SearchResults, Query, WebSource
-from defame.evidence_retrieval.integrations.search_engines.remote_search_api import RemoteSearchAPI
+from defame.evidence_retrieval.integrations.search.common import SearchResults, Query, WebSource
+from defame.evidence_retrieval.integrations.search.remote_search_platform import RemoteSearchPlatform
 from defame.utils.parsing import get_base_domain
 
 _SERPER_URL = 'https://google.serper.dev'
@@ -46,10 +46,8 @@ class GoogleSearchResults(SearchResults):
                 f"sources={self.sources})")
 
 
-class SerperAPI(RemoteSearchAPI):
-    """Class for querying the Google Serper API."""
-    name = "google"
-
+class SerperAPI:
+    """Wrapper for the Serper API, handling the communication."""
     def __init__(self,
                  gl: str = 'us',
                  hl: str = 'en',
@@ -61,7 +59,7 @@ class SerperAPI(RemoteSearchAPI):
         self.hl = hl
         self.tbs = tbs
 
-    def _call_api(self, query: Query) -> Optional[SearchResults]:
+    def search(self, query: Query) -> Optional[GoogleSearchResults]:
         """Run query through GoogleSearch and parse result."""
         assert self.serper_api_key, 'Missing serper_api_key.'
         assert query, 'Query must not be None.'
@@ -164,6 +162,9 @@ class SerperAPI(RemoteSearchAPI):
         return sources
 
 
+serper_api = SerperAPI()
+
+
 def _parse_answer_box(response: dict) -> Optional[str]:
     """Parses the "answer box" which Google sometimes returns."""
     # TODO: If answer_box contains a source ('link' and 'snippet'), add it to the other sources
@@ -231,12 +232,11 @@ if __name__ == "__main__":
         limit=5,
         end_date=datetime(2025, 3, 5)
     )
-    api = SerperAPI()
-    results = api.search(example_query)
+    results = serper_api.search(example_query)
     print(results)
 
     # Test the cache (result should appear much faster)
     start = time.time()
-    results = api.search(example_query)
+    results = serper_api.search(example_query)
     end = time.time()
     print(f"Second search with same query took {end - start:.3f} seconds.")

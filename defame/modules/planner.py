@@ -33,25 +33,7 @@ class Planner:
         return available_actions
 
     def plan_next_actions(self, doc: Report, all_actions=False) -> (list[Action], str):
-        # TODO: include image in planning
-        performed_actions = doc.get_all_actions()
-        new_valid_actions = []
-
-        # Check if actions have been performed before adding them to valid actions
-        for action_class in self.valid_actions:
-            is_performed = False
-            for action in performed_actions:
-                if isinstance(action, action_class):
-                    is_performed = True
-                    break
-
-            if not action_class.is_limited or (action_class.is_limited and not is_performed):  # FIXME
-                new_valid_actions.append(action_class)
-            else:
-                logger.log(f"INFO: Dropping action '{action_class.name}' as it was already performed.")
-
-        #self.valid_actions = new_valid_actions
-        prompt = PlanPrompt(doc, new_valid_actions, self.extra_rules, all_actions)
+        prompt = PlanPrompt(doc, self.valid_actions, self.extra_rules, all_actions)
         n_attempts = 0
 
         while n_attempts < self.max_attempts:
@@ -65,7 +47,8 @@ class Planner:
             actions = response["actions"]
             reasoning = response["reasoning"]
 
-            # Filter out actions that have been performed before
+            # Remove actions that have been performed before
+            performed_actions = doc.get_all_actions()
             actions = [action for action in actions if action not in performed_actions]
 
             if len(actions) > 0:

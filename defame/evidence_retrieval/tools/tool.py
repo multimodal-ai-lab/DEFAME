@@ -18,6 +18,7 @@ class Tool(ABC):
         self.current_claim_id: Optional[str] = None  # used by few tools to adjust claim-specific behavior
 
     def perform(self, action: Action, summarize: bool = True, **kwargs) -> Evidence:
+        assert type(action) in self.actions, f"Forbidden action: {action}"
         result = self._perform(action)
         summary = self._summarize(result, **kwargs) if summarize else None
         return Evidence(result, action, takeaways=summary)

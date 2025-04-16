@@ -8,6 +8,7 @@ from markdown_pdf import MarkdownPdf, Section
 
 from defame.common import Action, Claim, Label, Evidence
 from defame.common.medium import media_registry
+from defame.utils.parsing import replace_media_refs
 
 
 @dataclass
@@ -77,12 +78,8 @@ class Report:
         directory.mkdir(exist_ok=True, parents=True)
 
         report_str = str(self)
-
-        # Replace all media references with actual file paths for human-readability
         media = media_registry.get_media_from_text(report_str)
-        for medium in media:
-            markdown_ref = f"![{medium.data_type} {medium.id}](media/{medium.path_to_file.name})"
-            report_str = report_str.replace(medium.reference, markdown_ref)
+        report_str = replace_media_refs(report_str, media)
 
         # Save the Markdown file
         with open(directory / "report.md", "w") as f:

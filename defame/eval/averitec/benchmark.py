@@ -3,7 +3,7 @@ from datetime import datetime
 
 from defame.common import Label, Claim, logger
 from defame.eval.benchmark import Benchmark
-from defame.evidence_retrieval.tools import WebSearch
+from defame.evidence_retrieval.tools import Search
 
 
 class AVeriTeC(Benchmark):
@@ -37,7 +37,7 @@ class AVeriTeC(Benchmark):
     for the Claim does NOT prove that the Claim is refuted. Instead, the Claim is simply unsupported--which is a case of 
     'not enough information'."""
 
-    available_actions = [WebSearch]
+    available_actions = [Search]
 
     def __init__(self, variant: str = "dev"):
         super().__init__(variant=variant, file_path=f"AVeriTeC/{variant}.json")

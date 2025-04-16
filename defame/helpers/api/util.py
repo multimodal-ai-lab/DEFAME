@@ -2,7 +2,6 @@ from fastapi import HTTPException
 from starlette import status
 
 from defame.helpers.api.config import api_key
-from fastapi.encoders import jsonable_encoder
 
 
 def ensure_authentication(presented_key: str):

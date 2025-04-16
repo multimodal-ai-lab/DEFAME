@@ -7,12 +7,12 @@ from config.globals import data_root_dir
 from defame.common import Label, Claim
 from defame.common.medium import Image
 from defame.eval.benchmark import Benchmark
-from defame.evidence_retrieval.tools import Geolocate, WebSearch, ImageSearch, ReverseSearch
+from defame.evidence_retrieval.tools import Geolocate, Search
 
 
 class ClaimReview2024(Benchmark):
     name = "ClaimReview2024+"
-    shorthand = "cr+"
+    shorthand = "claimreview"
 
     is_multimodal = True
 
@@ -32,7 +32,7 @@ class ClaimReview2024(Benchmark):
 
     extra_plan_rules = """Always suggest the use of geolocation!"""
 
-    available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
+    available_actions = [Search, Geolocate]
 
     def __init__(self, variant="test"):
         super().__init__(variant, "ClaimReview2024/data_core.json")

@@ -4,9 +4,8 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
     evaluate(
         llm="gpt_4o",
         tools_config=dict(searcher=dict(
-            search_engine_config=dict(
+            search_config=dict(
                 google=dict(),
-                google_vision=dict(),
             ),
             limit_per_search=3
         ),

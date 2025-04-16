@@ -27,6 +27,6 @@ The Guardian discusses a report blaming the Syrian government for a toxic gas at
 [DOC]
 
 # Search Result
-[SEARCH_RESULT]
+[SOURCE]
 
 # Your Summary

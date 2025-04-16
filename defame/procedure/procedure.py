@@ -2,10 +2,10 @@ from abc import ABC
 from typing import Any
 
 from defame.common import Report, Label, Model
-from defame.evidence_retrieval.integrations.search_engines.common import WebSource
+from defame.evidence_retrieval import Source, Search
+from defame.evidence_retrieval.integrations import SearchResults
 from defame.modules import Judge, Actor, Planner
 from defame.prompts.prompts import DevelopPrompt
-from defame.evidence_retrieval.tools import WebSearch
 
 
 class Procedure(ABC):
@@ -25,18 +25,19 @@ class Procedure(ABC):
         specific meta information."""
         raise NotImplementedError
 
-    def retrieve_resources(
+    def retrieve_sources(
             self,
-            search_queries: list[WebSearch],
+            search_actions: list[Search],
             doc: Report = None,
             summarize: bool = False
-    ) -> list[WebSource]:
-        search_results = []
-        for query in search_queries:
-            evidence = self.actor.perform([query], doc=doc, summarize=summarize)[0]
-            if evidence.raw:
-                search_results.extend(evidence.raw.sources)
-        return search_results
+    ) -> list[Source]:
+        evidence = self.actor.perform(search_actions, doc=doc, summarize=summarize)
+        sources = []
+        for e in evidence:
+            results = e.raw
+            if isinstance(results, SearchResults):
+                sources.extend(results.sources)
+        return sources
 
     def _develop(self, doc: Report):
         """Analyzes the currently available information and infers new insights."""

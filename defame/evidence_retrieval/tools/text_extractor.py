@@ -22,14 +22,16 @@ from defame.evidence_retrieval.tools.tool import Tool
 
 
 class OCR(Action):
+    """Performs Optical Character Recognition to extract text from an image."""
     name = "ocr"
-    description = "Performs Optical Character Recognition to extract text from an image."
-    how_to = "Provide an image and the model will extract text from it."
-    format = "ocr(<image:n>), where `n` is the image's ID"
-    is_multimodal = True
+    requires_image = True
 
-    def __init__(self, image_ref: str):
-        self.image: Image = MultimediaSnippet(image_ref).images[0]
+    def __init__(self, image: str):
+        """
+        @param image: The reference of the image to extract text from.
+        """
+        self._save_parameters(locals())
+        self.image = Image(reference=image)
 
     def __str__(self):
         return f'{self.name}({self.image.reference})'

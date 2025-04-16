@@ -231,7 +231,7 @@ class Logger:
         formatted_msg = f"{msg}\n{self.separator}\n\n\n"
         self.model_comm_logger.debug(formatted_msg)
 
-    def save_config(self, signature, local_scope, benchmark, print_summary: bool = True):
+    def save_config(self, signature, local_scope, print_summary: bool = True):
         """Saves the hyperparameters of the current run to a YAML file. Enables to re-use them
         to resume the run."""
         assert self.experiment_dir is not None

@@ -1,5 +1,5 @@
 import pytest
-from defame.evidence_retrieval.scraping.util import is_image_url
+from defame.utils.parsing import is_image_url
 
 
 @pytest.mark.parametrize("url,expected", [

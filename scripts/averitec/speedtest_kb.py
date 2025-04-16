@@ -1,6 +1,6 @@
 import time
 
-from defame.evidence_retrieval.integrations.search_engines.knowledge_base import KnowledgeBase
+from defame.evidence_retrieval.integrations.search.knowledge_base import KnowledgeBase
 
 # Instantiate the KnowledgeBase
 kb = KnowledgeBase(variant="dev")
@@ -34,7 +34,7 @@ queries = [
 def test_search_speed(tester, queries):
     for query in queries:
         start_time = time.time()  # Start the timer
-        tester.search(query, limit=5)  # Perform the search
+        tester._search(query, limit=5)  # Perform the search
         end_time = time.time()  # End the timer
         elapsed_time = end_time - start_time  # Calculate elapsed time
         print(f"Query: {query}\nTime taken: {elapsed_time:.4f} seconds\n")

@@ -5,9 +5,8 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         llm="gpt_4o",
         tools_config=dict(
             searcher=dict(
-                search_engine_config=dict(
+                search_config=dict(
                     google=dict(),
-                    google_vision=dict(),
                 ),
                 limit_per_search=3
             ),
@@ -25,10 +24,7 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         llm_kwargs=dict(temperature=0.01),
         benchmark_name="verite",
         benchmark_kwargs=dict(variant="dev"),
-        allowed_actions=["web_search",
-                         "image_search",
-                         "reverse_search",
-                         "geolocate"],
+        allowed_actions=["search", "geolocate"],
         n_samples=20,
         sample_ids=None, # list of integers
         random_sampling=False,

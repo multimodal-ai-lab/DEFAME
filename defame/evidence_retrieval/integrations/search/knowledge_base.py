@@ -16,7 +16,7 @@ from tqdm import tqdm
 from config.globals import data_root_dir, embedding_model
 from defame.common.embedding import EmbeddingModel
 from defame.common import logger, MultimediaSnippet
-from defame.evidence_retrieval.integrations.search_engines.local_search_api import LocalSearchAPI
+from defame.evidence_retrieval.integrations.search.local_search_platform import LocalSearchPlatform
 from defame.utils.utils import my_hook
 from .common import SearchResults, Query, WebSource
 
@@ -45,10 +45,14 @@ N_CLAIMS = {
 }
 
 
-class KnowledgeBase(LocalSearchAPI):
+class KnowledgeBase(LocalSearchPlatform):
     """The AVeriTeC Knowledge Base (KB) used to retrieve evidence for fact-checks.
     It aims to simulate a web search engine."""
-    name = 'averitec_kb'
+
+    name = "averitec_kb"
+    description = """The AVeriTeC Knowledge Base (KB). It simulates a web search engine
+        similar to Google. It accepts and returns only textual queries/sources."""
+
     embedding_knns: dict[int, NearestNeighbors]
     embedding_model: EmbeddingModel = None
 

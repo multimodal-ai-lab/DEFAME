@@ -1,281 +1,252 @@
+import inspect
 import re
 from datetime import date
 from typing import Any, Optional
 
-import numpy as np
 from jinja2.exceptions import TemplateSyntaxError
 from openai import APIError
 
 from config.globals import api_keys
 from defame.common import MultimediaSnippet, Report, Prompt, logger, Action, Image
 from defame.evidence_retrieval import scraper
-from defame.evidence_retrieval.integrations.search_engines import (SearchResults, SearchAPI, SEARCH_ENGINES,
-                                                                   GoogleVisionAPI)
-from defame.evidence_retrieval.integrations.search_engines.common import Query, SearchMode, Source, WebSource
+from defame.evidence_retrieval.integrations.search import SearchResults, SearchPlatform, PLATFORMS, KnowledgeBase
+from defame.evidence_retrieval.integrations.search.common import Query, SearchMode, Source, WebSource
 from defame.evidence_retrieval.tools.tool import Tool
-from defame.prompts.prompts import SummarizeResultPrompt
-from defame.utils.console import gray, orange
+from defame.prompts.prompts import SummarizeSourcePrompt
+from defame.utils.console import gray
 
 
 class Search(Action):
-    api: str
-    query_string: str
-    search_mode: SearchMode
-    start_date: date
-    end_date: date
+    """Runs a search on the specified platform to retrieve helpful sources. Useful
+    to find new knowledge. Some platforms also support images, e.g.,
+    Reverse Image Search (RIS), or
+    search modes (like 'news', 'places'), and additional parameters like date limits.
+    If a platform does not support some of the parameters, they will be ignored.
+    If you run multiple search queries, vary them."""
+    name = "search"
 
-    def __init__(self, query: str, start_date: date = None, end_date: date = None):
-        assert ((query[0] == '"' and query[-1] == '"') or (query[0] == '<' and query[-1] == '>'))
-        self.query_string = query[1:-1]
-        self.start_date = start_date
-        self.end_date = end_date
+    platform: SearchPlatform
+    query: Query
 
-    def __str__(self):
-        return f'{self.name}("{self.query_string}")'
+    def __init__(self,
+                 query: str = None,
+                 image: str = None,
+                 platform: str = "google",
+                 mode: str = "search",
+                 limit: int = None,
+                 start_date: str = None,
+                 end_date: str = None):
+        """
+        @param query: The textual search query. At least one of `query` or `image` must
+            be set.
+        @param image: The reference of an image. Use this if you want to perform Reverse
+            Image Search (RIS). RIS is helpful to find sources that contain the same or
+            similar images. If you also provide `query`, the query will be treated as
+            additional context, constraining the search results respectively.
+        @param platform: The platform/engine to run the query on. Choose from the
+            available platforms below.
+        @param mode: The search mode or category. Choose from
+            `search` for standard, open search (default),
+            `images` for retrieving images for a given text query (useful for verifying
+                claims that feature visuals),
+            `news` for searching (recent) news articles,
+            `places` for searching places.
+        @param limit: The maximum number of search results to retrieve.
+        @param start_date: Returns search results on or after this date. Use ISO format.
+        @param end_date: Returns search results before or on this date. Use ISO format.
+        """
+        self._save_parameters(locals())
 
-    def __eq__(self, other):
-        return isinstance(other, Search) and self.query_string == other.query_string and self.name == other.name
+        self.platform = PLATFORMS[platform]
+        image = Image(reference=image) if image else None
 
-    def __hash__(self):
-        return hash((self.name, self.query_string))
+        try:
+            mode = SearchMode(mode) if mode else None
+        except ValueError:
+            mode = None
 
+        try:
+            start_date = date.fromisoformat(start_date) if start_date else None
+        except ValueError:
+            start_date = None
 
-class WebSearch(Search):
-    name = "web_search"
-    search_mode = SearchMode.SEARCH
-    description = """Run an open web search on Google or DuckDuckGO to retrieve any related webpage."""
-    how_to = """Do not use this with a previously used or similar query from previous web searches.
-    If a previous web search did not yield any results, use a very different query."""
-    format = """web_search("your web search query goes here")"""
-    is_multimodal = False
-    is_limited = False
+        try:
+            end_date = date.fromisoformat(end_date) if end_date else None
+        except ValueError:
+            end_date = None
 
-
-class ImageSearch(Search):
-    name = "image_search"
-    search_mode = SearchMode.IMAGES
-    description = """Run an image search on Google to retrieve related images for a given query."""
-    how_to = """This is a helpful tool for fact-checking images. Use this to retrieve images associated with a specific keyword or phrase. 
-    Ensure that the query is clear and specific to improve search accuracy. 
-    If no relevant images are found, refine the query or use more descriptive terms."""
-    format = """image_search("your image search query goes here")"""
-    is_multimodal = True
-    is_limited = False
-
-
-class WikiDumpLookup(Search):
-    name = "wiki_dump_lookup"
-    search_mode = SearchMode.SEARCH
-    description = """Look up something on the Wikipedia dump from 2017. Each article in the dump
-    contains only the first few paragraphs of the article. In particular, the dump is incomplete
-    and may miss much information. Use the dump to retrieve an article for a person, an entity, 
-    an event etc."""
-    how_to = """Do not repeat queries from previous `wiki_dump_lookup`s. If a previous
-    `wiki_dump_lookup` did not yield enough results, use a very different query."""
-    format = """wiki_dump_lookup("your wiki search query goes here")"""
-    is_multimodal = False
-    is_limited = False
-
-
-class WikiLookup(Search):
-    name = "wiki_lookup"
-    search_mode = SearchMode.SEARCH
-    description = """Look up something on Wikipedia to retrieve an article for a person, an 
-    entity, an event etc."""
-    how_to = """Do not use this with a previously used or similar query from previous wiki lookup. 
-    If a previous wiki_lookup did not yield any results, use a very different query."""
-    format = """wiki_lookup("your wiki search query goes here")"""
-    is_multimodal = False
-    is_limited = False
-
-
-class ReverseSearch(Search):
-    name = "reverse_search"
-    search_mode = SearchMode.REVERSE
-    description = "Performs a reverse image search to find similar images on the web."
-    how_to = "Provide an image and the model will perform a reverse search to find similar images."
-    format = "reverse_search(<image:k>), where `k` is the image's ID"
-    is_multimodal = True
-    is_limited = True
-
-    def __init__(self, image_ref: str):
-        super().__init__(query=image_ref)
-        self.image: Image = MultimediaSnippet(image_ref).images[0]
-
-    def __str__(self):
-        return f'{self.name}({self.image.reference})'
+        self.query = Query(text=query, image=image, search_mode=mode, limit=limit,
+                           start_date=start_date, end_date=end_date)
 
     def __eq__(self, other):
-        return isinstance(other, ReverseSearch) and np.array_equal(np.array(self.image), np.array(other.image))
+        return isinstance(other, Search) and self.query == other.query and self.name == other.name
 
     def __hash__(self):
-        return hash((self.name, self.image.image.tobytes()))
+        return hash((self.name, self.query))
 
 
 class Searcher(Tool):
-    """Searches the specified resource (Google, Wikipedia, ...) for evidence. Takes
-    a list of specified search engines. The list defines the precedence of the search
-    engines meaning that if search_engine[0] did not yield any results, search_engine[1]
-    will be tried next."""
+    """Searches the specified platform (Google, Wikipedia, ...) for useful sources."""
     # TODO: Rank or annotate the websites according to their credibility, like MUSE
     name = "searcher"
-    summarize = True
-    search_apis: dict[str, SearchAPI]
-    stats: dict[str, int]
+    platforms: list[SearchPlatform]
+
+    n_retrieved_results: int
+    n_unique_retrieved_results: int
 
     def __init__(self,
-                 search_engine_config: dict[str, dict] = None,
-                 summarize: bool = True,
-                 max_searches: int = 5,
+                 search_config: dict[str, dict] = None,
                  limit_per_search: int = 5,
                  max_result_len: int = None,  # chars
-                 do_debug: bool = False,
+                 extract_sentences: bool = False,
                  **kwargs):
         super().__init__(**kwargs)
 
-        if search_engine_config is None:
-            if api_keys["serper_api_key"]:
-                search_engine_config = {"google": {}}
-            else:
-                logger.log("No Serper API key provided. Falling back to DuckDuckGo.")
-                search_engine_config = {"duckduckgo": {}}
-
-        # Add device to knowledge base kwargs
-        if "averitec_kb" in search_engine_config:
-            search_engine_config["averitec_kb"].update(dict(device=self.device))
-
-        # Setup search APIs
-        self.search_apis = {}
-        for se, kwargs in search_engine_config.items():
-            api_class = SEARCH_ENGINES[se]
-            if kwargs is None:
-                kwargs = {}
-            api = api_class(max_search_results=limit_per_search, **kwargs)
-            self.search_apis[se] = api
-
-        # Register available tools
-        actions = []
-        available_apis = self.search_apis.keys()
-        if "wiki_dump" in available_apis:
-            actions.append(WikiDumpLookup)
-        if "google" in available_apis:
-            actions += [WebSearch, ImageSearch]
-        if "duckduckgo" in available_apis or "averitec_kb" in available_apis:
-            actions.append(WebSearch)
-        if "google_vision" in available_apis:
-            actions.append(ReverseSearch)
-        self.actions = actions
-
-        self.summarize = summarize
-        self.max_searches = max_searches
         self.limit_per_search = limit_per_search
         self.max_result_len = max_result_len  # chars
-        self.restrict_results_until_date = None
+        self.extract_sentences = extract_sentences
+        self.restrict_results_until_date = None  # date restriction for all search actions
 
-        self.debug = do_debug
-
-        # Cut the result text, maintaining a little buffer for the summary prompt
+        self.platforms = self._initialize_platforms(search_config)
         self.known_sources: set[Source] = set()
+
+        self.actions = self._define_actions()
 
         self.reset()
 
-    def _perform(self, action: Search) -> SearchResults:
-        # Pick the strictest specified end date
-        end_date = self.restrict_results_until_date
-        if action.end_date is not None:
-            if end_date is None or action.end_date < end_date:
-                end_date = action.end_date
+    def _initialize_platforms(self, search_config: Optional[dict]) -> list[SearchPlatform]:
+        if search_config is None:
+            search_config = self._get_default_search_config()
 
-        image = action.image if isinstance(action, ReverseSearch) else None
+        platforms = []
+        for platform, kwargs in search_config.items():
+            if kwargs is None:
+                kwargs = {}
+            if platform == "averitec_kb":
+                kwargs["device"] = self.device
+            platform_cls = PLATFORMS[platform]
+            platform = platform_cls(max_search_results=self.limit_per_search, **kwargs)
+            platforms.append(platform)
 
-        query = Query(
-            text=action.query_string,
-            image=image,
-            search_mode=action.search_mode,
-            limit=self.limit_per_search,
-            start_date=action.start_date,
-            end_date=end_date
-        )
+        return platforms
 
-        return self.search(query)
+    def _get_default_search_config(self):
+        if api_keys["serper_api_key"]:
+            return {"google": {}}
+        else:
+            logger.warning("No Serper API key (needed for Google) provided. Falling back to DuckDuckGo.")
+            return {"duckduckgo": {}}
 
-    def search(self, query: Query) -> SearchResults:
-        """Searches for evidence using the search APIs according to their precedence.
-        TODO: Rework the entire method"""
+    def _define_actions(self) -> list[type[Action]]:
+        """Adds a list of the available search platforms to the Search
+        action class which will be used in the LLM prompt.."""
+        platforms_info = "Available search platforms:"
+        for platform in self.platforms:
+            platforms_info += f"\n`{platform.name}`: {platform.description}"
+        Search.additional_info = platforms_info
+        return [Search]
 
-        # TODO: Convert into a dict lookup
-        for search_engine in list(self.search_apis.values()):
-            if query.search_mode == SearchMode.REVERSE and isinstance(search_engine, GoogleVisionAPI):
-                results = search_engine.search(query)
-            elif (query.search_mode == SearchMode.SEARCH or query.search_mode == SearchMode.IMAGES and
-                  not isinstance(search_engine, GoogleVisionAPI)):
-                results = search_engine.search(query)
+    def _perform(self, action: Search) -> Optional[SearchResults]:
+        """Validates the search query (by enforcing potential restrictions)
+        and runs it."""
+        query = action.query
+
+        # Set the strictest specified end date
+        if self.restrict_results_until_date is not None:
+            if query.end_date is not None:
+                query.end_date = min(query.end_date, self.restrict_results_until_date)
             else:
-                continue
+                query.end_date = self.restrict_results_until_date
 
-            # Remove known websites from search result
-            results.sources = self._remove_known_sources(results.sources)
+        # Set the strictest search limit
+        if self.limit_per_search is not None:
+            if query.limit is not None:
+                query.limit = min(query.limit, self.limit_per_search)
+            else:
+                query.limit = self.limit_per_search
 
-            # Track search engine call
-            self.stats[search_engine.name] += 1
+        # Ensure the given platform is available
+        platform = self.get_platform(action.platform.name)
+        if not platform:
+            raise ValueError(f"Platform {action.platform.name} is not initialized/allowed.")
 
-            # Log search results
-            logger.log(f"Got {len(results.sources)} new source(s):")
-            if len(results.sources) > 0:
-                logger.log(str(results))
+        # Run the query
+        return self._search(platform, query)
 
-            # Scrape the pages of the results
-            sources_to_scrape = [s for s in results.sources if isinstance(s, WebSource) and s.content is None]
-            if sources_to_scrape:
-                urls = [s.url for s in sources_to_scrape]
-                scrape_results = scraper.scrape_multiple(urls)
-                for source, scraped in zip(sources_to_scrape, scrape_results):
-                    source.content = scraped
+    def _search(self, platform: SearchPlatform, query: Query) -> Optional[SearchResults]:
+        """Executes the given search query on the given platform and processes the results.
+        Removes known results."""
 
-            # Modify the raw web source text to avoid jinja errors when used in prompt
-            results.sources = self._postprocess_results(results.sources, query)[:self.limit_per_search]
+        # Run search and retrieve sources
+        results = platform.search(query)
+        sources = results.sources[:self.limit_per_search]
+        self.n_retrieved_results += len(sources)
 
-            # If there is at least one new web source in the result, we were successful
-            if len(results.sources) > 0:
-                self._register_sources(results.sources)
-                return results
+        # Remove known sources
+        sources = self._remove_known_sources(sources)
+        self.n_unique_retrieved_results += len(sources)
+
+        # Log search results
+        if len(sources) > 0:
+            logger.log(f"Got {len(sources)} new source(s):")
+            logger.log("\n".join([str(s) for s in sources]))
+        else:
+            logger.log("No new sources found.")
+
+        # Scrape the pages of the results
+        sources_to_scrape = [s for s in sources if isinstance(s, WebSource)]
+        scraper.scrape_sources(sources_to_scrape)
+
+        # Modify the raw source text to avoid jinja errors when used in prompt
+        self._postprocess_sources(sources, query)
+        self._register_sources(sources)
+
+        if len(sources) > 0:
+            results.sources = sources
+            return results
 
     def _remove_known_sources(self, sources: list[Source]) -> list[Source]:
         """Removes already known sources from the list `sources`."""
         return [r for r in sources if r not in self.known_sources]
 
     def _register_sources(self, sources: list[Source]):
-        """Adds the provided list of results to the set of known results."""
+        """Adds the provided list of sources to the set of known sources."""
         self.known_sources |= set(sources)
 
     def reset(self):
-        """Removes all known web sources and resets the statistics."""
+        """Removes all known web sources and resets the search platforms."""
         self.known_sources = set()
-        self.stats = {s.name: 0 for s in self.search_apis.values()}
+        self.n_retrieved_results = 0
+        self.n_unique_retrieved_results = 0
+        for platform in self.platforms:
+            platform.reset()
 
-    def _postprocess_results(self, sources: list[Source], query: Query) -> list[Source]:
-        """Modifies the results text to avoid jinja errors when used in prompt."""
+    def _postprocess_sources(self, sources: list[Source], query: Query) -> None:
         for source in sources:
             if source.is_loaded():
-                source.content.data = self.postprocess_result(source.content.data, query)
-        return sources
+                source.content.data = self._postprocess_single_source(source.content.data, query)
 
-    def postprocess_result(self, result: str, query: Query, filter_relevant: bool = True):
-        """Removes all double curly braces to avoid conflicts with Jinja and optionally truncates
-        the result text to a maximum length. Also filter the content according to keywords from the query."""
-        if filter_relevant and (query.search_mode != SearchMode.REVERSE) and (query.search_mode != SearchMode.IMAGES):
+    def _postprocess_single_source(self, content: str, query: Query):
+        """Prepares the result contents before LLM processing:
+        1. Optionally extracts relevant sentences from the result text using keywords
+            from the query.
+        2. Removes all double curly braces to avoid conflicts with Jinja.
+        3. Optionally truncates the result text to a maximum length."""
+        if self.extract_sentences:
             keywords = re.findall(r'\b\w+\b', query.text.lower()) or query.text
-            relevant_content = filter_relevant_sentences(result, keywords)[:10]
+            relevant_content = extract_relevant_sentences(content, keywords)[:10]
             relevant_text = ' '.join(relevant_content)
-            result = relevant_text or result
+            content = relevant_text or content
 
-        result = re.sub(r"\{\{.*}}", "", result)
+        content = re.sub(r"\{\{.*}}", "", content)
+
         if self.max_result_len is not None:
-            result = result[:self.max_result_len]
-        return result
+            content = content[:self.max_result_len]
 
-    def _summarize(self, results: SearchResults, **kwargs) -> Optional[MultimediaSnippet]:
-        doc = kwargs.get("doc")
+        return content
+
+    def _summarize(self, results: SearchResults, doc: Report = None) -> Optional[MultimediaSnippet]:
+        assert doc is not None
         if results:
             for source in results.sources:
                 self._summarize_single_source(source, doc)
@@ -284,24 +255,24 @@ class Searcher(Tool):
             return None
 
     def _summarize_single_source(self, source: Source, doc: Report):
-        prompt = SummarizeResultPrompt(source, doc)
+        prompt = SummarizeSourcePrompt(source, doc)
 
         try:
             summary = self.llm.generate(prompt, max_attempts=3)
             if not summary:
                 summary = "NONE"
         except APIError as e:
-            logger.log(orange(f"APIError: {e} - Skipping the summary for {source.reference}."))
-            logger.log(orange(f"Used prompt:\n{str(prompt)}"))
+            logger.info(f"APIError: {e} - Skipping the summary for {source}.")
+            logger.log(f"Used prompt:\n{str(prompt)}")
             summary = "NONE"
         except TemplateSyntaxError as e:
-            logger.log(orange(f"TemplateSyntaxError: {e} - Skipping the summary for {source.reference}."))
+            logger.info(f"TemplateSyntaxError: {e} - Skipping the summary for {source}.")
             summary = "NONE"
         except ValueError as e:
-            logger.log(orange(f"ValueError: {e} - Skipping the summary for {source.reference}."))
+            logger.warning(f"ValueError: {e} - Skipping the summary for {source}.")
             summary = "NONE"
         except Exception as e:
-            logger.log(orange(f"Error while summarizing! {e} - Skipping the summary for {source.reference}."))
+            logger.log(f"Error while summarizing! {e} - Skipping the summary for {source}.")
             summary = "NONE"
 
         source.takeaways = MultimediaSnippet(summary)
@@ -311,12 +282,13 @@ class Searcher(Tool):
 
     def _summarize_summaries(self, result: SearchResults, doc: Report) -> Optional[MultimediaSnippet]:
         """Generates a summary, aggregating all relevant information from the
-        identified and relevant web sources."""
+        identified and relevant sources."""
 
         summaries = [str(source) for source in result.sources if source.is_relevant()]
-        if len(summaries) == 0:  # No relevant web sources
+        if len(summaries) == 0:  # No relevant sources
             return None
         elif len(summaries) == 1:
+            # No further summarization needed as we have only one source
             return MultimediaSnippet(summaries[0])
 
         # Disable summary of summaries:
@@ -335,23 +307,27 @@ class Searcher(Tool):
         return MultimediaSnippet(self.llm.generate(summarize_prompt))
 
     def get_stats(self) -> dict[str, Any]:
-        total_searches = np.sum([n for n in self.stats.values()])
         return {
-            "Total searches": total_searches,
-            "Search engine calls": self.stats,
+            "Total searches": sum([platform.n_searches for platform in self.platforms]),
+            "Platform stats": {platform.name: platform.stats for platform in self.platforms},
         }
+
+    def get_platform(self, name: str) -> Optional[SearchPlatform]:
+        for platform in self.platforms:
+            if platform.name == name:
+                return platform
 
     def set_date_restriction(self, until: date):
         self.restrict_results_until_date = until
 
     def set_claim_id(self, claim_id: str):
         super().set_claim_id(claim_id)
-        if "averitec_kb" in self.search_apis:
-            kb = self.search_apis["averitec_kb"]
+        kb = self.get_platform(KnowledgeBase.name)
+        if kb:
             kb.current_claim_id = int(claim_id)
 
 
-def filter_relevant_sentences(text, keywords):
+def extract_relevant_sentences(text, keywords):
     sentences = re.split(r'(?<=[.!?]) +', text)
     relevant_sentences = []
     for sentence in sentences:

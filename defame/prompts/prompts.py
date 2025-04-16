@@ -1,14 +1,16 @@
 import re
+import traceback
 from pathlib import Path
 from typing import Collection, Optional
 
 from defame.common import Report, Label, Claim, Action, Prompt, Content, logger
+from defame.common.action import get_action_documentation
 from defame.common.label import DEFAULT_LABEL_DEFINITIONS
-from defame.evidence_retrieval.integrations.search_engines.common import WebSource, Source
+from defame.evidence_retrieval.integrations.search.common import Source
 from defame.common.results import Results
 from defame.utils.parsing import (remove_non_symbols, extract_last_code_span, read_md_file,
-                                  find_code_span, extract_last_paragraph, extract_last_code_block,
-                                  strip_string, remove_code_blocks)
+                                  find_code_span, extract_last_paragraph, extract_last_python_code_block,
+                                  strip_string, remove_code_blocks, parse_function_call)
 
 SYMBOL = 'Check-worthy'
 NOT_SYMBOL = 'Unimportant'
@@ -16,7 +18,6 @@ NOT_SYMBOL = 'Unimportant'
 
 class JudgePrompt(Prompt):
     template_file_path = "defame/prompts/judge.md"
-    name = "JudgePrompt"
     retry_instruction = ("(Do not forget to choose one option from Decision Options "
                          "and enclose it in backticks like `this`)")
 
@@ -46,7 +47,6 @@ class JudgePrompt(Prompt):
 
 class DecontextualizePrompt(Prompt):
     template_file_path = "defame/prompts/decontextualize.md"
-    name = "DecontextualizePrompt"
 
     def __init__(self, claim: Claim):
         placeholder_targets = {
@@ -57,8 +57,6 @@ class DecontextualizePrompt(Prompt):
 
 
 class FilterCheckWorthyPrompt(Prompt):
-    name = "FilterCheckWorthyPrompt"
-
     def __init__(self, claim: Claim, filter_method: str = "default"):
         assert (filter_method in ["default", "custom"])
         placeholder_targets = {  # re-implement this
@@ -74,13 +72,12 @@ class FilterCheckWorthyPrompt(Prompt):
         super().__init__(placeholder_targets=placeholder_targets)
 
 
-class SummarizeResultPrompt(Prompt):
-    template_file_path = "defame/prompts/summarize_result.md"
-    name = "SummarizeResultPrompt"
+class SummarizeSourcePrompt(Prompt):
+    template_file_path = "defame/prompts/summarize_source.md"
 
     def __init__(self, source: Source, doc: Report):
         placeholder_targets = {
-            "[SEARCH_RESULT]": str(source),
+            "[SOURCE]": str(source),
             "[DOC]": str(doc),
         }
         super().__init__(placeholder_targets=placeholder_targets)
@@ -88,7 +85,6 @@ class SummarizeResultPrompt(Prompt):
 
 class SummarizeManipulationResultPrompt(Prompt):
     template_file_path = "defame/prompts/summarize_manipulation_result.md"
-    name = "SummarizeManipulationResultPrompt"
 
     def __init__(self, manipulation_result: Results):
         placeholder_targets = {
@@ -99,7 +95,6 @@ class SummarizeManipulationResultPrompt(Prompt):
 
 class SummarizeDocPrompt(Prompt):
     template_file_path = "defame/prompts/summarize_doc.md"
-    name = "SummarizeDocPrompt"
 
     def __init__(self, doc: Report):
         super().__init__(placeholder_targets={"[DOC]": doc})
@@ -107,25 +102,21 @@ class SummarizeDocPrompt(Prompt):
 
 class PlanPrompt(Prompt):
     template_file_path = "defame/prompts/plan.md"
-    name = "PlanPrompt"
 
     def __init__(self, doc: Report,
-                 valid_actions: list[type[Action]],
+                 valid_actions: Collection[type[Action]],
                  extra_rules: str = None,
                  all_actions: bool = False):
-        valid_action_str = "\n\n".join([f"* `{a.name}`\n"
-                                        f"   * Description: {remove_non_symbols(a.description)}\n"
-                                        f"   * How to use: {remove_non_symbols(a.how_to)}\n"
-                                        f"   * Format: {a.format}" for a in valid_actions])
+        action_docs = [get_action_documentation(a) for a in valid_actions]
+        valid_action_str = "\n\n".join(action_docs)
         extra_rules = "" if extra_rules is None else remove_non_symbols(extra_rules)
         if all_actions:
             extra_rules = "Very Important: No need to be frugal. Choose all available actions at least once."
 
-        # TODO: Integrate the context in the prompt
         placeholder_targets = {
             "[DOC]": doc,
             "[VALID_ACTIONS]": valid_action_str,
-            "[EXEMPLARS]": load_exemplars(valid_actions),
+            # "[EXEMPLARS]": load_exemplars(valid_actions),
             "[EXTRA_RULES]": extra_rules,
         }
         super().__init__(placeholder_targets=placeholder_targets)
@@ -134,7 +125,7 @@ class PlanPrompt(Prompt):
         # TODO: Prevent the following from happening at all.
         # It may accidentally happen that the LLM generated "<image:k>" in its response (because it was
         # included as an example in the prompt).
-        pattern = re.compile(r'<image:k>')
+        pattern = re.compile(r'<image:[a-z]>')
         matches = pattern.findall(response)
 
         if matches:
@@ -144,7 +135,7 @@ class PlanPrompt(Prompt):
                 claim_image_ref = self.images[
                     0].reference  # Be careful that the Plan Prompt always has the Claim image first before any other image!
                 response = pattern.sub(claim_image_ref, response)
-                print(f"WARNING: <image:k> was replaced by {claim_image_ref} to generate response: {response}")
+                logger.warning(f"LLM generated reference '<image:k>'. Replacing it by {claim_image_ref}.")
 
         actions = extract_actions(response)
         reasoning = extract_reasoning(response)
@@ -156,8 +147,6 @@ class PlanPrompt(Prompt):
 
 
 class PoseQuestionsPrompt(Prompt):
-    name = "PoseQuestionsPrompt"
-
     def __init__(self, doc: Report, n_questions: int = 10, interpret: bool = True):
         placeholder_targets = {
             "[CLAIM]": doc.claim,
@@ -180,7 +169,6 @@ class PoseQuestionsPrompt(Prompt):
 class ProposeQueries(Prompt):
     """Used to generate queries to answer AVeriTeC questions."""
     template_file_path = "defame/prompts/propose_queries.md"
-    name = "ProposeQueries"
 
     def __init__(self, question: str, doc: Report):
         placeholder_targets = {
@@ -200,7 +188,6 @@ class ProposeQueries(Prompt):
 class ProposeQuerySimple(Prompt):
     """Used to generate queries to answer AVeriTeC questions."""
     template_file_path = "defame/prompts/propose_query_simple.md"
-    name = "ProposeQuerySimple"
 
     def __init__(self, question: str):
         placeholder_targets = {
@@ -219,7 +206,6 @@ class ProposeQuerySimple(Prompt):
 class ProposeQueriesNoQuestions(Prompt):
     """Used to generate queries to answer AVeriTeC questions."""
     template_file_path = "defame/prompts/propose_queries_no_questions.md"
-    name = "ProposeQueriesNoQuestions"
 
     def __init__(self, doc: Report):
         placeholder_targets = {
@@ -238,9 +224,8 @@ class ProposeQueriesNoQuestions(Prompt):
 class AnswerCollectively(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
     template_file_path = "defame/prompts/answer_question_collectively.md"
-    name = "AnswerCollectively"
 
-    def __init__(self, question: str, results: list[WebSource], doc: Report):
+    def __init__(self, question: str, results: list[Source], doc: Report):
         result_strings = [f"## Result `{i}`\n{str(result)}" for i, result in enumerate(results)]
         results_str = "\n\n".join(result_strings)
 
@@ -276,9 +261,8 @@ class AnswerCollectively(Prompt):
 class AnswerQuestion(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
     template_file_path = "defame/prompts/answer_question.md"
-    name = "AnswerQuestion"
 
-    def __init__(self, question: str, result: WebSource, doc: Report):
+    def __init__(self, question: str, result: Source, doc: Report):
         placeholder_targets = {
             "[DOC]": doc,
             "[QUESTION]": question,
@@ -305,7 +289,6 @@ class AnswerQuestion(Prompt):
 class AnswerQuestionNoEvidence(Prompt):
     """Used to generate answers to the AVeriTeC questions."""
     template_file_path = "defame/prompts/answer_question_no_evidence.md"
-    name = "AnswerQuestionNoEvidence"
 
     def __init__(self, question: str, doc: Report):
         placeholder_targets = {
@@ -317,7 +300,6 @@ class AnswerQuestionNoEvidence(Prompt):
 
 class DevelopPrompt(Prompt):
     template_file_path = "defame/prompts/develop.md"
-    name = "DevelopPrompt"
 
     def __init__(self, doc: Report):
         placeholder_targets = {"[DOC]": doc}
@@ -326,7 +308,6 @@ class DevelopPrompt(Prompt):
 
 class InterpretPrompt(Prompt):
     template_file_path = "defame/prompts/interpret.md"
-    name = "InterpretPrompt"
 
     def __init__(self, content: Content, guidelines: str = None):
         placeholder_targets = {
@@ -349,7 +330,6 @@ class InterpretPrompt(Prompt):
 
 class DecomposePrompt(Prompt):
     template_file_path = "defame/prompts/decompose.md"
-    name = "DecomposePrompt"
 
     def __init__(self, content: Content):
         self.content = content
@@ -367,7 +347,6 @@ class DecomposePrompt(Prompt):
 
 class JudgeNaively(Prompt):
     template_file_path = "defame/prompts/judge_naive.md"
-    name = "JudgeNaively"
 
     def __init__(self, claim: Claim,
                  classes: Collection[Label],
@@ -390,12 +369,10 @@ class JudgeNaively(Prompt):
 
 class JudgeMinimal(JudgeNaively):
     template_file_path = "defame/prompts/judge_minimal.md"
-    name = "JudgeMinimal"
 
 
 class InitializePrompt(Prompt):
     template_file_path = "defame/prompts/initialize.md"
-    name = "InitializePrompt"
 
     def __init__(self, claim: Claim):
         placeholder_targets = {
@@ -404,7 +381,7 @@ class InitializePrompt(Prompt):
         super().__init__(placeholder_targets=placeholder_targets)
 
 
-def load_exemplars(valid_actions: list[type[Action]]) -> str:
+def load_exemplars(valid_actions: Collection[type[Action]]) -> str:
     exemplars_dir = Path("defame/prompts/plan_exemplars")
     exemplar_paths = []
     for a in valid_actions:
@@ -421,30 +398,28 @@ def load_exemplars(valid_actions: list[type[Action]]) -> str:
 def parse_single_action(raw_action: str) -> Optional[Action]:
     from defame.evidence_retrieval.tools import ACTION_REGISTRY
 
+    raw_action = raw_action.strip(" \"")
+
     if not raw_action:
         return None
-    elif raw_action[0] == '"':
-        raw_action = raw_action[1:]
 
     try:
-        match = re.match(r'(\w+)\((.*)\)', raw_action)
-        if match:
-            action_name, arguments = match.groups()
-            arguments = arguments.strip()
-        else:
-            match = re.search(r'"(.*?)"', raw_action)
-            arguments = f'"{match.group(1)}"' if match else f'"{raw_action}"'
-            first_part = raw_action.split(' ')[0]
-            action_name = re.sub(r'[^a-zA-Z0-9_]', '', first_part)
+        out = parse_function_call(raw_action)
+
+        if out is None:
+            raise ValueError(f'Invalid action: {raw_action}\nExpected format: action_name(<arg1>, <arg2>, ...)')
+
+        action_name, args, kwargs = out
 
         for action in ACTION_REGISTRY:
             if action_name == action.name:
-                return action(arguments)
+                return action(*args, **kwargs)
 
         raise ValueError(f'Invalid action: {raw_action}\nExpected format: action_name(<arg1>, <arg2>, ...)')
 
     except Exception as e:
         logger.warning(f"Failed to parse '{raw_action}':\n{e}")
+        logger.warning(traceback.format_exc())
 
     return None
 
@@ -452,7 +427,9 @@ def parse_single_action(raw_action: str) -> Optional[Action]:
 def extract_actions(answer: str, limit=5) -> list[Action]:
     from defame.evidence_retrieval.tools import ACTION_REGISTRY
 
-    actions_str = extract_last_code_block(answer).replace("markdown", "")
+    actions_str = extract_last_python_code_block(answer)
+
+    # Handle cases where the LLM forgot to enclose actions in code block
     if not actions_str:
         candidates = []
         for action in ACTION_REGISTRY:
@@ -462,6 +439,8 @@ def extract_actions(answer: str, limit=5) -> list[Action]:
     if not actions_str:
         # Potentially prompt LLM to correct format: Expected format: action_name("arguments")
         return []
+
+    # Parse actions
     raw_actions = actions_str.split('\n')
     actions = []
     for raw_action in raw_actions:
@@ -470,6 +449,7 @@ def extract_actions(answer: str, limit=5) -> list[Action]:
             actions.append(action)
         if len(actions) == limit:
             break
+
     return actions
 
 
@@ -498,12 +478,12 @@ def extract_verdict(response: str, classes: Collection[Label]) -> Optional[Label
 
 
 def extract_queries(response: str) -> list:
-    from defame.evidence_retrieval.tools import WebSearch
+    from defame.evidence_retrieval.tools import Search
     matches = find_code_span(response)
     queries = []
     for match in matches:
         query = strip_string(match)
-        action = WebSearch(f'"{query}"')
+        action = Search(f'"{query}"')
         queries.append(action)
     return queries
 

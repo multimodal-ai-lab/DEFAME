@@ -11,7 +11,7 @@ from atproto_client.models.common import XrpcError
 from config.globals import api_keys
 from defame.common import Image, logger
 from defame.evidence_retrieval.integrations.social_media import SocialMediaPost, SocialMediaProfile
-from defame.evidence_retrieval.scraping.util import is_image_url
+from defame.utils.parsing import is_image_url
 from defame.evidence_retrieval.integrations.integration import RetrievalIntegration
 
 

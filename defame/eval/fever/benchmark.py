@@ -5,7 +5,7 @@ import orjsonl
 from config.globals import data_root_dir
 from defame.common import Label, Claim
 from defame.eval.benchmark import Benchmark
-from defame.evidence_retrieval.tools import WikiDumpLookup
+from defame.evidence_retrieval.tools import Search
 
 
 class FEVER(Benchmark):
@@ -70,7 +70,7 @@ class FEVER(Benchmark):
     artificially by using Wikipedia. The Claim could be misleading, just like a trick question. It may
     also require a chain of multiple investigation steps, re-using previously retrieved knowledge."""
 
-    available_actions = [WikiDumpLookup]
+    available_actions = [Search]
 
     def __init__(self, version=1, variant="dev"):
         self.name = f"FEVER V{version}"
