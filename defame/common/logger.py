@@ -369,7 +369,7 @@ def _make_file_handler(path: Path) -> logging.FileHandler:
 
 
 def compose_message(*args) -> str:
-    msg = " ".join(args)
+    msg = " ".join([str(a) for a in args])
     return msg.encode("utf-8", "ignore").decode("utf-8")  # remove invalid chars
 
 

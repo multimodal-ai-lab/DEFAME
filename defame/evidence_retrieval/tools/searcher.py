@@ -1,6 +1,5 @@
-import inspect
 import re
-from datetime import date
+from datetime import datetime, timedelta, date
 from typing import Any, Optional
 
 from jinja2.exceptions import TemplateSyntaxError
@@ -57,7 +56,12 @@ class Search(Action):
         """
         self._save_parameters(locals())
 
-        self.platform = PLATFORMS[platform]
+        try:
+            self.platform = PLATFORMS[platform]
+        except KeyError:
+            logger.warning(f"Platform {platform} is not available. Defaulting to Google.")
+            self.platform = PLATFORMS["google"]
+
         image = Image(reference=image) if image else None
 
         try:
@@ -105,7 +109,7 @@ class Searcher(Tool):
         self.limit_per_search = limit_per_search
         self.max_result_len = max_result_len  # chars
         self.extract_sentences = extract_sentences
-        self.restrict_results_until_date = None  # date restriction for all search actions
+        self.restrict_results_before_time: Optional[datetime] = None  # date restriction for all search actions
 
         self.platforms = self._initialize_platforms(search_config)
         self.known_sources: set[Source] = set()
@@ -152,11 +156,12 @@ class Searcher(Tool):
         query = action.query
 
         # Set the strictest specified end date
-        if self.restrict_results_until_date is not None:
+        if self.restrict_results_before_time is not None:
+            max_date = self.restrict_results_before_time.date() - timedelta(days=1)
             if query.end_date is not None:
-                query.end_date = min(query.end_date, self.restrict_results_until_date)
+                query.end_date = min(query.end_date, max_date)
             else:
-                query.end_date = self.restrict_results_until_date
+                query.end_date = max_date
 
         # Set the strictest search limit
         if self.limit_per_search is not None:
@@ -168,7 +173,9 @@ class Searcher(Tool):
         # Ensure the given platform is available
         platform = self.get_platform(action.platform.name)
         if not platform:
-            raise ValueError(f"Platform {action.platform.name} is not initialized/allowed.")
+            platform = self.platforms[0]
+            logger.warning(f"Platform {action.platform.name} is not initialized/allowed. "
+                           f"Defaulting to {platform.name}.")
 
         # Run the query
         return self._search(platform, query)
@@ -189,7 +196,7 @@ class Searcher(Tool):
         # Log search results
         if len(sources) > 0:
             logger.log(f"Got {len(sources)} new source(s):")
-            logger.log("\n".join([str(s) for s in sources]))
+            logger.log("\n".join([s.reference for s in sources]))
         else:
             logger.log("No new sources found.")
 
@@ -278,7 +285,7 @@ class Searcher(Tool):
         source.takeaways = MultimediaSnippet(summary)
 
         if source.is_relevant():
-            logger.log("Useful result: " + gray(str(source)))
+            logger.log("Useful source: " + gray(str(source)))
 
     def _summarize_summaries(self, result: SearchResults, doc: Report) -> Optional[MultimediaSnippet]:
         """Generates a summary, aggregating all relevant information from the
@@ -317,8 +324,8 @@ class Searcher(Tool):
             if platform.name == name:
                 return platform
 
-    def set_date_restriction(self, until: date):
-        self.restrict_results_until_date = until
+    def set_time_restriction(self, before: Optional[datetime]):
+        self.restrict_results_before_time = before
 
     def set_claim_id(self, claim_id: str):
         super().set_claim_id(claim_id)

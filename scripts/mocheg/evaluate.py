@@ -9,7 +9,8 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
                     google=dict(),
                 ),
                 limit_per_search=3
-            )
+            ),
+            geolocator=dict()
         ),
         fact_checker_kwargs=dict(
             procedure_variant="summary/dynamic",
@@ -23,10 +24,9 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         llm_kwargs=dict(temperature=0.01),
         benchmark_name="mocheg",
         benchmark_kwargs=dict(variant="val"),
-        n_samples=1,
+        # n_samples=200,
         sample_ids=None,
         print_log_level="log",
-        random_sampling=True,
-        # Set to True in MOCHEG as samples are ordered in the benchmark csv file according to their label.
-        n_workers=1,
+        random_sampling=True, # Keep True as MOCHEG samples in the CSV are ordered by label
+        n_workers=8,
     )

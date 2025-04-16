@@ -2,6 +2,7 @@ import multiprocessing
 import sys
 import time
 from typing import Sequence, Any
+from datetime import datetime
 
 import numpy as np
 
@@ -150,9 +151,11 @@ class FactChecker:
 
         stats = {}
         self.actor.reset()  # remove all past search evidences
-        self.actor.set_current_claim_id(claim.id)  # TODO: Test on AVeriTeC
+        self.actor.set_current_claim_id(claim.id)
         if self.restrict_results_to_claim_date:
-            self.actor.set_search_date_restriction(claim.date)
+            # Set the restriction to midnight of the claim date
+            restriction_time = datetime.combine(claim.date, datetime.min.time()) if claim.date else None
+            self.actor.set_search_date_restriction(restriction_time)
         if not self.llm:
             worker_name = multiprocessing.current_process().name
             logger.critical(f"No LLM was loaded. Stopping execution for {worker_name}.")

@@ -126,8 +126,6 @@ def find(text: str, delimiter: str):
     return matches
 
 
-
-
 def extract_last_paragraph(text: str) -> str:
     return strip_string(text.split("\n")[-1])
 
@@ -248,7 +246,7 @@ def md(soup, **kwargs):
 def get_markdown_hyperlinks(text: str) -> list[tuple[str, str]]:
     """Extracts all web hyperlinks from the given markdown-formatted string. Returns
     a list of hypertext-URL-pairs."""
-    hyperlink_regex = f'(?:\[([^]^[]*)\]\(({URL_REGEX})\))'
+    hyperlink_regex = rf"(?:\[([^]^[]*)\]\(({URL_REGEX})\))"
     pattern = re.compile(hyperlink_regex, re.DOTALL)
     hyperlinks = re.findall(pattern, text)
     return hyperlinks
@@ -294,7 +292,7 @@ def parse_function_call(code: str) -> Tuple[str, list[Any], dict[str, Any]] | No
             # Positional arguments
             for arg in node.args:
                 if isinstance(arg, ast.Constant):  # Handle constants like numbers, strings
-                    args.append(("positional", arg.value))
+                    args.append(arg.value)
 
             # Keyword arguments
             for kw in node.keywords:
