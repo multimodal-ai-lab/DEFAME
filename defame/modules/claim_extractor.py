@@ -39,8 +39,8 @@ class ClaimExtractor:
         if self.do_decomposition:
             logger.log("Decomposing...", send=True)
             claims = self.decompose(content)
-            for statement in claims:
-                logger.log(light_blue(f"'{statement}'"))
+            # for statement in claims:
+            #     logger.log(light_blue(f"'{statement}'"))
         else:
             claims = [Claim(data=content.data, context=content)]
 

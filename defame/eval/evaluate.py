@@ -110,7 +110,7 @@ def evaluate(
         benchmark.shuffle()
 
     if n_samples:
-        assert 0 < n_samples <= len(benchmark)
+        assert 0 < n_samples <= len(benchmark), f"{n_samples} specified but only {len(benchmark)} samples available."
         samples = benchmark[:n_samples]
     elif sample_ids:
         samples = [benchmark.get_by_id(str(i)) for i in sample_ids]

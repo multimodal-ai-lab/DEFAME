@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 from typing import Optional
 
@@ -31,6 +31,14 @@ class Query:
 
     def has_image(self) -> bool:
         return self.image is not None
+
+    @property
+    def start_time(self) -> datetime:
+        return datetime.combine(self.start_date, datetime.min.time()) if self.start_date else None
+
+    @property
+    def end_time(self) -> datetime:
+        return datetime.combine(self.end_date, datetime.max.time()) if self.end_date else None
 
     def __eq__(self, other):
         return isinstance(other, Query) and (

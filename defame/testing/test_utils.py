@@ -1,5 +1,6 @@
 import pytest
 from defame.utils.parsing import is_image_url
+from defame.utils.requests import download_image
 
 
 @pytest.mark.parametrize("url,expected", [
@@ -13,6 +14,14 @@ from defame.utils.parsing import is_image_url
     ("https://pixum-cms.imgix.net/7wL8j3wldZEONCSZB9Up6B/d033b7b6280687ce2e4dfe2d4147ff93/fab_mix_kv_perspektive_foto_liegend_desktop__3_.png?auto=compress,format&trim=false&w=2000", True),
     ("https://cdn.pixabay.com/photo/2017/11/08/22/28/camera-2931883_1280.jpg", True),  # image is presented as a binary download stream
     ("https://arxiv.org/pdf/2412.10510", False),  # this is a PDF download stream
+    ("https://platform.vox.com/wp-content/uploads/sites/2/2025/04/jack-black-wink-minecraft.avif?quality=90&strip=all&crop=12.5%2C0%2C75%2C100&w=2400", True)
 ])
 def test_is_image_url(url, expected):
     assert is_image_url(url) == expected
+
+
+@pytest.mark.parametrize("url", [
+    "https://platform.vox.com/wp-content/uploads/sites/2/2025/04/jack-black-wink-minecraft.avif?quality=90&strip=all&crop=12.5%2C0%2C75%2C100&w=2400"  # AVIF file
+])
+def test_download_image(url):
+    download_image(url)

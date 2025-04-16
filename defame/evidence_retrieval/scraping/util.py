@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from config.globals import temp_dir
 from defame.common import MultimediaSnippet, logger, Image
 from defame.utils.parsing import md, get_markdown_hyperlinks, is_image_url
+from defame.utils.requests import download_image
 
 MAX_MEDIA_PER_PAGE = 32  # Any media URLs in a webpage exceeding this limit will be ignored.
 
@@ -76,37 +77,32 @@ def resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
     for hypertext, url in hyperlinks:
         if is_image_url(url):
             try:
-                # TODO: Handle very large images like: https://eoimages.gsfc.nasa.gov/images/imagerecords/144000/144225/campfire_oli_2018312_lrg.jpg
-                # Download the image
-                response = requests.get(url, stream=True, timeout=10)
-                if response.status_code == 200:
-                    img = PillowImage.open(io.BytesIO(response.content))
-                    image = Image(pillow_image=img)  # TODO: Check for duplicates
-                    # Replace the Markdown hyperlink
-                    text = re.sub(rf"!?\[{hypertext}]\({url}\)", f"{hypertext} {image.reference}", text)
+                image = download_image(url)
+                if image:
+                    # Replace the Markdown hyperlink with the image reference
+                    text = re.sub(rf"!?\[{re.escape(hypertext)}]\({re.escape(url)}\)",
+                                  f"{hypertext} {image.reference}", text)
                     media_count += 1
                     if media_count >= MAX_MEDIA_PER_PAGE:
                         break
                     else:
                         continue
 
-            except (
-                    requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError,
+            except (requests.exceptions.ConnectTimeout,
+                    requests.exceptions.ConnectionError,
                     requests.exceptions.ReadTimeout,
                     requests.exceptions.TooManyRedirects):
                 # Webserver is not reachable (anymore)
                 pass
 
             except UnidentifiedImageError as e:
-                print(f"Unable to download image from {url}.")
-                print(e)
+                logger.warning(f"Unable to download image from {url}.")
+                logger.warning(e)
                 # Image has an incompatible format. Skip it.
-                pass
 
             except Exception as e:
-                print(f"Unable to download image from {url}.")
-                print(e)
-                pass
+                logger.warning(f"Unable to download image from {url}.")
+                logger.warning(e)
 
             finally:
                 # Remove the hyperlink, just keep the hypertext

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime
 from typing import Optional
 
 from defame.common import Action, Report, Evidence
@@ -46,7 +46,7 @@ class Actor:
             if isinstance(tool, Searcher):
                 return tool
 
-    def set_search_date_restriction(self, until: date):
+    def set_search_date_restriction(self, before: Optional[datetime]):
         searcher = self._get_searcher()
         if searcher is not None:
-            searcher.set_date_restriction(until)
+            searcher.set_time_restriction(before)
