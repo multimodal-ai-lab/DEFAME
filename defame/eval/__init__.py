@@ -5,7 +5,7 @@ from .verite.benchmark import VERITE
 from .newsclippings.benchmark import NewsCLIPpings
 from .dgm4.benchmark import DGM4
 from .mocheg.benchmark import MOCHEG
-from .claimreview2024.benchmark import ClaimReview2024
+from .claimreview.benchmark import ClaimReview2024
 
 BENCHMARK_REGISTRY = {
     AVeriTeC,

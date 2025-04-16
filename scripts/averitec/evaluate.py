@@ -5,7 +5,7 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
     evaluate(
         llm="gpt_4o",
         tools_config=dict(searcher=dict(
-            search_engine_config=dict(
+            search_config=dict(
                 averitec_kb=dict(variant=variant),
                 # google=dict(),
             ),
@@ -23,7 +23,7 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         llm_kwargs=dict(temperature=0.01),
         benchmark_name="averitec",
         benchmark_kwargs=dict(variant=variant),
-        allowed_actions=["web_search"],
+        allowed_actions=["search"],
         n_samples=None,
         sample_ids=None, # list of integers
         random_sampling=False,

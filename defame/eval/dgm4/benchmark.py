@@ -6,7 +6,7 @@ from config.globals import data_root_dir
 from defame.common import Label, Claim
 from defame.common.medium import Image
 from defame.eval.benchmark import Benchmark
-from defame.evidence_retrieval.tools import WebSearch, ImageSearch, ReverseSearch
+from defame.evidence_retrieval.tools import Search
 from defame.evidence_retrieval.tools.manipulation_detector import DetectManipulation
 
 
@@ -47,7 +47,7 @@ class DGM4(Benchmark):
     * **Text Manipulations**: For text-based manipulations, focus on semantic changes or sentiment shifts. If these changes distort the original meaning, the verdict should be REFUTED.
     """
 
-    available_actions = [WebSearch, ImageSearch, ReverseSearch, DetectManipulation]
+    available_actions = [Search, DetectManipulation]
 
     def __init__(self, variant="train"):
         super().__init__(variant, f"DGM4/metadata/{variant}.json")

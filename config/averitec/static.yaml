@@ -20,7 +20,7 @@ allowed_actions:
 tools_config:
   searcher:
     limit_per_search: 3
-    search_engine_config:
+    search_config:
       averitec_kb:
         variant: dev
 n_workers:

@@ -6,14 +6,14 @@ from defame.evidence_retrieval.tools.tool import Tool
 
 
 class CredibilityCheck(Action):
+    """Evaluates the credibility of a given source."""
     name = "check_credibility"
-    description = "Evaluates the credibility of a given source."
-    how_to = "Provide a source URL or name and the model will assess its credibility."
-    format = 'check_credibility("url")'
-    is_multimodal = False
-    is_limited = False
 
     def __init__(self, source: str):
+        """
+        @param source: The URL or name of the source to determine the credibility of.
+        """
+        self._save_parameters(locals())
         self.source = source
 
     def __str__(self):

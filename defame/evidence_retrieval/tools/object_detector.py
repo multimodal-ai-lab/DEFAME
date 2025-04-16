@@ -10,15 +10,16 @@ from defame.evidence_retrieval.tools.tool import Tool
 
 
 class DetectObjects(Action):
+    """Identifies objects within an image."""
     name = "detect_objects"
-    description = "Identifies objects within an image."
-    how_to = "Provide an image and the model will recognize objects in it."
-    format = "detect_objects(<image:n>), where `n` is the image's ID"
-    is_multimodal = True
-    is_limited = True
+    requires_image = True
 
-    def __init__(self, image_ref: str):
-        self.image: Image = MultimediaSnippet(image_ref).images[0]
+    def __init__(self, image: str):
+        """
+        @param image: The reference of the image to analyze.
+        """
+        self._save_parameters(locals())
+        self.image = Image(reference=image)
 
     def __str__(self):
         return f'{self.name}({self.image.reference})'

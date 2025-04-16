@@ -1,7 +1,7 @@
 from typing import Any
 
 from defame.common import Report, Label, logger
-from defame.evidence_retrieval.tools import WebSearch
+from defame.evidence_retrieval.tools import Search
 from defame.procedure.procedure import Procedure
 from defame.prompts.prompts import ProposeQueriesNoQuestions
 
@@ -13,7 +13,7 @@ class NoQA(Procedure):
         queries = self.generate_search_queries(doc)
 
         # Stage 3*: Evidence retrieval (modified)
-        results = self.retrieve_resources(queries, summarize=True, doc=doc)
+        results = self.retrieve_sources(queries, summarize=True, doc=doc)
         doc.add_reasoning("## Web Search")
         for result in results[:10]:
             if result.is_relevant():
@@ -25,7 +25,7 @@ class NoQA(Procedure):
 
         return label, {}
 
-    def generate_search_queries(self, doc: Report) -> list[WebSearch]:
+    def generate_search_queries(self, doc: Report) -> list[Search]:
         prompt = ProposeQueriesNoQuestions(doc)
 
         n_attempts = 0

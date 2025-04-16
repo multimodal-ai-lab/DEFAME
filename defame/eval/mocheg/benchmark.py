@@ -3,7 +3,7 @@ import pandas as pd
 from config.globals import data_root_dir
 from defame.common import Label, Claim
 from defame.eval.benchmark import Benchmark
-from defame.evidence_retrieval.tools import WebSearch, ImageSearch, ReverseSearch, Geolocate
+from defame.evidence_retrieval.tools import Search, Geolocate
 
 
 class MOCHEG(Benchmark):
@@ -29,7 +29,7 @@ class MOCHEG(Benchmark):
     for the Claim does NOT prove that the Claim is refuted. Instead, the Claim is simply unsupported--which is a case of 
     'not enough information'."""
 
-    available_actions = [WebSearch, ImageSearch, ReverseSearch, Geolocate]
+    available_actions = [Search, Geolocate]
 
     def __init__(self, variant="val"):
         super().__init__(variant, f"MOCHEG/{variant}/Corpus2.csv")

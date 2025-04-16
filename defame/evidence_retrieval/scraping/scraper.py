@@ -8,11 +8,13 @@ import requests
 from config.globals import firecrawl_url
 from defame.common import MultimediaSnippet, logger, Image
 from defame.evidence_retrieval.integrations import RETRIEVAL_INTEGRATIONS
+from defame.evidence_retrieval.integrations.search import WebSource
 from defame.evidence_retrieval.scraping.excluded import (is_unsupported_site, is_relevant_content,
                                                          is_fact_checking_site)
 from defame.evidence_retrieval.scraping.util import scrape_naive, find_firecrawl, firecrawl_is_running, log_error_url, \
-    resolve_media_hyperlinks, download, is_image_url
-from defame.utils.parsing import get_domain
+    resolve_media_hyperlinks
+from defame.utils.parsing import get_domain, is_image_url
+from defame.utils.requests import download
 
 FIRECRAWL_URLS = [
     firecrawl_url,
@@ -44,6 +46,18 @@ class Scraper:
         self.firecrawl_url = find_firecrawl(FIRECRAWL_URLS)
         if self.firecrawl_url:
             logger.log(f"✅ Detected Firecrawl running at {self.firecrawl_url}.")
+
+    def scrape_sources(self, sources: list[WebSource]) -> None:
+        """Retrieves the contents for the given web sources and saves them
+        into the respective web source object."""
+        # Only keep sources that weren't scraped yet
+        sources = [s for s in sources if not s.is_loaded()]
+
+        if sources:
+            urls = [s.url for s in sources]
+            scrape_results = self.scrape_multiple(urls)
+            for source, scraped in zip(sources, scrape_results):
+                source.content = scraped
 
     def scrape_multiple(self, urls: list[str]) -> list[MultimediaSnippet | None]:
         """Scrapes each URL concurrently. Synchronous wrapper for _scrape_multiple()."""

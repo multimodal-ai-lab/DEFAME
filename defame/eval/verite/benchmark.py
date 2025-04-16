@@ -6,7 +6,7 @@ from config.globals import data_root_dir
 from defame.common import Label, Claim
 from defame.common.medium import Image
 from defame.eval.benchmark import Benchmark
-from defame.evidence_retrieval.tools import Geolocate, WebSearch, ImageSearch, ReverseSearch
+from defame.evidence_retrieval.tools import Geolocate, Search
 
 
 class VERITE(Benchmark):
@@ -41,7 +41,7 @@ class VERITE(Benchmark):
     Judge if there is any alignment issue between image and text. Does the image deliver any support for the claim or is it taken out of context?
     If the claim text is actually true but the image shows a different event, then the verdict is out-of-context."""
 
-    available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
+    available_actions = [Search, Geolocate]
 
     def __init__(self, variant="dev"):
         super().__init__(variant, "VERITE/VERITE.csv")

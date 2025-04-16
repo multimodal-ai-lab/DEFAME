@@ -14,14 +14,14 @@ class SearchMode(Enum):
     REVERSE = "reverse"  # Reverse Image Search (RIS)
 
 
-@dataclass(frozen=True)
+@dataclass
 class Query:
     text: Optional[str] = None
     image: Optional[Image] = None
+    search_mode: Optional[SearchMode] = None
     limit: Optional[int] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
-    search_mode: Optional[SearchMode] = None
 
     def __post_init__(self):
         assert self.text or self.image, "Query must have at least one of 'text' or 'image'."

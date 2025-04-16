@@ -10,19 +10,19 @@ from defame.evidence_retrieval.tools.tool import Tool
 
 
 class Geolocate(Action):
+    """Performs geolocation to determine the country where an image was taken."""
     name = "geolocate"
-    description = "Performs geolocation to determine the country where an image was taken."
-    how_to = f"Provide an image and the model will determine the most likely countries where it was taken."
-    format = "geolocate(<image:k>), where `k` is the image's ID"
-    is_multimodal = True
-    is_limited = True
+    requires_image = True
 
-    def __init__(self, image_ref: str, top_k: int = 10):
-        self.image: Image = MultimediaSnippet(image_ref).images[0]
+    def __init__(self, image: str, top_k: int = 5):
+        """
+        @param image: The reference of the image to be geolocated.
+        @param top_k: Number of candidates to include in the list of
+            most likely countries.
+        """
+        self._save_parameters(locals())
+        self.image = Image(reference=image)
         self.top_k = top_k
-
-    def __str__(self):
-        return f'{self.name}({self.image.reference})'
 
     def __eq__(self, other):
         return isinstance(other, Geolocate) and self.image == other.image

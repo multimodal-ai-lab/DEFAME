@@ -22,7 +22,21 @@ class Medium(ABC):
     path_to_file: Path
     data_type: str
 
-    def __init__(self, path_to_file: str | Path):
+    def __new__(cls, *args, reference: str = None, **kwargs):
+        if reference:
+            # Catch cases where the reference consists of only the ID
+            if str(reference).isdigit():
+                reference = f"<{cls.data_type}:{reference}>"
+
+            # Look up an existing instance instead of creating a new one
+            medium = media_registry.get(reference)
+            if not medium:
+                raise ValueError(f"No medium with reference {reference}.")
+            return medium
+        else:
+            return super().__new__(cls)
+
+    def __init__(self, path_to_file: str | Path, **kwargs):
         self.path_to_file = Path(path_to_file)
         self.id: int = media_registry.add(self)  # automatically add any (unknown) media
 
@@ -47,35 +61,33 @@ class Image(Medium):
 
     def __init__(self, path_to_file: str | Path = None,
                  pillow_image: PillowImage = None,
-                 binary_data: bytes = None):
-        assert path_to_file is not None or pillow_image is not None or binary_data is not None
+                 binary_data: bytes = None,
+                 reference: str = None):
+        assert path_to_file or pillow_image or binary_data or reference
+
+        if reference:
+            # The image is already initialized (existing instance returned via __new__())
+            return
 
         if binary_data is not None:
             pillow_image = pillow_open(BytesIO(binary_data))
 
         if pillow_image is not None:
-            pillow_image = self._ensure_rgb_mode(pillow_image)
+            pillow_image = _ensure_rgb_mode(pillow_image)
             # Save the image in a temporary folder
             path_to_file = Path(temp_dir) / "media" / (datetime.now().strftime("%Y-%m-%d_%H-%M-%s-%f") + ".jpg")
             path_to_file.parent.mkdir(parents=True, exist_ok=True)
             pillow_image.save(path_to_file)
 
-        super().__init__(path_to_file)
+        super().__init__(path_to_file, reference=reference)
 
         if pillow_image is not None:
             self.image = pillow_image
         else:
             # Pillow opens images lazily, so actual image read only happens when accessing the image
             pillow_image = pillow_open(self.path_to_file)
-            pillow_image = self._ensure_rgb_mode(pillow_image)
+            pillow_image = _ensure_rgb_mode(pillow_image)
             self.image = pillow_image
-
-    def _ensure_rgb_mode(self, pillow_image: PillowImage) -> PillowImage:
-        """Turns any kind of image (incl. PNGs) into RGB mode which is JPEG-saveable."""
-        if pillow_image.mode != "RGB":
-            return pillow_image.convert('RGB')
-        else:
-            return pillow_image
 
     def ensure_loaded(self) -> None:
         if self.image is None:
@@ -154,8 +166,8 @@ class MultimediaSnippet:
         return (f"MultimediaSnippet(len={len(self.__str__())}, n_images={len(self.images)}, "
                 f"n_videos={len(self.videos)}, n_audios={len(self.audios)})")
 
-    def to_interleaved(self) -> list[str | Medium]:
-        """Returns a list of interleaved string and media objects representing
+    def to_list(self) -> list[str | Medium]:
+        """Returns a list of string and media objects representing
         this multimedia snippet. I.e., all the media references are replaced by
         the actual medium object."""
         split = re.split(MEDIA_REF_REGEX, self.data)
@@ -221,7 +233,7 @@ class MediaRegistry:
         if not self.contains(medium.data_type, medium.path_to_file):
             medium_id = self._insert_into_registry(medium.path_to_file, medium.data_type)
             self._add_to_cache(medium, medium_id)
-        else:  # Just return the reference
+        else:  # Just return the ID
             medium_id = self._get_id_by_path(medium.data_type, medium.path_to_file)
         return medium_id
 
@@ -369,3 +381,11 @@ def interleaved_to_string(interleaved: list[str | Medium]) -> str:
         else:
             substrings.append(item)
     return " ".join(substrings)
+
+
+def _ensure_rgb_mode(pillow_image: PillowImage) -> PillowImage:
+    """Turns any kind of image (incl. PNGs) into RGB mode which is JPEG-saveable."""
+    if pillow_image.mode != "RGB":
+        return pillow_image.convert('RGB')
+    else:
+        return pillow_image

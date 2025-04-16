@@ -47,6 +47,9 @@ class FactChecker:
                  extra_judge_rules: str = None,
                  device: str = None):
 
+        if tools_config is None:
+            tools_config = dict(searcher=None)
+
         if llm_kwargs is None:
             llm_kwargs = {}
 

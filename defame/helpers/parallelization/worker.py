@@ -1,4 +1,3 @@
-import signal
 import traceback
 from multiprocessing import Queue, Pipe, Process
 from queue import Empty

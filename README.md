@@ -155,23 +155,19 @@ To extend the fact-checker with an own `Tool`, follow these steps:
    
    If your tool requires calling external resources, integrate the external resource by implementing a respective module inside `defame/evidence_retrieval/integrations`.
 
-1. **Implement the Tool**
+1. **Implement the Tool and Action(s)**
 
-   Inside `defame/evidence_retrieval/tools`, create a new file and implement the tool, inheriting from the abstract `Tool` class. Make sure to implement all required methods. See there (and other tools) for details.
+   Inside `defame/evidence_retrieval/tools`, create a new file and implement the tool, inheriting from the abstract `Tool` class. Make sure to implement all required methods and add a respective `Action`. Caution: Action docstrings are used *1:1* as a description of the tool to inform the LLM planning module about the action's purpose and how the action is used. See other tools and actions for examples.
 
-2. **Add a Usage Example to the `defame/prompts/plan_exemplars` folder**
-   
-   This exemplar is for the LLM to understand the purpose and format of the tool. You may consider existing exemplars from other tools to understand what's expected here.
-
-3. **Register Your Tool in `defame/evidence_retrieval/tools/__init__.py`**
+2. **Register Your Tool in `defame/evidence_retrieval/tools/__init__.py`**
    
    Incorporate the new tool into the `TOOL_REGISTRY` list and its actions into the `ACTION_REGISTRY` set.
 
-4. **Configure the Tool in the execution script**
+3. **Add the tool configuration to the hyperparameters**
    
    Don't forget to specify the tool in the DEFAME hyperparameters or, alternatively, in your configuration (the YAML file that goes into `config/`).
 
-5. **Optional: Register the Tool in Benchmarks**
+4. **Optional: Register the Tool in Benchmarks**
    
    This step is required only if you want to use your tool for evaluation on one of the benchmarks. To this end, navigate to the respective benchmark file under `defame/eval/<benchmark_name>/benchmark.py`. There, in the `available_actions` list, add your `Tool`.
 

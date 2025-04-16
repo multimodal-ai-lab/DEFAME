@@ -12,15 +12,16 @@ from defame.prompts.prompts import SummarizeManipulationResultPrompt
 
 
 class DetectManipulation(Action):
+    """Detects manipulations of any kind within an image."""
     name = "detect_manipulation"
-    description = "Detects manipulations within an image."
-    how_to = "Provide an image and the model will analyze it for signs of manipulation."
-    format = "detect_manipulation(<image:k>), where `k` is the image's ID"
-    is_multimodal = True
-    is_limited = True
+    requires_image = True
 
-    def __init__(self, image_ref: str):
-        self.image: Image = MultimediaSnippet(image_ref).images[0]
+    def __init__(self, image: str):
+        """
+        @param image: The reference of the image to analyze.
+        """
+        self._save_parameters(locals())
+        self.image = Image(reference=image)
 
     def __str__(self):
         return f'{self.name}({self.image.reference})'

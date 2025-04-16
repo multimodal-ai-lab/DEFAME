@@ -1,16 +1,11 @@
 """Shared utility functions."""
 
 from collections.abc import Mapping, Sequence
-from io import BytesIO
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-import requests
 import yaml
-from PIL import Image as pillowImage
 from tqdm import tqdm
-
-from defame.common.medium import Image
 
 
 def my_hook(pbar: tqdm):
@@ -106,10 +101,3 @@ def deep_diff(a, b, keep: Sequence = None) -> Mapping | Sequence | None:
             return []
     else:
         return b if a != b else None  # Replace if different
-
-
-def download_image(image_url: str) -> Optional[Image]:
-    """Download an image from a URL and return it as an Image object."""
-    response = requests.get(image_url, timeout=7)
-    response.raise_for_status()
-    return Image(pillow_image=pillowImage.open(BytesIO(response.content)))

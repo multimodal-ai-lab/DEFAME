@@ -1,7 +1,7 @@
 import random
 from abc import ABC
 from pathlib import Path
-from typing import MutableSequence, Iterable, Sequence, Iterator
+from typing import MutableSequence, Iterable, Iterator
 
 from defame.common import logger, Label, Action
 from defame.utils.console import bold, green, red

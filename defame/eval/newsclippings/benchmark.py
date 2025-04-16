@@ -6,7 +6,7 @@ from config.globals import data_root_dir
 from defame.common import Label, Claim
 from defame.common.medium import Image
 from defame.eval.benchmark import Benchmark
-from defame.evidence_retrieval.tools import Geolocate, WebSearch, ImageSearch, ReverseSearch
+from defame.evidence_retrieval.tools import Geolocate, Search
 
 
 class NewsCLIPpings(Benchmark):
@@ -43,7 +43,7 @@ class NewsCLIPpings(Benchmark):
 
     base_path = data_root_dir / "NewsCLIPpings/news_clippings/visual_news/origin/"
 
-    available_actions = [WebSearch, Geolocate, ImageSearch, ReverseSearch]
+    available_actions = [Search, Geolocate]
 
     def __init__(self, variant="val", n_samples: int = None):
         self.n_samples = n_samples

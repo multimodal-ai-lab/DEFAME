@@ -1,7 +1,7 @@
 from typing import Any
 
 from defame.common import Report, Label
-from defame.evidence_retrieval.integrations.search_engines.common import WebSource
+from defame.evidence_retrieval.integrations.search.common import Source
 from defame.procedure.variants.qa_based.base import QABased
 from defame.prompts.prompts import AnswerCollectively
 
@@ -40,18 +40,18 @@ class AdvancedQA(QABased):
 
     def answer_question(self,
                         question: str,
-                        results: list[WebSource],
-                        doc: Report = None) -> (str, WebSource):
+                        sources: list[Source],
+                        doc: Report = None) -> (str, Source):
         """Generates an answer to the given question by considering batches of 5 search results at once."""
-        for i in range(0, len(results), 5):
-            results_batch = results[i:i + 5]
-            prompt = AnswerCollectively(question, results_batch, doc)
+        for i in range(0, len(sources), 5):
+            sources_batch = sources[i:i + 5]
+            prompt = AnswerCollectively(question, sources_batch, doc)
             out = self.llm.generate(prompt, max_attempts=3)
             if out is not None:
                 if out["answered"]:
                     answer = out["answer"]
                     result_id = out["result_id"]
-                    result = results_batch[result_id]
+                    result = sources_batch[result_id]
                     return answer, result
 
         # No search result helpful to answer the question

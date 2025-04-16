@@ -94,7 +94,7 @@ def evaluate(
     # Save hyperparams based on the signature of evaluate()
     if not is_resumed:
         signature = inspect.signature(evaluate)
-        logger.save_config(signature, locals(), benchmark)
+        logger.save_config(signature, locals())
 
     if allowed_actions is None:
         allowed_actions = benchmark.available_actions

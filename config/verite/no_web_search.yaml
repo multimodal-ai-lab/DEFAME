@@ -22,9 +22,8 @@ allowed_actions:
 tools_config:
   searcher:
     limit_per_search: 3
-    search_engine_config:
+    search_config:
       google:
-      google_vision:
   geolocator:
 n_workers: 8
 print_log_level: info

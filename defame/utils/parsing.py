@@ -1,8 +1,13 @@
+import ast
+import imghdr
+import io
 import re
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional, Any, Tuple
 from urllib.parse import urlparse
 
+import requests
+from PIL import Image
 from markdownify import MarkdownConverter
 
 from defame.utils.console import orange
@@ -72,7 +77,19 @@ def extract_last_code_block(text: str) -> str:
     """Extracts the contents of the last Markdown code block (enclosed with ``` ```)
      appearing in the given string. If no code block is found, returns ''."""
     matches = find_code_blocks(text)
-    return strip_string(matches[-1]) if matches else ''
+    extracted = strip_string(matches[-1]) if matches else ''
+    if extracted.startswith("markdown"):
+        extracted = strip_string(extracted[8:])
+    return extracted
+
+
+def extract_last_python_code_block(text: str) -> str:
+    """Extracts the contents of the last Python code block (enclosed with ```python ```)"""
+    matches = find_code_blocks(text)
+    extracted = strip_string(matches[-1]) if matches else ''
+    if extracted.startswith("python"):
+        extracted = strip_string(extracted[6:])
+    return extracted
 
 
 def extract_last_code_span(text: str) -> str:
@@ -261,3 +278,101 @@ def get_base_domain(url) -> str:
         netloc = netloc.split('.', 1)[1]  # Remove the first part (e.g., 'www.', 'm.')
 
     return netloc
+
+
+def parse_function_call(code: str) -> Tuple[str, list[Any], dict[str, Any]] | None:
+    """Turns a string containing a Python function call into the function's name, a
+    list of the positional arguments, and a dict containing the keyword arguments."""
+    tree = ast.parse(code)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):  # Look for function calls
+            func_name = node.func.id if isinstance(node.func, ast.Name) else None
+            args = []
+            kwargs = {}
+
+            # Positional arguments
+            for arg in node.args:
+                if isinstance(arg, ast.Constant):  # Handle constants like numbers, strings
+                    args.append(("positional", arg.value))
+
+            # Keyword arguments
+            for kw in node.keywords:
+                key = kw.arg
+                value = kw.value
+                if isinstance(value, ast.Constant):
+                    kwargs[key] = value.value
+
+            return func_name, args, kwargs
+
+
+def is_image_url(url: str) -> bool:
+    """Returns True iff the URL points at an accessible _pixel_ image file."""
+    try:
+        response = requests.head(url, timeout=2, allow_redirects=True)
+        content_type = response.headers.get('content-type')
+        if content_type.startswith("image/"):
+            return (not "svg" in response.headers.get('content-type') and
+                    not "svg" in content_type and
+                    not "eps" in content_type)
+        elif content_type == "binary/octet-stream":
+            # The content is a binary download stream. We need to download it
+            # to determine the file type.
+            from defame.utils.requests import download
+            binary_data = download(url)
+            return is_image(binary_data)
+        else:
+            return False
+
+    except Exception:
+        return False
+
+
+def is_image(binary_data: bytes) -> bool:
+    """Determines if the given binary data represents an image."""
+    # Check using imghdr module (looks at magic numbers)
+    if imghdr.what(None, h=binary_data):
+        return True
+
+    # Attempt to open with PIL (Pillow)
+    try:
+        image = Image.open(io.BytesIO(binary_data))
+        image.verify()  # Ensures it's a valid image file
+        return True
+    except (IOError, SyntaxError):
+        return False
+
+
+def is_media_url(url: str) -> bool:
+    """TODO: Also check for videos and audios."""
+    return is_image_url(url)
+
+
+def replace_media_refs(text: str, media: list) -> str:
+    """Replaces all media references (except those within code blocks) with
+    actual file paths for human-readability."""
+
+    # Detect inline and block codes
+    inline_code = list(re.finditer(r'`[^`]*`', text))
+    block_code = list(re.finditer(r'```[\s\S]*?```', text))
+    code_spans = [(m.start(), m.end()) for m in inline_code + block_code]
+
+    # Check if a position is inside any of the code spans
+    def is_in_code(pos):
+        return any(start <= pos < end for start, end in code_spans)
+
+    # Find all media references and replace those outside code
+    for medium in media:
+        matches = [
+            m for m in re.finditer(medium.reference, text)
+            if not is_in_code(m.start())
+        ]
+        markdown_ref = f"![{medium.data_type} {medium.id}](media/{medium.path_to_file.name})"
+        for m in reversed(matches):  # reverse order to avoid messing up with position indices
+            text = replace_match(text, m, markdown_ref)
+
+    return text
+
+
+def replace_match(text: str, match, target: str) -> str:
+    return text[:match.start()] + target + text[match.end():]

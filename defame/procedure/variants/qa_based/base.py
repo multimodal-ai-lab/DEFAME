@@ -2,8 +2,8 @@ from abc import ABC
 from typing import Optional
 
 from defame.common import Report, logger
-from defame.evidence_retrieval.tools import WebSearch
-from defame.evidence_retrieval.integrations.search_engines.common import WebSource
+from defame.evidence_retrieval.tools import Search
+from defame.evidence_retrieval.integrations.search.common import WebSource
 from defame.procedure.procedure import Procedure
 from defame.prompts.prompts import PoseQuestionsPrompt, ProposeQueries, AnswerQuestion
 from defame.utils.console import light_blue
@@ -39,7 +39,7 @@ class QABased(Procedure, ABC):
 
         return q_and_a
 
-    def propose_queries_for_question(self, question: str, doc: Report) -> list[WebSearch]:
+    def propose_queries_for_question(self, question: str, doc: Report) -> list[Search]:
         prompt = ProposeQueries(question, doc)
 
         n_attempts = 0
@@ -71,7 +71,7 @@ class QABased(Procedure, ABC):
             return None
 
         # Execute searches and gather all results
-        search_results = self.retrieve_resources(queries)
+        search_results = self.retrieve_sources(queries)
 
         # Step 4: Answer generation
         if len(search_results) > 0:

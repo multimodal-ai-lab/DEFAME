@@ -10,8 +10,6 @@ The available knowledge is insufficient to assess the Claim. Therefore, **propos
 ## Valid Actions
 [VALID_ACTIONS]
 
-[EXEMPLARS]
-
 # Record
 [DOC]
 

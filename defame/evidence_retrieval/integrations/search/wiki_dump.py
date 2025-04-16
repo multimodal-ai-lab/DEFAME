@@ -13,11 +13,12 @@ from tqdm import tqdm
 
 from config.globals import data_root_dir
 from defame.utils.parsing import replace
-from defame.evidence_retrieval.integrations.search_engines.semantic_search_db import SemanticSearchDB, df_embedding_to_np_embedding
+from defame.evidence_retrieval.integrations.search.semantic_search_db import SemanticSearchDB, df_embedding_to_np_embedding
 
 
 class WikiDump(SemanticSearchDB):
-    """Integration for searching the Wikipedia evidence provided by the FEVER challenge."""
+    """A Wikipedia dump from 2017. Each article in the dump contains only
+    the first few paragraphs of the article."""
     name = "wiki_dump"
 
     title_knn_path = data_root_dir / "FEVER/title_knn.pckl"

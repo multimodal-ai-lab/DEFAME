@@ -41,15 +41,13 @@ class Pool:
 
         # Setup termination handling
         atexit.register(self.stop)
-        # import signal
-        # signal.signal(signal.SIGTERM, self.close)
-        # signal.signal(signal.SIGINT, self.close)
+        self.terminating = False
 
     def run(self):
         """Runs in an own thread, supervises workers, processes their messages, and reports logs."""
         self._run_workers()
         self.wait_until_ready()
-        while self.is_running():
+        while self.is_running() and not self.terminating:
             try:
                 self.process_messages()
                 self.report_errors()
@@ -127,16 +125,17 @@ class Pool:
             logger.error(error)
 
     def stop(self):
-        self.close()
+        self.terminating = True
+        self.terminate_all_workers()
 
-    def close(self):
+    def terminate_all_workers(self):
         if self.is_running():
             for i, worker in enumerate(self.workers):
                 if worker.is_alive():
                     worker.terminate()
                     print(f"Terminating worker {i}...")
         else:
-            print("Worker pool already closed.")
+            print("All workers terminated already.")
 
     def is_running(self) -> bool:
         """Returns true if at least one worker is alive."""

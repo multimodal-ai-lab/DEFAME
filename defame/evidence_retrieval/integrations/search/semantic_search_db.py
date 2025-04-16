@@ -14,11 +14,11 @@ from tqdm import tqdm
 from config.globals import embedding_model
 from defame.common import MultimediaSnippet
 from defame.common.embedding import EmbeddingModel
-from defame.evidence_retrieval.integrations.search_engines.local_search_api import LocalSearchAPI
+from defame.evidence_retrieval.integrations.search.local_search_platform import LocalSearchPlatform
 from .common import SearchResults, Query, WebSource
 
 
-class SemanticSearchDB(LocalSearchAPI):
+class SemanticSearchDB(LocalSearchPlatform):
     def __init__(self, db_file_path: str | Path):
         super().__init__()
         self.is_free = True

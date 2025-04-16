@@ -8,15 +8,17 @@ from defame.evidence_retrieval.tools.tool import Tool
 
 
 class FaceRecognition(Action):
+    """Identifies and recognizes faces within an image."""
     name = "recognize_faces"
-    description = "Identifies and recognizes faces within an image."
-    how_to = "Provide an image and the model will recognize faces in it."
-    format = "recognize_faces(<image:n>), where `n` is the image's ID"
-    is_multimodal = True
-    is_limited = True
 
-    def __init__(self, image_ref: str):
-        self.image: Image = MultimediaSnippet(image_ref).images[0]
+    requires_image = True
+
+    def __init__(self, image: str):
+        """
+        @param image: The reference of the image to recognize faces in.
+        """
+        self._save_parameters(locals())
+        self.image = Image(reference=image)
 
     def __str__(self):
         return f'{self.name}({self.image.reference})'

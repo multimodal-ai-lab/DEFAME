@@ -68,7 +68,7 @@ def get_content_info(content: Content) -> ContentInfo:
 
 
 def to_sequence(multimedia_snippet: MultimediaSnippet) -> MultimediaSequence:
-    interleaved = multimedia_snippet.to_interleaved()
+    interleaved = multimedia_snippet.to_list()
     data = []
     for block in interleaved:
         if isinstance(block, str):

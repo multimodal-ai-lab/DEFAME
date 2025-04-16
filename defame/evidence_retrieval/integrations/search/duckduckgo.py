@@ -4,14 +4,16 @@ from typing import List, Dict, Optional
 from duckduckgo_search import DDGS
 
 from defame.common import logger
-from defame.evidence_retrieval.integrations.search_engines.common import Query, WebSource, SearchResults
-from defame.evidence_retrieval.integrations.search_engines.remote_search_api import RemoteSearchAPI
+from defame.evidence_retrieval.integrations.search.common import Query, WebSource, SearchResults
+from defame.evidence_retrieval.integrations.search.remote_search_platform import RemoteSearchPlatform
 
 
-class DuckDuckGo(RemoteSearchAPI):
-    """Class for querying the DuckDuckGo API.
-    TODO: Solve the rate limit problem."""
+class DuckDuckGo(RemoteSearchPlatform):
+    """Class for querying the DuckDuckGo API."""
+    # TODO: Solve the rate limit problem.
     name = "duckduckgo"
+    description = """The DuckDuckGo Search Engine. A bit more limited than Google.
+        It accepts only textual queries and textual outputs."""
 
     def __init__(self,
                  max_retries: int = 10,
@@ -26,6 +28,7 @@ class DuckDuckGo(RemoteSearchAPI):
         """Run a search query and return structured results."""
         assert query.has_text() and not query.has_image(), "DuckDuckGo only supports text queries."
         # TODO: Implement start and end date
+        # TODO: Implement image search
         attempt = 0
         while attempt < self.max_retries:
             if attempt > 3:

@@ -2,7 +2,7 @@ from typing import Any
 
 from defame.common import Report, Label, logger
 from defame.procedure.variants.summary_based.dynamic import DynamicSummary
-from defame.evidence_retrieval.tools import WebSearch, ImageSearch
+from defame.evidence_retrieval.tools import Search
 
 
 class AllActionsSummary(DynamicSummary):
@@ -14,8 +14,8 @@ class AllActionsSummary(DynamicSummary):
             n_iterations += 1
             actions, reasoning = self.planner.plan_next_actions(doc, all_actions=True)
             text = f'"{doc.claim.data.split(">", 1)[1].strip()}"'
-            actions.append(WebSearch(text))
-            actions.append(ImageSearch(text))
+            actions.append(Search(text))
+            actions.append(Search(text, mode="images"))
             if len(reasoning) > 32:  # Only keep substantial reasoning
                 doc.add_reasoning(reasoning)
             doc.add_actions(actions)
