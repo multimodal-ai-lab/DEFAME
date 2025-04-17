@@ -29,7 +29,12 @@ from defame.utils.parsing import is_guardrail_hit, GUARDRAIL_WARNING, format_for
 DEFAULT_SYSTEM_PROMPT = f"""You are a professional fact-checker. Your mission is to verify a given Claim. Make 
 sure to always follow the user's instructions and keep the output to the minimum, i.e., be brief and do not justify 
 your output. If provided, the Record documents the fact-check you performed so far. Today's date is 
-{datetime.now().strftime("%Y-%m-%d")}."""
+{datetime.now().strftime("%Y-%m-%d")}.
+
+We use a specific media reference notation format. Images are referred to as
+`<image:n>`, videos as `<video:n>`, and audios as `<audio:n>`, where `n` is the respective ID number of the medium.
+Each medium reference is then followed by the corresponding base64 data. Use the reference notation if you want to
+refer to any media in your response."""
 
 AVAILABLE_MODELS = pd.read_csv("config/available_models.csv", skipinitialspace=True)
 

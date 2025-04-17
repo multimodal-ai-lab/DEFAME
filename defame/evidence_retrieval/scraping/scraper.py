@@ -13,8 +13,8 @@ from defame.evidence_retrieval.scraping.excluded import (is_unsupported_site, is
                                                          is_fact_checking_site)
 from defame.evidence_retrieval.scraping.util import scrape_naive, find_firecrawl, firecrawl_is_running, log_error_url, \
     resolve_media_hyperlinks
-from defame.utils.parsing import get_domain, is_image_url
-from defame.utils.requests import download
+from defame.utils.parsing import get_domain
+from defame.utils.requests import download, is_image_url
 
 FIRECRAWL_URLS = [
     firecrawl_url,
@@ -82,6 +82,8 @@ class Scraper:
 
         # Identify and use any applicable integration to retrieve the URL contents
         scraped = _retrieve_via_integration(url)
+        if scraped:
+            return scraped
 
         # Check if URL points to a media file. If yes, download accordingly TODO: extend to videos/audios
         if is_image_url(url):
@@ -106,10 +108,10 @@ class Scraper:
                     self.firecrawl_url = None
 
         # If the scrape still was not successful, use naive Beautiful Soup scraper
-        if scraped is None:
+        if not scraped:
             scraped = scrape_naive(url)
 
-        if scraped and is_relevant_content(str(scraped)):
+        if scraped:
             self.n_scrapes += 1
             return scraped
 
@@ -193,6 +195,8 @@ def _retrieve_via_integration(url: str) -> Optional[MultimediaSnippet]:
 scraper = Scraper()
 
 if __name__ == "__main__":
+    print(scrape_naive("https://www.independent.co.uk/news/world/africa/sahara-desert-snow-first-40-years-rare-photos-atlas-mountains-algeria-karim-bouchetata-a7488056.html"))
+    print(scraper.scrape("https://www.independent.co.uk/news/world/africa/sahara-desert-snow-first-40-years-rare-photos-atlas-mountains-algeria-karim-bouchetata-a7488056.html"))
     print(scraper.scrape_multiple([
         "https://www.washingtonpost.com/video/national/cruz-calls-trump-clinton-two-new-york-liberals/2016/04/07/da3b78a8-fcdf-11e5-813a-90ab563f0dde_video.html",
         "https://cdn.pixabay.com/photo/2017/11/08/22/28/camera-2931883_1280.jpg",

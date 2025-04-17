@@ -1,6 +1,6 @@
 import pytest
-from defame.utils.parsing import is_image_url
-from defame.utils.requests import download_image
+from defame.utils.requests import download_image, is_image_url
+from defame.evidence_retrieval.scraping.util import resolve_media_hyperlinks
 
 
 @pytest.mark.parametrize("url,expected", [
@@ -25,3 +25,12 @@ def test_is_image_url(url, expected):
 ])
 def test_download_image(url):
     download_image(url)
+
+
+@pytest.mark.parametrize("input,expected", [
+    ("![Snowfall in the Sahara desert](https://modernsciences.org/wp-content/uploads/2022/12/Snowfall-in-the-Sahara-desert_-an-unusual-weather-phenomenon-80x42.png)",
+     "Snowfall in the Sahara desert <image:")
+])
+def test_resolve_media_hyperlinks(input, expected):
+    resolved = resolve_media_hyperlinks(input)
+    assert str.startswith(resolved.data, expected), f"Got: {resolved.data}"

@@ -1,16 +1,14 @@
-import io
 import re
 from typing import Optional
 
 import requests
-from PIL import Image
-from PIL import Image as PillowImage, UnidentifiedImageError
+from PIL import UnidentifiedImageError
 from bs4 import BeautifulSoup
 
 from config.globals import temp_dir
-from defame.common import MultimediaSnippet, logger, Image
-from defame.utils.parsing import md, get_markdown_hyperlinks, is_image_url
-from defame.utils.requests import download_image
+from defame.common import MultimediaSnippet, logger
+from defame.utils.parsing import md, get_markdown_hyperlinks
+from defame.utils.requests import download_image, is_image_url
 
 MAX_MEDIA_PER_PAGE = 32  # Any media URLs in a webpage exceeding this limit will be ignored.
 
@@ -22,7 +20,6 @@ def read_urls_from_file(file_path):
 
 def scrape_naive(url: str) -> Optional[MultimediaSnippet]:
     """Fallback scraping script."""
-    # TODO: Also scrape images
     headers = {
         'User-Agent': 'Mozilla/4.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     }
@@ -70,6 +67,8 @@ def postprocess_scraped(text: str) -> str:
 def resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
     """Identifies up to MAX_MEDIA_PER_PAGE image URLs, downloads the images and replaces the
     respective Markdown hyperlinks with their proper image reference."""
+    # TODO: Resolve videos and audios
+
     if text is None:
         return None
     hyperlinks = get_markdown_hyperlinks(text)
@@ -108,7 +107,6 @@ def resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
                 # Remove the hyperlink, just keep the hypertext
                 text = text.replace(f"[{hypertext}]({url})", "")
 
-        # TODO: Resolve videos and audios
     return MultimediaSnippet(text)
 
 
@@ -132,3 +130,8 @@ def firecrawl_is_running(url):
     except (requests.exceptions.ConnectionError, requests.exceptions.RetryError):
         return False
     return response.status_code == 200
+
+
+if __name__ == "__main__":
+    hyperlink = "![Snowfall in the Sahara desert](https://modernsciences.org/wp-content/uploads/2022/12/Snowfall-in-the-Sahara-desert_-an-unusual-weather-phenomenon-80x42.png)"
+    print(resolve_media_hyperlinks(hyperlink))
