@@ -5,7 +5,6 @@ from .embedding import EmbeddingModel
 from .evidence import Evidence
 from .label import Label
 from .logger import logger
-from .medium import MultimediaSnippet, Medium, Image, Video, Audio
 from .modeling import Model
 from .prompt import Prompt
 from .report import Report

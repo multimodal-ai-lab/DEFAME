@@ -8,6 +8,7 @@ click==8.1.7
 datasets==1.17.0
 duckduckgo_search==6.1.0
 einops==0.8.0
+ezMM>=0.1.1
 fastapi[standard]~=0.115.6
 google==3.0.0
 google-cloud-vision==3.7.4

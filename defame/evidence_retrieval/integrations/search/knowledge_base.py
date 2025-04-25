@@ -10,12 +10,13 @@ from urllib.request import urlretrieve
 
 import langdetect
 import torch
+from ezmm import MultimodalSequence
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
 from config.globals import data_root_dir, embedding_model
+from defame.common import logger
 from defame.common.embedding import EmbeddingModel
-from defame.common import logger, MultimediaSnippet
 from defame.evidence_retrieval.integrations.search.local_search_platform import LocalSearchPlatform
 from defame.utils.utils import my_hook
 from .common import SearchResults, Query, WebSource
@@ -71,7 +72,8 @@ class KnowledgeBase(LocalSearchPlatform):
         self.resources_dir = self.kb_dir / "resources"  # stores all .jsonl files extracted from the .zip in download
         self.embedding_knns_path = self.kb_dir / "embedding_knns.pckl"
 
-        self.current_claim_id: Optional[int] = None  # defines the behavior of the KB by preselecting the claim-relevant sources
+        self.current_claim_id: Optional[
+            int] = None  # defines the behavior of the KB by preselecting the claim-relevant sources
 
         # For speeding up data loading
         self.cached_resources = None
@@ -159,7 +161,7 @@ class KnowledgeBase(LocalSearchPlatform):
             url, text, date = self.retrieve(index)
             result = WebSource(
                 reference=url,
-                content=MultimediaSnippet(text),
+                content=MultimodalSequence(text),
                 release_date=date
             )
             results.append(result)

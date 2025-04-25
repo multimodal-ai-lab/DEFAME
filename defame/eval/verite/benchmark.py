@@ -1,10 +1,10 @@
 import os
 
 import pandas as pd
+from ezmm import Image
 
 from config.globals import data_root_dir
 from defame.common import Label, Claim
-from defame.common.medium import Image
 from defame.eval.benchmark import Benchmark
 from defame.evidence_retrieval.tools import Geolocate, Search
 
@@ -55,11 +55,10 @@ class VERITE(Benchmark):
             if not os.path.exists(image_path):
                 continue
             image = Image(image_path)
-            claim_text = f"{image.reference} {row['caption']}"
             identifier = str(i)
             entry = {
                 "id": identifier,
-                "input": Claim(claim_text, id=identifier),
+                "input": Claim(image, row['caption'], id=identifier),
                 "label": self.class_mapping[row["label"]],
                 "justification": row.get("ground_truth_justification", "")
             }

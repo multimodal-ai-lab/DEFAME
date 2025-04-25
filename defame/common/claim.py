@@ -1,28 +1,28 @@
 from typing import Optional
 
+from ezmm import MultimodalSequence
+
 from defame.common.content import Content
 from defame.common.label import Label
-from defame.common.medium import Medium
-from defame.common.medium import MultimediaSnippet
 
 
-class Claim(MultimediaSnippet):
+class Claim(MultimodalSequence):
     context: Optional[Content]  # Original content where the claim was extracted from
     scope: Optional[tuple[int, int]]  # TODO: the range in the original context's text that belongs to this claim
     id: Optional[str]
 
     def __init__(self,
-                 data: str | list[str | Medium],
+                 *args,
                  id: str | int | None = None,
                  context: Content = None,
                  scope: tuple[int, int] = None,
                  **kwargs):
         self.id = str(id) if id is not None else None
-        self.context = context if context else Content(data=data, **kwargs)
+        self.context = context if context else Content(*args, **kwargs)
         self.scope = scope
         self.verdict: Optional[Label] = None
-        self.justification: Optional[MultimediaSnippet] = None
-        super().__init__(data=data)
+        self.justification: Optional[MultimodalSequence] = None
+        super().__init__(*args)
 
     @property
     def author(self):
@@ -41,7 +41,7 @@ class Claim(MultimediaSnippet):
         return self.context.meta_info if self.context else None
 
     def __str__(self):
-        claim_str = f'Claim: "{self.data}"'
+        claim_str = f'Claim: "{super().__str__()}"'
         if author := self.author:
             claim_str += f"\nAuthor: {author}"
         if date := self.date:
@@ -53,4 +53,4 @@ class Claim(MultimediaSnippet):
         return claim_str
 
     def __repr__(self):
-        return f"Claim(\"{self.data}\", context={self.context.__repr__()})"
+        return f"Claim(str_len={len(self.__str__())}, context={self.context.__repr__()})"

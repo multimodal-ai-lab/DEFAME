@@ -3,8 +3,8 @@ from io import BytesIO
 from typing import Optional, Any
 
 import requests
+from ezmm import Image
 
-from defame.common import Image
 from defame.utils.parsing import is_image
 
 

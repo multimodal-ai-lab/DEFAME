@@ -3,7 +3,9 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Optional
 
-from defame.common import Results, Image, MultimediaSnippet
+from ezmm import MultimodalSequence, Image
+
+from defame.common import Results
 
 
 class SearchMode(Enum):
@@ -67,8 +69,8 @@ class Source:
      of a local knowledge base. Each source must be clearly identifiable
      (and ideally also retrievable) by its reference."""
     reference: str  # e.g. URL
-    content: MultimediaSnippet = None  # the contained raw information, may require lazy scrape
-    takeaways: MultimediaSnippet = None  # an optional summary of the content's relevant info
+    content: MultimodalSequence = None  # the contained raw information, may require lazy scrape
+    takeaways: MultimodalSequence = None  # an optional summary of the content's relevant info
 
     def is_loaded(self) -> bool:
         return self.content is not None
@@ -77,16 +79,16 @@ class Source:
         """Returns True if the summary contains information helpful for the fact-check."""
         if self.takeaways is None:
             return None
-        elif self.takeaways.data == "":
+        elif str(self.takeaways) == "":
             return False
         else:
-            return "NONE" not in self.takeaways.data
+            return "NONE" not in str(self.takeaways)
 
     def _get_content_str(self):
         if self.is_relevant():
-            return f"Takeaways: {self.takeaways.data}"
+            return f"Takeaways: {str(self.takeaways)}"
         elif self.is_loaded():
-            return f"Content: {self.content.data}"
+            return f"Content: {str(self.content)}"
         else:
             return "⚠️ Content not yet loaded."
 

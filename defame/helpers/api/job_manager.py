@@ -4,10 +4,11 @@ from io import BytesIO
 from secrets import token_urlsafe
 
 from PIL import UnidentifiedImageError, Image as PillowImage
+from ezmm import Image
 from fastapi import HTTPException
 from starlette import status as http_status
 
-from defame.common import Content, Image
+from defame.common import Content
 from defame.helpers.api.common import UserSubmission
 from defame.helpers.api.job import Job
 from defame.helpers.parallelization.pool import Pool
@@ -65,4 +66,4 @@ def process_submission(submission: UserSubmission) -> Content:
         else:
             raise ValueError(f"Invalid block type: {block_type}")
     date = datetime.strptime(submission.date, "%Y-%m-%d") if submission.date else None
-    return Content(data=processed, author=submission.author, date=date)
+    return Content(processed, author=submission.author, date=date)

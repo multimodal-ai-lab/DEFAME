@@ -4,8 +4,9 @@ from typing import Optional
 
 from PIL.Image import Image as PILImage
 import numpy as np
+from ezmm import Image, MultimodalSequence
 
-from defame.common import MultimediaSnippet, Action, Image, logger
+from defame.common import Action, logger
 from defame.common.results import Results
 from defame.evidence_retrieval.tools.tool import Tool
 
@@ -93,6 +94,6 @@ class TextExtractor(Tool):
         logger.log(str(result))
         return result
 
-    def _summarize(self, result: OCRResults, **kwargs) -> Optional[MultimediaSnippet]:
+    def _summarize(self, result: OCRResults, **kwargs) -> Optional[MultimodalSequence]:
         # TODO: Add image reference, summarize the output w.r.t. relevant content
-        return MultimediaSnippet(f"Extracted text: {result.text}")
+        return MultimodalSequence(f"Extracted text: {result.text}")

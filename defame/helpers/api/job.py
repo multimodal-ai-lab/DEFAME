@@ -1,9 +1,10 @@
 from typing import Optional
 
+from ezmm import MultimodalSequence
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 
-from defame.common import Content, Claim, Label, MultimediaSnippet
+from defame.common import Content, Claim, Label
 from defame.helpers.api.common import ClaimInfo, get_claim_info, ContentInfo, get_content_info
 from defame.helpers.common import Status
 from defame.helpers.parallelization.pool import Pool
@@ -116,7 +117,7 @@ class Job:
     def register_verification_results(self, task: Task):
         claim = task.payload
         claim.verdict = task.result["verdict"]
-        claim.justification = MultimediaSnippet(task.result["justification"])
+        claim.justification = MultimodalSequence(task.result["justification"])
 
     @property
     def n_claims(self) -> Optional[int]:

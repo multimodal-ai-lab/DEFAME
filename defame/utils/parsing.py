@@ -3,17 +3,13 @@ import imghdr
 import io
 import re
 from pathlib import Path
-from typing import Optional, Any, Tuple
+from typing import Optional, Any, Tuple, Collection
 from urllib.parse import urlparse
 
+from ezmm import Item
 from PIL import Image as PillowImage
 from markdownify import MarkdownConverter
 
-from defame.utils.console import orange
-
-MEDIA_REF_REGEX = r"(<(?:image|video|audio):[0-9]+>)"
-MEDIA_ID_REGEX = r"(?:<(?:image|video|audio):([0-9]+)>)"
-MEDIA_SPECIFIER_REGEX = r"(?:<(image|video|audio):([0-9]+)>)"
 
 URL_REGEX = r"https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9@:%_\+.~#?&//=]*)"
 
@@ -188,9 +184,6 @@ def extract_answer_and_url(response: str) -> tuple[Optional[str], Optional[str]]
     return generated_answer, url
 
 
-GUARDRAIL_WARNING = orange("Model hit the safety guardrails.")
-
-
 def read_md_file(file_path: str | Path) -> str:
     """Reads and returns the contents of the specified Markdown file."""
     file_path = Path(file_path)
@@ -213,7 +206,7 @@ def fill_placeholders(text: str, placeholder_targets: dict[str, Any]) -> str:
     return text
 
 def format_for_llava(prompt):
-    text = prompt.data
+    text = str(prompt)
     image_pattern = re.compile(r'<image:\d+>')
     formatted_list = []
     current_pos = 0
@@ -318,9 +311,9 @@ def is_image(binary_data: bytes) -> bool:
         return False
 
 
-def replace_media_refs(text: str, media: list) -> str:
-    """Replaces all media references (except those within code blocks) with
-    actual file paths for human-readability."""
+def replace_item_refs(text: str, items: Collection[Item]) -> str:
+    """Replaces all item references (except those within code blocks) with
+    actual Markdown file paths to enable image rendering."""
 
     # Detect inline and block codes
     inline_code = list(re.finditer(r'`[^`]*`', text))
@@ -332,12 +325,12 @@ def replace_media_refs(text: str, media: list) -> str:
         return any(start <= pos < end for start, end in code_spans)
 
     # Find all media references and replace those outside code
-    for medium in media:
+    for item in items:
         matches = [
-            m for m in re.finditer(medium.reference, text)
+            m for m in re.finditer(item.reference, text)
             if not is_in_code(m.start())
         ]
-        markdown_ref = f"![{medium.data_type} {medium.id}](media/{medium.path_to_file.name})"
+        markdown_ref = f"![{item.kind} {item.id}](media/{item.file_path.name})"
         for m in reversed(matches):  # reverse order to avoid messing up with position indices
             text = replace_match(text, m, markdown_ref)
 

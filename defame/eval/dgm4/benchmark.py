@@ -4,7 +4,7 @@ from pathlib import Path
 
 from config.globals import data_root_dir
 from defame.common import Label, Claim
-from defame.common.medium import Image
+from ezmm import Image
 from defame.eval.benchmark import Benchmark
 from defame.evidence_retrieval.tools import Search
 from defame.evidence_retrieval.tools.manipulation_detector import DetectManipulation
@@ -66,11 +66,10 @@ class DGM4(Benchmark):
             # Ensure the image path exists
             if image_path and os.path.exists(image_path):
                 image = Image(image_path)
-                claim_text = f'{ann["text"]} {image.reference}'
                 identifier = str(ann["id"])
                 entry = {
                     "id": id,
-                    "input": Claim(data=claim_text, id=identifier),
+                    "input": Claim(ann["text"], image, id=identifier),
                     "label": self.class_mapping.get(ann["fake_cls"], Label.REFUTED),  # Map fake_cls to label
                 }
                 entries.append(entry)

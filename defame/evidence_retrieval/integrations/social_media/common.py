@@ -1,14 +1,11 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, List
-
-from defame.common import Image, MultimediaSnippet, Medium
+from ezmm import Image, MultimodalSequence
 
 
 @dataclass(frozen=True)
-class SocialMediaPost(MultimediaSnippet):
-    """Warning: Do not change attributes after initialization."""
-    content: MultimediaSnippet | str | list[str | Medium]  # text and media contained in this post
+class SocialMediaPostMetadata:
     platform: str
     post_url: str
     author_username: str
@@ -26,59 +23,63 @@ class SocialMediaPost(MultimediaSnippet):
     mentions: List[str] = field(default_factory=list)
     external_links: List[str] = field(default_factory=list)
 
-    def __post_init__(self):
-        if not isinstance(self.content, MultimediaSnippet):
-            self.content = MultimediaSnippet(self.content)
 
-        # Compose the MultimediaSnippet
-        text = f"Post by @{self.author_username}"
-        if self.author_display_name:
-            text += f" ({self.author_display_name})"
-        if self.is_verified_author:
+
+class SocialMediaPost(MultimodalSequence):
+    metadata: SocialMediaPostMetadata
+
+    def __init__(self, *args, metadata: SocialMediaPostMetadata):
+        self.metadata = metadata
+
+        # Compose the sequence
+        text = f"Post by @{metadata.author_username}"
+        if metadata.author_display_name:
+            text += f" ({metadata.author_display_name})"
+        if metadata.is_verified_author:
             text += " ✓"
 
-        if self.created_at:
-            text += f"\nPosted: {self.created_at.strftime('%B %d, %Y at %H:%M')}\n"
+        if metadata.created_at:
+            text += f"\nPosted: {metadata.created_at.strftime('%B %d, %Y at %H:%M')}\n"
 
         engagement = []
-        if self.like_count is not None:
-            engagement.append(f"Likes: {self.like_count:,}")
-        if self.comment_count is not None:
-            engagement.append(f"Comments: {self.comment_count:,}")
-        if self.share_count is not None:
-            engagement.append(f"Shares: {self.share_count:,}")
+        if metadata.like_count is not None:
+            engagement.append(f"Likes: {metadata.like_count:,}")
+        if metadata.comment_count is not None:
+            engagement.append(f"Comments: {metadata.comment_count:,}")
+        if metadata.share_count is not None:
+            engagement.append(f"Shares: {metadata.share_count:,}")
 
         if engagement:
             text += "Engagement: " + ", ".join(engagement) + "\n"
 
-        text += f"Post URL: {self.post_url}"
+        text += f"Post URL: {metadata.post_url}"
 
-        if self.is_reply and self.reply_to:
-            text += f"Reply to: {self.reply_to}\n"
+        if metadata.is_reply and metadata.reply_to:
+            text += f"Reply to: {metadata.reply_to}\n"
 
-        if self.hashtags:
-            text += "Hashtags: " + " ".join([f"#{tag}" for tag in self.hashtags]) + "\n"
+        if metadata.hashtags:
+            text += "Hashtags: " + " ".join([f"#{tag}" for tag in metadata.hashtags]) + "\n"
 
-        if self.mentions:
-            text += "Mentions: " + " ".join([f"@{mention}" for mention in self.mentions]) + "\n"
+        if metadata.mentions:
+            text += "Mentions: " + " ".join([f"@{mention}" for mention in metadata.mentions]) + "\n"
 
-        if self.external_links:
+        if metadata.external_links:
             text += "\n\n"
-            text += "External Links: " + " ".join(self.external_links) + "\n"
+            text += "External Links: " + " ".join(metadata.external_links) + "\n"
 
         # Add reference to media if available
         media_references = []
-        for i, img in enumerate(self.media):
+        for i, img in enumerate(metadata.media):
             media_references.append(img.reference)
 
         # Add newline to separate from following post content
-        text += "\n" + self.content.data
+        text += "\n"
 
-        super().__init__(text)
+        super().__init__(text, *args)
 
 
 @dataclass(frozen=True)
-class SocialMediaProfile(MultimediaSnippet):
+class SocialMediaProfile(MultimodalSequence):
     platform: str
     profile_url: str
     username: str
@@ -95,7 +96,7 @@ class SocialMediaProfile(MultimediaSnippet):
     cover_image: Optional[Image] = None
 
     def __post_init__(self):
-        # Compose the MultimediaSnippet
+        # Compose the sequence
         text = f"Profile: @{self.username}"
         if self.display_name:
             text += f" ({self.display_name})"

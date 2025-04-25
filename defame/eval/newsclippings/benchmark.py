@@ -2,9 +2,10 @@ import json
 import os
 from pathlib import Path
 
+from ezmm import Image
+
 from config.globals import data_root_dir
 from defame.common import Label, Claim
-from defame.common.medium import Image
 from defame.eval.benchmark import Benchmark
 from defame.evidence_retrieval.tools import Geolocate, Search
 
@@ -82,10 +83,9 @@ class NewsCLIPpings(Benchmark):
 
             if image_path and os.path.exists(image_path):
                 image = Image(image_path)
-                claim_text = f"{image.reference} {caption}"
                 entry = {
                     "id": str(i),
-                    "input": Claim(data=claim_text,
+                    "input": Claim(image, caption,
                                    id=str(i),
                                    meta_info="Published: some date between 2005 and 2020."),
                     "label": self.class_mapping[str(ann["falsified"])],
