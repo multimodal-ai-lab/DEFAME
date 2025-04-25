@@ -36,11 +36,11 @@ scikit-learn==1.5.1
 scipy~=1.12.0
 sentence-transformers~=3.4.1
 setuptools>=70.0.0
-spacy==3.7.4
+spacy~=3.8.5
 sty>=1.0.6
 tiktoken~=0.7.0
 timm==1.0.9
-torch~=2.0.1+cu118
+torch~=2.6.0
 torchvision>=0.15.2
 transformers>=4.48.0
 tqdm>=4.66.3
@@ -50,8 +50,8 @@ wandb==0.18.0
 yacs==0.1.8
 protobuf~=5.29.3
 pydantic~=2.10.6
-websockets~=14.2
-starlette~=0.45.3
-atproto~=0.0.59
+websockets~=13.1
+starlette~=0.41.3
+atproto~=0.0.60
 prettytable~=3.16.0
 aiohttp~=3.11.11
