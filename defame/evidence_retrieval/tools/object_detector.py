@@ -3,9 +3,10 @@ from typing import List, Optional
 
 import torch
 from PIL.Image import Image as PILImage
+from ezmm import Image, MultimodalSequence
 from transformers import AutoProcessor, AutoModelForObjectDetection
 
-from defame.common import Results, MultimediaSnippet, Action, Image, logger
+from defame.common import Results, Action, logger
 from defame.evidence_retrieval.tools.tool import Tool
 
 
@@ -101,5 +102,5 @@ class ObjectDetector(Tool):
         logger.log(str(result))
         return result
 
-    def _summarize(self, result: ObjectDetectionResults, **kwargs) -> Optional[MultimediaSnippet]:
-        return MultimediaSnippet("Object Detector not fully implemented yet.")  # TODO: Implement the summary
+    def _summarize(self, result: ObjectDetectionResults, **kwargs) -> Optional[MultimodalSequence]:
+        return MultimodalSequence("Object Detector not fully implemented yet.")  # TODO: Implement the summary

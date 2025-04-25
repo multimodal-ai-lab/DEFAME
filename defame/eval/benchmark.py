@@ -99,7 +99,7 @@ class Benchmark(ABC, Iterable):
     def _save_prediction(self, doc, meta, claim, prediction, target_label=None, gt_justification=None):
         logger.save_next_prediction(
             sample_index=claim.id,
-            claim=doc.claim.data,
+            claim=str(doc.claim),
             target=target_label,
             justification=doc.justification,
             predicted=prediction,

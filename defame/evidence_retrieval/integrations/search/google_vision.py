@@ -2,11 +2,12 @@ import os
 from dataclasses import dataclass
 from typing import Sequence
 
+from ezmm import Image
+from google.auth.exceptions import DefaultCredentialsError
 from google.cloud import vision
 
 from config.globals import google_service_account_key_path
 from defame.common import logger
-from defame.common.medium import Image
 from defame.evidence_retrieval.integrations.search.common import WebSource, Query, SearchMode, SearchResults
 from defame.utils.parsing import get_base_domain
 
@@ -50,7 +51,13 @@ class GoogleVisionAPI:
 
     def __init__(self):
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = google_service_account_key_path.as_posix()
-        self.client = vision.ImageAnnotatorClient()
+        try:
+            self.client = vision.ImageAnnotatorClient()
+        except DefaultCredentialsError:
+            logger.warning(f"❌ No or invalid Google Cloud API credentials at "
+                           f"{google_service_account_key_path.as_posix()}.")
+        else:
+            logger.log(f"✅ Successfully connected to Google Cloud Vision API.")
 
     def search(self, query: Query) -> GoogleRisResults:
         """Run image reverse search through Google Vision API and parse results."""

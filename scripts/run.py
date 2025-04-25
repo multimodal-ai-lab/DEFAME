@@ -1,8 +1,8 @@
 """Minimal running example for a multimodal fact-check."""
 
-from defame.fact_checker import FactChecker
-from defame.common import Image
+from ezmm import Image
 
+from defame.fact_checker import FactChecker
 
 fact_checker = FactChecker(llm="gpt_4o")
 claim = ["The image",

@@ -1,7 +1,8 @@
 from pathlib import Path
 from typing import Optional
 
-from defame.common.medium import MultimediaSnippet
+from ezmm import MultimodalSequence
+
 from defame.utils.parsing import strip_string, read_md_file, fill_placeholders
 
 
@@ -11,7 +12,7 @@ def compose_prompt(template_file_path: str | Path, placeholder_targets: dict) ->
     return strip_string(fill_placeholders(template, placeholder_targets))
 
 
-class Prompt(MultimediaSnippet):
+class Prompt(MultimodalSequence):
     template_file_path: Optional[str] = None
     name: Optional[str]
     retry_instruction: Optional[str] = None
@@ -31,16 +32,9 @@ class Prompt(MultimediaSnippet):
         super().__init__(text)
         self.name = name
 
-    @property
-    def text(self):
-        return self.data
-
     def extract(self, response: str) -> dict | str | None:
         """Takes the model's output string and extracts the expected data."""
         return response  # default implementation
-
-    def __str__(self):
-        return self.data
 
     def __len__(self):
         return len(self.__str__())

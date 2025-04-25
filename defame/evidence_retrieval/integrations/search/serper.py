@@ -15,7 +15,6 @@ import requests
 from config.globals import api_keys
 from defame.common import logger
 from defame.evidence_retrieval.integrations.search.common import SearchResults, Query, WebSource
-from defame.evidence_retrieval.integrations.search.remote_search_platform import RemoteSearchPlatform
 from defame.utils.parsing import get_base_domain
 
 _SERPER_URL = 'https://google.serper.dev'
@@ -144,8 +143,7 @@ class SerperAPI:
         filtered_results = filter_unique_results_by_domain(response[result_key])
         if result_key in response:
             for i, result in enumerate(filtered_results):
-                limit = query.limit or self.max_search_results
-                if len(sources) >= limit:  # somehow the num param does not restrict requests.post image search results
+                if len(sources) >= query.limit:  # somehow the num param does not restrict requests.post image search results
                     break
 
                 url = result.get("link") if result_key == "organic" else result.get("imageUrl")

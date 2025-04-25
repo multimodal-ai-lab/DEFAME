@@ -54,7 +54,7 @@ class MOCHEG(Benchmark):
             # Create an entry for each claim
             entry = {
                 "id": identifier,
-                "input": Claim(data=claim_text, id=identifier),
+                "input": Claim(claim_text, id=identifier),
                 "label": label,
                 "justification": row.get("ruling_outline", "")
             }

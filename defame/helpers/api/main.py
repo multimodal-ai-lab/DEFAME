@@ -3,6 +3,7 @@ import asyncio
 from fastapi import FastAPI, status, HTTPException, Depends, Response, WebSocket
 from fastapi.security import APIKeyHeader
 from websockets import ConnectionClosed
+from starlette.websockets import WebSocketDisconnect
 
 from defame.common import logger
 from .job_manager import JobManager
@@ -108,8 +109,8 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
 
         await websocket.close()
 
-    except ConnectionClosed:
-        print("Websocket connection closed unexpectedly.")
+    except (ConnectionClosed, WebSocketDisconnect):
+        logger.log("Websocket connection closed unexpectedly.")
 
 
 @app.get("/results/{job_id}",

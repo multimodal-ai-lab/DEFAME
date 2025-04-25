@@ -4,9 +4,10 @@ from typing import Optional
 import requests
 from PIL import UnidentifiedImageError
 from bs4 import BeautifulSoup
+from ezmm import MultimodalSequence
 
 from config.globals import temp_dir
-from defame.common import MultimediaSnippet, logger
+from defame.common import logger
 from defame.utils.parsing import md, get_markdown_hyperlinks
 from defame.utils.requests import download_image, is_image_url
 
@@ -18,7 +19,7 @@ def read_urls_from_file(file_path):
         return f.read().splitlines()
 
 
-def scrape_naive(url: str) -> Optional[MultimediaSnippet]:
+def scrape_naive(url: str) -> Optional[MultimodalSequence]:
     """Fallback scraping script."""
     headers = {
         'User-Agent': 'Mozilla/4.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -42,7 +43,7 @@ def scrape_naive(url: str) -> Optional[MultimediaSnippet]:
         # Turn soup object into a Markdown-formatted string
         text = md(soup)
         text = postprocess_scraped(text)
-        return MultimediaSnippet(text)
+        return MultimodalSequence(text)
     except requests.exceptions.Timeout:
         logger.info(f"Timeout occurred while naively scraping {url}")
     except requests.exceptions.HTTPError as http_err:
@@ -64,7 +65,7 @@ def postprocess_scraped(text: str) -> str:
     return text
 
 
-def resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
+def resolve_media_hyperlinks(text: str) -> Optional[MultimodalSequence]:
     """Identifies up to MAX_MEDIA_PER_PAGE image URLs, downloads the images and replaces the
     respective Markdown hyperlinks with their proper image reference."""
     # TODO: Resolve videos and audios
@@ -107,7 +108,7 @@ def resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
                 # Remove the hyperlink, just keep the hypertext
                 text = text.replace(f"[{hypertext}]({url})", "")
 
-    return MultimediaSnippet(text)
+    return MultimodalSequence(text)
 
 
 def log_error_url(url: str, message: str):

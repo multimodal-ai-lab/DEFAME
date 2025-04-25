@@ -33,4 +33,4 @@ def test_download_image(url):
 ])
 def test_resolve_media_hyperlinks(input, expected):
     resolved = resolve_media_hyperlinks(input)
-    assert str.startswith(resolved.data, expected), f"Got: {resolved.data}"
+    assert str.startswith(str(resolved), expected), f"Got: {resolved}"

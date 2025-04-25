@@ -2,11 +2,12 @@ import re
 from datetime import datetime, timedelta, date
 from typing import Any, Optional
 
+from ezmm import Image, MultimodalSequence
 from jinja2.exceptions import TemplateSyntaxError
 from openai import APIError
 
 from config.globals import api_keys
-from defame.common import MultimediaSnippet, Report, Prompt, logger, Action, Image
+from defame.common import Report, Prompt, logger, Action
 from defame.evidence_retrieval import scraper
 from defame.evidence_retrieval.integrations.search import SearchResults, SearchPlatform, PLATFORMS, KnowledgeBase
 from defame.evidence_retrieval.integrations.search.common import Query, SearchMode, Source, WebSource
@@ -231,9 +232,10 @@ class Searcher(Tool):
     def _postprocess_sources(self, sources: list[Source], query: Query) -> None:
         for source in sources:
             if source.is_loaded():
-                source.content.data = self._postprocess_single_source(source.content.data, query)
+                processed = self._postprocess_single_source(str(source.content), query)
+                source.content = MultimodalSequence(processed)
 
-    def _postprocess_single_source(self, content: str, query: Query):
+    def _postprocess_single_source(self, content: str, query: Query) -> str:
         """Prepares the result contents before LLM processing:
         1. Optionally extracts relevant sentences from the result text using keywords
             from the query.
@@ -252,7 +254,7 @@ class Searcher(Tool):
 
         return content
 
-    def _summarize(self, results: SearchResults, doc: Report = None) -> Optional[MultimediaSnippet]:
+    def _summarize(self, results: SearchResults, doc: Report = None) -> Optional[MultimodalSequence]:
         assert doc is not None
         if results:
             for source in results.sources:
@@ -282,12 +284,12 @@ class Searcher(Tool):
             logger.log(f"Error while summarizing! {e} - Skipping the summary for {source}.")
             summary = "NONE"
 
-        source.takeaways = MultimediaSnippet(summary)
+        source.takeaways = MultimodalSequence(summary)
 
         if source.is_relevant():
             logger.log("Useful source: " + gray(str(source)))
 
-    def _summarize_summaries(self, result: SearchResults, doc: Report) -> Optional[MultimediaSnippet]:
+    def _summarize_summaries(self, result: SearchResults, doc: Report) -> Optional[MultimodalSequence]:
         """Generates a summary, aggregating all relevant information from the
         identified and relevant sources."""
 
@@ -296,11 +298,11 @@ class Searcher(Tool):
             return None
         elif len(summaries) == 1:
             # No further summarization needed as we have only one source
-            return MultimediaSnippet(summaries[0])
+            return MultimodalSequence(summaries[0])
 
         # Disable summary of summaries:
         # relevant_sources = "\n\n".join([str(s) for s in result.sources if s.is_relevant()])
-        # return MultimediaSnippet(relevant_sources)
+        # return MultimodalSequence(relevant_sources)
 
         # Prepare the prompt for the LLM
         placeholder_targets = {
@@ -311,7 +313,7 @@ class Searcher(Tool):
                                   name="SummarizeSummariesPrompt",
                                   template_file_path="defame/prompts/summarize_summaries.md")
 
-        return MultimediaSnippet(self.llm.generate(summarize_prompt))
+        return MultimodalSequence(self.llm.generate(summarize_prompt))
 
     def get_stats(self) -> dict[str, Any]:
         return {

@@ -51,7 +51,7 @@ class AVeriTeC(Benchmark):
             date = d["claim_date"]
             identifier = str(i)
             claim = Claim(
-                data=d["claim"],
+                d["claim"],
                 author=d["speaker"],
                 date=datetime.strptime(date, "%d-%m-%Y") if date else None,
                 origin=d["original_claim_url"],
@@ -78,7 +78,7 @@ class AVeriTeC(Benchmark):
         pred_label = self.get_class_name(prediction)
         averitec_out_instance = {
             "claim_id": claim.id,
-            "claim": claim.data,
+            "claim": str(claim).replace("\n", " "),
             "pred_label": pred_label
         }
 

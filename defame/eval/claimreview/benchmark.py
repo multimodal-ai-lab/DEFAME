@@ -3,9 +3,10 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+from ezmm import Image
+
 from config.globals import data_root_dir
 from defame.common import Label, Claim
-from defame.common.medium import Image
 from defame.eval.benchmark import Benchmark
 from defame.evidence_retrieval.tools import Geolocate, Search
 
@@ -45,12 +46,12 @@ class ClaimReview2024(Benchmark):
         for i, entry in enumerate(raw_data):
             image_path = Path(data_root_dir / "MAFC" / entry["claimImage"][0]) if entry["claimImage"] else None
             image = Image(image_path) if (image_path and os.path.exists(image_path)) else None
-            claim_text = f"{image.reference} {entry['text']}" if image else f"{entry['text']}"
+            claim = [image, entry["text"]] if image else entry["text"]
             label_text = entry.get("label")
             date = datetime.strptime(entry.get("claimDate"), "%Y-%m-%dT%H:%M:%SZ") if entry.get("claimDate") else None
             claim_entry = {
                 "id": i,
-                "input": Claim(content=claim_text,
+                "input": Claim(claim,
                                id=i,
                                author=entry.get("author"),
                                date=date),

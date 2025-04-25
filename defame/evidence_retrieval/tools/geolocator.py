@@ -3,9 +3,10 @@ from typing import List, Optional
 
 import torch
 from PIL.Image import Image as PILImage
+from ezmm import MultimodalSequence, Image
 from transformers import AutoProcessor, AutoModel
 
-from defame.common import MultimediaSnippet, Action, Image, Results, logger
+from defame.common import Action, Results, logger
 from defame.evidence_retrieval.tools.tool import Tool
 
 
@@ -120,5 +121,5 @@ class Geolocator(Tool):
         logger.log(str(result))
         return result
 
-    def _summarize(self, result: GeolocationResults, **kwargs) -> Optional[MultimediaSnippet]:
-        return MultimediaSnippet(result.text)  # TODO: Improve summary w.r.t. uncertainty
+    def _summarize(self, result: GeolocationResults, **kwargs) -> Optional[MultimodalSequence]:
+        return MultimodalSequence(result.text)  # TODO: Improve summary w.r.t. uncertainty

@@ -7,12 +7,13 @@ from PIL import Image as PillowImage
 from atproto import Client
 from atproto_client.exceptions import RequestErrorBase
 from atproto_client.models.common import XrpcError
+from ezmm import Image
 
 from config.globals import api_keys
-from defame.common import Image, logger
+from defame.common import logger
+from defame.evidence_retrieval.integrations.integration import RetrievalIntegration
 from defame.evidence_retrieval.integrations.social_media import SocialMediaPost, SocialMediaProfile
 from defame.utils.requests import is_image_url
-from defame.evidence_retrieval.integrations.integration import RetrievalIntegration
 
 
 class Bluesky(RetrievalIntegration):

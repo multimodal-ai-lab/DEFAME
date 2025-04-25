@@ -4,12 +4,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from PIL import Image as PillowImage
-from torch.nn import functional as F
-
 from config.globals import manipulation_detection_model
-from defame.common.medium import Image
+from ezmm import Image
 from third_party.TruFor.src.trufor_config import _C as config
 from third_party.TruFor.src.trufor_config import update_config
+from torch.nn import functional as F
 
 
 # import sys

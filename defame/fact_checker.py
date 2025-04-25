@@ -5,8 +5,9 @@ from typing import Sequence, Any
 from datetime import datetime
 
 import numpy as np
+from ezmm import Item
 
-from defame.common import logger, Claim, Content, Report, Label, Medium, Action, Model
+from defame.common import logger, Claim, Content, Report, Label, Action, Model
 from defame.common.label import DEFAULT_LABEL_DEFINITIONS
 from defame.common.modeling import make_model
 from defame.modules.actor import Actor
@@ -108,12 +109,12 @@ class FactChecker:
                                        planner=self.planner,
                                        max_iterations=self.max_iterations)
 
-    def extract_claims(self, content: Content | list[str | Medium]) -> list[Claim]:
+    def extract_claims(self, content: Content | list[str | Item]) -> list[Claim]:
         if not isinstance(content, Content):
             content = Content(content)
         return self.claim_extractor.extract_claims(content)
 
-    def check_content(self, content: Content | list[str | Medium]) -> tuple[Label, list[Report], list[dict[str, Any]]]:
+    def check_content(self, content: Content | list[str | Item]) -> tuple[Label, list[Report], list[dict[str, Any]]]:
         """
         Fact-checks the given content ent-to-end by first extracting all check-worthy claims and then
         verifying each claim individually. Returns the aggregated veracity and the list of corresponding
@@ -139,7 +140,7 @@ class FactChecker:
         logger.log(f"Fact-check took {sec2mmss(fc_duration)}.")
         return aggregated_veracity, docs, metas
 
-    def verify_claim(self, claim: Claim | list[str | Medium]) -> tuple[Report, dict[str, Any]]:
+    def verify_claim(self, claim: Claim | list[str | Item]) -> tuple[Report, dict[str, Any]]:
         """Takes an (atomic, decontextualized, check-worthy) claim and fact-checks it.
         This is the core of the fact-checking implementation. Here, the fact-checking
         document is constructed incrementally."""
@@ -176,7 +177,7 @@ class FactChecker:
             logger.warning("The model refused to answer.")
         else:
             doc.justification = self.doc_summarizer.summarize(doc)
-            logger.info(bold(f"The claim '{light_blue(str(claim.data))}' is {label.value}."))
+            logger.info(bold(f"The claim '{light_blue(str(claim))}' is {label.value}."))
             logger.info(f'Justification: {gray(doc.justification)}')
         doc.verdict = label
 

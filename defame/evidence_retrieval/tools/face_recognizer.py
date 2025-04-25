@@ -1,8 +1,9 @@
 from typing import Optional
 
 import torch
+from ezmm import MultimodalSequence, Image
 
-from defame.common import MultimediaSnippet, Action, Image, logger
+from defame.common import Action, logger
 from defame.common.results import Results
 from defame.evidence_retrieval.tools.tool import Tool
 
@@ -53,5 +54,5 @@ class FaceRecognizer(Tool):
         result = Results()
         return result
 
-    def _summarize(self, result: Results, **kwargs) -> Optional[MultimediaSnippet]:
+    def _summarize(self, result: Results, **kwargs) -> Optional[MultimodalSequence]:
         raise NotImplementedError
