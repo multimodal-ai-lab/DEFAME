@@ -460,8 +460,10 @@ fact-check any presented content."""
         if system_prompt is None:
             system_prompt = self.system_prompt
 
-        if isinstance(self.processor, AutoProcessor):
+        if "llama_32" in self.name:
             return self._format_llama_3_2_prompt(original_prompt, system_prompt)
+        elif "llama-4" in self.name.lower():
+            return self._format_llama_4_prompt(original_prompt, system_prompt)
 
         messages = []
         if system_prompt:
@@ -551,23 +553,11 @@ fact-check any presented content."""
         if "llama-4" in model_name.lower():
             logger.info(f"Loading LLaMA 4 model: {model_name} ...")
 
-            # Create optimal device map for multi-GPU setup
-            max_memory = {}
-            n_gpus = torch.cuda.device_count()
-            for i in range(n_gpus):
-                # Get GPU total memory and reserve some for processing
-                total_mem = torch.cuda.get_device_properties(i).total_memory
-                # Reserve 5% memory for processing overhead
-                max_memory[i] = f"{int(total_mem * 0.95 / 1e9)}GiB"
-                
-            logger.info(f"Using {n_gpus} GPUs with memory configuration: {max_memory}")
-
             self.processor = AutoProcessor.from_pretrained(model_name)
             self.model = Llama4ForConditionalGeneration.from_pretrained(
                 model_name,
                 attn_implementation="eager",
                 device_map="auto",
-                max_memory=max_memory,
                 torch_dtype=torch.bfloat16,
             )
             return self.model
@@ -588,9 +578,34 @@ fact-check any presented content."""
             inputs = self.processor(images, inputs, add_special_tokens=False, return_tensors="pt").to(self.device)
             outputs = self.model.generate(**inputs, max_new_tokens=self.max_response_len)
             return self.processor.decode(outputs[0], skip_special_tokens=True)
+        elif isinstance(self.model, Llama4ForConditionalGeneration):
+            formatted_content = self._format_llama_4_prompt(prompt, system_prompt)
+            messages = [
+                {"role": "user", "content": formatted_content}
+            ]
+            inputs = self.processor.apply_chat_template(
+                messages,
+                add_generation_prompt=True,
+                return_tensors="pt",
+                tokenize=True,
+                return_dict=True,
+            ).to(self.model.device)
+
+            outputs = self.model.generate(
+                **inputs,
+                max_new_tokens=self.max_response_len,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+            )
+
+            return self.processor.batch_decode(outputs[:, inputs["input_ids"].shape[-1]:])[0]
 
         # Default text-only generation
         return super()._generate(prompt, temperature, top_p, top_k, system_prompt)
+    
+    def count_tokens(self, prompt):
+        return 0
 
 
 class LlavaModel(HuggingFaceModel):
