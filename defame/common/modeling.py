@@ -13,7 +13,7 @@ import torch
 from ezmm import Image
 from openai import OpenAI
 from transformers import pipeline, MllamaForConditionalGeneration, AutoProcessor, StoppingCriteria, \
-    StoppingCriteriaList, Pipeline
+    StoppingCriteriaList, Pipeline, Llama4ForConditionalGeneration
 
 from config.globals import api_keys
 from defame.common import logger
@@ -21,9 +21,9 @@ from defame.common.prompt import Prompt
 from defame.utils.console import bold
 from defame.utils.parsing import is_guardrail_hit, format_for_llava, find
 
-# from llava.mm_utils import get_model_name_from_path, process_images, tokenizer_image_token
-# from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN, IGNORE_INDEX
-# from llava.conversation import conv_templates, SeparatorStyle
+from llava.mm_utils import get_model_name_from_path, process_images, tokenizer_image_token
+from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN, IGNORE_INDEX
+from llava.conversation import conv_templates, SeparatorStyle
 
 # Each model should use the following system prompt
 DEFAULT_SYSTEM_PROMPT = f"""You are a professional fact-checker. Your mission is to verify a given Claim. Make 
@@ -516,6 +516,19 @@ fact-check any presented content."""
 
         messages.append({"role": "user", "content": content})
         return self.processor.apply_chat_template(messages, add_generation_prompt=True)
+    
+    def _format_llama_4_prompt(self, original_prompt: Prompt, system_prompt: str) -> str:
+        messages = []
+
+        if system_prompt:
+            messages.append({"type": "text", "text": system_prompt})
+
+        for block in original_prompt.to_list():
+            if isinstance(block, str):
+                messages.append({"type": "text", "text": block})
+            elif isinstance(block, Image):
+                messages.append({"type": "text", "text": block.reference})
+                messages.append({"type": "image", "image": block.image})
 
     def load(self, model_name: str) -> Pipeline | OpenAIAPI:
         """
@@ -534,6 +547,16 @@ fact-check any presented content."""
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self.model.to(self.device)
             return self.model
+        
+        if "llama_4" in model_name:
+            logger.info(f"Loading LLaMA 4 model: {model_name} ...")
+            self.processor = AutoProcessor.from_pretrained(model_name)
+            self.model = Llama4ForConditionalGeneration.from_pretrained(
+                model_name,
+                attn_implementation="eager",
+                device_map="auto",
+                torch_dtype=torch.bfloat16,
+            )
 
         return super()._finalize_load("text-generation", model_name)
 
