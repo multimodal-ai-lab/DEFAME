@@ -530,7 +530,7 @@ fact-check any presented content."""
 
         # Add system prompt if provided
         if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "system", "content": {"type": "text", "text": system_prompt}})
 
         # Process each block in the prompt to build the content list
         content = []
