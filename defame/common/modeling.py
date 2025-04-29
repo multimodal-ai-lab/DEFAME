@@ -535,6 +535,7 @@ fact-check any presented content."""
         Load the appropriate model based on the given model name.
         Supports both standard LLaMA and LLaMA 3.2 with multimodal capabilities.
         """
+        logger.info(f"Loading {model_name} ... SANITY CHECK")
         if "llama_32" in model_name:
             logger.info(f"Loading LLaMA 3.2 model: {model_name} ...")
 
