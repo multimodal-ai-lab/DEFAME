@@ -549,7 +549,7 @@ fact-check any presented content."""
             self.model.to(self.device)
             return self.model
         
-        if "llama_4" in model_name.lower():
+        if "llama-4" in model_name.lower():
             logger.info(f"Loading LLaMA 4 model: {model_name} ...")
             self.processor = AutoProcessor.from_pretrained(model_name)
             self.model = Llama4ForConditionalGeneration.from_pretrained(
