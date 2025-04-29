@@ -519,19 +519,31 @@ fact-check any presented content."""
         messages.append({"role": "user", "content": content})
         return self.processor.apply_chat_template(messages, add_generation_prompt=True)
     
-    def _format_llama_4_prompt(self, original_prompt: Prompt, system_prompt: str) -> str:
+    def _get_llama_4_messages(self, original_prompt: Prompt, system_prompt: str) -> list:
+        """
+        Formats the prompt for LLaMA 4 models using the proper message structure.
+        Returns a list of message dictionaries that the model expects.
+        
+        Important: Llama 4 models work directly with image objects, no base64 conversion needed.
+        """
         messages = []
 
+        # Add system prompt if provided
         if system_prompt:
-            messages.append({"type": "text", "text": system_prompt})
+            messages.append({"role": "system", "content": system_prompt})
 
+        # Process each block in the prompt to build the content list
+        content = []
         for block in original_prompt.to_list():
             if isinstance(block, str):
-                messages.append({"type": "text", "text": block})
+                content.append({"type": "text", "text": block})
             elif isinstance(block, Image):
-                messages.append({"type": "text", "text": block.reference})
-                messages.append({"type": "image", "image": block.image})
-
+                # Direct image passing - no base64 needed
+                content.append({"type": "image", "image": block.image})
+        
+        # Add the user message with content blocks
+        messages.append({"role": "user", "content": content})
+        
         return messages
 
     def load(self, model_name: str) -> Pipeline | OpenAIAPI:
@@ -581,10 +593,7 @@ fact-check any presented content."""
             outputs = self.model.generate(**inputs, max_new_tokens=self.max_response_len)
             return self.processor.decode(outputs[0], skip_special_tokens=True)
         elif isinstance(self.model, Llama4ForConditionalGeneration):
-            formatted_content = self._format_llama_4_prompt(prompt, system_prompt)
-            messages = [
-                {"role": "user", "content": formatted_content}
-            ]
+            messages = self._get_llama_4_messages(prompt, system_prompt)
             print("Messages:", messages)
             inputs = self.processor.apply_chat_template(
                 messages,
