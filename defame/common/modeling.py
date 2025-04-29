@@ -21,9 +21,9 @@ from defame.common.prompt import Prompt
 from defame.utils.console import bold
 from defame.utils.parsing import is_guardrail_hit, format_for_llava, find
 
-from llava.mm_utils import get_model_name_from_path, process_images, tokenizer_image_token
-from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN, IGNORE_INDEX
-from llava.conversation import conv_templates, SeparatorStyle
+# from llava.mm_utils import get_model_name_from_path, process_images, tokenizer_image_token
+# from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN, IGNORE_INDEX
+# from llava.conversation import conv_templates, SeparatorStyle
 
 # Each model should use the following system prompt
 DEFAULT_SYSTEM_PROMPT = f"""You are a professional fact-checker. Your mission is to verify a given Claim. Make 
