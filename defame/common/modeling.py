@@ -532,6 +532,8 @@ fact-check any presented content."""
                 messages.append({"type": "text", "text": block.reference})
                 messages.append({"type": "image", "image": block.image})
 
+        return messages
+
     def load(self, model_name: str) -> Pipeline | OpenAIAPI:
         """
         Load the appropriate model based on the given model name.
