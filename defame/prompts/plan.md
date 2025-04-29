@@ -3,6 +3,7 @@ The available knowledge is insufficient to assess the Claim. Therefore, **propos
 * The actions available are listed under Valid Actions, including a short description for each action. No other actions are possible at this moment. 
 * For each action, use the formatting as specified in Valid Actions.
 * Include all actions in a single Markdown code block at the end of your answer.
+* Use python syntax for calling the actions.
 * Propose as few actions as possible, but as much as needed. Do not propose similar or previously used actions.
 
 [EXTRA_RULES]

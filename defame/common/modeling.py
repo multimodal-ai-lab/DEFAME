@@ -594,7 +594,6 @@ fact-check any presented content."""
             return self.processor.decode(outputs[0], skip_special_tokens=True)
         elif isinstance(self.model, Llama4ForConditionalGeneration):
             messages = self._get_llama_4_messages(prompt, system_prompt)
-            print("Messages:", messages)
             inputs = self.processor.apply_chat_template(
                 messages,
                 add_generation_prompt=True,
