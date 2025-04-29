@@ -583,6 +583,7 @@ fact-check any presented content."""
             messages = [
                 {"role": "user", "content": formatted_content}
             ]
+            print("Messages:", messages)
             inputs = self.processor.apply_chat_template(
                 messages,
                 add_generation_prompt=True,
