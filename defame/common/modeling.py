@@ -551,11 +551,24 @@ fact-check any presented content."""
         
         if "llama-4" in model_name.lower():
             logger.info(f"Loading LLaMA 4 model: {model_name} ...")
+
+            # Create optimal device map for multi-GPU setup
+            max_memory = {}
+            n_gpus = torch.cuda.device_count()
+            for i in range(n_gpus):
+                # Get GPU total memory and reserve some for processing
+                total_mem = torch.cuda.get_device_properties(i).total_memory
+                # Reserve 5% memory for processing overhead
+                max_memory[i] = f"{int(total_mem * 0.95 / 1e9)}GiB"
+                
+            logger.info(f"Using {n_gpus} GPUs with memory configuration: {max_memory}")
+
             self.processor = AutoProcessor.from_pretrained(model_name)
             self.model = Llama4ForConditionalGeneration.from_pretrained(
                 model_name,
                 attn_implementation="eager",
                 device_map="auto",
+                max_memory=max_memory,
                 torch_dtype=torch.bfloat16,
             )
 
