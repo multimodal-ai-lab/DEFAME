@@ -34,7 +34,6 @@ class Planner:
 
     def plan_next_actions(self, doc: Report, all_actions=False) -> (list[Action], str):
         prompt = PlanPrompt(doc, self.valid_actions, self.extra_rules, all_actions)
-        logger.info(f"\n\nPrompting LLM for next actions:\n{prompt}\n\n")
         n_attempts = 0
 
         while n_attempts < self.max_attempts:
