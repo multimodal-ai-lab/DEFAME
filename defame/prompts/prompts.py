@@ -404,7 +404,6 @@ def parse_single_action(raw_action: str) -> Optional[Action]:
         return None
 
     try:
-        logger.info(f"\n\nParsing raw action: {raw_action}")
         out = parse_function_call(raw_action)
 
         if out is None:
