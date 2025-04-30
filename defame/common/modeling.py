@@ -585,7 +585,6 @@ fact-check any presented content."""
         Adjusts based on the model type for multimodal handling.
         """
         if isinstance(self.model, Llama4ForConditionalGeneration):
-            logger.info(f"Generating response using LLaMA 4 model: {self.name} ...")
             messages = self._get_llama_4_messages(prompt, system_prompt)
             inputs = self.processor.apply_chat_template(
                 messages,
@@ -603,7 +602,9 @@ fact-check any presented content."""
                 top_k=top_k,
             )
 
-            return self.processor.batch_decode(outputs[:, inputs["input_ids"].shape[-1]:])[0]
+            response = self.processor.batch_decode(outputs[:, inputs["input_ids"].shape[-1]:])[0]
+            logger.info(f"Generated response:\n{response}\n\n")
+            return response
 
         inputs = self.handle_prompt(prompt, system_prompt)
         if isinstance(self.model, MllamaForConditionalGeneration):
