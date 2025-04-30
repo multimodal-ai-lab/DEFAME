@@ -1,4 +1,4 @@
-benchmark_name: claimreview2024
+benchmark_name: claimreview
 benchmark_kwargs:
   variant: base
 fact_checker_kwargs:
