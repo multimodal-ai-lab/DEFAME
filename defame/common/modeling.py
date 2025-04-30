@@ -463,7 +463,7 @@ fact-check any presented content."""
         if "llama_32" in self.name:
             return self._format_llama_3_2_prompt(original_prompt, system_prompt)
         elif "llama-4" in self.name.lower():
-            return self._format_llama_4_prompt(original_prompt, system_prompt)
+            return self._get_llama_4_messages(original_prompt, system_prompt)
 
         messages = []
         if system_prompt:
@@ -584,15 +584,8 @@ fact-check any presented content."""
         Generates responses for both standard LLaMA models and LLaMA 3.2.
         Adjusts based on the model type for multimodal handling.
         """
-        inputs = self.handle_prompt(prompt, system_prompt)
-
-        if isinstance(self.model, MllamaForConditionalGeneration):
-            # If LLaMA 3.2, prepare multimodal inputs
-            images = [image.image for image in prompt.images]
-            inputs = self.processor(images, inputs, add_special_tokens=False, return_tensors="pt").to(self.device)
-            outputs = self.model.generate(**inputs, max_new_tokens=self.max_response_len)
-            return self.processor.decode(outputs[0], skip_special_tokens=True)
-        elif isinstance(self.model, Llama4ForConditionalGeneration):
+        if isinstance(self.model, Llama4ForConditionalGeneration):
+            logger.info(f"Generating response using LLaMA 4 model: {self.name} ...")
             messages = self._get_llama_4_messages(prompt, system_prompt)
             inputs = self.processor.apply_chat_template(
                 messages,
@@ -611,6 +604,14 @@ fact-check any presented content."""
             )
 
             return self.processor.batch_decode(outputs[:, inputs["input_ids"].shape[-1]:])[0]
+
+        inputs = self.handle_prompt(prompt, system_prompt)
+        if isinstance(self.model, MllamaForConditionalGeneration):
+            # If LLaMA 3.2, prepare multimodal inputs
+            images = [image.image for image in prompt.images]
+            inputs = self.processor(images, inputs, add_special_tokens=False, return_tensors="pt").to(self.device)
+            outputs = self.model.generate(**inputs, max_new_tokens=self.max_response_len)
+            return self.processor.decode(outputs[0], skip_special_tokens=True)
 
         # Default text-only generation
         return super()._generate(prompt, temperature, top_p, top_k, system_prompt)
