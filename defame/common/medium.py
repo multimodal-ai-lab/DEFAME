@@ -366,6 +366,7 @@ def interleaved_to_string(interleaved: list[str | Medium]) -> str:
     """Takes a list of strings and media and turns them into a single string
     where each medium is replaced by its reference."""
     out = ""
+    print("Interleaved: ", interleaved[0], type(interleaved[0]), isinstance(interleaved[0], Medium))
     for item in interleaved:
         if isinstance(item, Medium):
             out += f" {item.reference} "
