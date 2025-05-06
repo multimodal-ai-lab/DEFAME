@@ -27,5 +27,5 @@ tools_config:
       google:
       google_vision:
   geolocator:
-n_workers: 8
+n_workers: 1
 print_log_level: info
