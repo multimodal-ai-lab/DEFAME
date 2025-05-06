@@ -6,7 +6,7 @@ from pathlib import Path
 from defame.common.medium import Image
 
 from config.globals import data_root_dir
-from defame.common import Label, Claim
+from defame.common import Label, Claim, Content
 from defame.eval.benchmark import Benchmark
 from defame.tools import WebSearch, ImageSearch, ReverseSearch, Geolocate
 
@@ -50,27 +50,29 @@ class ClaimReview2024(Benchmark):
             image_path = Path(data_root_dir / "MAFC" / entry["claimImage"][0]) if entry["claimImage"] else None
             image = Image(image_path) if (image_path and os.path.exists(image_path)) else None
             claim = [image, entry["text"]] if image else entry["text"]
-            print(f"Claim: {claim}")
             label_text = entry.get("label")
             date = datetime.strptime(entry.get("claimDate"), "%Y-%m-%dT%H:%M:%SZ") if entry.get("claimDate") else None
+            # data.append(
+            #     {
+            #         "id": i,
+            #         "input": Claim(claim, original_context=f"Author: {entry.get('author')}, Date: {date}"),
+            #         "label": self.class_mapping.get(label_text),
+            #     }
+            # )
             data.append(
                 {
                     "id": i,
-                    "input": Claim(claim, original_context=f"Author: {entry.get('author')}, Date: {date}"),
+                    "content": Content(content=claim, author=entry.get("author"), date=date),
                     "label": self.class_mapping.get(label_text),
+                    "justification": f"Author: {entry.get('author')}, Date: {date}",
                 }
             )
 
         return data
     
+
     def __iter__(self):
-        for entry in self.data:
-            yield {
-                "id": entry["id"],
-                "input": entry["input"],
-                "label": entry["label"],
-                "justification": f"Author: {entry.get('author')}, Date: {entry.get('claimDate')}",
-            }
+        return iter(self.data)
 
 
 if __name__ == "__main__":
