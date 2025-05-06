@@ -37,6 +37,7 @@ class ClaimReview2024(Benchmark):
 
     def __init__(self, variant="test"):
         super().__init__(variant, "ClaimReview2024/data_core.json")
+        self.data = self._load_data()
 
     def _load_data(self) -> list[dict]:
         with open(self.file_path, "r") as f:
