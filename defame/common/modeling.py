@@ -445,7 +445,7 @@ fact-check any presented content."""
 
         # Process each block in the prompt to build the content list
         content = []
-        for block in original_prompt.to_list():
+        for block in original_prompt.to_interleaved():
             if isinstance(block, str):
                 content.append({"type": "text", "text": block})
             elif isinstance(block, Image):
