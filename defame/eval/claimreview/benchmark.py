@@ -36,8 +36,8 @@ class ClaimReview2024(Benchmark):
     available_actions = [WebSearch, ImageSearch, ReverseSearch, Geolocate]
 
     def __init__(self, variant="test"):
-        super().__init__(variant, "ClaimReview2024/data_core.json")
-        self.file_path = data_root_dir / "ClaimReview2024" / variant / "data_core.json"
+        super().__init__("ClaimReview2024", variant)
+        self.file_path = data_root_dir / "ClaimReview2024" / "data_core.json"
         self.data = self._load_data()
 
     def _load_data(self) -> list[dict]:
