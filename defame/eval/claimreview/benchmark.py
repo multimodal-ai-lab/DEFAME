@@ -62,7 +62,7 @@ class ClaimReview2024(Benchmark):
             data.append(
                 {
                     "id": i,
-                    "content": Content(content=claim, author=entry.get("author"), date=date),
+                    "content": Content(content=claim, author=entry.get("author"), date=date, id_number=i),
                     "label": self.class_mapping.get(label_text),
                     "justification": f"Author: {entry.get('author')}, Date: {date}",
                 }
