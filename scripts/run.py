@@ -4,7 +4,7 @@ from defame.fact_checker import FactChecker
 from defame.common import Image
 
 
-fact_checker = FactChecker(llm="gpt_4o")
+fact_checker = FactChecker(llm="llama4_scout")
 claim = ["The image",
          Image("in/example/sahara.webp"),
          "shows the Sahara in 2023 covered with snow!"]
