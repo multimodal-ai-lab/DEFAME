@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Directories
 working_dir = Path.cwd() # working_dir should be DEFAME
-data_root_dir = Path("data/")  # Where the datasets are stored
+data_root_dir = Path("/pfss/mlde/workspaces/mlde_wsp_Shared_Datasets/")  # Where the datasets are stored
 result_base_dir = working_dir / "out/"  # Where outputs are to be saved
 temp_dir = result_base_dir / "temp/" # Where caches etc. are saved
 
