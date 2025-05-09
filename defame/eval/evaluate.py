@@ -531,6 +531,11 @@ def fact_check(llm: str, llm_kwargs: dict,
     else:
         kb = None
 
+    # only keep the first item of the input queue
+    first = input_queue.get(timeout=10)
+    input_queue = Queue(maxsize=1)
+    input_queue.put(first)
+
     # Run fact-checks as long as there is work to do
     while True:
         try:
