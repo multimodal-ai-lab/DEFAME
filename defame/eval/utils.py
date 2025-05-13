@@ -15,9 +15,9 @@ def run_experiment(config_file_path: str):
     config_path = Path(config_file_path)
     experiment_params = load_config(config_path)
 
-    if experiment_params.get("n_workers", 1) <= 1:
-        # Sequential evaluation for single-worker setups
-        evaluate_sequential(experiment_name=config_path.stem, **experiment_params)
+    # if experiment_params.get("n_workers", 1) <= 1:
+    #     # Sequential evaluation for single-worker setups
+    #     evaluate_sequential(experiment_name=config_path.stem, **experiment_params)
 
     evaluate(experiment_name=config_path.stem, **experiment_params)
 
