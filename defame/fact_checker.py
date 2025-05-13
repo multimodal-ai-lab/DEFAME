@@ -175,6 +175,13 @@ class FactChecker:
         stats["Model"] = self.llm.get_stats()
         stats["Tools"] = self.actor.get_tool_stats()
         meta["Statistics"] = stats
+
+        import gc
+        import torch
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
         return doc, meta
 
 
