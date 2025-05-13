@@ -535,7 +535,7 @@ fact-check any presented content."""
         text = prompt.text if isinstance(prompt, Prompt) else prompt
 
         if hasattr(self, "processor") and self.processor is not None:
-            inputs = self.processor(text, return_tensors="pt")
+            inputs = self.processor(text=text, return_tensors="pt")
             return inputs["input_ids"].shape[1]
         elif hasattr(self, "tokenizer") and self.tokenizer is not None:
             return len(self.tokenizer.encode(text))
