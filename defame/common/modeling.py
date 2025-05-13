@@ -528,6 +528,10 @@ fact-check any presented content."""
         return super()._generate(prompt, temperature, top_p, top_k, system_prompt)
 
     def count_tokens(self, prompt):
+        if not prompt:
+            logger.warning("Empty prompt provided. Returning 0 tokens.")
+            return 0
+
         text = prompt.text if isinstance(prompt, Prompt) else prompt
 
         if hasattr(self, "processor") and self.processor is not None:
