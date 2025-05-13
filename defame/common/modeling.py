@@ -528,7 +528,17 @@ fact-check any presented content."""
         return super()._generate(prompt, temperature, top_p, top_k, system_prompt)
 
     def count_tokens(self, prompt):
-        return 0
+        text = prompt.text if isinstance(prompt, Prompt) else prompt
+
+        if hasattr(self, "processor") and self.processor is not None:
+            inputs = self.processor(text, return_tensors="pt")
+            return inputs["input_ids"].shape[1]
+        elif hasattr(self, "tokenizer") and self.tokenizer is not None:
+            return len(self.tokenizer.encode(text))
+        else:
+            logger.warning("No tokenizer or processor found. Using fallback method.")
+            return len(text) // 4  # Fallback to a rough estimate of 1 token per 4 characters
+
 
 class LlavaModel(HuggingFaceModel):
     accepts_images = True
