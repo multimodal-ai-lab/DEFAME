@@ -1,14 +1,11 @@
 from multiprocessing import set_start_method
 from pathlib import Path
 import os
-from multiprocessing import set_start_method
-from pathlib import Path
 
 from defame.eval.evaluate import evaluate
 from defame.utils.utils import load_config
 
-from defame.eval.evaluate import evaluate
-from defame.utils.utils import load_config
+from defame.eval.evaluate_sequential import evaluate_sequential
 
 set_start_method("spawn")
 
@@ -17,6 +14,11 @@ def run_experiment(config_file_path: str):
     """Runs the experiment as configured by the specified configuration file."""
     config_path = Path(config_file_path)
     experiment_params = load_config(config_path)
+
+    if experiment_params.get("n_workers", 1) <= 1:
+        # Sequential evaluation for single-worker setups
+        evaluate_sequential(experiment_name=config_path.stem, **experiment_params)
+
     evaluate(experiment_name=config_path.stem, **experiment_params)
 
 
