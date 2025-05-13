@@ -31,6 +31,7 @@ def evaluate_sequential(
         random_sampling: bool = False,
         print_log_level: str = "info",
         claims_per_batch: int = 1,  # Number of claims to process before reinitializing
+        **kwargs,
 ):
     """Sequential evaluation for single-worker setups."""
     print(f"Starting sequential evaluation on {benchmark_name}...")
