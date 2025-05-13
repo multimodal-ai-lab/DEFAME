@@ -12,7 +12,6 @@ fact_checker_kwargs:
 llm: llama4_scout
 llm_kwargs:
   temperature: 0.01
-  torch_dtype: bfloat16
 n_samples:
 random_sampling: false
 sample_ids: null
