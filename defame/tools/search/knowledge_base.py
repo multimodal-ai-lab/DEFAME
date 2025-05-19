@@ -180,6 +180,8 @@ class KnowledgeBase(LocalSearchAPI):
             return SearchResult(sources)
         except Exception as e:
             logger.warning(f"Resource retrieval from kNN failed: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     def _download(self):
