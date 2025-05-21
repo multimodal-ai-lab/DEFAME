@@ -10,7 +10,7 @@ variant = "test"
 if __name__ == '__main__':  # evaluation uses multiprocessing
     set_start_method("spawn")
     evaluate(
-        llm="gpt_4o",
+        llm="llama4_scout",
         tools_config=dict(searcher=dict(
             search_engine_config=dict(
                 google=dict(),
