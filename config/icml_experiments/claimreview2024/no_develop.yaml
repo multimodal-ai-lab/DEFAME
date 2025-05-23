@@ -1,6 +1,6 @@
-benchmark_name: verite
+benchmark_name: claimreview2024
 benchmark_kwargs:
-  variant: dev
+  variant: base
 fact_checker_kwargs:
   decompose: false
   decontextualize: false
@@ -27,5 +27,5 @@ tools_config:
       google:
       google_vision:
   geolocator:
-n_workers: 8
+n_workers:
 print_log_level: info

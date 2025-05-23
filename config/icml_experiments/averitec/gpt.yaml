@@ -1,0 +1,27 @@
+benchmark_name: averitec
+benchmark_kwargs:
+  variant: dev
+fact_checker_kwargs:
+  decompose: false
+  decontextualize: false
+  filter_check_worthy: false
+  interpret: false
+  max_iterations: 3
+  max_result_len: 64000
+  procedure_variant: minimal
+llm: gpt_4o
+llm_kwargs:
+  temperature: 0.01
+n_samples:
+random_sampling: false
+sample_ids:
+allowed_actions:
+- web_search
+tools_config:
+  searcher:
+    limit_per_search: 5
+    search_engine_config:
+      averitec_kb:
+        variant: dev
+n_workers: 8
+print_log_level: info

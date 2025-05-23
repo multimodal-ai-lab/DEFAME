@@ -67,7 +67,7 @@ class Searcher(Tool):
             api_class = SEARCH_APIS[se]
             if kwargs is None:
                 kwargs = {}
-            api = api_class(max_search_results=limit_per_search, **kwargs)
+            api = api_class(**kwargs)
             self.search_apis[se] = api
 
         # Register available tools
@@ -137,8 +137,11 @@ class Searcher(Tool):
             else:
                 continue
 
-            # Remove known websites from search result
-            search_result.sources = self._remove_known_web_sources(search_result.sources)
+            # Remove known websites from search result and apply limit
+            search_result.sources = self._remove_known_web_sources(search_result.sources)[:query.limit]
+
+            if len(search_result.sources) < query.limit:
+                logger.warning("Missed new sources!")
 
             # Track search engine call
             self.stats[search_engine.name] += 1

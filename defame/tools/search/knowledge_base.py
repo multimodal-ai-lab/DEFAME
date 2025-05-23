@@ -5,6 +5,7 @@ import zipfile
 from datetime import datetime
 from multiprocessing import Pool, Queue
 from pathlib import Path
+from typing import Optional
 from urllib.request import urlretrieve
 
 import langdetect
@@ -13,7 +14,7 @@ from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
 from config.globals import data_root_dir, embedding_model
-from defame.common.misc import Query, WebSource
+from defame.common.misc import Query, WebSource, TextQuery
 from defame.common.embedding import EmbeddingModel
 from defame.common import logger
 from defame.tools.search.local_search_api import LocalSearchAPI
@@ -50,13 +51,12 @@ class KnowledgeBase(LocalSearchAPI):
     name = 'averitec_kb'
     embedding_knns: dict[int, NearestNeighbors]
     embedding_model: EmbeddingModel = None
+    n_search_results = 30
 
     def __init__(self, variant,
-                 device: str | torch.device = None,
-                 max_search_results: int = None):
+                 device: str | torch.device = None):
         super().__init__()
         self.variant = variant
-        self.max_search_results = max_search_results
 
         # Setup paths and dirs
         self.kb_dir = data_root_dir / f"AVeriTeC/knowledge_base/{variant}/"
@@ -154,7 +154,7 @@ class KnowledgeBase(LocalSearchAPI):
             url, text, date = self.retrieve(index)
             result = WebSource(
                 url=url,
-                text=text,
+                content=text,
                 query=query,
                 rank=i,
                 date=date
@@ -162,7 +162,7 @@ class KnowledgeBase(LocalSearchAPI):
             results.append(result)
         return results
 
-    def _call_api(self, query: Query) -> SearchResult:
+    def _call_api(self, query: TextQuery) -> Optional[SearchResult]:
         """Performs a vector search on the text embeddings of the resources of the currently active claim."""
         if self.current_claim_id is None:
             raise RuntimeError("No claim ID specified. You must set the current_claim_id to the "
@@ -173,8 +173,7 @@ class KnowledgeBase(LocalSearchAPI):
             return None
 
         query_embedding = self._embed(query.text).reshape(1, -1)
-        limit = query.limit or self.max_search_results
-        limit = min(limit, knn.n_samples_fit_)  # account for very small resource sets
+        limit = min(self.n_search_results, knn.n_samples_fit_)  # account for very small resource sets
         try:
             distances, indices = knn.kneighbors(query_embedding, limit)
             sources = self._indices_to_search_results(indices[0], query)

@@ -6,6 +6,7 @@ WORKDIR /
 
 # Install and update basic services
 RUN apt update
+RUN apt -y install nano
 
 # Install Firecrawl dependencies (Node.js, pnpm, redis)
 RUN apt -y install curl && \

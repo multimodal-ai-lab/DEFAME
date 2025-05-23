@@ -228,14 +228,14 @@ def scrape_firecrawl(url: str) -> Optional[MultimediaSnippet]:
     json_data = {
         "url": url,
         "formats": ["markdown"],
-        "timeout": 15 * 60 * 1000,  # waiting time in milliseconds for Firecrawl to process the job
+        "timeout": 15 * 1000,  # waiting time in milliseconds for Firecrawl to process the job
     }
 
     try:
         response = requests.post(firecrawl_url + "/v1/scrape",
                                  json=json_data,
                                  headers=headers,
-                                 timeout=10 * 60)  # Firecrawl scrapes usually take 2 to 4s, but a 1700-page PDF takes 5 min
+                                 timeout=60)  # Firecrawl scrapes usually take 2 to 4s, but a 1700-page PDF takes 5 min
     except (requests.exceptions.RetryError, requests.exceptions.ConnectionError):
         logger.error(f"Firecrawl is not running!")
         return None

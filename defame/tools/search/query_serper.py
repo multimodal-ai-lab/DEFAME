@@ -15,7 +15,7 @@ from PIL import Image as PillowImage
 
 from config.globals import api_keys
 from defame.common import logger, Image
-from defame.common.misc import Query, WebSource
+from defame.common.misc import Query, WebSource, TextQuery
 from defame.tools.search.remote_search_api import RemoteSearchAPI, scrape, is_fact_checking_site, is_unsupported_site
 from .common import SearchResult
 from .google_vision_api import get_base_domain
@@ -47,13 +47,13 @@ class SerperAPI(RemoteSearchAPI):
             'search': 'organic',
         }
 
-    def _call_api(self, query: Query) -> SearchResult:
+    def _call_api(self, query: TextQuery) -> SearchResult:
         """Run query through GoogleSearch and parse result."""
         assert self.serper_api_key, 'Missing serper_api_key.'
         assert query, 'Searching Google with empty query'
 
         if query.end_date is not None:
-            end_date = query.end_date.strftime('%d/%m/%Y')
+            end_date = query.end_date.strftime('%m/%d/%Y')
             tbs = f"cdr:1,cd_min:1/1/1900,cd_max:{end_date}"
         else:
             tbs = self.tbs

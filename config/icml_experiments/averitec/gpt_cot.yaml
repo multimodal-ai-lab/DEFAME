@@ -8,7 +8,7 @@ fact_checker_kwargs:
   interpret: false
   max_iterations: 3
   max_result_len: 64000
-  procedure_variant: summary/no_develop
+  procedure_variant: naive
 llm: gpt_4o
 llm_kwargs:
   temperature: 0.01
@@ -19,9 +19,9 @@ allowed_actions:
 - web_search
 tools_config:
   searcher:
-    limit_per_search: 3
+    limit_per_search: 5
     search_engine_config:
       averitec_kb:
         variant: dev
-n_workers:
+n_workers: 8
 print_log_level: info

@@ -54,5 +54,5 @@ class DuckDuckGo(RemoteSearchAPI):
             title = result.get('title', '')
             text = result.get('body', '')
 
-            results.append(WebSource(url=url, title=title, text=text, query=query, rank=i))
+            results.append(WebSource(url=url, title=title, content=text, query=query, rank=i))
         return results

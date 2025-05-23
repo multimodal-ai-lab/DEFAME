@@ -29,7 +29,7 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
             max_result_len=64_000,  # characters
         ),
         llm_kwargs=dict(temperature=0.01),
-        benchmark_name="verite",
+        benchmark_name="claimreview2024",
         benchmark_kwargs=dict(variant="dev"),
         allowed_actions=["web_search",
                          "image_search",

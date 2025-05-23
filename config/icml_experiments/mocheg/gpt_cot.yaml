@@ -1,4 +1,4 @@
-benchmark_name: verite
+benchmark_name: mocheg
 benchmark_kwargs:
   variant: dev
 fact_checker_kwargs:
@@ -8,7 +8,7 @@ fact_checker_kwargs:
   interpret: false
   max_iterations: 3
   max_result_len: 64000
-  procedure_variant: summary/dynamic
+  procedure_variant: naive
 llm: gpt_4o
 llm_kwargs:
   temperature: 0.01
@@ -17,6 +17,7 @@ random_sampling: false
 sample_ids: null
 allowed_actions:
 - web_search
+- image_search
 - reverse_search
 - geolocate
 tools_config:

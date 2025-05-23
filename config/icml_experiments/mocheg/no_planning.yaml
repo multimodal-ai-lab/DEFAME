@@ -1,4 +1,4 @@
-benchmark_name: verite
+benchmark_name: mocheg
 benchmark_kwargs:
   variant: dev
 fact_checker_kwargs:
@@ -8,7 +8,7 @@ fact_checker_kwargs:
   interpret: false
   max_iterations: 3
   max_result_len: 64000
-  procedure_variant: summary/dynamic
+  procedure_variant: summary/static
 llm: gpt_4o
 llm_kwargs:
   temperature: 0.01
@@ -27,5 +27,5 @@ tools_config:
       google:
       google_vision:
   geolocator:
-n_workers: 8
+n_workers:
 print_log_level: info
