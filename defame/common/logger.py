@@ -2,7 +2,6 @@ import csv
 import json
 import logging
 import os.path
-import shutil
 import sys
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
@@ -10,12 +9,13 @@ from pathlib import Path
 from typing import Optional
 
 import pandas as pd
+import torchvision
 import yaml
 
+torchvision.disable_beta_transforms_warning()
+
 from config.globals import result_base_dir
-from defame.common.report import Report
 from defame.common.label import Label
-from defame.common.medium import media_registry
 from defame.utils.console import remove_string_formatters, bold, red, orange, yellow, gray
 from defame.utils.utils import flatten_dict
 
@@ -179,18 +179,23 @@ class Logger:
         return self.target_dir / self.model_comm_filename
 
     def critical(self, msg: str):
+        msg = msg.encode("utf-8", "ignore").decode("utf-8")
         self.logger.critical(bold(red(msg)))
 
     def error(self, msg: str):
+        msg = msg.encode("utf-8", "ignore").decode("utf-8")
         self.logger.error(red(msg))
 
     def warning(self, msg: str):
+        msg = msg.encode("utf-8", "ignore").decode("utf-8")
         self.logger.warning(orange(msg))
 
     def info(self, msg: str):
+        msg = msg.encode("utf-8", "ignore").decode("utf-8")
         self.logger.info(yellow(msg))
 
     def log(self, msg: str, level=15):
+        msg = msg.encode("utf-8", "ignore").decode("utf-8")
         self.logger.log(level, msg)
 
     def debug(self, msg: str):

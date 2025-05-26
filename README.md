@@ -1,17 +1,21 @@
 # DEFAME: Dynamic Evidence-based FAct-checking with Multimodal Experts
-[📄 Paper]()
+#### ICML Version
+[![Paper](https://img.shields.io/badge/Paper-EC6500?style=for-the-badge&logo=bookstack&logoColor=white)](https://arxiv.org/abs/2412.10510)&nbsp;&nbsp;&nbsp;[![License](https://img.shields.io/badge/License-Apache--2.0-F5A300?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 
-|![Teaser.jpg](resources%2FTeaser.jpg) | ![Concept.png](resources%2FConcept.png)|
-|---|---|
+
+| ![Teaser.jpg](resources%2FTeaser.png) | ![Concept.png](resources%2FConcept.png)|
+|---------------------------------------|---|
 
 This is the implementation of **Dynamic Evidence-based FAct-checking with Multimodal Experts (DEFAME)**, a strong multimodal claim verification system. DEFAME decomposes the fact-checking task into a dynamic 6-stage pipeline, leveraging an MLLM to accomplish sub-tasks like planning, reasoning, and evidence summarization.
 
-DEFAME is the successor of our challenge-winning unimodal fact-checking system, [InFact](https://aclanthology.org/2024.fever-1.12/). This repository is under constant development. You can access the original code of InFact [here](https://github.com/multimodal-ai-lab/DEFAME/tree/infact), the code of DEFAME here.
+> [!NOTE]  
+> This is the version as used in our [ICML 2025 paper](https://arxiv.org/abs/2412.10510), useful for reproducing our results. If you are looking for the most recent DEFAME version, visit the [main branch](https://github.com/multimodal-ai-lab/DEFAME) of this repo.
+> 
+> DEFAME is the successor of our challenge-winning unimodal fact-checking system, [InFact](https://aclanthology.org/2024.fever-1.12/). You can access the original code of InFact in the [InFact release](https://github.com/multimodal-ai-lab/DEFAME/tree/infact).
 
 
 ## Table of Contents
 - [Installation](#installation)
-- [Configuration](#configuration)
 - [Usage](#usage)
 - [APIs](#apis)
 - [Data Path Configuration](#data-path-configuration)
@@ -27,7 +31,7 @@ You can install DEFAME either via Docker or manually. In any case, you first nee
  ```
 
 ### Option A: Docker (Easiest, Fastest)
-Choose this option if you're interested in _executing_ DEFAME.
+Choose this option if you're interested in _executing_ rather than modifying DEFAME.
 
 If you have [Docker](https://www.docker.com/) installed, from the project root simply run
 ```bash
@@ -37,7 +41,7 @@ docker compose exec defame bash
 This will download and execute the [latest images](https://hub.docker.com/r/tudamailab/defame) we have built for you. It opens a shell. You can continue with [Usage](#usage) from here.
 
 ### Option B: Manual Installation (Most Flexible)
-Choose this option if you want to _modify_ DEFAME.
+Choose this option if you want to _modify_ rather than just execute DEFAME.
 
 Follow these steps:
 
@@ -47,7 +51,7 @@ Follow these steps:
     source venv/bin/activate  # On Windows: venv\Scripts\activate
     ```
 
-2. Install required packages:
+2. Install all required packages:
     ```bash
     pip install -r requirements.txt
     python -c "import nltk; nltk.download('wordnet')"
@@ -66,6 +70,7 @@ If you want to evaluate DEFAME on a benchmark, you need to do the following:
    1. [AVeriTeC](https://huggingface.co/chenxwh/AVeriTeC/tree/main/data)
    2. [VERITE](https://github.com/stevejpapad/image-text-verification)
    3. [MOCHEG](https://docs.google.com/forms/d/e/1FAIpQLScAGehM6X9ARZWW3Fgt7fWMhc_Cec6iiAAN4Rn1BHAk6KOfbw/viewform)
+   4. ClaimReview2024+ (Link TBD)
    
 2. Order the benchmarks in the following directory structure:
    ```plaintext
@@ -78,9 +83,11 @@ If you want to evaluate DEFAME on a benchmark, you need to do the following:
    │   ├── images/
    │   ├── VERITE.csv
    │   └── ...
-   └── AVeriTeC/
-       ├── train.json
-       ├── dev.json
+   ├── AVeriTeC/
+   │   ├── train.json
+   │   ├── dev.json
+   │   └── ...
+   └── ClaimReview2024/
        └── ...
    ```
 
@@ -92,7 +99,7 @@ All execution scripts are located in (subfolders of) `scripts/`.
 > [!NOTE]
 > Whenever running a script, ensure the project root to be the working directory. You can accomplish that by using the `-m` parameter as in the commands below (note the script path notation):
 
-**Hardware requirements**: CPU-only is sufficient if you refrain from using a local LLM.
+**Hardware requirements**: CPU-only is sufficient if you refrain from using a local LLM and disable the geolocator.
 
 **Output location**: All generated reports, statistics, logs etc. will be saved in `out/` by default. You may change this in the `config/globals.py` file.
 
@@ -108,6 +115,10 @@ Benchmark evaluations can be run in two different ways. We recommend to use YAML
 ```bash
 python -m scripts.run_config
 ```
+
+
+## Reproduction
+All experiment configurations are located in `config/icml_experiments`. You can run all of them by copying the `icml_experiments` directory into the `in/` directory and executing `scripts/run_batch.py`. This will run each experiment one by one and, thus, may take a while. The configuration files of finished experiments will be deleted.
 
 
 ## APIs
@@ -146,6 +157,7 @@ If you installed DEFAME manually, you also need to run Firecrawl manually by exe
 ```bash
 docker run -d -p 3002:3002 tudamailab/firecrawl
 ```
+and to adjust the `config/globals.py` file by setting `firecrawl_url = "http://localhost:3002"`.
 
 If you really want to set up Firecrawl manually and without Docker, follow the [Firecrawl Documentation](https://github.com/mendableai/firecrawl.git). We do not recommend that because, in our experience, that setup procedure is rather involving. Therefore, we recommend to use the Firecrawl Docker Image we provide for this project. (You may modify and re-build the Firecrawl Image via the `Dockerfile` stored in `third_party/firecrawl`.)
 
@@ -175,10 +187,18 @@ To extend the fact-checker with an additional tool, follow these steps:
    This step is required only if you want to use your tool for evaluation on one of the benchmarks. To this end, navigate to the respective benchmark file under `defame/eval/<benchmark_name>/benchmark.py`. There, in the `available_actions` list, add your Tool.
 
 
-## License
+## [License](LICENSE)
 This repository and all its contents (except for the contents inside `third_party/`) are licensed under the [Apache 2.0 License](http://www.apache.org/licenses/LICENSE-2.0).
 
-Please use the following to refer to the authors:
+
+## Cite this Work
+Please use the following BibTeX to refer to the authors:
 ```bibtex
-TODO: Insert Bibtex 
+@inproceedings{braun2024defame,
+   title = {{DEFAME: Dynamic Evidence-based FAct-checking with Multimodal Experts}}, 
+   author = {Tobias Braun and Mark Rothermel and Marcus Rohrbach and Anna Rohrbach},
+   booktitle = {Proceedings of the 42nd International Conference on Machine Learning},
+   year = {2025},
+   url = {https://arxiv.org/abs/2412.10510},
+}
 ```

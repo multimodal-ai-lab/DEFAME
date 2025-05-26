@@ -9,7 +9,7 @@ fact_checker_kwargs:
   max_iterations: 3
   max_result_len: 64000
   procedure_variant: summary/dynamic
-llm: gpt_4o
+llm: llama4_scout
 llm_kwargs:
   temperature: 0.01
 n_samples:
@@ -17,6 +17,7 @@ random_sampling: false
 sample_ids: null
 allowed_actions:
 - web_search
+- image_search
 - reverse_search
 - geolocate
 tools_config:
@@ -26,5 +27,9 @@ tools_config:
       google:
       google_vision:
   geolocator:
-n_workers: 8
+<<<<<<< HEAD:config/verite/default.yaml
+n_workers: 1
+=======
+n_workers:
+>>>>>>> icml:config/icml_experiments/verite/defame.yaml
 print_log_level: info

@@ -5,6 +5,7 @@ import zipfile
 from datetime import datetime
 from multiprocessing import Pool, Queue
 from pathlib import Path
+from typing import Optional
 from urllib.request import urlretrieve
 
 import langdetect
@@ -13,7 +14,7 @@ from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
 from config.globals import data_root_dir, embedding_model
-from defame.common.misc import Query, WebSource
+from defame.common.misc import Query, WebSource, TextQuery
 from defame.common.embedding import EmbeddingModel
 from defame.common import logger
 from defame.tools.search.local_search_api import LocalSearchAPI
@@ -50,18 +51,18 @@ class KnowledgeBase(LocalSearchAPI):
     name = 'averitec_kb'
     embedding_knns: dict[int, NearestNeighbors]
     embedding_model: EmbeddingModel = None
+    n_search_results = 30
 
     def __init__(self, variant,
-                 device: str | torch.device = None,
-                 max_search_results: int = None):
+                 device: str | torch.device = None):
         super().__init__()
         self.variant = variant
-        self.max_search_results = max_search_results
 
         # Setup paths and dirs
         self.kb_dir = data_root_dir / f"AVeriTeC/knowledge_base/{variant}/"
         os.makedirs(self.kb_dir, exist_ok=True)
         self.download_dir = self.kb_dir / "download"
+        self.extracted_dir = self.kb_dir / "extracted"
         self.resources_dir = self.kb_dir / "resources"  # stores all .jsonl files extracted from the .zip in download
         self.embedding_knns_path = self.kb_dir / "embedding_knns.pckl"
 
@@ -161,7 +162,7 @@ class KnowledgeBase(LocalSearchAPI):
             results.append(result)
         return results
 
-    def _call_api(self, query: Query) -> SearchResult:
+    def _call_api(self, query: TextQuery) -> Optional[SearchResult]:
         """Performs a vector search on the text embeddings of the resources of the currently active claim."""
         if self.current_claim_id is None:
             raise RuntimeError("No claim ID specified. You must set the current_claim_id to the "
@@ -172,8 +173,7 @@ class KnowledgeBase(LocalSearchAPI):
             return None
 
         query_embedding = self._embed(query.text).reshape(1, -1)
-        limit = query.limit or self.max_search_results
-        limit = min(limit, knn.n_samples_fit_)  # account for very small resource sets
+        limit = min(self.n_search_results, knn.n_samples_fit_)  # account for very small resource sets
         try:
             distances, indices = knn.kneighbors(query_embedding, limit)
             sources = self._indices_to_search_results(indices[0], query)
@@ -192,16 +192,20 @@ class KnowledgeBase(LocalSearchAPI):
 
     def _extract(self):
         print("Extracting knowledge base...")
-        # os.makedirs(self.resources_dir, exist_ok=True)
+        if self.resources_dir.exists():
+            os.remove(self.resources_dir)
         zip_files = os.listdir(self.download_dir)
         for zip_file in tqdm(zip_files):
             zip_path = self.download_dir / zip_file
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(self.resources_dir)
-        if self.variant == "dev":
-            os.rename(self.resources_dir / f"output_dev", self.resources_dir)
-        elif self.variant == "train":
-            os.rename(self.resources_dir / f"data_store/train", self.resources_dir)
+                zip_ref.extractall(self.extracted_dir)
+        match self.variant:
+            case "dev":
+                os.rename(self.extracted_dir / f"output_dev", self.resources_dir)
+            case "train":
+                os.rename(self.extracted_dir / f"data_store/train", self.resources_dir)
+            case "test":
+                os.rename(self.extracted_dir, self.resources_dir)
 
     def _build(self):
         """Downloads, extracts and creates the SQLite database."""

@@ -1,0 +1,31 @@
+benchmark_name: claimreview2024
+benchmark_kwargs:
+  variant: base
+fact_checker_kwargs:
+  decompose: false
+  decontextualize: false
+  filter_check_worthy: false
+  interpret: false
+  max_iterations: 3
+  max_result_len: 64000
+  procedure_variant: minimal
+llm: gpt_4o
+llm_kwargs:
+  temperature: 0.01
+n_samples:
+random_sampling: false
+sample_ids: null
+allowed_actions:
+- web_search
+- image_search
+- reverse_search
+- geolocate
+tools_config:
+  searcher:
+    limit_per_search: 3
+    search_engine_config:
+      google:
+      google_vision:
+  geolocator:
+n_workers: 8
+print_log_level: info

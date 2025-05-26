@@ -10,7 +10,7 @@ Do NOT include:
 
 Additional rules:
 * Do not add any additional information besides the information in the Search Result.
-* If the Search Result doesn't contain any relevant information for the fact-checking work, simply print one word in capital letters: "NONE".
+* If the Search Result doesn't contain any information related to the fact-check, simply print one word in capital letters: "NONE".
 * Keep your writing style like in the Examples 1, 2 and 3 provided to you.
 * Try to filter out relevant information even if the search result is in a different language.
 

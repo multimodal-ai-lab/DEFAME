@@ -66,3 +66,10 @@ def unroll_dict(flat_dict: dict[str, Any]) -> dict[str, Any]:
                     tmp_dict[key_part] = dict()
                     tmp_dict = tmp_dict[key_part]
     return unrolled_dict
+
+
+def get_yaml_files(path: str | Path) -> list[Path]:
+    """Traverses the directory tree starting at path and returns a list of all
+    YAML filepaths contained in it."""
+    matches = Path(path).glob("**/*.yaml")
+    return [match for match in matches]
