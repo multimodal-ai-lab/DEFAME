@@ -1,4 +1,3 @@
-import copy
 import re
 from abc import ABC
 from typing import Callable
@@ -10,8 +9,8 @@ import requests
 import tiktoken
 import torch
 from openai import OpenAI
-from transformers import pipeline, MllamaForConditionalGeneration, AutoProcessor, StoppingCriteria, \
-    StoppingCriteriaList, Pipeline
+from transformers import pipeline, AutoProcessor, StoppingCriteria, StoppingCriteriaList, Pipeline, \
+    ImageTextToTextPipeline
 
 from config.globals import api_keys
 from defame.common import logger
@@ -19,10 +18,6 @@ from defame.common.medium import Image
 from defame.common.prompt import Prompt
 from defame.utils.console import bold
 from defame.utils.parsing import is_guardrail_hit, GUARDRAIL_WARNING, format_for_llava, find
-
-# from llava.mm_utils import get_model_name_from_path, process_images, tokenizer_image_token
-# from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN, IGNORE_INDEX
-# from llava.conversation import conv_templates, SeparatorStyle
 
 # Each model should use the following system prompt
 DEFAULT_SYSTEM_PROMPT = """You are a professional fact-checker. Your mission is to verify a given Claim. Make 
@@ -373,7 +368,7 @@ class HuggingFaceModel(Model, ABC):
             model_kwargs = dict()
         self.model_name = model_name
         model_kwargs["torch_dtype"] = torch.bfloat16
-        logger.info(f"Loading {model_name} ...")
+        logger.info(f"Loading {model_name}...")
         ppl = pipeline(
             task,
             model=model_name,
@@ -508,7 +503,7 @@ fact-check any presented content."""
         """
         if "llama_32" in model_name:
             logger.info(f"Loading LLaMA 3.2 model: {model_name} ...")
-
+            from transformers import MllamaForConditionalGeneration
             self.model = MllamaForConditionalGeneration.from_pretrained(
                 model_name,
                 torch_dtype=torch.bfloat16,
@@ -529,6 +524,7 @@ fact-check any presented content."""
         """
         inputs = self.handle_prompt(prompt, system_prompt)
 
+        from transformers import MllamaForConditionalGeneration
         if isinstance(self.model, MllamaForConditionalGeneration):
             # If LLaMA 3.2, prepare multimodal inputs
             images = [image.image for image in prompt.images]
@@ -540,33 +536,25 @@ fact-check any presented content."""
         return super()._generate(prompt, temperature, top_p, top_k, system_prompt)
 
 
-class LlavaModel(HuggingFaceModel):
+class LlavaNextModel(HuggingFaceModel):
     accepts_images = True
     accepts_videos = False
     accepts_audio = False
 
+    system_prompt = """You are an AI assistant skilled in fact-checking. Make sure to follow
+the instructions and keep the output to the minimum."""
+
     def load(self, model_name: str) -> Pipeline | OpenAIAPI:
         # Load Llava with quantization for efficiency
         logger.info(f"Loading {model_name} ...")
-        self.system_prompt = """You are an AI assistant skilled in fact-checking. Make sure to follow
-the instructions and keep the output to the minimum."""
-
-        if "llava-next" in model_name:
-            from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration
-            self.processor = LlavaNextProcessor.from_pretrained(model_name)
-            self.tokenizer = self.processor.tokenizer
-            return LlavaNextForConditionalGeneration.from_pretrained(model_name, torch_dtype=torch.float16,
-                                                                     device_map="auto")
-
-        elif "llava-onevision" in model_name:
-            from llava.model.builder import load_pretrained_model
-            self.processor, self.model, self.image_processor, self.max_length = load_pretrained_model(model_name, None,
-                                                                                                      "llava_qwen",
-                                                                                                      device_map="auto")
-            self.tokenizer = self.processor
-            self.model.eval()
-
-        return self.model
+        from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration
+        self.processor = LlavaNextProcessor.from_pretrained(model_name)
+        self.tokenizer = self.processor.tokenizer
+        return LlavaNextForConditionalGeneration.from_pretrained(
+            model_name,
+            torch_dtype=torch.float16,
+            device_map="auto",
+        )
 
     def _generate(self, prompt: Prompt, temperature: float, top_k: int, top_p: int,
                   system_prompt: Prompt = None) -> str:
@@ -590,10 +578,7 @@ the instructions and keep the output to the minimum."""
             return response
 
         response = self.processor.decode(out[0], skip_special_tokens=True)
-        if "llava_next" in self.name:
-            return find(response, "assistant\n\n\n")[0]
-        elif "llava_onevision" in self.name:
-            return response
+        return find(response, "assistant\n\n\n")[0]
 
     def handle_prompt(self, original_prompt: Prompt, system_prompt: str = None) -> str:
         if system_prompt is None:
@@ -604,24 +589,11 @@ the instructions and keep the output to the minimum."""
                   isinstance(block, Image)] if original_prompt.is_multimodal() else None
 
         try:
-            if "llava_next" in self.name:
-                if len(original_prompt.images) > 1:
-                    logger.warning(
-                        "Prompt contains more than one image; only the first image will be processed. Be aware of semantic confusions!")
-                formatted_prompt = self.format_for_llava_next(original_prompt, system_prompt)
-                inputs = self.processor(images=images, text=formatted_prompt, return_tensors="pt").to(self.device)
-            elif "llava_onevision" in self.name:
-                if images:
-                    image_tensors = process_images(images, self.image_processor, self.model.config)
-                    image_tensors = [_image.to(dtype=torch.float16, device=self.device) for _image in image_tensors]
-                    image_sizes = [image.size for image in images]
-                else:
-                    image_tensors = None
-                    image_sizes = None
-                formatted_prompt = self.format_for_llava_onevision(original_prompt, system_prompt)
-                input_ids = tokenizer_image_token(formatted_prompt, self.processor, IMAGE_TOKEN_INDEX,
-                                                  return_tensors="pt").unsqueeze(0).to(self.device)
-                inputs = dict(inputs=input_ids, images=image_tensors, image_sizes=image_sizes)
+            if len(original_prompt.images) > 1:
+                logger.warning(
+                    "Prompt contains more than one image; only the first image will be processed. Be aware of semantic confusions!")
+            formatted_prompt = self.format_for_llava_next(original_prompt, system_prompt)
+            inputs = self.processor(images=images, text=formatted_prompt, return_tensors="pt").to(self.device)
         except Exception as e:
             logger.warning(f"Error formatting prompt: {str(e)}")
             formatted_prompt = ""
@@ -637,35 +609,58 @@ the instructions and keep the output to the minimum."""
         formatted_prompt = self.processor.apply_chat_template(messages, add_generation_prompt=True)
         return formatted_prompt
 
-    def format_for_llava_onevision(self, original_prompt: Prompt, system_prompt: str) -> str:
-        """
-        Formats the prompt for LLaVA OneVision, interleaving text and image placeholders,
-        using a specific conversation template. The function follows an elegant block-based
-        approach using to_interleaved.
-        """
-        conv_template = "qwen_1_5"
-        conv = copy.deepcopy(conv_templates[conv_template])
 
-        # Add system prompt if provided
+class LlavaOneVisionModel(HuggingFaceModel):
+    accepts_images = True
+    accepts_videos = False
+    accepts_audio = False
+
+    system_prompt = """You are an AI assistant skilled in fact-checking. Make sure to follow
+    the instructions and keep the output to the minimum."""
+    api: ImageTextToTextPipeline
+
+    def load(self, model_name: str) -> Pipeline | OpenAIAPI:
+        return self._finalize_load(
+            "image-text-to-text",
+            model_name,
+        )
+
+    def _generate(self, prompt: Prompt, temperature: float, top_k: int, top_p: int,
+                  system_prompt: Prompt = None) -> str:
+        messages = self.handle_prompt(prompt, system_prompt)
+
+        images = [block.image for block in prompt.to_interleaved() if isinstance(block, Image)]
+
+        stopping_criteria = StoppingCriteriaList([RepetitionStoppingCriteria(self.tokenizer)])
+
+        out = self.api(
+            images=images or None,
+            text=messages,
+            max_new_tokens=self.max_response_len,
+            temperature=temperature or self.temperature,
+            top_k=top_k,
+            repetition_penalty=self.repetition_penalty,
+            stopping_criteria=stopping_criteria,
+        )
+        return out[0]['generated_text'][-1]["content"]
+
+    def handle_prompt(self, original_prompt: Prompt, system_prompt: str = None) -> list[dict]:
+        if system_prompt is None:
+            system_prompt = self.system_prompt
+
+        messages = []
         if system_prompt:
-            conv.append_message(conv.roles[0], system_prompt)
+            messages.append({"role": "system",
+                             "content": system_prompt})
 
-        # Format the prompt by interleaving text and images
-        for block in original_prompt.to_interleaved():
-            if isinstance(block, str):  # Text block
-                text_snippet = block.strip()
-                if text_snippet:
-                    conv.append_message(conv.roles[0], text_snippet + "\n")
+        messages.append(
+            {
+                "role": "user",
+                "content": format_for_llava_onevision(original_prompt),
+            }
+        )
 
-            elif isinstance(block, Image):  # Image block
-                # Use a predefined token to represent images
-                conv.append_message(conv.roles[0], DEFAULT_IMAGE_TOKEN)
-
-        # Append an empty assistant message to mark the end of user input
-        conv.append_message(conv.roles[1], None)
-
-        # Get the formatted prompt string
-        return conv.get_prompt()
+        return messages
 
 
 def make_model(name: str, **kwargs) -> Model:
@@ -683,8 +678,10 @@ def make_model(name: str, **kwargs) -> Model:
         case "huggingface":
             print(bold("Loading open-source model. Adapt number n_workers if running out of memory."))
             try:
-                if "llava" in model_name:
-                    return LlavaModel(specifier, **kwargs)
+                if "llava-next" in model_name:
+                    return LlavaNextModel(specifier, **kwargs)
+                elif "llava-onevision" in model_name:
+                    return LlavaOneVisionModel(specifier, **kwargs)
                 elif "llama" in model_name:
                     return LlamaModel(specifier, **kwargs)
             except torch.cuda.OutOfMemoryError as e:
@@ -748,3 +745,24 @@ def format_for_gpt(prompt: Prompt):
             })
 
     return content_formatted
+
+
+def format_for_llava_onevision(prompt: Prompt):
+    messages = []
+
+    for block in prompt.to_interleaved():
+        if isinstance(block, str):
+            messages.append({
+                "type": "text",
+                "text": block
+            })
+        elif isinstance(block, Image):
+            messages.append({
+                "type": "text",
+                "text": block.reference
+            })
+            messages.append({
+                "type": "image",
+            })
+
+    return messages

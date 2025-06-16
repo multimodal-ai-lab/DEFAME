@@ -140,9 +140,6 @@ class Searcher(Tool):
             # Remove known websites from search result and apply limit
             search_result.sources = self._remove_known_web_sources(search_result.sources)[:query.limit]
 
-            if len(search_result.sources) < query.limit:
-                logger.warning("Missed new sources!")
-
             # Track search engine call
             self.stats[search_engine.name] += 1
 
