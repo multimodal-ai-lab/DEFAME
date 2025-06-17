@@ -10,7 +10,7 @@ variant = "test"
 if __name__ == '__main__':  # evaluation uses multiprocessing
     set_start_method("spawn")
     evaluate(
-        llm="llama4_scout",
+        llm="gpt_4o",
         tools_config=dict(searcher=dict(
             search_engine_config=dict(
                 google=dict(),
@@ -30,7 +30,7 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         llm_kwargs=dict(temperature=0.01),
         benchmark_name="mocheg",
         benchmark_kwargs=dict(variant=variant),
-        n_samples=None,
+        n_samples=1,
         sample_ids=None,
         print_log_level="info",
         random_sampling=True, # Set to True in MOCHEG as samples are ordered in the benchmark csv file according to their label.

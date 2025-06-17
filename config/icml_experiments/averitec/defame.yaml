@@ -9,7 +9,7 @@ fact_checker_kwargs:
   max_iterations: 3
   max_result_len: 64000
   procedure_variant: summary/dynamic
-llm: llama4_scout
+llm: gpt_4o
 llm_kwargs:
   temperature: 0.01
 n_samples:
