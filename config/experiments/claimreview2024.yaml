@@ -1,6 +1,6 @@
-benchmark_name: averitec
+benchmark_name: claimreview2024
 benchmark_kwargs:
-  variant: dev
+  variant: base
 fact_checker_kwargs:
   decompose: false
   decontextualize: false
@@ -8,20 +8,21 @@ fact_checker_kwargs:
   interpret: false
   max_iterations: 3
   max_result_len: 64000
-  procedure_variant: naive
+  procedure_variant: summary/dynamic
 llm: gpt_4o
 llm_kwargs:
   temperature: 0.01
 n_samples:
 random_sampling: false
-sample_ids:
+sample_ids: null
 allowed_actions:
-- web_search
+- search
+- geolocate
 tools_config:
   searcher:
     limit_per_search: 3
     search_config:
-      averitec_kb:
-        variant: dev
+      google:
+  geolocator:
 n_workers:
 print_log_level: info

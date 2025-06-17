@@ -209,7 +209,7 @@ This repository and all its contents (except for the contents inside `third_part
 ## Cite this Work
 Please use the following BibTeX to refer to the authors:
 ```bibtex
-@inproceedings{braun2024defame,
+@inproceedings{braun2025defame,
    title = {{DEFAME: Dynamic Evidence-based FAct-checking with Multimodal Experts}}, 
    author = {Tobias Braun and Mark Rothermel and Marcus Rohrbach and Anna Rohrbach},
    booktitle = {Proceedings of the 42nd International Conference on Machine Learning},
