@@ -3,7 +3,7 @@ from multiprocessing import set_start_method
 from pathlib import Path
 
 from defame.eval.evaluate import evaluate
-from defame.utils.utils import load_config
+from defame.utils.utils import load_config, get_yaml_files
 
 set_start_method("spawn")
 
@@ -20,8 +20,8 @@ def run_multiple_experiments(config_dir: str):
     the specified directory. Deletes each config file after it was read."""
     config_dir = Path(config_dir)
 
-    while configs := os.listdir(config_dir):
-        config_path = config_dir / configs[0]
+    while configs := get_yaml_files(config_dir):
+        config_path = configs[0]
         experiment_params = load_config(config_path)
         evaluate(experiment_name=config_path.stem,
                  **experiment_params)

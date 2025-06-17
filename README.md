@@ -1,12 +1,17 @@
 # DEFAME: Dynamic Evidence-based FAct-checking with Multimodal Experts
 
-[![Paper](https://img.shields.io/badge/Paper-EC6500?style=for-the-badge&logo=bookstack&logoColor=white)](https://arxiv.org/abs/2412.10510)&nbsp;&nbsp;&nbsp;[![License](https://img.shields.io/badge/License-Apache--2.0-F5A300?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
+[![Paper](https://img.shields.io/badge/ICML_Paper-EC6500?style=for-the-badge&logo=bookstack&logoColor=white)](https://arxiv.org/abs/2412.10510)&nbsp;&nbsp;&nbsp;[![License](https://img.shields.io/badge/License-Apache--2.0-F5A300?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 
 ![Teaser.png](resources%2FTeaser.png)
 
 This is the implementation of **Dynamic Evidence-based FAct-checking with Multimodal Experts (DEFAME)**, a strong multimodal claim verification system. DEFAME decomposes the fact-checking task into a dynamic 6-stage pipeline, leveraging an MLLM to accomplish sub-tasks like planning, reasoning, and evidence summarization.
 
-DEFAME is the successor of our challenge-winning unimodal fact-checking system, [InFact](https://aclanthology.org/2024.fever-1.12/). This repository is under constant development. You can access the original code of InFact in [this release](https://github.com/multimodal-ai-lab/DEFAME/tree/infact), the original code of DEFAME – as used in our paper – in [that release](https://github.com/multimodal-ai-lab/DEFAME/tree/v2.0.0).
+> [!NOTE]  
+> This is the most recent version of DEFAME. The `main` branch is under continuous development. If you are looking for the version used in our [ICML 2025 paper](https://arxiv.org/abs/2412.10510), visit the [`icml` branch](https://github.com/multimodal-ai-lab/DEFAME/tree/icml).
+> 
+> If you're looking for the **ClaimReview2024+** benchmark, you find it in [this Hugging Face repository](https://huggingface.co/datasets/MAI-Lab/ClaimReview2024plus).
+> 
+> DEFAME is the successor of our challenge-winning unimodal fact-checking system, [InFact](https://aclanthology.org/2024.fever-1.12/). You can access the original code of InFact in the [InFact branch](https://github.com/multimodal-ai-lab/DEFAME/tree/infact).
 
 
 ## Table of Contents
@@ -17,6 +22,7 @@ DEFAME is the successor of our challenge-winning unimodal fact-checking system, 
 - [API](#api)
 - [Web Interface](#web-interface)
 - [License](#license)
+- [Cite this Work](#cite-this-work)
 
 
 ## Installation
@@ -63,29 +69,29 @@ Follow these steps:
 If you want to evaluate DEFAME on a benchmark, you need to do the following:
 
 1. Download the needed benchmarks. We use:
-   1. [AVeriTeC](https://huggingface.co/chenxwh/AVeriTeC/tree/main/data)
-   2. [VERITE](https://github.com/stevejpapad/image-text-verification)
-   3. [MOCHEG](https://docs.google.com/forms/d/e/1FAIpQLScAGehM6X9ARZWW3Fgt7fWMhc_Cec6iiAAN4Rn1BHAk6KOfbw/viewform)
-   4. ClaimReview2024+ (Link TBD)
+   1. [AVeriTeC](https://huggingface.co/chenxwh/AVeriTeC/tree/main/data): Supports auto-download during runtime, no manual download needed.
+   2. [MOCHEG](https://docs.google.com/forms/d/e/1FAIpQLScAGehM6X9ARZWW3Fgt7fWMhc_Cec6iiAAN4Rn1BHAk6KOfbw/viewform)
+   3. [VERITE](https://github.com/stevejpapad/image-text-verification)
+   4. [ClaimReview2024+](https://huggingface.co/datasets/MAI-Lab/ClaimReview2024plus): Supports automatic download during runtime. Ensure to be logged in via `huggingface-cli login` and that you've got access to the dataset.
    
-2. Order the benchmarks in the following directory structure:
+2. Order the first three benchmarks in the following directory structure:
    ```plaintext
    your_dataset_folder/
+   ├── AVeriTeC/
+   │   ├── train.json
+   │   ├── dev.json
+   │   └── ...
    ├── MOCHEG/
    │   ├── images/
    │   ├── train/
    │   └── ...
-   ├── VERITE/
-   │   ├── images/
-   │   ├── VERITE.csv
-   │   └── ...
-   └── AVeriTeC/
-       ├── train.json
-       ├── dev.json
+   └── VERITE/
+       ├── images/
+       ├── VERITE.csv
        └── ...
    ```
 
-3. Include the path to `your_dataset_folder` in the `data_base_dir` variable inside `config/globals.py`. DEFAME will automatically locate and process the datasets within `MOCHEG`, `VERITE`, and `AVeriTeC` when needed.
+3. Include the path to `your_dataset_folder` in the `data_base_dir` variable inside `config/globals.py`. DEFAME will automatically locate and process the datasets when needed.
 
 
 ## Usage
@@ -199,16 +205,15 @@ DEFAME provides a web-based graphical user interface, supporting the input and v
 ## [License](LICENSE)
 This repository and all its contents (except for the contents inside `third_party/`) are licensed under the [Apache 2.0 License](http://www.apache.org/licenses/LICENSE-2.0).
 
+
+## Cite this Work
 Please use the following BibTeX to refer to the authors:
 ```bibtex
-@article{braun2024defamedynamicevidencebasedfactchecking,
-   title={DEFAME: Dynamic Evidence-based FAct-checking with Multimodal Experts}, 
-   author={Tobias Braun and Mark Rothermel and Marcus Rohrbach and Anna Rohrbach},
-   year={2024},
-   eprint={2412.10510},
-   archivePrefix={arXiv},
-   primaryClass={cs.CV},
-   url={https://arxiv.org/abs/2412.10510}, 
-   journal={arXiv preprint arXiv:2412.10510},
+@inproceedings{braun2024defame,
+   title = {{DEFAME: Dynamic Evidence-based FAct-checking with Multimodal Experts}}, 
+   author = {Tobias Braun and Mark Rothermel and Marcus Rohrbach and Anna Rohrbach},
+   booktitle = {Proceedings of the 42nd International Conference on Machine Learning},
+   year = {2025},
+   url = {https://arxiv.org/abs/2412.10510},
 }
 ```

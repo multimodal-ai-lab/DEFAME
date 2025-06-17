@@ -101,3 +101,10 @@ def deep_diff(a, b, keep: Sequence = None) -> Mapping | Sequence | None:
             return []
     else:
         return b if a != b else None  # Replace if different
+
+
+def get_yaml_files(path: str | Path) -> list[Path]:
+    """Traverses the directory tree starting at `path` and returns a list of all
+    YAML filepaths contained in it."""
+    matches = Path(path).glob("**/*.yaml")
+    return [match for match in matches]

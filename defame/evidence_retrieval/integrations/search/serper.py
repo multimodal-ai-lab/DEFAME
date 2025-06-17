@@ -65,7 +65,7 @@ class SerperAPI:
         assert query.text, 'Query text must not be None.'
 
         if query.end_date is not None:
-            end_date = query.end_date.strftime('%d/%m/%Y')
+            end_date = query.end_date.strftime('%m/%d/%Y')
             tbs = f"cdr:1,cd_min:1/1/1900,cd_max:{end_date}"
         else:
             tbs = self.tbs

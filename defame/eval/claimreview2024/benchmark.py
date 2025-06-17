@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ezmm import Image
+from huggingface_hub import snapshot_download
 
 from config.globals import data_root_dir
 from defame.common import Label, Claim
@@ -13,7 +14,7 @@ from defame.evidence_retrieval.tools import Geolocate, Search
 
 class ClaimReview2024(Benchmark):
     name = "ClaimReview2024+"
-    shorthand = "claimreview"
+    shorthand = "claimreview2024"
 
     is_multimodal = True
 
@@ -36,26 +37,36 @@ class ClaimReview2024(Benchmark):
     available_actions = [Search, Geolocate]
 
     def __init__(self, variant="test"):
-        super().__init__(variant, "ClaimReview2024/data_core.json")
+        super().__init__(variant, "ClaimReview2024plus/test.json")
 
     def _load_data(self) -> list[dict]:
+        if not self.file_path.exists():
+            # Download the dataset from Hugging Face:
+            # Ensure you are logged in via `huggingface-cli login` and have
+            # got access to the dataset
+            snapshot_download(repo_id="MAI-Lab/ClaimReview2024plus",
+                              repo_type="dataset",
+                              local_dir=self.file_path.parent)
+
         with open(self.file_path, "r") as f:
             raw_data = json.load(f)
 
         data = []
         for i, entry in enumerate(raw_data):
-            image_path = Path(data_root_dir / "MAFC" / entry["claimImage"][0]) if entry["claimImage"] else None
+            image_path = Path(data_root_dir / "MAFC" / entry["image"][0]) if entry["image"] else None
             image = Image(image_path) if (image_path and os.path.exists(image_path)) else None
-            claim = [image, entry["text"]] if image else entry["text"]
+            claim_text = f"{image.reference} {entry['text']}" if image else f"{entry['text']}"
             label_text = entry.get("label")
-            date = datetime.strptime(entry.get("claimDate"), "%Y-%m-%dT%H:%M:%SZ") if entry.get("claimDate") else None
+            date_str = entry.get("date")
+            date = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%SZ") if date_str else None
             claim_entry = {
                 "id": i,
-                "input": Claim(claim,
+                "input": Claim(claim_text,
                                id=i,
                                author=entry.get("author"),
                                date=date),
                 "label": self.class_mapping.get(label_text),
+                "justification": "",
             }
             data.append(claim_entry)
 
