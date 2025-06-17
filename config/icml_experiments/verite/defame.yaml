@@ -27,9 +27,5 @@ tools_config:
       google:
       google_vision:
   geolocator:
-<<<<<<< HEAD:config/verite/default.yaml
-n_workers: 1
-=======
-n_workers:
->>>>>>> icml:config/icml_experiments/verite/defame.yaml
+n_workers: 4
 print_log_level: info
