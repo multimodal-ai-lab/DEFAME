@@ -68,7 +68,7 @@ If you want to evaluate DEFAME on a benchmark, you need to do the following:
    1. [AVeriTeC](https://huggingface.co/chenxwh/AVeriTeC/tree/main/data): Supports auto-download during runtime, no manual download needed.
    2. [MOCHEG](https://docs.google.com/forms/d/e/1FAIpQLScAGehM6X9ARZWW3Fgt7fWMhc_Cec6iiAAN4Rn1BHAk6KOfbw/viewform)
    3. [VERITE](https://github.com/stevejpapad/image-text-verification)
-   4. [ClaimReview2024+](https://huggingface.co/datasets/MAI-Lab/ClaimReview2024plus): Supports automatic download during runtime. Ensure to be logged in via `huggingface-cli login` and that you've got access to the dataset.
+   4. [ClaimReview2024+](https://huggingface.co/datasets/MAI-Lab/ClaimReview2024plus): Supports automatic download during runtime. Ensure to specify your Hugging Face user access token in the `api_keys.yaml` (or being logged in via `huggingface-cli login`) and that you've got access to the dataset.
    
 2. Order the first three benchmarks in the following directory structure:
    ```plaintext

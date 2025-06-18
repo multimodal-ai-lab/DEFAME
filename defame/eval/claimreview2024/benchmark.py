@@ -4,9 +4,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator
 
-from huggingface_hub import snapshot_download
+from huggingface_hub import snapshot_download, login, HfFolder
 
-from config.globals import data_root_dir
+from config.globals import data_root_dir, api_keys
 from defame.common import Label, Content
 from defame.common.medium import Image
 from defame.eval.benchmark import Benchmark
@@ -41,6 +41,11 @@ class ClaimReview2024(Benchmark):
         self.file_path = Path(data_root_dir / "ClaimReview2024plus/test.json")
 
         if not self.file_path.exists():
+            # Log in (if not logged in yet)
+            if not HfFolder.get_token():
+                if hf_token := api_keys["huggingface_user_access_token"]:
+                    login(hf_token)
+
             # Download the dataset from Hugging Face:
             # Ensure you are logged in via `huggingface-cli login` and have
             # got access to the dataset

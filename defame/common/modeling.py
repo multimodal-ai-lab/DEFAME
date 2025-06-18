@@ -10,7 +10,7 @@ import tiktoken
 import torch
 from openai import OpenAI
 from transformers import pipeline, AutoProcessor, StoppingCriteria, StoppingCriteriaList, Pipeline, \
-    ImageTextToTextPipeline
+    ImageTextToTextPipeline, Llama4ForConditionalGeneration
 
 from config.globals import api_keys
 from defame.common import logger
@@ -384,27 +384,6 @@ class HuggingFaceModel(Model, ABC):
         ppl.timeout = 60
         return ppl
 
-    def _generate(self, prompt: Prompt, temperature: float, top_p: float, top_k: int,
-                  system_prompt: Prompt = None) -> str:
-        # Handling needs to be done case by case. Default uses meta-llama formatting.
-        prompt_prepared = self.handle_prompt(prompt, system_prompt)
-        stopping_criteria = StoppingCriteriaList([RepetitionStoppingCriteria(self.tokenizer)])
-        try:
-            output = self.api(
-                prompt_prepared,
-                eos_token_id=self.api.tokenizer.eos_token_id,
-                pad_token_id=self.api.tokenizer.pad_token_id,
-                do_sample=True,
-                temperature=temperature,
-                top_p=top_p,
-                top_k=top_k,
-                stopping_criteria=stopping_criteria,
-            )
-            return output[0]['generated_text'][len(prompt_prepared):]
-        except Exception as e:
-            logger.warning("Error while calling the LLM! Continuing with empty response.\n" + str(e))
-            return ""
-
     def count_tokens(self, prompt: Prompt | str) -> int:
         if self.tokenizer:
             tokens = self.tokenizer.encode(str(prompt))
@@ -431,7 +410,7 @@ fact-check any presented content."""
             self,
             original_prompt: Prompt,
             system_prompt: str = None,
-    ) -> str:
+    ) -> str | list:
         """
         Model specific processing of the prompt using the model's tokenizer with a specific template.
         Handles both standard text-only LLaMA models and multimodal LLaMA 3.2.
@@ -470,6 +449,27 @@ fact-check any presented content."""
 
         # The function continues processing with either the formatted or original prompt
         return formatted_prompt
+
+    def _generate(self, prompt: Prompt, temperature: float, top_p: float, top_k: int,
+                  system_prompt: Prompt = None) -> str:
+        # Handling needs to be done case by case. Default uses meta-llama formatting.
+        prompt_prepared = self.handle_prompt(prompt, system_prompt)
+        stopping_criteria = StoppingCriteriaList([RepetitionStoppingCriteria(self.tokenizer)])
+        try:
+            output = self.api(
+                prompt_prepared,
+                eos_token_id=self.api.tokenizer.eos_token_id,
+                pad_token_id=self.api.tokenizer.pad_token_id,
+                do_sample=True,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                stopping_criteria=stopping_criteria,
+            )
+            return output[0]['generated_text'][len(prompt_prepared):]
+        except Exception as e:
+            logger.warning("Error while calling the LLM! Continuing with empty response.\n" + str(e))
+            return ""
 
     def _format_llama_3_2_prompt(self, original_prompt: Prompt, system_prompt: str) -> str:
         """
@@ -567,7 +567,7 @@ fact-check any presented content."""
         try:
             from transformers import Llama4ForConditionalGeneration
             if isinstance(self.model, Llama4ForConditionalGeneration):
-                messages = self._get_llama_4_messages(prompt, system_prompt)
+                messages = self._get_llama_4_messages(prompt, str(system_prompt))
                 inputs = self.processor.apply_chat_template(
                     messages,
                     add_generation_prompt=True,
@@ -667,11 +667,10 @@ the instructions and keep the output to the minimum."""
         response = self.processor.decode(out[0], skip_special_tokens=True)
         return find(response, "assistant\n\n\n")[0]
 
-    def handle_prompt(self, original_prompt: Prompt, system_prompt: str = None) -> str:
+    def handle_prompt(self, original_prompt: Prompt, system_prompt: str = None) -> (str, str):
         if system_prompt is None:
             system_prompt = self.system_prompt
 
-        # images = [image.image for image in original_prompt.images] if original_prompt.is_multimodal() else None
         images = [block.image for block in original_prompt.to_interleaved() if
                   isinstance(block, Image)] if original_prompt.is_multimodal() else None
 
