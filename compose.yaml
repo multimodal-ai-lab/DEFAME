@@ -1,6 +1,6 @@
 services:
   defame:
-    image: tudamailab/defame
+    image: tudamailab/defame:icml
     build: .
     ports:
       - "3002"

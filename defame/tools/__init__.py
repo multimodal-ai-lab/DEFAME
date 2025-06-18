@@ -4,7 +4,6 @@ from defame.common.modeling import Model
 from defame.tools.credibility_checker import CredibilityChecker, CredibilityCheck
 from .face_recognizer import FaceRecognizer, FaceRecognition
 from .geolocator import Geolocator, Geolocate
-from .manipulation_detector import ManipulationDetector, DetectManipulation
 from .object_detector import ObjectDetector, DetectObjects
 from .search.searcher import Searcher
 from .search.common import WebSearch, WikiDumpLookup, WikiLookup, ReverseSearch, ImageSearch
@@ -18,7 +17,6 @@ TOOL_REGISTRY = [
     ObjectDetector,
     Searcher,
     TextExtractor,
-    ManipulationDetector,
 ]
 
 ACTION_REGISTRY = {
@@ -31,7 +29,6 @@ ACTION_REGISTRY = {
     FaceRecognition,
     CredibilityCheck,
     OCR,
-    DetectManipulation,
     ImageSearch,
 }
 
@@ -40,7 +37,6 @@ IMAGE_ACTIONS = {
     Geolocate,
     FaceRecognition,
     OCR,
-    DetectManipulation,
     DetectObjects,
     ImageSearch,
 }

@@ -9,18 +9,21 @@
 This is the implementation of **Dynamic Evidence-based FAct-checking with Multimodal Experts (DEFAME)**, a strong multimodal claim verification system. DEFAME decomposes the fact-checking task into a dynamic 6-stage pipeline, leveraging an MLLM to accomplish sub-tasks like planning, reasoning, and evidence summarization.
 
 > [!NOTE]  
-> This is the version as used in our [ICML 2025 paper](https://arxiv.org/abs/2412.10510), useful for reproducing our results. If you are looking for the most recent DEFAME version, visit the [main branch](https://github.com/multimodal-ai-lab/DEFAME) of this repo.
+> This is the version used in our [ICML 2025 paper](https://arxiv.org/abs/2412.10510), useful for reproducing our results. If you are looking for the most recent DEFAME version (with many extra features, improved code quality, etc.), visit the [main branch](https://github.com/multimodal-ai-lab/DEFAME) of this repo.
 > 
-> DEFAME is the successor of our challenge-winning unimodal fact-checking system, [InFact](https://aclanthology.org/2024.fever-1.12/). You can access the original code of InFact in the [InFact release](https://github.com/multimodal-ai-lab/DEFAME/tree/infact).
+> If you're looking for the **ClaimReview2024+** benchmark, you find it in [this Hugging Face repository](https://huggingface.co/datasets/MAI-Lab/ClaimReview2024plus).
+> 
+> DEFAME is the successor of our challenge-winning unimodal fact-checking system, [InFact](https://aclanthology.org/2024.fever-1.12/). You can access the original code of InFact in the [InFact branch](https://github.com/multimodal-ai-lab/DEFAME/tree/infact).
 
 
 ## Table of Contents
 - [Installation](#installation)
 - [Usage](#usage)
+- [Reproduction](#reproduction)
 - [APIs](#apis)
-- [Data Path Configuration](#data-path-configuration)
-- [Adding a New Tool](#add-a-custom-tool)
+- [Add a Custom Tool](#add-a-custom-tool)
 - [License](#license)
+- [Cite this Work](#cite-this-work)
 
 
 ## Installation
@@ -57,41 +60,34 @@ Follow these steps:
     python -c "import nltk; nltk.download('wordnet')"
     ```
 
-    If you have a CUDA-enabled GPU and the CUDA toolkit installed, also run:
-    ```bash
-    pip install -r requirements_gpu.txt
-    ```
-
 
 ## Prepare Benchmarks
 If you want to evaluate DEFAME on a benchmark, you need to do the following:
 
 1. Download the needed benchmarks. We use:
-   1. [AVeriTeC](https://huggingface.co/chenxwh/AVeriTeC/tree/main/data)
-   2. [VERITE](https://github.com/stevejpapad/image-text-verification)
-   3. [MOCHEG](https://docs.google.com/forms/d/e/1FAIpQLScAGehM6X9ARZWW3Fgt7fWMhc_Cec6iiAAN4Rn1BHAk6KOfbw/viewform)
-   4. ClaimReview2024+ (Link TBD)
+   1. [AVeriTeC](https://huggingface.co/chenxwh/AVeriTeC/tree/main/data): Supports auto-download during runtime, no manual download needed.
+   2. [MOCHEG](https://docs.google.com/forms/d/e/1FAIpQLScAGehM6X9ARZWW3Fgt7fWMhc_Cec6iiAAN4Rn1BHAk6KOfbw/viewform)
+   3. [VERITE](https://github.com/stevejpapad/image-text-verification)
+   4. [ClaimReview2024+](https://huggingface.co/datasets/MAI-Lab/ClaimReview2024plus): Supports automatic download during runtime. Ensure to be logged in via `huggingface-cli login` and that you've got access to the dataset.
    
-2. Order the benchmarks in the following directory structure:
+2. Order the first three benchmarks in the following directory structure:
    ```plaintext
    your_dataset_folder/
-   ├── MOCHEG/
-   │   ├── images/
-   │   ├── train/
-   │   └── ...
-   ├── VERITE/
-   │   ├── images/
-   │   ├── VERITE.csv
-   │   └── ...
    ├── AVeriTeC/
    │   ├── train.json
    │   ├── dev.json
    │   └── ...
-   └── ClaimReview2024/
+   ├── MOCHEG/
+   │   ├── images/
+   │   ├── train/
+   │   └── ...
+   └── VERITE/
+       ├── images/
+       ├── VERITE.csv
        └── ...
    ```
 
-3. Include the path to `your_dataset_folder` in the `data_base_dir` variable inside `config/globals.py`. DEFAME will automatically locate and process the datasets within `MOCHEG`, `VERITE`, and `AVeriTeC` when needed.
+3. Include the path to `your_dataset_folder` in the `data_base_dir` variable inside `config/globals.py`. DEFAME will automatically locate and process the datasets when needed.
 
 
 ## Usage
@@ -118,7 +114,18 @@ python -m scripts.run_config
 
 
 ## Reproduction
-All experiment configurations are located in `config/icml_experiments`. You can run all of them by copying the `icml_experiments` directory into the `in/` directory and executing `scripts/run_batch.py`. This will run each experiment one by one and, thus, may take a while. The configuration files of finished experiments will be deleted.
+All configurations to reproduce the paper's experiments are located under `config/icml_experiments`. You can run all of them by copying the `icml_experiments` directory into the `in/` directory and executing `scripts/run_batch.py`. This will run each experiment one by one and, thus, may take a while. The configuration files of finished experiments will be deleted.
+
+> [!NOTE]  
+> If you want to execute **LLaVa-OneVision**, you'll need to fix a bug in the `transformers` package manually. To this end, go to
+> ```
+> <path-to-your-python-installation>/site-packages/transformers/models/llava_onevision/processing_llava_onevision.py
+> ```
+> and replace line 166 with
+> ```
+>         if images:
+> ```
+> This fix enables the LLM to process prompts that do not contain any images.
 
 
 ## APIs
