@@ -1,7 +1,9 @@
 """Shared utility functions."""
-
+import gc
 import shutil
 from typing import Any
+
+import torch
 from tqdm import tqdm
 from pathlib import Path
 import yaml
@@ -73,3 +75,11 @@ def get_yaml_files(path: str | Path) -> list[Path]:
     YAML filepaths contained in it."""
     matches = Path(path).glob("**/*.yaml")
     return [match for match in matches]
+
+
+def cleanup_memory():
+    """Clean up GPU memory."""
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()

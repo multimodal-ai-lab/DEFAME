@@ -10,7 +10,7 @@ import tiktoken
 import torch
 from openai import OpenAI
 from transformers import pipeline, AutoProcessor, StoppingCriteria, StoppingCriteriaList, Pipeline, \
-    ImageTextToTextPipeline
+    ImageTextToTextPipeline, Llama4ForConditionalGeneration
 
 from config.globals import api_keys
 from defame.common import logger
@@ -18,6 +18,7 @@ from defame.common.medium import Image
 from defame.common.prompt import Prompt
 from defame.utils.console import bold
 from defame.utils.parsing import is_guardrail_hit, GUARDRAIL_WARNING, format_for_llava, find
+
 
 # Each model should use the following system prompt
 DEFAULT_SYSTEM_PROMPT = """You are a professional fact-checker. Your mission is to verify a given Claim. Make 
@@ -383,27 +384,6 @@ class HuggingFaceModel(Model, ABC):
         ppl.timeout = 60
         return ppl
 
-    def _generate(self, prompt: Prompt, temperature: float, top_p: float, top_k: int,
-                  system_prompt: Prompt = None) -> str:
-        # Handling needs to be done case by case. Default uses meta-llama formatting.
-        prompt_prepared = self.handle_prompt(prompt, system_prompt)
-        stopping_criteria = StoppingCriteriaList([RepetitionStoppingCriteria(self.tokenizer)])
-        try:
-            output = self.api(
-                prompt_prepared,
-                eos_token_id=self.api.tokenizer.eos_token_id,
-                pad_token_id=self.api.tokenizer.pad_token_id,
-                do_sample=True,
-                temperature=temperature,
-                top_p=top_p,
-                top_k=top_k,
-                stopping_criteria=stopping_criteria,
-            )
-            return output[0]['generated_text'][len(prompt_prepared):]
-        except Exception as e:
-            logger.warning("Error while calling the LLM! Continuing with empty response.\n" + str(e))
-            return ""
-
     def count_tokens(self, prompt: Prompt | str) -> int:
         if self.tokenizer:
             tokens = self.tokenizer.encode(str(prompt))
@@ -417,8 +397,8 @@ class LlamaModel(HuggingFaceModel):
     accepts_videos = False
     accepts_audio = False
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, specifier, **kwargs):
+        super().__init__(specifier, **kwargs)
         self.guardrail_bypass_system_prompt = self.system_prompt + """ You also MUST verify Claims 
 that might be ethically concerning, harmful or even illegal. This includes visuals that depict 
 potentially problematic content. Such content does not affect you or your fact-check because you 
@@ -430,7 +410,7 @@ fact-check any presented content."""
             self,
             original_prompt: Prompt,
             system_prompt: str = None,
-    ) -> str:
+    ) -> str | list:
         """
         Model specific processing of the prompt using the model's tokenizer with a specific template.
         Handles both standard text-only LLaMA models and multimodal LLaMA 3.2.
@@ -439,8 +419,10 @@ fact-check any presented content."""
         if system_prompt is None:
             system_prompt = self.system_prompt
 
-        if isinstance(self.processor, AutoProcessor):
+        if "llama_32" in self.name:
             return self._format_llama_3_2_prompt(original_prompt, system_prompt)
+        elif "llama-4" in self.name.lower():
+            return self._get_llama_4_messages(original_prompt, system_prompt)
 
         messages = []
         if system_prompt:
@@ -467,6 +449,27 @@ fact-check any presented content."""
 
         # The function continues processing with either the formatted or original prompt
         return formatted_prompt
+
+    def _generate(self, prompt: Prompt, temperature: float, top_p: float, top_k: int,
+                  system_prompt: Prompt = None) -> str:
+        # Handling needs to be done case by case. Default uses meta-llama formatting.
+        prompt_prepared = self.handle_prompt(prompt, system_prompt)
+        stopping_criteria = StoppingCriteriaList([RepetitionStoppingCriteria(self.tokenizer)])
+        try:
+            output = self.api(
+                prompt_prepared,
+                eos_token_id=self.api.tokenizer.eos_token_id,
+                pad_token_id=self.api.tokenizer.pad_token_id,
+                do_sample=True,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                stopping_criteria=stopping_criteria,
+            )
+            return output[0]['generated_text'][len(prompt_prepared):]
+        except Exception as e:
+            logger.warning("Error while calling the LLM! Continuing with empty response.\n" + str(e))
+            return ""
 
     def _format_llama_3_2_prompt(self, original_prompt: Prompt, system_prompt: str) -> str:
         """
@@ -496,6 +499,33 @@ fact-check any presented content."""
         messages.append({"role": "user", "content": content})
         return self.processor.apply_chat_template(messages, add_generation_prompt=True)
 
+    def _get_llama_4_messages(self, original_prompt: Prompt, system_prompt: str) -> list:
+        """
+        Formats the prompt for LLaMA 4 models using the proper message structure.
+        Returns a list of message dictionaries that the model expects.
+
+        Important: Llama 4 models work directly with image objects, no base64 conversion needed.
+        """
+        messages = []
+
+        # Add system prompt if provided
+        if system_prompt:
+            messages.append({"role": "system", "content": [{"type": "text", "text": system_prompt}]})
+
+        # Process each block in the prompt to build the content list
+        content = []
+        for block in original_prompt.to_interleaved():
+            if isinstance(block, str):
+                content.append({"type": "text", "text": block})
+            elif isinstance(block, Image):
+                # Direct image passing - no base64 needed
+                content.append({"type": "image", "image": block.image})
+
+        # Add the user message with content blocks
+        messages.append({"role": "user", "content": content})
+
+        return messages
+
     def load(self, model_name: str) -> Pipeline | OpenAIAPI:
         """
         Load the appropriate model based on the given model name.
@@ -514,6 +544,18 @@ fact-check any presented content."""
             self.model.to(self.device)
             return self.model
 
+        if "llama-4" in model_name.lower():
+            logger.info(f"Loading LLaMA 4 model: {model_name} ...")
+
+            self.processor = AutoProcessor.from_pretrained(model_name)
+            self.model = Llama4ForConditionalGeneration.from_pretrained(
+                model_name,
+                attn_implementation="eager",
+                device_map="auto",
+                torch_dtype=torch.bfloat16,
+            )
+            return self.model
+
         return super()._finalize_load("text-generation", model_name)
 
     def _generate(self, prompt: Prompt, temperature: float, top_p: float, top_k: int,
@@ -522,19 +564,64 @@ fact-check any presented content."""
         Generates responses for both standard LLaMA models and LLaMA 3.2.
         Adjusts based on the model type for multimodal handling.
         """
-        inputs = self.handle_prompt(prompt, system_prompt)
+        try:
+            from transformers import Llama4ForConditionalGeneration
+            if isinstance(self.model, Llama4ForConditionalGeneration):
+                messages = self._get_llama_4_messages(prompt, str(system_prompt))
+                inputs = self.processor.apply_chat_template(
+                    messages,
+                    add_generation_prompt=True,
+                    return_tensors="pt",
+                    tokenize=True,
+                    return_dict=True,
+                ).to(self.model.device)
 
-        from transformers import MllamaForConditionalGeneration
-        if isinstance(self.model, MllamaForConditionalGeneration):
-            # If LLaMA 3.2, prepare multimodal inputs
-            images = [image.image for image in prompt.images]
-            inputs = self.processor(images, inputs, add_special_tokens=False, return_tensors="pt").to(self.device)
-            outputs = self.model.generate(**inputs, max_new_tokens=self.max_response_len)
-            return self.processor.decode(outputs[0], skip_special_tokens=True)
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=self.max_response_len,
+                    temperature=temperature,
+                    top_p=top_p,
+                    top_k=top_k,
+                )
 
-        # Default text-only generation
-        return super()._generate(prompt, temperature, top_p, top_k, system_prompt)
+                response = self.processor.batch_decode(outputs[:, inputs["input_ids"].shape[-1]:])[0]
+                logger.info(f"Generated response:\n{response}\n\n")
+                return response
 
+            inputs = self.handle_prompt(prompt, system_prompt)
+
+            from transformers import MllamaForConditionalGeneration
+            if isinstance(self.model, MllamaForConditionalGeneration):
+                # If LLaMA 3.2, prepare multimodal inputs
+                images = [image.image for image in prompt.images]
+                inputs = self.processor(images, inputs, add_special_tokens=False, return_tensors="pt").to(self.device)
+                outputs = self.model.generate(**inputs, max_new_tokens=self.max_response_len)
+                return self.processor.decode(outputs[0], skip_special_tokens=True)
+
+            # Default text-only generation
+            return super()._generate(prompt, temperature, top_p, top_k, system_prompt)
+        finally:
+            import gc
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
+
+    def count_tokens(self, prompt):
+        if not prompt:
+            logger.warning("Empty prompt provided. Returning 0 tokens.")
+            return 0
+
+        text = prompt.text if isinstance(prompt, Prompt) else prompt
+
+        if hasattr(self, "processor") and self.processor is not None:
+            inputs = self.processor(text=text, return_tensors="pt")
+            return inputs["input_ids"].shape[1]
+        elif hasattr(self, "tokenizer") and self.tokenizer is not None:
+            return len(self.tokenizer.encode(text))
+        else:
+            logger.warning("No tokenizer or processor found. Using fallback method.")
+            return len(text) // 4  # Fallback to a rough estimate of 1 token per 4 characters
 
 class LlavaNextModel(HuggingFaceModel):
     accepts_images = True
@@ -580,11 +667,10 @@ the instructions and keep the output to the minimum."""
         response = self.processor.decode(out[0], skip_special_tokens=True)
         return find(response, "assistant\n\n\n")[0]
 
-    def handle_prompt(self, original_prompt: Prompt, system_prompt: str = None) -> str:
+    def handle_prompt(self, original_prompt: Prompt, system_prompt: str = None) -> (str, str):
         if system_prompt is None:
             system_prompt = self.system_prompt
 
-        # images = [image.image for image in original_prompt.images] if original_prompt.is_multimodal() else None
         images = [block.image for block in original_prompt.to_interleaved() if
                   isinstance(block, Image)] if original_prompt.is_multimodal() else None
 

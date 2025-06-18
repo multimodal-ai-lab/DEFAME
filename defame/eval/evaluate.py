@@ -237,8 +237,8 @@ def evaluate(
                     break
 
     except Exception as e:
-        logger.fatal(f"An unexpected error occurred in the main process:")
-        logger.fatal(traceback.format_exc())
+        logger.critical(f"An unexpected error occurred in the main process:")
+        logger.critical(traceback.format_exc())
 
     finally:
         for i, worker in enumerate(workers):

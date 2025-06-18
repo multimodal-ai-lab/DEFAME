@@ -17,7 +17,7 @@ from defame.procedure import get_procedure
 from defame.tools import *
 from defame.tools.tool import get_available_actions
 from defame.utils.console import gray, light_blue, bold, sec2mmss
-from config.globals import keys_configured, configure_keys
+from defame.utils.utils import cleanup_memory
 
 
 class FactChecker:
@@ -175,6 +175,9 @@ class FactChecker:
         stats["Model"] = self.llm.get_stats()
         stats["Tools"] = self.actor.get_tool_stats()
         meta["Statistics"] = stats
+
+        cleanup_memory()
+
         return doc, meta
 
 

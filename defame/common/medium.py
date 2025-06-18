@@ -185,7 +185,11 @@ class MediaRegistry:
             self.db_location.parent.mkdir(exist_ok=True, parents=True)
         is_new = not self.db_location.exists()
         self.conn = sqlite3.connect(self.db_location, timeout=10)
-        self.conn.execute("PRAGMA journal_mode=WAL;")
+        try:
+            self.conn.execute("PRAGMA journal_mode=WAL;")
+        except sqlite3.OperationalError:
+            # WAL mode doesn't work on network filesystems, fallback to DELETE mode
+            self.conn.execute("PRAGMA journal_mode=DELETE;")
         self.cur = self.conn.cursor()
         if is_new:
             self._init_db()
