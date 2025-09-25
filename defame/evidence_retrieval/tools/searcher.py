@@ -7,7 +7,7 @@ from jinja2.exceptions import TemplateSyntaxError
 from openai import APIError
 
 from config.globals import api_keys
-from defame.common import Report, Prompt, logger, Action
+from defame.common import Report, Prompt, logger, Action, Evidence
 from defame.evidence_retrieval import scraper
 from defame.evidence_retrieval.integrations.search import SearchResults, SearchPlatform, PLATFORMS, KnowledgeBase
 from defame.evidence_retrieval.integrations.search.common import Query, SearchMode, Source, WebSource
@@ -90,6 +90,50 @@ class Search(Action):
         return hash((self.name, self.query))
 
 
+class SearchSocialReddit(Action):
+    """Search Reddit specifically for posts related to a claim using Reddit's API.
+    This will find relevant Reddit discussions and register their URLs for analysis 
+    by the Reddit tool."""
+    name = "search_social_reddit"
+
+    def __init__(self, query: str, limit: int = 10):
+        """
+        @param query: The textual search query to find Reddit posts
+        @param limit: Maximum number of Reddit posts to find (default: 10)
+        """
+        self._save_parameters(locals())
+        self.query = query
+        self.limit = limit
+
+    def __eq__(self, other):
+        return isinstance(other, SearchSocialReddit) and self.query == other.query and self.limit == other.limit
+
+    def __hash__(self):
+        return hash((self.name, self.query, self.limit))
+
+
+class SearchSocialX(Action):
+    """Search X (Twitter) specifically for posts related to a claim using X's API.
+    This will find relevant X/Twitter discussions and register their URLs for analysis 
+    by the X tool."""
+    name = "search_social_x"
+
+    def __init__(self, query: str, limit: int = 10):
+        """
+        @param query: The textual search query to find X/Twitter posts
+        @param limit: Maximum number of X/Twitter posts to find (default: 10)
+        """
+        self._save_parameters(locals())
+        self.query = query
+        self.limit = limit
+
+    def __eq__(self, other):
+        return isinstance(other, SearchSocialX) and self.query == other.query and self.limit == other.limit
+
+    def __hash__(self):
+        return hash((self.name, self.query, self.limit))
+
+
 class Searcher(Tool):
     """Searches the specified platform (Google, Wikipedia, ...) for useful sources."""
     # TODO: Rank or annotate the websites according to their credibility, like MUSE
@@ -148,8 +192,102 @@ class Searcher(Tool):
         platforms_info = "Available search platforms:"
         for platform in self.platforms:
             platforms_info += f"\n`{platform.name}`: {platform.description}"
-        Search.additional_info = platforms_info
-        return [Search]
+        
+        # Add information about social media search capabilities
+        social_info = """
+
+Social Media Search Actions:
+`search_social_reddit`: Search Reddit specifically using their API to find relevant posts and discussions
+`search_social_x`: Search X (Twitter) specifically using their API to find relevant posts and discussions
+
+Note: Social media searches will find posts and register their URLs for analysis by the respective social media tools."""
+        
+        Search.additional_info = platforms_info + social_info
+        
+        # Return all available search actions
+        return [Search, SearchSocialReddit, SearchSocialX]
+
+    def perform(self, action: Action, summarize: bool = True, **kwargs) -> Evidence:
+        """Override perform to handle social media search actions."""
+        assert type(action) in self.actions, f"Forbidden action: {action}"
+        
+        # Handle social media search actions
+        if isinstance(action, SearchSocialReddit):
+            result = self._perform_social_reddit_search(action)
+        elif isinstance(action, SearchSocialX):
+            result = self._perform_social_x_search(action)
+        else:
+            # Handle regular search actions
+            result = self._perform(action)
+        
+        summary = self._summarize(result, **kwargs) if summarize else None
+        return Evidence(result, action, takeaways=summary)
+
+    def _perform_social_reddit_search(self, action: SearchSocialReddit) -> Optional[SearchResults]:
+        """Execute Reddit-specific search using scrapeMM Reddit integration."""
+        try:
+            logger.info(f"Performing Reddit search for: '{action.query}' (limit: {action.limit})")
+            
+            # Run the social media search which will register URLs automatically
+            search_results = self.search_and_analyze_social_media(action.query, max_results_per_platform=action.limit)
+            reddit_urls = search_results.get("reddit", [])
+            
+            # Create WebSource objects for the found URLs
+            sources = []
+            from ..integrations.search.common import WebSource
+            
+            for url in reddit_urls:
+                source = WebSource(
+                    reference=url,
+                    content=None,  # Will be loaded when the Reddit tool processes it
+                    title=f"Reddit discussion - {action.query[:50]}...",
+                    preview=f"Reddit post found via API search for '{action.query}'"
+                )
+                sources.append(source)
+            
+            # Create a SearchResults object
+            from ..integrations.search import SearchResults
+            result = SearchResults(sources=sources, query=action.query)
+            
+            logger.info(f"Reddit search completed: found {len(reddit_urls)} posts")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in Reddit search: {e}")
+            return None
+
+    def _perform_social_x_search(self, action: SearchSocialX) -> Optional[SearchResults]:
+        """Execute X/Twitter-specific search using scrapeMM X integration."""
+        try:
+            logger.info(f"Performing X search for: '{action.query}' (limit: {action.limit})")
+            
+            # Run the social media search which will register URLs automatically
+            search_results = self.search_and_analyze_social_media(action.query, max_results_per_platform=action.limit)
+            x_urls = search_results.get("x", [])
+            
+            # Create WebSource objects for the found URLs
+            sources = []
+            from ..integrations.search.common import WebSource
+            
+            for url in x_urls:
+                source = WebSource(
+                    reference=url,
+                    content=None,  # Will be loaded when the X tool processes it
+                    title=f"X discussion - {action.query[:50]}...",
+                    preview=f"X/Twitter post found via API search for '{action.query}'"
+                )
+                sources.append(source)
+            
+            # Create a SearchResults object
+            from ..integrations.search import SearchResults
+            result = SearchResults(sources=sources, query=action.query)
+            
+            logger.info(f"X search completed: found {len(x_urls)} posts")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in X search: {e}")
+            return None
 
     def _perform(self, action: Search) -> Optional[SearchResults]:
         """Validates the search query (by enforcing potential restrictions)
@@ -183,12 +321,18 @@ class Searcher(Tool):
 
     def _search(self, platform: SearchPlatform, query: Query) -> Optional[SearchResults]:
         """Executes the given search query on the given platform and processes the results.
-        Removes known results."""
+        Removes known results. Also includes social media search results."""
 
         # Run search and retrieve sources
         results = platform.search(query)
         sources = results.sources[:self.limit_per_search]
         self.n_retrieved_results += len(sources)
+        
+        # Also search social media platforms if we have a text query
+        if query.text:
+            social_media_sources = self._search_social_media_platforms(query.text)
+            sources.extend(social_media_sources)
+            logger.log(f"Added {len(social_media_sources)} social media sources to search results")
 
         # Remove known sources
         sources = self._remove_known_sources(sources)
@@ -198,6 +342,9 @@ class Searcher(Tool):
         if len(sources) > 0:
             logger.log(f"Got {len(sources)} new source(s):")
             logger.log("\n".join([s.reference for s in sources]))
+            
+            # Register social media URLs for use by social media tools
+            self._register_social_media_urls(sources)
         else:
             logger.log("No new sources found.")
 
@@ -220,6 +367,192 @@ class Searcher(Tool):
     def _register_sources(self, sources: list[Source]):
         """Adds the provided list of sources to the set of known sources."""
         self.known_sources |= set(sources)
+    
+    def _register_social_media_urls(self, sources: list[Source]):
+        """Register Reddit and X/Twitter URLs found in search results for use by social media tools."""
+        import re
+        from ..shared_urls import add_reddit_urls, add_x_urls
+        
+        reddit_urls = []
+        x_urls = []
+        
+        for source in sources:
+            url = source.reference
+            # Check for Reddit URLs
+            if "reddit.com" in url and re.match(r'https://(?:www\.)?reddit\.com/r/[^/]+/comments/[^/\s]+', url):
+                reddit_urls.append(url)
+                print(f"🔍 Registering Reddit URL from search: {url}")
+            
+            # Check for X/Twitter URLs
+            if ("twitter.com" in url or "x.com" in url) and re.match(r'https://(?:www\.)?(?:twitter|x)\.com/[^/]+/status/\d+', url):
+                x_urls.append(url)
+                print(f"🔍 Registering X URL from search: {url}")
+        
+        if reddit_urls:
+            add_reddit_urls(reddit_urls)
+            print(f"🔍 Added {len(reddit_urls)} Reddit URLs to registry")
+        
+        if x_urls:
+            add_x_urls(x_urls)
+            print(f"🔍 Added {len(x_urls)} X URLs to registry")
+
+    async def search_social_media_platforms(self, query: str, max_results_per_platform: int = 10) -> dict[str, list[str]]:
+        """Search Reddit and X platforms for posts related to the query.
+        
+        Args:
+            query: The search query (typically a claim or part of a claim)
+            max_results_per_platform: Maximum results per platform
+            
+        Returns:
+            Dict with platform names as keys and lists of URLs as values
+        """
+        results = {
+            "reddit": [],
+            "x": []
+        }
+        
+        # Import the scrapeMM integrations
+        from scrapemm.integrations.reddit import Reddit as ScrapeMM_Reddit
+        from scrapemm.integrations.x import X as ScrapeMM_X
+        import aiohttp
+        
+        async with aiohttp.ClientSession() as session:
+            # Search Reddit
+            try:
+                reddit_scraper = ScrapeMM_Reddit()
+                if reddit_scraper.connected:
+                    reddit_urls = await reddit_scraper.search(query, session, max_results_per_platform)
+                    results["reddit"] = reddit_urls
+                    logger.info(f"Found {len(reddit_urls)} Reddit posts for query: {query}")
+                else:
+                    logger.warning("Reddit integration not connected, skipping Reddit search")
+            except Exception as e:
+                logger.error(f"Error searching Reddit: {e}")
+            
+            # Search X (Twitter)
+            try:
+                x_scraper = ScrapeMM_X()
+                if x_scraper.connected:
+                    # X API requires minimum 10 results, maximum 100
+                    x_limit = max(10, min(100, max_results_per_platform))
+                    x_urls = await x_scraper.search(query, session, x_limit)
+                    results["x"] = x_urls[:max_results_per_platform]  # Limit to requested amount
+                    logger.info(f"Found {len(x_urls)} X posts for query: {query}")
+                else:
+                    logger.warning("X integration not connected, skipping X search")
+            except Exception as e:
+                logger.error(f"Error searching X: {e}")
+        
+        return results
+
+    def search_and_analyze_social_media(self, claim_text: str, max_results_per_platform: int = 10):
+        """Search social media platforms and register URLs for analysis by respective tools.
+        
+        This method:
+        1. Searches Reddit and X for posts related to the claim
+        2. Registers found URLs in the shared registry
+        3. The planner will then use SearchReddit/SearchX actions to analyze these posts
+        
+        Args:
+            claim_text: The claim to search for
+            max_results_per_platform: Maximum results per platform
+        """
+        
+        # Run the async search
+        import asyncio
+        try:
+            # Handle potential event loop issues
+            try:
+                loop = asyncio.get_running_loop()
+                # If we're already in an event loop, run in a thread
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, self.search_social_media_platforms(claim_text, max_results_per_platform))
+                    search_results = future.result()
+            except RuntimeError:
+                # No event loop running, safe to use asyncio.run
+                search_results = asyncio.run(self.search_social_media_platforms(claim_text, max_results_per_platform))
+                
+            # Register found URLs for use by social media tools
+            from ..shared_urls import add_reddit_urls, add_x_urls
+            
+            if search_results["reddit"]:
+                add_reddit_urls(search_results["reddit"])
+                logger.info(f"Registered {len(search_results['reddit'])} Reddit URLs for analysis")
+            
+            if search_results["x"]:
+                add_x_urls(search_results["x"])
+                logger.info(f"Registered {len(search_results['x'])} X URLs for analysis")
+                
+            return search_results
+            
+        except Exception as e:
+            logger.error(f"Error in social media search: {e}")
+            return {"reddit": [], "x": []}
+
+    def _search_social_media_platforms(self, query_text: str) -> list[Source]:
+        """Search social media platforms and return Source objects for found URLs.
+        
+        This method searches Reddit and X APIs for content related to the query
+        and creates WebSource objects that can be integrated with regular search results.
+        
+        Args:
+            query_text: The search query text
+            
+        Returns:
+            List of WebSource objects for found social media URLs
+        """
+        from ..integrations.search.common import WebSource
+        
+        social_sources = []
+        
+        # Get URLs from social media search with graceful error handling
+        try:
+            logger.debug(f"Attempting social media search for query: {query_text}")
+            social_media_results = self.search_and_analyze_social_media(query_text, max_results_per_platform=5)
+            
+            reddit_count = len(social_media_results.get("reddit", []))
+            x_count = len(social_media_results.get("x", []))
+            logger.debug(f"Social media search completed: {reddit_count} Reddit, {x_count} X posts")
+            
+            # Convert Reddit URLs to WebSource objects
+            for reddit_url in social_media_results.get("reddit", []):
+                try:
+                    reddit_source = WebSource(
+                        reference=reddit_url,
+                        content=None,  # Will be loaded later during scraping
+                        title=f"Reddit discussion - {query_text[:50]}...",
+                        preview="Social media discussion from Reddit API search"
+                    )
+                    social_sources.append(reddit_source)
+                    logger.debug(f"Added Reddit source: {reddit_url}")
+                except Exception as e:
+                    logger.warning(f"Error creating Reddit source for {reddit_url}: {e}")
+            
+            # Convert X URLs to WebSource objects  
+            for x_url in social_media_results.get("x", []):
+                try:
+                    x_source = WebSource(
+                        reference=x_url,
+                        content=None,  # Will be loaded later during scraping
+                        title=f"X discussion - {query_text[:50]}...",
+                        preview="Social media discussion from X API search"
+                    )
+                    social_sources.append(x_source)
+                    logger.debug(f"Added X source: {x_url}")
+                except Exception as e:
+                    logger.warning(f"Error creating X source for {x_url}: {e}")
+            
+            if social_sources:
+                logger.info(f"✅ Social media search found {len(social_sources)} additional sources")
+            else:
+                logger.debug("ℹ️ No additional social media sources found")
+                    
+        except Exception as e:
+            logger.info(f"ℹ️ Social media search unavailable: {e}")
+            logger.debug("Continuing with web search results only")
+        
+        return social_sources
 
     def reset(self):
         """Removes all known web sources and resets the search platforms."""

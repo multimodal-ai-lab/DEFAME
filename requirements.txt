@@ -5,7 +5,7 @@ beautifulsoup4>=4.12.3
 bert-score==0.3.13
 bitsandbytes==0.41.3
 click==8.1.7
-datasets==1.17.0
+datasets>=2.19.0
 duckduckgo_search==6.1.0
 einops==0.8.0
 ezMM>=0.1.1
@@ -32,7 +32,7 @@ PyYAML>=6.0.1
 rank-bm25==0.2.2
 requests~=2.32.0
 rouge-score==0.1.2
-scikit-learn==1.5.1
+scikit-learn~=1.4.2
 scipy~=1.12.0
 sentence-transformers~=3.4.1
 setuptools>=70.0.0
@@ -44,7 +44,7 @@ torch~=2.6.0
 torchvision>=0.15.2
 transformers>=4.48.0
 tqdm>=4.66.3
-tweepy~=4.14.0
+tweepy[async]~=4.14.0
 uvicorn~=0.34.0
 wandb==0.18.0
 yacs==0.1.8

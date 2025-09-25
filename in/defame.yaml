@@ -24,5 +24,7 @@ tools_config:
     search_config:
       google:
   geolocator:
+  reddit_search:
+  x_search:
 n_workers: 8
 print_log_level: info

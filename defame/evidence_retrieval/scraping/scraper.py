@@ -73,10 +73,7 @@ class Scraper:
         return asyncio.run(self._scrape(url))
 
     async def _scrape(self, url: str) -> Optional[MultimodalSequence]:
-        # Check exclusions first
-        if is_unsupported_site(url):
-            logger.log(f"Skipping unsupported site: {url}")
-            return None
+        # Check fact-checking site exclusions first
         if not self.allow_fact_checking_sites and is_fact_checking_site(url):
             logger.log(f"Skipping fact-checking site: {url}")
             return None

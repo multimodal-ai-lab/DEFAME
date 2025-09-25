@@ -1,5 +1,4 @@
 import ast
-import imghdr
 import io
 import re
 from pathlib import Path
@@ -298,10 +297,6 @@ def parse_function_call(code: str) -> Tuple[str, list[Any], dict[str, Any]] | No
 
 def is_image(binary_data: bytes) -> bool:
     """Determines if the given binary data represents an image."""
-    # Check using imghdr module (looks at magic numbers)
-    if imghdr.what(None, h=binary_data):
-        return True
-
     # Attempt to open with PIL (Pillow)
     try:
         image = PillowImage.open(io.BytesIO(binary_data))
@@ -309,7 +304,6 @@ def is_image(binary_data: bytes) -> bool:
         return True
     except (IOError, SyntaxError):
         return False
-
 
 def replace_item_refs(text: str, items: Collection[Item]) -> str:
     """Replaces all item references (except those within code blocks) with

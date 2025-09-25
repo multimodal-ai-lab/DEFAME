@@ -23,6 +23,35 @@ class DynamicSummary(Procedure):
                 doc.add_actions(actions)
                 evidences = self.actor.perform(actions, doc)
                 doc.add_evidence(evidences)  # even if no evidence, add empty evidence block for the record
+                
+                # Secondary planning: check if new evidence enables more specific actions
+                secondary_actions, secondary_reasoning = self.planner.plan_next_actions(doc)
+                if secondary_actions:
+                    # Filter out actions we just completed, but allow URL-specific actions
+                    completed_action_types = set(type(a) for a in actions)
+                    
+                    # Smart filtering: allow SearchX/SearchReddit even if SearchSocialX/SearchSocialReddit were performed
+                    # Also allow multiple instances of the same URL-specific action type
+                    new_actions = []
+                    for action in secondary_actions:
+                        action_type = type(action)
+                        action_name = action_type.__name__
+                        
+                        # Always allow URL-specific social media actions (SearchX, SearchReddit)
+                        if action_name in ['SearchX', 'SearchReddit']:
+                            new_actions.append(action)
+                        # For other actions, use the original filtering logic
+                        elif action_type not in completed_action_types:
+                            new_actions.append(action)
+                    
+                    if new_actions:
+                        logger.info(f"Secondary planning found {len(new_actions)} additional actions")
+                        if len(secondary_reasoning) > 32:
+                            doc.add_reasoning("### Secondary Planning\n" + secondary_reasoning)
+                        doc.add_actions(new_actions)
+                        secondary_evidences = self.actor.perform(new_actions, doc)
+                        doc.add_evidence(secondary_evidences)
+                
                 self._develop(doc)
             label = self.judge.judge(doc, is_final=n_iterations == self.max_iterations or not actions)
         return label, {}

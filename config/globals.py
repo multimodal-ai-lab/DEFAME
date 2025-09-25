@@ -17,7 +17,7 @@ api_keys = yaml.safe_load(open(api_key_path))
 
 google_service_account_key_path = Path("config/google_service_account_key.json")
 
-firecrawl_url = "http://firecrawl:3002"  # applies to Firecrawl running in a 'firecrawl' Docker Container
+firecrawl_url = "http://thot.mai.informatik.tu-darmstadt.de:3002/"  # applies to Firecrawl running in a 'firecrawl' Docker Container
 
 random_seed = 42 # used for sub-sampling in partial dataset testing
 

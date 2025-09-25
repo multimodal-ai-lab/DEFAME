@@ -50,7 +50,11 @@ class FactChecker:
                  device: str = None):
 
         if tools_config is None:
-            tools_config = dict(searcher=None)
+            tools_config = dict(
+                searcher=None,
+                x_search=None,        # Enable X tool by default
+                reddit_search=None    # Enable Reddit tool by default
+            )
 
         if llm_kwargs is None:
             llm_kwargs = {}
@@ -149,6 +153,13 @@ class FactChecker:
 
         logger.info(f"Verifying claim.", send=True)
         logger.info(f"{bold(str(claim))}")
+
+        # Clear shared URL registry for this fact-check
+        try:
+            from defame.evidence_retrieval.shared_urls import clear_urls
+            clear_urls()
+        except ImportError:
+            pass  # Shared URLs module not available
 
         stats = {}
         self.actor.reset()  # remove all past search evidences

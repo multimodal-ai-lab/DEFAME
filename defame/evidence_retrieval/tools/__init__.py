@@ -6,18 +6,22 @@ from .face_recognizer import FaceRecognizer, FaceRecognition
 from .geolocator import Geolocator, Geolocate
 from .manipulation_detector import ManipulationDetector, DetectManipulation
 from .object_detector import ObjectDetector, DetectObjects
+from .reddit import RedditTool, SearchReddit, RedditResults
 from .searcher import Searcher, Search
 from .text_extractor import TextExtractor, OCR
 from .tool import Tool
+from .x import XTool, SearchX, XResults
 
 TOOL_REGISTRY = [
     CredibilityChecker,
     FaceRecognizer,
     Geolocator,
     ObjectDetector,
+    RedditTool,
     Searcher,
     TextExtractor,
     ManipulationDetector,
+    XTool,
 ]
 
 ACTION_REGISTRY = {
@@ -28,7 +32,18 @@ ACTION_REGISTRY = {
     CredibilityCheck,
     OCR,
     DetectManipulation,
+    SearchReddit,
+    SearchX,
 }
+
+# Import the new social media search actions
+from defame.evidence_retrieval.tools.searcher import SearchSocialReddit, SearchSocialX
+
+# Add them to the registry
+ACTION_REGISTRY.update({
+    SearchSocialReddit,
+    SearchSocialX,
+})
 
 IMAGE_ACTIONS = {
     Geolocate,

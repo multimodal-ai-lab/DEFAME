@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
 from typing import Optional
@@ -6,6 +6,7 @@ from typing import Optional
 from ezmm import MultimodalSequence, Image
 
 from defame.common import Results
+from ....analysis.stance import Stance
 
 
 class SearchMode(Enum):
@@ -107,39 +108,45 @@ class Source:
         return f"Source(reference='{self.reference}')"
 
 
-@dataclass
-class WebSource(Source):
-    """Any web page."""
-    title: str = None
-    release_date: date = None
-    preview: str = None
-
-    @property
-    def url(self) -> str:
-        return self.reference
+@dataclass(eq=False, unsafe_hash=False)
+class WebSource:
+    """A generic container for web content retrieved from any source."""
+    reference: str  # The URL or identifier of the source
+    content: MultimodalSequence  # The main content
+    title: Optional[str] = None  # The title of the page or content
+    preview: Optional[str] = None  # A short preview of the content
+    stance: Optional[Stance] = None # The stance of the content towards a claim
+    credibility: Optional[float] = None # The credibility score of the content
 
     def __str__(self):
-        text = f"Web Source {self.url}"
-        if self.title is not None:
-            text += f"\nTitle: {self.title}"
-        if self.release_date is not None:
-            text += f"\nRelease Date: {self.release_date.strftime('%B %d, %Y')}"
-        if self.preview is not None:
-            text += f"\n{self.preview}"
-        if self.is_loaded():
-            text += "\n" + self._get_content_str()
-        return text
-
-    def __repr__(self):
-        return f"WebSource(url='{self.url}')"
-
-    def __eq__(self, other):
-        """Needed because @dataclass overrides __eq__()."""
-        return isinstance(other, WebSource) and self.url == other.url
-
+        return f"WebSource(reference='{self.reference}', title='{self.title}')"
+    
     def __hash__(self):
-        """Needed because @dataclass overrides __hash__()."""
-        return hash(self.url)
+        """Hash based on reference URL for deduplication purposes."""
+        return hash(self.reference)
+    
+    def __eq__(self, other):
+        """Equality based on reference URL for deduplication purposes."""
+        if not isinstance(other, WebSource):
+            return False
+        return self.reference == other.reference
+    
+    def is_loaded(self):
+        """Check if the source content has been loaded (scraped)."""
+        return self.content is not None and len(str(self.content).strip()) > 0
+    
+    @property
+    def url(self) -> str:
+        """Compatibility property for scraper - returns the reference URL."""
+        return self.reference
+    
+    def is_relevant(self) -> bool:
+        """Returns True if the source contains relevant information for fact-checking."""
+        # A source is relevant if it has takeaways that don't indicate "NONE"
+        if hasattr(self, 'takeaways') and self.takeaways is not None:
+            return "NONE" not in str(self.takeaways)
+        # Otherwise, it's relevant if it has loaded content
+        return self.is_loaded()
 
 
 @dataclass

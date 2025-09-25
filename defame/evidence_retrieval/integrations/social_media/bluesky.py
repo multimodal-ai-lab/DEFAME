@@ -9,14 +9,13 @@ from atproto_client.exceptions import RequestErrorBase
 from atproto_client.models.common import XrpcError
 from ezmm import Image
 
-from config.globals import api_keys
 from defame.common import logger
-from defame.evidence_retrieval.integrations.integration import RetrievalIntegration
-from defame.evidence_retrieval.integrations.social_media import SocialMediaPost, SocialMediaProfile
+from .base import SocialMedia
+from .common import SocialMediaPost, SocialMediaProfile
 from defame.utils.requests import is_image_url
 
 
-class Bluesky(RetrievalIntegration):
+class Bluesky(SocialMedia):
     """Integration for the Bluesky social media platform: https://bsky.app."""
     domains = ["bsky.app"]
 
@@ -266,6 +265,31 @@ class Bluesky(RetrievalIntegration):
             self.n_errors += 1
             return False
 
+    async def close(self):
+        if self.session:
+            await self.session.close()
+            self.session = None
+
+# bluesky = Bluesky(api_keys.get("bluesky_username"), api_keys.get("bluesky_password"))
+
+_bluesky_instance = None
+
+def get_bluesky_instance():
+    """Get the singleton instance of the Bluesky client."""
+    global _bluesky_instance
+    if _bluesky_instance is None:
+        from defame.config import api_keys
+        # Avoid creating the instance if keys are missing, which is useful for tests
+        # that don't rely on this specific integration.
+        username = api_keys.get("bluesky_username")
+        password = api_keys.get("bluesky_password")
+        if username and password:
+            _bluesky_instance = Bluesky(username, password)
+    return _bluesky_instance
+
+
+bluesky = get_bluesky_instance()
+
 
 def error_to_string(error: RequestErrorBase | Exception) -> str:
     """Takes an Error object containing a response and prints the contents."""
@@ -282,8 +306,6 @@ def error_to_string(error: RequestErrorBase | Exception) -> str:
     else:
         return str(error)
 
-
-bluesky = Bluesky(api_keys.get("bluesky_username"), api_keys.get("bluesky_password"))
 
 if __name__ == "__main__":
     example_url = "https://bsky.app/profile/mrothermel.bsky.social/post/3ldnyqymqgl2c"

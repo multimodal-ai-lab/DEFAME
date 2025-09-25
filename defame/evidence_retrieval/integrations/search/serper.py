@@ -14,6 +14,7 @@ import requests
 
 from config.globals import api_keys
 from defame.common import logger
+from ezmm import MultimodalSequence
 from defame.evidence_retrieval.integrations.search.common import SearchResults, Query, WebSource
 from defame.utils.parsing import get_base_domain
 
@@ -156,7 +157,10 @@ class SerperAPI:
                     result_date = datetime.strptime(result['date'], "%b %d, %Y").date()
                 except (ValueError, KeyError):
                     result_date = None
-                sources.append(WebSource(reference=url, release_date=result_date, title=title))
+                
+                # Create empty content - actual content would be scraped later
+                empty_content = MultimodalSequence("")
+                sources.append(WebSource(reference=url, content=empty_content, title=title))
         return sources
 
 

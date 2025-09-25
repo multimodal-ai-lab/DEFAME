@@ -83,6 +83,30 @@ class SummarizeSourcePrompt(Prompt):
         super().__init__(placeholder_targets=placeholder_targets)
 
 
+class SummarizeSocialMediaSourcePrompt(Prompt):
+    template_file_path = "defame/prompts/summarize_social_media_source.md"
+
+    def __init__(self, source: Source, doc: Report):
+        placeholder_targets = {
+            "[SOURCE]": source,  # Keep as MultimodalSequence to preserve images
+            "[DOC]": str(doc),
+        }
+        super().__init__(placeholder_targets=placeholder_targets)
+
+
+class AnalyzeBulkSocialMediaPrompt(Prompt):
+    template_file_path = "defame/prompts/analyze_bulk_social_media.md"
+
+    def __init__(self, sources: str, doc: Report):
+        # Only include the claim, not the full document with all previous evidence
+        claim_only = f"## Claim\n{str(doc.claim)}"
+        placeholder_targets = {
+            "[SOURCES]": sources,  # Combined sources content
+            "[DOC]": claim_only,  # Only the claim, not all previous evidence
+        }
+        super().__init__(placeholder_targets=placeholder_targets)
+
+
 class SummarizeManipulationResultPrompt(Prompt):
     template_file_path = "defame/prompts/summarize_manipulation_result.md"
 
@@ -106,12 +130,56 @@ class PlanPrompt(Prompt):
     def __init__(self, doc: Report,
                  valid_actions: Collection[type[Action]],
                  extra_rules: str = None,
-                 all_actions: bool = False):
+                 all_actions: bool = False,
+                 reddit_urls: list[str] = None,
+                 x_urls: list[str] = None):
         action_docs = [get_action_documentation(a) for a in valid_actions]
         valid_action_str = "\n\n".join(action_docs)
         extra_rules = "" if extra_rules is None else remove_non_symbols(extra_rules)
         if all_actions:
             extra_rules = "Very Important: No need to be frugal. Choose all available actions at least once."
+
+        # Add social media URLs guidance
+        social_media_guidance = ""
+        if reddit_urls or x_urls:
+            social_media_guidance += f"\n\n**CRITICAL SOCIAL MEDIA ANALYSIS REQUIREMENT:**\n"
+            
+            if reddit_urls and x_urls:
+                social_media_guidance += f"**BALANCED ANALYSIS REQUIRED:** You have detected both Reddit ({len(reddit_urls)} URLs) and X/Twitter ({len(x_urls)} URLs). You MUST analyze URLs from BOTH platforms to ensure comprehensive fact-checking.\n\n"
+                social_media_guidance += f"**MANDATORY TARGET:** Generate EXACTLY {min(5, len(x_urls))} search_x() actions AND EXACTLY {min(5, len(reddit_urls))} search_reddit() actions (up to 10 total actions). This is NOT optional - both platforms are required for complete analysis.\n\n"
+                social_media_guidance += f"**ENFORCEMENT:** Do NOT generate only Reddit actions. X/Twitter analysis is equally important. You MUST include search_x() actions for X URLs even if you prefer Reddit sources.\n\n"
+                social_media_guidance += f"**CRITICAL:** Generate actions in this order: First generate {min(5, len(reddit_urls))} search_reddit() actions, THEN generate {min(5, len(x_urls))} search_x() actions.\n\n"
+            
+        if reddit_urls:
+            social_media_guidance += f"\n**REDDIT URLs DETECTED ({len(reddit_urls)} total):**\n"
+            for i, url in enumerate(reddit_urls[:10]):  # Show first 10 for brevity
+                social_media_guidance += f"- {url}\n"
+            if len(reddit_urls) > 10:
+                social_media_guidance += f"... and {len(reddit_urls) - 10} more Reddit URLs\n"
+            social_media_guidance += "\n**CRITICAL:** For Reddit URLs above, you MUST use search_reddit(url) actions. The search_reddit action provides detailed analysis of Reddit posts, comments, and stance detection which is essential for fact-checking. DO NOT use search() for Reddit URLs - always use search_reddit() with the exact URL."
+            
+            # Add single-platform guidance for Reddit
+            if not x_urls:
+                social_media_guidance += f"\n**REDDIT-ONLY ANALYSIS:** Generate up to {min(5, len(reddit_urls))} search_reddit() actions to thoroughly analyze Reddit discussions about this claim."
+            
+            logger.info(f"Adding Reddit URLs to prompt: {reddit_urls}")
+        
+        if x_urls:
+            social_media_guidance += f"\n\n**X/TWITTER URLs DETECTED ({len(x_urls)} total):**\n"
+            for i, url in enumerate(x_urls[:10]):  # Show first 10 for brevity
+                social_media_guidance += f"- {url}\n"
+            if len(x_urls) > 10:
+                social_media_guidance += f"... and {len(x_urls) - 10} more X URLs\n"
+            social_media_guidance += "\n**CRITICAL:** For X/Twitter URLs above, you MUST use search_x(url) actions. The search_x action provides detailed analysis of X posts and stance detection which is essential for fact-checking. DO NOT use search() for X URLs - always use search_x() with the exact URL."
+            
+            # Add single-platform guidance for X
+            if not reddit_urls:
+                social_media_guidance += f"\n**X-ONLY ANALYSIS:** Generate up to {min(5, len(x_urls))} search_x() actions to thoroughly analyze X discussions about this claim."
+            
+            logger.info(f"Adding X URLs to prompt: {x_urls}")
+        
+        if social_media_guidance:
+            extra_rules += social_media_guidance
 
         placeholder_targets = {
             "[DOC]": doc,
@@ -424,7 +492,7 @@ def parse_single_action(raw_action: str) -> Optional[Action]:
     return None
 
 
-def extract_actions(answer: str, limit=5) -> list[Action]:
+def extract_actions(answer: str, limit=10) -> list[Action]:
     from defame.evidence_retrieval.tools import ACTION_REGISTRY
 
     actions_str = extract_last_python_code_block(answer)
@@ -490,3 +558,21 @@ def extract_queries(response: str) -> list:
 
 def extract_reasoning(answer: str) -> str:
     return remove_code_blocks(answer).strip()
+
+
+class AggregateSocialMediaPrompt(Prompt):
+    """Prompt for aggregating social media analysis into a single comprehensive summary."""
+    template_file_path = "defame/prompts/aggregate_social_media.md"
+    
+    def __init__(self, claim: str, social_media_content: str):
+        placeholder_targets = {
+            "[CLAIM]": claim,
+            "[SOCIAL_MEDIA_CONTENT]": social_media_content,
+        }
+        super().__init__(placeholder_targets=placeholder_targets)
+        
+    def extract(self, response: str) -> dict:
+        """Extract the aggregated analysis from the response."""
+        return {
+            "aggregated_analysis": response.strip()
+        }

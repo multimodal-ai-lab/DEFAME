@@ -133,6 +133,14 @@ class Report:
                 all_actions.extend(block.actions)
         return all_actions
 
+    def get_all_evidence(self) -> list[Evidence]:
+        """Get all evidence from all evidence blocks in the report."""
+        all_evidence = []
+        for block in self.record:
+            if isinstance(block, EvidenceBlock):
+                all_evidence.extend(block.evidences)
+        return all_evidence
+
     def get_result_as_dict(self) -> dict:
         """Returns the final verdict and the justification as a dictionary."""
         return {"verdict": self.verdict.name, "justification": self.justification}

@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List
-from ezmm import Image, MultimodalSequence
+from typing import List, Optional
+
+from ezmm import MultimodalSequence, Image
 
 
-@dataclass(frozen=True)
+@dataclass
 class SocialMediaPostMetadata:
     platform: str
     post_url: str
