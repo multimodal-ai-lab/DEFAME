@@ -3,7 +3,7 @@ You are analyzing multiple social media posts to help with a fact-check. **Your 
 
 **What to extract as evidence:**
 * **References to external sources** (links, mentions of studies, news reports, official statements)
-* **Media content** (images, videos, documents) that could serve as evidence - describe what you see in detail, including people, objects, settings, text overlays, or any visual information relevant to the claim
+* **Media content** (images, videos) that could serve as evidence if it's relevant. Also make sure you include the media references.
 * **Speculation and personal opinions** (Keep speculations as long as they are disclaimed to be speculations and opinions that could be relevant to fact checks)
 * **Contradictory information** between posts that might highlight different perspectives
 

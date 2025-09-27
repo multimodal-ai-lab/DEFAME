@@ -47,7 +47,16 @@ def test_fact_check_with_claim():
     try:
         # Use GPT-4o-mini for testing (cheaper and faster)
         llm = make_model("gpt_4o_mini")
-        fact_checker = FactChecker(llm=llm)
+        
+        # Configure tools to include SocialMediaAggregator for bulk analysis
+        tools_config = {
+            "searcher": {},
+            "x_search": {},
+            "reddit_search": {},
+            "social_media_aggregator": {}  # Add the aggregator tool for bulk analysis
+        }
+        
+        fact_checker = FactChecker(llm=llm, tools_config=tools_config)
         print("✅ FactChecker initialized successfully")
     except Exception as e:
         print(f"❌ Failed to initialize FactChecker: {e}")
@@ -87,7 +96,7 @@ def test_fact_check_with_claim():
             print(f"   📚 Total Evidence Items: {len(all_evidence)}")
             
             # Check for social media aggregated evidence
-            social_media_evidence = [e for e in all_evidence if e.source_type and 'social' in e.source_type.lower()]
+            social_media_evidence = [e for e in all_evidence if hasattr(e, 'source_type') and e.source_type and 'social' in e.source_type.lower()]
             if social_media_evidence:
                 print(f"   � Social Media Evidence Found: {len(social_media_evidence)} items")
                 for j, evidence in enumerate(social_media_evidence, 1):
@@ -96,7 +105,7 @@ def test_fact_check_with_claim():
                         preview = evidence.takeaways[:150] + "..." if len(evidence.takeaways) > 150 else evidence.takeaways
                         print(f"         Content: {preview}")
             
-            other_evidence = [e for e in all_evidence if not (e.source_type and 'social' in e.source_type.lower())]
+            other_evidence = [e for e in all_evidence if not (e.action and e.action.name and ('reddit' in e.action.name.lower() or 'x_tool' in e.action.name.lower() or 'social_media' in e.action.name.lower()))]
             if other_evidence:
                 print(f"   📰 Other Evidence: {len(other_evidence)} items")
                 for j, evidence in enumerate(other_evidence[:3], 1):  # Show first 3

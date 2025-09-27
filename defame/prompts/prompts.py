@@ -72,6 +72,16 @@ class FilterCheckWorthyPrompt(Prompt):
         super().__init__(placeholder_targets=placeholder_targets)
 
 
+class ExtractSocialKeywordsPrompt(Prompt):
+    template_file_path = "defame/prompts/extract_social_keywords.md"
+
+    def __init__(self, claim_text: str):
+        placeholder_targets = {
+            "[CLAIM]": claim_text,
+        }
+        super().__init__(placeholder_targets=placeholder_targets)
+
+
 class SummarizeSourcePrompt(Prompt):
     template_file_path = "defame/prompts/summarize_source.md"
 

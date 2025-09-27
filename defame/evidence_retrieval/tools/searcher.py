@@ -445,20 +445,123 @@ Note: Social media searches will find posts and register their URLs for analysis
         
         return results
 
+    def _extract_social_keywords(self, claim_text: str) -> str:
+        """Extract keywords from claim text optimized for social media search."""
+        try:
+            from defame.prompts.prompts import ExtractSocialKeywordsPrompt
+            prompt = ExtractSocialKeywordsPrompt(claim_text)
+            
+            logger.info(f"🔍 KEYWORD EXTRACTION - Input claim: '{claim_text}'")
+            
+            # Use the LLM if available, otherwise fallback to simple extraction
+            if hasattr(self, 'llm') and self.llm:
+                logger.info("🤖 Using LLM for keyword extraction")
+                logger.info(f"📝 LLM PROMPT:\n{str(prompt)}")
+                
+                response = self.llm.generate(prompt)
+                
+                logger.info(f"📤 LLM RESPONSE (type={type(response)}): {response}")
+                
+                if response and isinstance(response, str):
+                    # Clean up the response and use it directly
+                    keywords = response.strip()
+                    # Remove any extra formatting that might be present
+                    keywords = keywords.replace('Keywords:', '').replace('**', '').strip()
+                    logger.info(f"✅ LLM keywords after cleanup: '{keywords}'")
+                elif response and isinstance(response, dict):
+                    # Handle dict response (shouldn't happen with new prompt but just in case)
+                    keywords = str(response.get('keywords', response.get('response', ''))).strip()
+                    logger.info(f"✅ LLM keywords from dict: '{keywords}'")
+                else:
+                    logger.warning("❌ Failed to extract keywords via LLM, using fallback")
+                    keywords = self._fallback_keyword_extraction(claim_text)
+            else:
+                logger.info("⚠️ No LLM available, using fallback keyword extraction")
+                keywords = self._fallback_keyword_extraction(claim_text)
+            
+            # Ensure we have reasonable keywords (not empty and not too long)
+            if not keywords or len(keywords.split()) > 8:
+                logger.warning(f"⚠️ LLM keywords invalid (empty or too long: {len(keywords.split()) if keywords else 0} words), using fallback")
+                keywords = self._fallback_keyword_extraction(claim_text)
+                
+            logger.info(f"🎯 FINAL KEYWORDS: '{keywords}' (from claim: '{claim_text[:100]}...')")
+            return keywords
+            
+        except Exception as e:
+            logger.warning(f"Keyword extraction failed: {e}, using fallback")
+            return self._fallback_keyword_extraction(claim_text)
+    
+    def _fallback_keyword_extraction(self, claim_text: str) -> str:
+        """Simple fallback keyword extraction without LLM."""
+        import re
+        
+        # Remove common stop words and extract meaningful terms
+        stop_words = {
+            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 
+            'is', 'are', 'was', 'were', 'been', 'have', 'has', 'had', 'will', 'would', 'could', 
+            'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'said', 'says', 
+            'claim', 'claims', 'according', 'reports', 'allegedly', 'apparently', 'shows'
+        }
+        
+        # Extract potential keywords with better patterns
+        # Look for capitalized words (likely names, places) - preserve as found
+        proper_nouns = re.findall(r'\b[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*\b', claim_text)
+        
+        # Look for dates/years
+        dates = re.findall(r'\b(?:20\d{2}|\d{1,2}/\d{1,2}/\d{2,4}|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+20\d{2})\b', claim_text)
+        
+        # Extract meaningful words (3+ chars, not stop words)
+        words = re.findall(r'\b\w{3,}\b', claim_text.lower())
+        meaningful_words = [word for word in words if word not in stop_words]
+        
+        # Remove duplicates while preserving order and avoid case conflicts
+        seen = set()
+        keywords = []
+        
+        # Add proper nouns first (max 2)
+        for noun in proper_nouns[:2]:
+            if noun.lower() not in seen:
+                keywords.append(noun)
+                seen.add(noun.lower())
+        
+        # Add dates (max 1)
+        for date in dates[:1]:
+            if date.lower() not in seen:
+                keywords.append(date)
+                seen.add(date.lower())
+        
+        # Add remaining meaningful words until we have 5 total
+        for word in meaningful_words:
+            if len(keywords) >= 5:
+                break
+            if word not in seen:
+                keywords.append(word)
+                seen.add(word)
+        
+        return ' '.join(keywords[:5])
+
     def search_and_analyze_social_media(self, claim_text: str, max_results_per_platform: int = 10):
         """Search social media platforms and register URLs for analysis by respective tools.
         
         This method:
-        1. Searches Reddit and X for posts related to the claim
-        2. Registers found URLs in the shared registry
-        3. The planner will then use SearchReddit/SearchX actions to analyze these posts
+        1. Extracts keywords from the claim for better social media search
+        2. Searches Reddit and X for posts related to the keywords
+        3. Registers found URLs in the shared registry
+        4. The planner will then use SearchReddit/SearchX actions to analyze these posts
         
         Args:
             claim_text: The claim to search for
             max_results_per_platform: Maximum results per platform
         """
         
-        # Run the async search
+        # Extract keywords optimized for social media search
+        search_keywords = self._extract_social_keywords(claim_text)
+        logger.info(f"Social media search using keywords: '{search_keywords}'")
+        
+        # Use keywords for the actual search
+        actual_query = search_keywords if search_keywords else claim_text
+        
+        # Run the async search with extracted keywords
         import asyncio
         try:
             # Handle potential event loop issues
@@ -467,11 +570,11 @@ Note: Social media searches will find posts and register their URLs for analysis
                 # If we're already in an event loop, run in a thread
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(asyncio.run, self.search_social_media_platforms(claim_text, max_results_per_platform))
+                    future = executor.submit(asyncio.run, self.search_social_media_platforms(actual_query, max_results_per_platform))
                     search_results = future.result()
             except RuntimeError:
                 # No event loop running, safe to use asyncio.run
-                search_results = asyncio.run(self.search_social_media_platforms(claim_text, max_results_per_platform))
+                search_results = asyncio.run(self.search_social_media_platforms(actual_query, max_results_per_platform))
                 
             # Register found URLs for use by social media tools
             from ..shared_urls import add_reddit_urls, add_x_urls
@@ -493,8 +596,9 @@ Note: Social media searches will find posts and register their URLs for analysis
     def _search_social_media_platforms(self, query_text: str) -> list[Source]:
         """Search social media platforms and return Source objects for found URLs.
         
-        This method searches Reddit and X APIs for content related to the query
-        and creates WebSource objects that can be integrated with regular search results.
+        This method extracts keywords from the query and searches Reddit and X APIs 
+        for content related to those keywords, creating WebSource objects that can 
+        be integrated with regular search results.
         
         Args:
             query_text: The search query text
@@ -506,10 +610,15 @@ Note: Social media searches will find posts and register their URLs for analysis
         
         social_sources = []
         
+        # Extract keywords for better social media search
+        search_keywords = self._extract_social_keywords(query_text)
+        logger.debug(f"Regular search social media integration using keywords: '{search_keywords}'")
+        
         # Get URLs from social media search with graceful error handling
         try:
             logger.debug(f"Attempting social media search for query: {query_text}")
-            social_media_results = self.search_and_analyze_social_media(query_text, max_results_per_platform=5)
+            # Use keyword-based search instead of raw query
+            social_media_results = self.search_and_analyze_social_media(search_keywords or query_text, max_results_per_platform=5)
             
             reddit_count = len(social_media_results.get("reddit", []))
             x_count = len(social_media_results.get("x", []))
@@ -521,8 +630,8 @@ Note: Social media searches will find posts and register their URLs for analysis
                     reddit_source = WebSource(
                         reference=reddit_url,
                         content=None,  # Will be loaded later during scraping
-                        title=f"Reddit discussion - {query_text[:50]}...",
-                        preview="Social media discussion from Reddit API search"
+                        title=f"Reddit discussion - {search_keywords[:50] if search_keywords else query_text[:50]}...",
+                        preview=f"Social media discussion from Reddit API search (keywords: {search_keywords})"
                     )
                     social_sources.append(reddit_source)
                     logger.debug(f"Added Reddit source: {reddit_url}")
@@ -535,8 +644,8 @@ Note: Social media searches will find posts and register their URLs for analysis
                     x_source = WebSource(
                         reference=x_url,
                         content=None,  # Will be loaded later during scraping
-                        title=f"X discussion - {query_text[:50]}...",
-                        preview="Social media discussion from X API search"
+                        title=f"X discussion - {search_keywords[:50] if search_keywords else query_text[:50]}...",
+                        preview=f"Social media discussion from X API search (keywords: {search_keywords})"
                     )
                     social_sources.append(x_source)
                     logger.debug(f"Added X source: {x_url}")

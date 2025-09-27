@@ -8,6 +8,7 @@ from .manipulation_detector import ManipulationDetector, DetectManipulation
 from .object_detector import ObjectDetector, DetectObjects
 from .reddit import RedditTool, SearchReddit, RedditResults
 from .searcher import Searcher, Search
+from .social_media_aggregator import SocialMediaAggregator, AggregateSocialMedia
 from .text_extractor import TextExtractor, OCR
 from .tool import Tool
 from .x import XTool, SearchX, XResults
@@ -19,6 +20,7 @@ TOOL_REGISTRY = [
     ObjectDetector,
     RedditTool,
     Searcher,
+    SocialMediaAggregator,
     TextExtractor,
     ManipulationDetector,
     XTool,
@@ -34,6 +36,7 @@ ACTION_REGISTRY = {
     DetectManipulation,
     SearchReddit,
     SearchX,
+    AggregateSocialMedia,
 }
 
 # Import the new social media search actions

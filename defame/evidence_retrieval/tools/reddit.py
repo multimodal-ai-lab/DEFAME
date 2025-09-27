@@ -59,6 +59,10 @@ class RedditTool(Tool):
         # RedditTool doesn't need llm or device parameters, but we accept them to be consistent with other tools
         super().__init__(llm, device)
         self.actions = [SearchReddit]
+        
+        # Register with SocialMediaAggregator
+        from .social_media_aggregator import SocialMediaAggregator
+        SocialMediaAggregator.register_social_media_tool(self, [SearchReddit])
     
     def perform(self, action: Action, summarize: bool = True, **kwargs) -> Evidence:
         """Override perform to extract claim from doc parameter."""
@@ -77,7 +81,8 @@ class RedditTool(Tool):
             updated_action = SearchReddit(url=result.url)
             action = updated_action
         
-        summary = self._summarize(result, **kwargs) if summarize else None
+        # Skip individual summarization for social media tools - bulk analysis will handle it
+        summary = None
         return Evidence(result, action, takeaways=summary)
     
     def _find_real_reddit_url(self, fictional_url: str) -> str:

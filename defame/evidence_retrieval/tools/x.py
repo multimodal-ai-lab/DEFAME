@@ -61,6 +61,10 @@ class XTool(Tool):
         # XTool doesn't need llm or device parameters, but we accept them to be consistent with other tools
         super().__init__(llm, device)
         self.actions = [SearchX]
+        
+        # Register with SocialMediaAggregator
+        from .social_media_aggregator import SocialMediaAggregator
+        SocialMediaAggregator.register_social_media_tool(self, [SearchX])
     
     def perform(self, action: Action, summarize: bool = True, **kwargs) -> Evidence:
         """Override perform to extract claim from doc parameter."""
@@ -79,7 +83,8 @@ class XTool(Tool):
             updated_action = SearchX(url=result.url)
             action = updated_action
         
-        summary = self._summarize(result, **kwargs) if summarize else None
+        # Skip individual summarization for social media tools - bulk analysis will handle it
+        summary = None
         return Evidence(result, action, takeaways=summary)
     
     def _perform(self, action: SearchX, claim_text: str) -> XResults:
@@ -173,8 +178,22 @@ class XTool(Tool):
         print(f"🔍 Found {len(x_urls)} X URLs in shared registry: {x_urls}")
         
         if x_urls:
-            # Use the first available real URL
-            real_url = x_urls[0]
+            # Create a simple round-robin mapping to avoid duplicates
+            if not hasattr(self.__class__, '_url_mapping'):
+                self.__class__._url_mapping = {}
+                self.__class__._url_counter = 0
+            
+            # Check if we already have a mapping for this fictional URL
+            if fictional_url in self.__class__._url_mapping:
+                real_url = self.__class__._url_mapping[fictional_url]
+                print(f"🔍 Using cached mapping: {fictional_url} -> {real_url}")
+                return real_url
+            
+            # Map to next available URL using round-robin
+            real_url = x_urls[self.__class__._url_counter % len(x_urls)]
+            self.__class__._url_mapping[fictional_url] = real_url
+            self.__class__._url_counter += 1
+            
             print(f"🔍 Replacing fictional X URL {fictional_url} with real URL {real_url}")
             return real_url
         

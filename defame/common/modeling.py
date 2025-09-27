@@ -317,6 +317,8 @@ class GPTModel(Model):
     open_source = False
     encoding = tiktoken.get_encoding("cl100k_base")
     accepts_images = True
+    accepts_videos = False
+    accepts_audio = False
 
     def load(self, model_name: str) -> Pipeline | OpenAIAPI:
         return OpenAIAPI(model=model_name)
