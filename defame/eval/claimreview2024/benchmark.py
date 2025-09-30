@@ -60,7 +60,7 @@ class ClaimReview2024(Benchmark):
             date_str = entry.get("date")
             date = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%SZ") if date_str else None
             claim_entry = {
-                "id": i,
+                "id": str(i),
                 "input": Claim(claim_text,
                                id=i,
                                author=entry.get("author"),

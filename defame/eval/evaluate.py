@@ -4,7 +4,7 @@ import json
 import re
 import time
 import traceback
-from multiprocessing import Process
+from multiprocessing import Process, set_start_method
 from pathlib import Path
 from queue import Empty
 from typing import Sequence, Optional
@@ -102,6 +102,7 @@ def evaluate(
         allowed_actions = [a for a in benchmark.available_actions if a.name in allowed_actions]
 
     # Sanity check
+    set_start_method("spawn")
     p = Process(target=validate_config, args=(tools_config, allowed_actions))
     p.start()
     p.join()
@@ -176,8 +177,6 @@ def evaluate(
 
     progress = tqdm(range(n_samples), smoothing=0.02)
 
-    pool.wait_until_ready()
-
     try:
         while progress.n + pool.n_failed_tasks < n_samples:
             try:
@@ -187,7 +186,7 @@ def evaluate(
 
             except Empty as e:
                 if not pool.is_running():
-                    logger.warning("Worker pool stopped running early. Terminating evaluation.")
+                    logger.warning("Worker pool stopped early. Terminating evaluation.")
                     break
 
     except Exception as e:

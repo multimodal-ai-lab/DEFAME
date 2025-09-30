@@ -15,6 +15,8 @@ from defame.helpers.parallelization.pool import Pool
 
 
 class JobManager:
+    """Receives incoming jobs from the API and manages them."""
+
     def __init__(self, pool: Pool):
         self.pool = pool
         self.job_registry: dict[str, Job | None] = dict()  # TODO: Make persistent

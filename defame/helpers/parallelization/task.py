@@ -4,13 +4,13 @@ from pydantic import BaseModel
 
 from defame.common import Content, Claim
 from defame.helpers.parallelization.worker import Worker
-from defame.helpers.common import Status
+from defame.helpers.common import TaskState
 
 
 class TaskInfo(BaseModel):
     task_id: str
-    status: str
-    status_message: str
+    state: str
+    message: str
 
 
 class Task:
@@ -28,13 +28,12 @@ class Task:
     def __init__(self,
                  payload: Content | Claim,
                  id: str | int,
-                 status: Status = Status.PENDING,
+                 state: TaskState = TaskState.PENDING,
                  status_message: str = "Pending.",
                  callback: Callable = None):
         self.id = str(id)
         self.payload = payload
-        self.status = status
-        self.status_message = status_message
+        self.status = dict(state=state, message=status_message)
 
         self.worker_id: Optional[int] = None
         self.callback = callback
@@ -43,34 +42,35 @@ class Task:
 
     def assign_worker(self, worker: Worker):
         self.worker_id = worker.id
-        self.status = Status.RUNNING
+        self.set_status(TaskState.RUNNING, f"Assigned to worker {self.worker_id}.")
 
-    def update(self, message: dict):
-        """Applies the values from the message to the task."""
-        if "status" in message:
-            self.status = message["status"]
-        if "status_message" in message:
-            self.status_message = message["status_message"]
-        if "result" in message:
-            self.result = message["result"]
-            if self.callback:
-                self.callback(self)
+    def set_status(self, state: TaskState = None, message: str = None):
+        self.status = dict(state=state or self.status["state"],
+                           message=message or self.status["message"])
+
+    @property
+    def state(self) -> TaskState:
+        return self.status["state"]
+
+    @property
+    def status_message(self) -> str:
+        return self.status["message"]
 
     @property
     def is_pending(self) -> bool:
-        return self.status == Status.PENDING
+        return self.state == TaskState.PENDING
 
     @property
     def is_running(self) -> bool:
-        return self.status == Status.RUNNING
+        return self.state == TaskState.RUNNING
 
     @property
     def is_done(self) -> bool:
-        return self.status == Status.DONE
+        return self.state == TaskState.DONE
 
     @property
     def failed(self) -> bool:
-        return self.status == Status.FAILED
+        return self.state == TaskState.FAILED
 
     @property
     def terminated(self) -> bool:
@@ -82,11 +82,16 @@ class Task:
 
     def get_info(self) -> TaskInfo:
         return TaskInfo(task_id=self.id,
-                        status=self.status.name,
-                        status_message=self.status_message)
+                        state=self.state.name,
+                        message=self.status_message)
+
+    def update(self, updated: "Task"):
+        self.result = updated.result
+        self.status = updated.status
+        self.worker_id = updated.worker_id
 
     def __getstate__(self):
         """Callbacks can interfere with multithreading/processing."""
         state = self.__dict__.copy()
-        del state["callback"]
+        state.pop("callback", None)
         return state

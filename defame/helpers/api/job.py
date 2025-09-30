@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from defame.common import Content, Claim, Label
 from defame.helpers.api.common import ClaimInfo, get_claim_info, ContentInfo, get_content_info
-from defame.helpers.common import Status
+from defame.helpers.common import TaskState
 from defame.helpers.parallelization.pool import Pool
 from defame.helpers.parallelization.task import Task, TaskInfo
 
@@ -17,8 +17,8 @@ class JobInfo(BaseModel):
     status_message: str
     tasks: dict[str, TaskInfo] = Field(examples=[{
         "<task_id>": TaskInfo(task_id="<task_id>",
-                              status="PENDING",
-                              status_message="In queue.")}])
+                              state="PENDING",
+                              message="In queue.")}])
 
 
 class StatusResponse(BaseModel):
@@ -35,6 +35,13 @@ class StatusResponse(BaseModel):
                      justification=[["text", "The claim is supported, because the image"],
                                     ["image", "<base64_encoded_image_string>"],
                                     ["text", "shows clear signs of deepfake generation."]])}])
+
+
+def save_results(task: Task):
+    claim: Claim = task.payload
+    doc, meta = task.result
+    claim.verdict = doc.verdict
+    claim.justification = MultimodalSequence(doc.justification)
 
 
 class Job:
@@ -79,15 +86,15 @@ class Job:
                 self.claim_tasks is not None and any([t.failed for t in self.claim_tasks]))
 
     @property
-    def status(self) -> Status:
+    def status(self) -> TaskState:
         if self.is_done:
-            return Status.DONE
+            return TaskState.DONE
         elif self.failed:
-            return Status.FAILED
+            return TaskState.FAILED
         elif self.is_running:
-            return Status.RUNNING
+            return TaskState.RUNNING
         else:
-            return Status.PENDING
+            return TaskState.PENDING
 
     @property
     def content(self) -> Content:
@@ -107,17 +114,12 @@ class Job:
         self.claim_tasks = []
         for i, claim in enumerate(claims):
             claim.id = self.id + f"/{i}"
-            task = Task(claim, id=claim.id, callback=self.register_verification_results)
+            task = Task(claim, id=claim.id, callback=save_results)
             self.claim_tasks.append(task)
             self._pool.add_task(task)
 
         self.content.claims = claims
         self.content.topic = topic
-
-    def register_verification_results(self, task: Task):
-        claim = task.payload
-        claim.verdict = task.result["verdict"]
-        claim.justification = MultimodalSequence(task.result["justification"])
 
     @property
     def n_claims(self) -> Optional[int]:
@@ -142,16 +144,16 @@ class Job:
 
     def get_status_message(self) -> str:
         match self.status:
-            case Status.PENDING:
+            case TaskState.PENDING:
                 return "In queue."
-            case Status.RUNNING:
+            case TaskState.RUNNING:
                 if self.content_task.is_running:
                     return "Extracting claims."
                 else:
                     return "Verifying claim(s)."
-            case Status.DONE:
+            case TaskState.DONE:
                 return "Job completed successfully."
-            case Status.FAILED:
+            case TaskState.FAILED:
                 return "Job failed, see the corresponding task for details."
         return "Unknown status."
 
