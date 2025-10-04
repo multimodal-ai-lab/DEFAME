@@ -48,12 +48,17 @@ class RedditResults(Results):
         return self.content is not None
 
 class RedditTool(Tool):
-    """
-    A tool for retrieving and analyzing content from Reddit.
-    It wraps the Reddit integration and exposes it as a searchable action to the DEFAME framework.
-    """
+    """Tool for searching and analyzing Reddit content."""
     name = "reddit_search"
-    description = "A tool to retrieve content from Reddit, including posts, comments, and user profiles."
+    description = "A tool for searching and analyzing Reddit posts and comments."
+    
+    @classmethod
+    def clear_url_cache(cls):
+        """Clear the class-level URL mapping cache."""
+        if hasattr(cls, '_url_mapping'):
+            cls._url_mapping = {}
+        if hasattr(cls, '_url_counter'):
+            cls._url_counter = 0
 
     def __init__(self, llm=None, device=None, **kwargs):
         # RedditTool doesn't need llm or device parameters, but we accept them to be consistent with other tools

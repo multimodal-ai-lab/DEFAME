@@ -53,7 +53,8 @@ class FactChecker:
             tools_config = dict(
                 searcher=None,
                 x_search=None,        # Enable X tool by default
-                reddit_search=None    # Enable Reddit tool by default
+                reddit_search=None,
+                social_media_aggregator=None  # Enable Social Media Aggregator tool by default
             )
 
         if llm_kwargs is None:
@@ -160,6 +161,15 @@ class FactChecker:
             clear_urls()
         except ImportError:
             pass  # Shared URLs module not available
+            
+        # Clear URL caches in social media tools to prevent cross-contamination
+        try:
+            from defame.evidence_retrieval.tools.x import XTool
+            from defame.evidence_retrieval.tools.reddit import RedditTool
+            XTool.clear_url_cache()
+            RedditTool.clear_url_cache()
+        except ImportError:
+            pass  # Social media tools not available
 
         stats = {}
         self.actor.reset()  # remove all past search evidences

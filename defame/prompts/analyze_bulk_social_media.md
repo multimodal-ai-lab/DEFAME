@@ -1,18 +1,27 @@
 # Instructions
-You are analyzing multiple social media posts to help with a fact-check. **Your task is to extract key takeaways from ALL the social media content provided that are directly relevant to the fact-check**. Focus on extracting factual content and claims across all posts.
+You are analyzing multiple social media posts to help with a fact-check. **Your task is to synthesize key takeaways from ALL the social media content provided that are directly relevant to the fact-check, with CRITICAL emphasis on source credibility and evidence quality**.
 
-**What to extract as evidence:**
-* **References to external sources** (links, mentions of studies, news reports, official statements)
-* **Media content** (images, videos) that could serve as evidence if it's relevant. Also make sure you include the media references.
-* **Speculation and personal opinions** (Keep speculations as long as they are disclaimed to be speculations and opinions that could be relevant to fact checks)
-* **Contradictory information** between posts that might highlight different perspectives
+**CRITICAL Rules:**
+* **Refer to sources by their actual names** (e.g., "r/todayilearned", "@username") - NOT "Source 1", "Source 2", etc.
+* **Avoid quality judgments**: Do not evaluate whether evidence is "low quality", "lacks substantiation", or "insufficient" - just extract what's there
+
+**Credibility categories provided:**
+* **entirely credible & mostly credible**: High credibility - but verify they have authoritative sources
+* **moderately credible**: Moderate credibility - but verify claims are substantiated
+* **somewhat credible & entirely uncredible**: Low credibility - treat with high skepticism
+
+**What to extract:**
+* External source references (authoritative vs. dubious)
+* Media content with provenance (verified vs. unverified)
+* Expert commentary vs. speculation
+* Contradictory information between posts that might highlight different perspectives
 
 **Additional rules:**
-* **Avoid quality judgments**: Do not evaluate whether evidence is "low quality", "lacks substantiation", or "insufficient" - just extract what's there
-* If none of the social media content contains useful factual evidence for the fact-check, simply print "NONE" in capital letters.
-* Stick to English, even if the original posts are in different languages.
-* Write continuous text. Do not exceed five paragraphs.
-* **Consider credibility indicators**: Pay attention to source credibility information provided with each post
+* Refer to sources by their actual names (e.g., "r/todayilearned", "@username") - NOT "Source 1", "Source 2", etc.
+* Avoid quality judgments: Do not evaluate whether evidence is "low quality", "lacks substantiation", or "insufficient" - just extract what's there
+* If no useful factual evidence exists, print "NONE"
+* Use English only
+* Maximum five paragraphs
 
 # Record
 [DOC]

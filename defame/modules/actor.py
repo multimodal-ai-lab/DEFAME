@@ -50,3 +50,14 @@ class Actor:
         searcher = self._get_searcher()
         if searcher is not None:
             searcher.set_time_restriction(before)
+
+    def set_social_media_date_restriction(self, start_date: Optional[str], end_date: Optional[str]):
+        """Set date restrictions for social media searches (Reddit and X).
+        
+        Args:
+            start_date: Start date in YYYY-MM-DD format (inclusive)
+            end_date: End date in YYYY-MM-DD format (inclusive)
+        """
+        searcher = self._get_searcher()
+        if searcher is not None and hasattr(searcher, 'set_social_media_date_restriction'):
+            searcher.set_social_media_date_restriction(start_date, end_date)

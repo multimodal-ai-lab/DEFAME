@@ -10,7 +10,9 @@ from defame.config import api_keys
 from defame.common.log import logger
 from defame.analysis.stance import init_stance_detector, StanceLabel, detect_comments_stance_batch
 from defame.common.modeling import make_model
-from ezmm import MultimodalSequence
+from ezmm import MultimodalSequence, Video
+import os
+import glob
 
 
 def _calculate_reply_weighted_stance(comments_data: list, original_claim: str, post_content: str) -> float:
@@ -286,21 +288,37 @@ class X(RetrievalIntegration):
             content = await self.scraper.get(url, session)
             return content
         except Exception as e:
-            logger.error(f"Error in async X retrieval for {url}: {e}")
-            return None
+            if "Event loop is closed" in str(e):
+                logger.warning(f"Event loop closed error for {url}, creating fresh session...")
+                try:
+                    # Reset session and try again
+                    await self._reset_session()
+                    fresh_session = await self._get_session()
+                    content = await self.scraper.get(url, fresh_session)
+                    return content
+                except Exception as retry_error:
+                    logger.error(f"Retry failed for X retrieval of {url}: {retry_error}")
+                    return None
+            else:
+                logger.error(f"Error in X _async_retrieve for {url}: {e}")
+                return None
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Creates an aiohttp session if one doesn't exist or is closed."""
-        if self.session is None or self.session.closed:
-            # Create SSL context that bypasses certificate verification for development
-            ssl_context = ssl.create_default_context()
-            ssl_context.check_hostname = False
-            ssl_context.verify_mode = ssl.CERT_NONE
-            
-            # Create connector with SSL bypass
-            connector = aiohttp.TCPConnector(ssl=ssl_context)
-            self.session = aiohttp.ClientSession(connector=connector)
-        return self.session
+        try:
+            if self.session is None or self.session.closed:
+                self.session = aiohttp.ClientSession()
+            return self.session
+        except Exception as e:
+            # If there's an issue with session checking, create a fresh one
+            logger.debug(f"Session access issue, creating fresh session: {e}")
+            if self.session and not self.session.closed:
+                try:
+                    await self.session.close()
+                except Exception:
+                    pass
+            self.session = aiohttp.ClientSession()
+            return self.session
 
     async def _reset_session(self):
         """Force reset the session - useful for event loop issues."""
@@ -330,42 +348,25 @@ class X(RetrievalIntegration):
             # Extract metadata for analysis
             metadata = getattr(content, 'metadata', {})
             
-            
             # Get comments data if available and convert from strings to structured objects
             raw_comments = metadata.get("comments", []) if metadata else []
             comments_data = []
             
             # Convert string comments to structured format expected by stance detection
             for i, comment_str in enumerate(raw_comments):
-                if isinstance(comment_str, str):
-                    # Parse comment string format: "Comment by @author (N likes):\ntext"
-                    import re
-                    match = re.match(r"Comment by @(\w+) \((\d+) likes\):\n(.+)", comment_str, re.DOTALL)
-                    if match:
-                        author, likes, text = match.groups()
-                        comments_data.append({
-                            'id': f"comment_{i}",
-                            'text': text.strip(),
-                            'author': author,
-                            'likes': int(likes),
-                            'author_metadata': {}  # No detailed author metadata available from X API currently
-                        })
-                    else:
-                        # Fallback for unexpected format
-                        comments_data.append({
-                            'id': f"comment_{i}",
-                            'text': comment_str,
-                            'author': 'unknown',
-                            'likes': 0,
-                            'author_metadata': {}
-                        })
+                if isinstance(comment_str, str) and comment_str.strip():
+                    comments_data.append({
+                        'id': f'comment_{i}',
+                        'text': comment_str.strip(),
+                        'author': f'user_{i}',  # Placeholder author
+                        'metadata': {}
+                    })
             
-            # Logic branches depending on whether it's a post or a profile
-            if "post_public_metrics" in metadata:
-                # This is a post - use enhanced credibility with comments if available
-                if comments_data and claim:
-                    # Get the actual tweet text for context
-                    post_content = metadata.get("tweet_text", "")
+            # Determine content type and calculate credibility
+            post_content = str(content) if content else ""
+            
+            if post_content:  # This is a post
+                if comments_data:  # Use stance-aware credibility if comments available
                     credibility_category = calculate_post_credibility(metadata, comments_data, claim, post_content)
                 else:
                     credibility_category = calculate_post_credibility_simple(metadata)
@@ -406,6 +407,17 @@ class X(RetrievalIntegration):
         """Closes the aiohttp session."""
         if self.session and not self.session.closed:
             await self.session.close()
+
+
+def _add_missing_video_references(content: MultimodalSequence, url: str) -> MultimodalSequence:
+    """
+    DEPRECATED: This function caused video duplication issues where the same video
+    would be assigned to multiple posts. ScrapeMM now properly handles video linking
+    during download with correct source URLs. This function now just returns content unchanged.
+    """
+    logger.debug(f"Video post-processing called for {url} - ScrapeMM handles video linking")
+    return content
+
 
 # Create a singleton instance for easy import
 x = X()

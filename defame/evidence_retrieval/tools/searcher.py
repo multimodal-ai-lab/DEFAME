@@ -93,45 +93,59 @@ class Search(Action):
 class SearchSocialReddit(Action):
     """Search Reddit specifically for posts related to a claim using Reddit's API.
     This will find relevant Reddit discussions and register their URLs for analysis 
-    by the Reddit tool."""
+    by the Reddit tool. Supports date filtering for temporal analysis of how 
+    misinformation spreads on Reddit after specific events."""
     name = "search_social_reddit"
 
-    def __init__(self, query: str, limit: int = 10):
+    def __init__(self, query: str, limit: int = 10, start_date: str = None, end_date: str = None):
         """
         @param query: The textual search query to find Reddit posts
         @param limit: Maximum number of Reddit posts to find (default: 10)
+        @param start_date: Returns search results on or after this date. Use ISO format (YYYY-MM-DD).
+        @param end_date: Returns search results before or on this date. Use ISO format (YYYY-MM-DD).
         """
         self._save_parameters(locals())
         self.query = query
         self.limit = limit
+        self.start_date = start_date
+        self.end_date = end_date
 
     def __eq__(self, other):
-        return isinstance(other, SearchSocialReddit) and self.query == other.query and self.limit == other.limit
+        return (isinstance(other, SearchSocialReddit) and self.query == other.query and 
+                self.limit == other.limit and self.start_date == other.start_date and 
+                self.end_date == other.end_date)
 
     def __hash__(self):
-        return hash((self.name, self.query, self.limit))
+        return hash((self.name, self.query, self.limit, self.start_date, self.end_date))
 
 
 class SearchSocialX(Action):
     """Search X (Twitter) specifically for posts related to a claim using X's API.
     This will find relevant X/Twitter discussions and register their URLs for analysis 
-    by the X tool."""
+    by the X tool. Supports date filtering for temporal analysis of how 
+    misinformation spreads on X/Twitter after specific events."""
     name = "search_social_x"
 
-    def __init__(self, query: str, limit: int = 10):
+    def __init__(self, query: str, limit: int = 10, start_date: str = None, end_date: str = None):
         """
         @param query: The textual search query to find X/Twitter posts
         @param limit: Maximum number of X/Twitter posts to find (default: 10)
+        @param start_date: Returns search results on or after this date. Use ISO format (YYYY-MM-DD).
+        @param end_date: Returns search results before or on this date. Use ISO format (YYYY-MM-DD).
         """
         self._save_parameters(locals())
         self.query = query
         self.limit = limit
+        self.start_date = start_date
+        self.end_date = end_date
 
     def __eq__(self, other):
-        return isinstance(other, SearchSocialX) and self.query == other.query and self.limit == other.limit
+        return (isinstance(other, SearchSocialX) and self.query == other.query and 
+                self.limit == other.limit and self.start_date == other.start_date and 
+                self.end_date == other.end_date)
 
     def __hash__(self):
-        return hash((self.name, self.query, self.limit))
+        return hash((self.name, self.query, self.limit, self.start_date, self.end_date))
 
 
 class Searcher(Tool):
@@ -155,6 +169,10 @@ class Searcher(Tool):
         self.max_result_len = max_result_len  # chars
         self.extract_sentences = extract_sentences
         self.restrict_results_before_time: Optional[datetime] = None  # date restriction for all search actions
+        
+        # Date restrictions for social media searches
+        self.social_media_start_date: Optional[str] = None
+        self.social_media_end_date: Optional[str] = None
 
         self.platforms = self._initialize_platforms(search_config)
         self.known_sources: set[Source] = set()
@@ -197,10 +215,10 @@ class Searcher(Tool):
         social_info = """
 
 Social Media Search Actions:
-`search_social_reddit`: Search Reddit specifically using their API to find relevant posts and discussions
-`search_social_x`: Search X (Twitter) specifically using their API to find relevant posts and discussions
+`search_social_reddit`: Search Reddit specifically using their API to find relevant posts and discussions. Supports date filtering with start_date and end_date parameters (YYYY-MM-DD format).
+`search_social_x`: Search X (Twitter) specifically using their API to find relevant posts and discussions. Supports date filtering with start_date and end_date parameters (YYYY-MM-DD format).
 
-Note: Social media searches will find posts and register their URLs for analysis by the respective social media tools."""
+Note: Social media searches will find posts and register their URLs for analysis by the respective social media tools. Date filtering allows temporal analysis of misinformation spread after specific events."""
         
         Search.additional_info = platforms_info + social_info
         
@@ -226,10 +244,22 @@ Note: Social media searches will find posts and register their URLs for analysis
     def _perform_social_reddit_search(self, action: SearchSocialReddit) -> Optional[SearchResults]:
         """Execute Reddit-specific search using scrapeMM Reddit integration."""
         try:
-            logger.info(f"Performing Reddit search for: '{action.query}' (limit: {action.limit})")
+            date_info = ""
+            if action.start_date or action.end_date:
+                date_info = f" (dates: {action.start_date} to {action.end_date})"
+            logger.info(f"Performing Reddit search for: '{action.query}'{date_info} (limit: {action.limit})")
             
-            # Run the social media search which will register URLs automatically
-            search_results = self.search_and_analyze_social_media(action.query, max_results_per_platform=action.limit)
+            # Use action dates if provided, otherwise use stored restrictions
+            start_date = action.start_date or self.social_media_start_date
+            end_date = action.end_date or self.social_media_end_date
+            
+            # Run the social media search with date restrictions
+            search_results = self.search_and_analyze_social_media(
+                action.query, 
+                max_results_per_platform=action.limit,
+                start_date=start_date,
+                end_date=end_date
+            )
             reddit_urls = search_results.get("reddit", [])
             
             # Create WebSource objects for the found URLs
@@ -259,10 +289,22 @@ Note: Social media searches will find posts and register their URLs for analysis
     def _perform_social_x_search(self, action: SearchSocialX) -> Optional[SearchResults]:
         """Execute X/Twitter-specific search using scrapeMM X integration."""
         try:
-            logger.info(f"Performing X search for: '{action.query}' (limit: {action.limit})")
+            date_info = ""
+            if action.start_date or action.end_date:
+                date_info = f" (dates: {action.start_date} to {action.end_date})"
+            logger.info(f"Performing X search for: '{action.query}'{date_info} (limit: {action.limit})")
             
-            # Run the social media search which will register URLs automatically
-            search_results = self.search_and_analyze_social_media(action.query, max_results_per_platform=action.limit)
+            # Use action dates if provided, otherwise use stored restrictions
+            start_date = action.start_date or self.social_media_start_date
+            end_date = action.end_date or self.social_media_end_date
+            
+            # Run the social media search with date restrictions
+            search_results = self.search_and_analyze_social_media(
+                action.query, 
+                max_results_per_platform=action.limit,
+                start_date=start_date,
+                end_date=end_date
+            )
             x_urls = search_results.get("x", [])
             
             # Create WebSource objects for the found URLs
@@ -396,12 +438,14 @@ Note: Social media searches will find posts and register their URLs for analysis
             add_x_urls(x_urls)
             print(f"🔍 Added {len(x_urls)} X URLs to registry")
 
-    async def search_social_media_platforms(self, query: str, max_results_per_platform: int = 10) -> dict[str, list[str]]:
+    async def search_social_media_platforms(self, query: str, max_results_per_platform: int = 10, start_date: str = None, end_date: str = None) -> dict[str, list[str]]:
         """Search Reddit and X platforms for posts related to the query.
         
         Args:
             query: The search query (typically a claim or part of a claim)
             max_results_per_platform: Maximum results per platform
+            start_date: Optional start date for filtering results (YYYY-MM-DD format)
+            end_date: Optional end date for filtering results (YYYY-MM-DD format)
             
         Returns:
             Dict with platform names as keys and lists of URLs as values
@@ -421,7 +465,7 @@ Note: Social media searches will find posts and register their URLs for analysis
             try:
                 reddit_scraper = ScrapeMM_Reddit()
                 if reddit_scraper.connected:
-                    reddit_urls = await reddit_scraper.search(query, session, max_results_per_platform)
+                    reddit_urls = await reddit_scraper.search(query, session, max_results_per_platform, start_date, end_date)
                     results["reddit"] = reddit_urls
                     logger.info(f"Found {len(reddit_urls)} Reddit posts for query: {query}")
                 else:
@@ -429,7 +473,7 @@ Note: Social media searches will find posts and register their URLs for analysis
             except Exception as e:
                 logger.error(f"Error searching Reddit: {e}")
             
-            # Search X (Twitter)
+            # Search X (Twitter) - Note: Date filtering not supported due to API limitations
             try:
                 x_scraper = ScrapeMM_X()
                 if x_scraper.connected:
@@ -447,6 +491,15 @@ Note: Social media searches will find posts and register their URLs for analysis
 
     def _extract_social_keywords(self, claim_text: str) -> str:
         """Extract keywords from claim text optimized for social media search."""
+        # Check cache first to avoid redundant LLM calls
+        if not hasattr(self, '_keyword_cache'):
+            self._keyword_cache = {}
+        
+        if claim_text in self._keyword_cache:
+            cached_keywords = self._keyword_cache[claim_text]
+            logger.debug(f"✅ Using cached keywords: '{cached_keywords}' (from claim: '{claim_text[:50]}...')")
+            return cached_keywords
+        
         try:
             from defame.prompts.prompts import ExtractSocialKeywordsPrompt
             prompt = ExtractSocialKeywordsPrompt(claim_text)
@@ -485,11 +538,17 @@ Note: Social media searches will find posts and register their URLs for analysis
                 keywords = self._fallback_keyword_extraction(claim_text)
                 
             logger.info(f"🎯 FINAL KEYWORDS: '{keywords}' (from claim: '{claim_text[:100]}...')")
+            
+            # Cache the result
+            self._keyword_cache[claim_text] = keywords
             return keywords
             
         except Exception as e:
             logger.warning(f"Keyword extraction failed: {e}, using fallback")
-            return self._fallback_keyword_extraction(claim_text)
+            fallback_keywords = self._fallback_keyword_extraction(claim_text)
+            # Cache the fallback too
+            self._keyword_cache[claim_text] = fallback_keywords
+            return fallback_keywords
     
     def _fallback_keyword_extraction(self, claim_text: str) -> str:
         """Simple fallback keyword extraction without LLM."""
@@ -540,23 +599,31 @@ Note: Social media searches will find posts and register their URLs for analysis
         
         return ' '.join(keywords[:5])
 
-    def search_and_analyze_social_media(self, claim_text: str, max_results_per_platform: int = 10):
+    def search_and_analyze_social_media(self, claim_text: str, max_results_per_platform: int = 10, start_date: str = None, end_date: str = None, _skip_keyword_extraction: bool = False):
         """Search social media platforms and register URLs for analysis by respective tools.
         
         This method:
-        1. Extracts keywords from the claim for better social media search
+        1. Extracts keywords from the claim for better social media search (unless skipped)
         2. Searches Reddit and X for posts related to the keywords
         3. Registers found URLs in the shared registry
         4. The planner will then use SearchReddit/SearchX actions to analyze these posts
         
         Args:
-            claim_text: The claim to search for
+            claim_text: The claim to search for (or pre-extracted keywords if _skip_keyword_extraction=True)
             max_results_per_platform: Maximum results per platform
+            start_date: Optional start date for filtering results (YYYY-MM-DD format)
+            end_date: Optional end date for filtering results (YYYY-MM-DD format)
+            _skip_keyword_extraction: Internal flag to skip keyword extraction (when keywords already provided)
         """
         
-        # Extract keywords optimized for social media search
-        search_keywords = self._extract_social_keywords(claim_text)
-        logger.info(f"Social media search using keywords: '{search_keywords}'")
+        # Extract keywords optimized for social media search (unless already provided)
+        if _skip_keyword_extraction:
+            # Keywords already extracted, use claim_text as-is
+            search_keywords = claim_text
+            logger.debug(f"Using pre-extracted keywords: '{search_keywords}'")
+        else:
+            search_keywords = self._extract_social_keywords(claim_text)
+            logger.info(f"Social media search using keywords: '{search_keywords}'")
         
         # Use keywords for the actual search
         actual_query = search_keywords if search_keywords else claim_text
@@ -570,11 +637,11 @@ Note: Social media searches will find posts and register their URLs for analysis
                 # If we're already in an event loop, run in a thread
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(asyncio.run, self.search_social_media_platforms(actual_query, max_results_per_platform))
+                    future = executor.submit(asyncio.run, self.search_social_media_platforms(actual_query, max_results_per_platform, start_date, end_date))
                     search_results = future.result()
             except RuntimeError:
                 # No event loop running, safe to use asyncio.run
-                search_results = asyncio.run(self.search_social_media_platforms(actual_query, max_results_per_platform))
+                search_results = asyncio.run(self.search_social_media_platforms(actual_query, max_results_per_platform, start_date, end_date))
                 
             # Register found URLs for use by social media tools
             from ..shared_urls import add_reddit_urls, add_x_urls
@@ -612,13 +679,18 @@ Note: Social media searches will find posts and register their URLs for analysis
         
         # Extract keywords for better social media search
         search_keywords = self._extract_social_keywords(query_text)
-        logger.debug(f"Regular search social media integration using keywords: '{search_keywords}'")
+        logger.info(f"Regular search social media integration using keywords: '{search_keywords}'")
         
         # Get URLs from social media search with graceful error handling
         try:
             logger.debug(f"Attempting social media search for query: {query_text}")
-            # Use keyword-based search instead of raw query
-            social_media_results = self.search_and_analyze_social_media(search_keywords or query_text, max_results_per_platform=5)
+            # Use keyword-based search - pass skip_extraction=True to avoid redundant extraction
+            # since we already extracted keywords above
+            social_media_results = self.search_and_analyze_social_media(
+                search_keywords or query_text, 
+                max_results_per_platform=5,
+                _skip_keyword_extraction=True  # Flag to skip re-extraction
+            )
             
             reddit_count = len(social_media_results.get("reddit", []))
             x_count = len(social_media_results.get("x", []))
@@ -776,6 +848,16 @@ Note: Social media searches will find posts and register their URLs for analysis
         kb = self.get_platform(KnowledgeBase.name)
         if kb:
             kb.current_claim_id = int(claim_id)
+
+    def set_social_media_date_restriction(self, start_date: Optional[str], end_date: Optional[str]):
+        """Set date restrictions for social media searches.
+        
+        Args:
+            start_date: Start date in YYYY-MM-DD format (inclusive)
+            end_date: End date in YYYY-MM-DD format (inclusive)
+        """
+        self.social_media_start_date = start_date
+        self.social_media_end_date = end_date
 
 
 def extract_relevant_sentences(text, keywords):

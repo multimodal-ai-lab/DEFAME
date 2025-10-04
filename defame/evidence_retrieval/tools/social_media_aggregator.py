@@ -97,7 +97,16 @@ class SocialMediaAggregator(Tool):
         
         result = self._create_aggregated_evidence(social_media_evidence, doc)
         
-        self.logger.info(f"✅ Completed bulk social media aggregation - generated {len(str(result.takeaways)) if result.takeaways else 0} characters of analysis")
+        # Calculate actual content length from MultimodalSequence
+        takeaways_content = ""
+        if result.takeaways and hasattr(result.takeaways, 'content'):
+            # MultimodalSequence has a content attribute that contains the actual text
+            takeaways_content = " ".join([str(item) for item in result.takeaways.content if item])
+        elif result.takeaways:
+            takeaways_content = str(result.takeaways)
+        
+        content_length = len(takeaways_content.strip())
+        self.logger.info(f"✅ Completed bulk social media aggregation - generated {content_length} characters of analysis")
         
         return result
 
@@ -161,11 +170,15 @@ class SocialMediaAggregator(Tool):
         # Use LLM to analyze all social media content together
         try:
             takeaways = self._generate_bulk_analysis(combined_sources, doc)
-            if not takeaways or takeaways.strip().upper() == "NONE":
-                takeaways = "No useful social media evidence was found across all sources."
+            
+            # Handle various forms of empty or useless responses
+            if not takeaways or takeaways.strip() == "" or takeaways.strip().upper() == "NONE":
+                self.logger.warning("🔍 LLM returned empty or 'NONE' response - providing fallback analysis")
+                takeaways = f"Analyzed {len(all_raw_content)} social media sources ({', '.join(set(source_actions))}), but no specific insights were extracted by the AI model."
+                
         except Exception as e:
             self.logger.warning(f"Failed to generate bulk social media analysis: {e}")
-            takeaways = f"Analysis of {len(all_raw_content)} social media sources ({', '.join(set(source_actions))}) completed, but detailed extraction failed."
+            takeaways = f"Analysis of {len(all_raw_content)} social media sources ({', '.join(set(source_actions))}) completed, but detailed extraction failed due to error: {str(e)[:100]}"
         
         return self._create_final_evidence(combined_sources, takeaways)
 
@@ -176,7 +189,36 @@ class SocialMediaAggregator(Tool):
             web_source = raw_result.content
             if hasattr(web_source, 'content') and web_source.content:
                 # Get the actual MultimodalSequence content from the WebSource
-                full_content = str(web_source.content)
+                content = web_source.content
+                
+                # Check if this is a MultimodalSequence with video objects
+                if hasattr(content, 'data'):
+                    # Count media items for logging
+                    from ezmm import Video, Image
+                    video_count = sum(1 for item in content.data if isinstance(item, Video))
+                    image_count = sum(1 for item in content.data if isinstance(item, Image))
+                    
+                    # Debug: Log all item types
+                    item_types = [type(item).__name__ for item in content.data]
+                    self.logger.info(f"📄 MultimodalSequence for {action_name}: {len(content.data)} items, types: {item_types}")
+                    
+                    if video_count > 0 or image_count > 0:
+                        self.logger.info(f"🎬 FOUND MEDIA in {action_name}: {video_count} videos, {image_count} images")
+                    
+                    # Convert to string but preserve video/image references
+                    full_content = str(content)
+                    
+                    # Debug: Check what's in the string content
+                    if 'video:' in full_content.lower() or '<video' in full_content.lower():
+                        self.logger.info(f"🎥 Video references found in {action_name} content: {full_content[:100]}...")
+                    
+                    # Log if we lost video information in string conversion
+                    if video_count > 0 and '<video:' not in full_content and 'Video object' in full_content:
+                        self.logger.warning(f"⚠️  Video content may have been lost in string conversion for {action_name}")
+                    
+                else:
+                    full_content = str(content)
+                    
                 self.logger.info(f"📄 Extracted MultimodalSequence content for {action_name}: {len(full_content)} characters")
                 return full_content
             else:
@@ -222,10 +264,16 @@ class SocialMediaAggregator(Tool):
             
         bulk_prompt = AnalyzeBulkSocialMediaPrompt(combined_sources, doc)
         
+        # Validate the prompt is properly constructed
+        prompt_str = str(bulk_prompt)
+        if not prompt_str or len(prompt_str.strip()) < 50:
+            self.logger.error(f"❌ Generated prompt is too short or empty: {len(prompt_str)} characters")
+            return "Error: Unable to generate proper prompt for social media analysis"
+        
         # Log the full prompt being sent to LLM
         self.logger.info("🔍 BULK SOCIAL MEDIA ANALYSIS PROMPT:")
         self.logger.info("=" * 80)
-        self.logger.info(str(bulk_prompt))
+        self.logger.info(prompt_str)
         self.logger.info("=" * 80)
         
         self.logger.info("🚀 Sending bulk analysis request to LLM...")
@@ -247,12 +295,22 @@ class SocialMediaAggregator(Tool):
             else:
                 return f"Error: Unable to generate bulk social media analysis: {e}"
         
-        # Log the LLM response
-        self.logger.info("✅ LLM RESPONSE FOR BULK ANALYSIS:")
-        self.logger.info("-" * 80)
-        self.logger.info(f"Response length: {len(takeaways) if takeaways else 0} characters")
-        self.logger.info(f"Response content: {takeaways}")
-        self.logger.info("-" * 80)
+        # Log the LLM response with better empty response handling
+        response_length = len(str(takeaways).strip()) if takeaways else 0
+        
+        if response_length == 0:
+            self.logger.warning("⚠️ LLM RETURNED EMPTY RESPONSE FOR BULK ANALYSIS:")
+            self.logger.warning("-" * 80)
+            self.logger.warning(f"Response length: {response_length} characters")
+            self.logger.warning(f"Response content: '{takeaways}'")
+            self.logger.warning("This may indicate an issue with the prompt or LLM configuration")
+            self.logger.warning("-" * 80)
+        else:
+            self.logger.info("✅ LLM RESPONSE FOR BULK ANALYSIS:")
+            self.logger.info("-" * 80)
+            self.logger.info(f"Response length: {response_length} characters")
+            self.logger.info(f"Response content: {takeaways}")
+            self.logger.info("-" * 80)
         
         return takeaways
     
@@ -311,10 +369,18 @@ class SocialMediaAggregator(Tool):
         # Store the raw combined content for debugging/reference
         aggregated_results = SimpleResults(combined_sources)
         
+        # CRITICAL: Convert takeaways string to plain text to prevent video/image re-processing
+        # The LLM response contains video references like "<video:75>" but these should NOT
+        # trigger frame extraction again - they're just text placeholders in the analysis.
+        # We need to escape or replace these references to prevent MultimodalSequence from parsing them.
+        import re
+        # Replace video/image references with text-only placeholders to prevent re-processing
+        safe_takeaways = re.sub(r'<(video|image):(\d+)>', r'[\1:\2]', str(takeaways))
+        
         return Evidence(
             raw=aggregated_results,
             action=aggregated_action,
-            takeaways=MultimodalSequence([takeaways])
+            takeaways=MultimodalSequence([safe_takeaways])
         )
 
     def perform(self, action: Action, summarize: bool = True, **kwargs) -> Evidence:

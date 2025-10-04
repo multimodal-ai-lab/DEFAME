@@ -187,7 +187,17 @@ def _retrieve_via_integration(url: str) -> Optional[MultimodalSequence]:
     domain = get_domain(url)
     if domain in RETRIEVAL_INTEGRATIONS:
         integration = RETRIEVAL_INTEGRATIONS[domain]
-        return integration.retrieve(url)
+        print(f"🔧 DEBUG: About to call retrieve() for URL: {url} with integration: {type(integration).__name__}")
+        try:
+            result = integration.retrieve(url)
+            print(f"🔧 DEBUG: Successfully retrieved URL: {url}")
+            return result
+        except Exception as e:
+            print(f"🔧 DEBUG: Error retrieving URL: {url}, Error: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+    return None
 
 
 scraper = Scraper()

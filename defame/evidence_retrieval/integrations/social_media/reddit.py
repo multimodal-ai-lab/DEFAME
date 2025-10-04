@@ -8,7 +8,19 @@ from scrapemm.integrations.reddit import Reddit as ScrapeMM_Reddit
 from defame.common.log import logger
 from defame.analysis.stance import init_stance_detector, StanceLabel, detect_comments_stance_batch
 from defame.common.modeling import make_model
-from ezmm import MultimodalSequence
+from ezmm import MultimodalSequence, Video
+import os
+import glob
+
+
+def _add_missing_video_references(content: MultimodalSequence, url: str) -> MultimodalSequence:
+    """
+    DEPRECATED: This function caused video duplication issues where the same video
+    would be assigned to multiple posts. ScrapeMM now properly handles video linking
+    during download with correct source URLs. This function now just returns content unchanged.
+    """
+    logger.debug(f"Video post-processing called for {url} - ScrapeMM handles video linking")
+    return content
 
 
 class Reddit(RetrievalIntegration):
@@ -86,7 +98,9 @@ class Reddit(RetrievalIntegration):
         """Creates an aiohttp session if one doesn't exist or is closed."""
         try:
             if self.session is None or self.session.closed:
-                self.session = aiohttp.ClientSession()
+                # Use the same SSL context as ScrapeMM Reddit to handle v.redd.it certificate issues
+                connector = aiohttp.TCPConnector(ssl=self.scraper._create_ssl_context())
+                self.session = aiohttp.ClientSession(connector=connector)
             return self.session
         except Exception as e:
             # If there's an issue with session checking, create a fresh one
@@ -96,7 +110,9 @@ class Reddit(RetrievalIntegration):
                     await self.session.close()
                 except Exception:
                     pass
-            self.session = aiohttp.ClientSession()
+            # Use the same SSL context as ScrapeMM Reddit to handle v.redd.it certificate issues
+            connector = aiohttp.TCPConnector(ssl=self.scraper._create_ssl_context())
+            self.session = aiohttp.ClientSession(connector=connector)
             return self.session
 
     async def _reset_session(self):

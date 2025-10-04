@@ -1,8 +1,10 @@
+import asyncio
 import copy
+import os
 import re
 from abc import ABC
 from datetime import datetime
-from typing import Callable
+from typing import Callable, Any
 
 import numpy as np
 import openai
@@ -10,8 +12,9 @@ import pandas as pd
 import requests
 import tiktoken
 import torch
-from ezmm import Image
-from openai import OpenAI
+from ezmm import Image, Video, MultimodalSequence
+from openai import OpenAI, AsyncOpenAI
+from openai.types import FileObject
 from transformers import pipeline, MllamaForConditionalGeneration, AutoProcessor, StoppingCriteria, \
     StoppingCriteriaList, Pipeline, Llama4ForConditionalGeneration
 
@@ -85,10 +88,12 @@ class OpenAIAPI:
         if not api_keys["openai_api_key"]:
             raise ValueError("No OpenAI API key provided. Add it to config/api_keys.yaml")
         self.client = OpenAI(api_key=api_keys["openai_api_key"])
+        self.async_client = None
 
     def __call__(self, prompt: Prompt, system_prompt: str, **kwargs):
         if prompt.has_videos():
-            raise ValueError(f"{self.model} does not support videos.")
+            # Use async method for video processing
+            return asyncio.run(self.async_generate(prompt, system_prompt, **kwargs))
 
         if prompt.has_audios():
             raise ValueError(f"{self.model} does not support audios.")
@@ -106,6 +111,313 @@ class OpenAIAPI:
             **kwargs
         )
         return completion.choices[0].message.content
+
+    async def async_generate(self, prompt: Prompt, system_prompt: str = None, response_format=None, **kwargs) -> str:
+        """Async version of chat completion that supports video processing."""
+        if not self.async_client:
+            self.async_client = AsyncOpenAI(api_key=api_keys["openai_api_key"])
+
+        messages = await self._prepare_gpt_messages(prompt, system_prompt)
+
+        if response_format:
+            response = await self.async_client.responses.parse(
+                model=self.model, input=messages, text_format=response_format, **kwargs
+            )
+            return response.output_parsed
+        else:
+            try:
+                # Add timeout to prevent hanging
+                response = await asyncio.wait_for(
+                    self.async_client.chat.completions.create(
+                        model=self.model, messages=messages, **kwargs
+                    ),
+                    timeout=60  # 1 minute timeout
+                )
+                return response.choices[0].message.content
+            except asyncio.TimeoutError:
+                logger.warning(f"OpenAI API call timed out after 60 seconds for model {self.model}")
+                raise Exception("API call timed out - please try again")
+
+    async def generate_concurrently(self, prompts: list[Prompt], **kwargs):
+        """Uses the asyncio library to run asynchronous API calls to OpenAI."""
+        tasks = [self.async_generate(prompt, **kwargs) for prompt in prompts]
+        return await asyncio.gather(*tasks)
+
+    async def _prepare_gpt_messages(self, prompt: Prompt, system_prompt: str = None) -> list[dict]:
+        return [
+            dict(role="system", content=system_prompt if system_prompt else ""),
+            dict(role="user", content=await self.preprocess_prompt(prompt)),
+        ]
+
+    async def preprocess_prompt(self, prompt: Prompt) -> list[dict]:
+        content_formatted = []
+
+        for item in prompt.to_list():
+            if isinstance(item, str):
+                content_formatted.append({"type": "text", "text": item})
+
+            elif isinstance(item, Image):
+                # Extract image with proper encoding
+                try:
+                    image_encoded = item.get_base64_encoded()
+                    if image_encoded:
+                        content_formatted.append({"type": "text", "text": item.reference})
+                        content_formatted.append(self._format_image(image_encoded))
+                    else:
+                        logger.debug(f"No valid image data for {item.reference}")
+                        content_formatted.append({"type": "text", "text": f"[Image content: {item.reference} - no data available]"})
+                except Exception as e:
+                    logger.warning(f"Could not process image {item.reference}: {e}")
+                    content_formatted.append({"type": "text", "text": f"[Image content: {item.reference} - processing failed]"})
+
+            elif isinstance(item, Video):
+                content_formatted.append({"type": "text", "text": item.reference})
+                
+                # Extract frames from video for OpenAI's vision API (with caching)
+                try:
+                    # Check if frames were already extracted (cached on Video object)
+                    if not hasattr(item, '_cached_frames'):
+                        frames = await self._extract_video_frames(item, max_frames=10)
+                        # Cache the frames on the Video object to avoid reprocessing
+                        item._cached_frames = frames
+                        logger.debug(f"Extracted and cached {len(frames)} frames from video {item.reference}")
+                    else:
+                        frames = item._cached_frames
+                        logger.debug(f"Using {len(frames)} cached frames from video {item.reference}")
+                    
+                    if frames:
+                        content_formatted.extend(
+                            [self._format_image(frame) for frame in frames]
+                        )
+                        logger.debug(f"Processed {len(frames)} frames from video {item.reference}")
+                    else:
+                        logger.debug(f"No valid frames found for video {item.reference}")
+                        content_formatted.append({"type": "text", "text": f"[Video content: {item.reference} - no frames available]"})
+                except Exception as e:
+                    logger.warning(f"Could not extract frames from video {item.reference}: {e}")
+                    content_formatted.append({"type": "text", "text": f"[Video content: {item.reference} - processing failed]"})
+                
+                # Get transcription with improved error handling (with caching)
+                try:
+                    # Check if transcription was already attempted (cached on Video object)
+                    if not hasattr(item, '_cached_transcript'):
+                        # Extract audio from video file first using ffmpeg
+                        audio_path = await self._extract_audio_from_video(item.file_path)
+                        if audio_path:
+                            with open(audio_path, "rb") as f:
+                                transcript = await self.async_client.audio.transcriptions.create(
+                                    model="whisper-1",  # Use the standard Whisper model
+                                    file=f,
+                                    response_format="text"
+                                )
+                            # Cache the successful transcript
+                            item._cached_transcript = f"Video transcript: {transcript}"
+                            logger.debug(f"Generated and cached transcript for video {item.reference}")
+                            
+                            # Clean up temporary audio file
+                            import os
+                            if os.path.exists(audio_path):
+                                os.remove(audio_path)
+                        else:
+                            # Cache the failure so we don't retry
+                            item._cached_transcript = "Video transcript: (audio extraction failed)"
+                            logger.debug(f"Cached audio extraction failure for video {item.reference}")
+                    else:
+                        logger.debug(f"Using cached transcript for video {item.reference}")
+                    
+                    content_formatted.append({"type": "text", "text": item._cached_transcript})
+                except Exception as e:
+                    logger.warning(f"Could not generate transcript for video {item.reference}: {e}")
+                    # Cache the error so we don't retry
+                    item._cached_transcript = "Video transcript: (not available)"
+                    content_formatted.append({"type": "text", "text": item._cached_transcript})
+
+        return content_formatted
+
+    def _format_image(self, base64_encoded: str) -> dict:
+        # Validate base64 encoding
+        if not base64_encoded or not isinstance(base64_encoded, str):
+            logger.warning(f"Invalid base64 data: {type(base64_encoded)}")
+            return {"type": "text", "text": "[Invalid image data]"}
+        
+        # Clean base64 string (remove any whitespace/newlines)
+        base64_clean = base64_encoded.strip().replace('\n', '').replace('\r', '')
+        
+        return {
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{base64_clean}"}
+        }
+
+    async def _extract_video_frames(self, video: Video, max_frames: int = 10) -> list[str]:
+        """Extract frames from video file and return as base64 encoded strings."""
+        import cv2
+        import base64
+        from io import BytesIO
+        from PIL import Image as PILImage
+        
+        try:
+            # Open video file
+            cap = cv2.VideoCapture(video.file_path)
+            if not cap.isOpened():
+                logger.warning(f"Could not open video file: {video.file_path}")
+                return []
+            
+            # Get video properties
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            
+            # Calculate frame indices to extract (evenly spaced)
+            if total_frames <= max_frames:
+                frame_indices = list(range(0, total_frames, max(1, total_frames // max_frames)))
+            else:
+                frame_indices = [int(i * total_frames / max_frames) for i in range(max_frames)]
+            
+            frames_b64 = []
+            for frame_idx in frame_indices:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+                ret, frame = cap.read()
+                
+                if ret:
+                    # Convert BGR (OpenCV) to RGB (PIL)
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    
+                    # Convert to PIL Image
+                    pil_image = PILImage.fromarray(frame_rgb)
+                    
+                    # Convert to base64
+                    buffer = BytesIO()
+                    pil_image.save(buffer, format='JPEG', quality=85)
+                    frame_b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+                    frames_b64.append(frame_b64)
+                
+                if len(frames_b64) >= max_frames:
+                    break
+            
+            cap.release()
+            logger.debug(f"Extracted {len(frames_b64)} frames from video {video.reference}")
+            return frames_b64
+            
+        except ImportError:
+            logger.warning("OpenCV not available - cannot extract video frames. Install with: pip install opencv-python")
+            return []
+        except Exception as e:
+            logger.error(f"Error extracting frames from video {video.file_path}: {e}")
+            return []
+
+    def _has_audio_stream(self, video_path: str) -> bool:
+        """Check if video file has an audio stream using ffprobe."""
+        import subprocess
+        
+        try:
+            cmd = [
+                'ffprobe',
+                '-v', 'error',
+                '-show_entries', 'stream=codec_type',
+                '-of', 'csv=p=0',
+                video_path
+            ]
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode != 0:
+                logger.warning(f"ffprobe failed for {video_path}: {result.stderr}")
+                return False
+                
+            # Check if any stream is audio
+            streams = result.stdout.strip().split('\n')
+            has_audio = 'audio' in streams
+            logger.debug(f"Video {video_path} has audio: {has_audio}")
+            return has_audio
+            
+        except Exception as e:
+            logger.warning(f"Error checking audio stream in {video_path}: {e}")
+            return False
+
+    async def _extract_audio_from_video(self, video_path: str) -> str | None:
+        """Extract audio from video file using ffmpeg and return path to audio file."""
+        import tempfile
+        import subprocess
+        import os
+        
+        try:
+            # First check if video has audio stream
+            if not self._has_audio_stream(video_path):
+                logger.info(f"Video {video_path} has no audio stream, skipping transcription")
+                return None
+            
+            # Create temporary audio file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_audio:
+                audio_path = tmp_audio.name
+            
+            # Use ffmpeg to extract audio
+            cmd = [
+                'ffmpeg', '-i', video_path,
+                '-vn',  # No video
+                '-acodec', 'pcm_s16le',  # WAV format
+                '-ar', '16000',  # 16kHz sample rate (good for speech)
+                '-ac', '1',  # Mono
+                '-y',  # Overwrite output file
+                audio_path
+            ]
+            
+            # Run ffmpeg with suppressed output
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True,
+                timeout=30  # 30 second timeout
+            )
+            
+            if result.returncode == 0 and os.path.exists(audio_path):
+                # Check if audio file has content
+                if os.path.getsize(audio_path) > 1000:  # At least 1KB
+                    logger.debug(f"Successfully extracted audio from {video_path}")
+                    return audio_path
+                else:
+                    logger.warning(f"Extracted audio file is too small: {video_path}")
+                    os.remove(audio_path)
+                    return None
+            else:
+                logger.warning(f"ffmpeg failed to extract audio from {video_path}: {result.stderr}")
+                if os.path.exists(audio_path):
+                    os.remove(audio_path)
+                return None
+                
+        except subprocess.TimeoutExpired:
+            logger.warning(f"ffmpeg timeout while extracting audio from {video_path}")
+            return None
+        except FileNotFoundError:
+            logger.warning("ffmpeg not found - cannot extract audio. Install with: brew install ffmpeg (macOS) or apt install ffmpeg (Linux)")
+            return None
+        except Exception as e:
+            logger.error(f"Error extracting audio from {video_path}: {e}")
+            return None
+
+    async def _upload_video(self, video: Video) -> FileObject:
+        """WARNING: Videos not supported yet as of Sept 2025.
+        Uploads a video to OpenAI's file storage and returns the file reference.
+        Checks if it was uploaded before and returns the cached reference if it was."""
+        if hasattr(video, "openai_file_reference"):
+            uploaded_file: FileObject = video.openai_file_reference
+            # Ensure it isn't expired
+            if int(datetime.now().timestamp()) < uploaded_file.expires_at - 60:  # Buffer for 60s
+                return uploaded_file
+
+        uploaded_file = await self.async_client.files.create(
+            file=open(video.file_path, "rb"),
+            purpose="vision",
+            expires_after={
+                "anchor": "created_at",
+                "seconds": 60 * 60
+            }
+        )
+        video.openai_file_reference = uploaded_file
+        return uploaded_file
 
 
 class DeepSeekAPI:
@@ -317,7 +629,7 @@ class GPTModel(Model):
     open_source = False
     encoding = tiktoken.get_encoding("cl100k_base")
     accepts_images = True
-    accepts_videos = False
+    accepts_videos = True
     accepts_audio = False
 
     def load(self, model_name: str) -> Pipeline | OpenAIAPI:
@@ -829,5 +1141,74 @@ def format_for_gpt(prompt: Prompt):
                     "url": f"data:image/jpeg;base64,{image_encoded}"
                 }
             })
+        elif isinstance(block, Video):
+            # For synchronous calls, extract frames and add reference
+            content_formatted.append({
+                "type": "text",
+                "text": f"{block.reference} (Video frames extracted for processing)"
+            })
+            # Extract frames from video
+            try:
+                frames = block.get_base64_encoded()
+                # If frames is a single string, convert to list for consistency
+                if isinstance(frames, str):
+                    frames = [frames]
+                for frame in frames:
+                    content_formatted.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{frame}"
+                        }
+                    })
+            except Exception as e:
+                logger.warning(f"Could not extract frames from video {block.reference}: {e}")
+                content_formatted.append({
+                    "type": "text", 
+                    "text": f"Video {block.reference} could not be processed"
+                })
 
     return content_formatted
+
+
+class EnhancedModel:
+    """Enhanced Model wrapper that supports async operations like the supervisor's implementation."""
+    
+    system_prompt = DEFAULT_SYSTEM_PROMPT
+    
+    def __init__(self, model: str = "gpt_4o", **kwargs):
+        self.model_name = model
+        # Create the underlying DEFAME model using shorthand
+        try:
+            # Use the shorthand directly
+            self.defame_model = make_model(model, **kwargs)
+        except:
+            # Fallback to a known working model
+            self.defame_model = make_model("gpt_4o", **kwargs)
+        
+        # Ensure we have an OpenAI API instance for async operations
+        if hasattr(self.defame_model, 'api') and isinstance(self.defame_model.api, OpenAIAPI):
+            self.api = self.defame_model.api
+        else:
+            self.api = OpenAIAPI(model)
+    
+    def generate(self, prompt: Prompt, response_format=None, **kwargs):
+        """Synchronous generation - uses DEFAME's existing infrastructure."""
+        return self.defame_model.generate(prompt, **kwargs)
+    
+    async def async_generate(self, prompt: Prompt, response_format=None, **kwargs) -> str:
+        """Async version of chat completion that supports video processing."""
+        return await self.api.async_generate(prompt, self.system_prompt, response_format, **kwargs)
+    
+    async def generate_concurrently(self, prompts: list[Prompt], **kwargs):
+        """Uses the asyncio library to run asynchronous API calls to OpenAI."""
+        tasks = [self.async_generate(prompt, **kwargs) for prompt in prompts]
+        return await asyncio.gather(*tasks)
+
+
+def create_enhanced_model(model: str = "gpt_4o", **kwargs) -> EnhancedModel:
+    """Factory function to create an enhanced model with video support."""
+    return EnhancedModel(model, **kwargs)
+
+
+# Create a default enhanced model instance for easy usage (commented out to avoid initialization issues)
+# enhanced_model = EnhancedModel()

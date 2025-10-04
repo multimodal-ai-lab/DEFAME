@@ -56,6 +56,14 @@ class XTool(Tool):
     """
     name = "x_search"
     description = "A tool to retrieve content from X (formerly Twitter), including posts and user profiles."
+    
+    @classmethod
+    def clear_url_cache(cls):
+        """Clear the class-level URL mapping cache."""
+        if hasattr(cls, '_url_mapping'):
+            cls._url_mapping = {}
+        if hasattr(cls, '_url_counter'):
+            cls._url_counter = 0
 
     def __init__(self, llm=None, device=None, **kwargs):
         # XTool doesn't need llm or device parameters, but we accept them to be consistent with other tools
