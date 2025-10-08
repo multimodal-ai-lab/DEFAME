@@ -49,6 +49,14 @@ LOG_LEVELS = {
 }
 
 
+def _open_utf8(path: Path, mode: str = "a"):
+    """
+    Helper: open a text file as UTF-8. For CSVs on Windows we must pass newline=''
+    to avoid blank rows and ensure the csv module controls newlines.
+    """
+    return open(path, mode, encoding="utf-8", newline="")
+
+
 class Logger:
     """Takes care of saving any information (logs, results etc.) related to an evaluation run."""
     # TODO: Separate general logging tasks from experiment-specific tasks
@@ -89,17 +97,7 @@ class Logger:
                            procedure_name: str = None,
                            model_name: str = None,
                            experiment_name: str = None):
-        """Specify the experiment directory to print the logs and experiment results into.
-
-        Args:
-            path: If specified, re-uses an existing directory, i.e., it appends logs
-                and results to existing files.
-            benchmark_name: The shorthand name of the benchmark being evaluated. Used
-                to name the directory.
-            procedure_name: THe specifier for the used fact-checking procedure.
-            model_name: The shorthand name of the model used for evaluation. Also used
-                to name the directory.
-            experiment_name: Optional a label to distinguish this experiment run."""
+        """Specify the experiment directory to print the logs and experiment results into."""
         assert path is not None or benchmark_name is not None
 
         if path is not None:
@@ -146,10 +144,13 @@ class Logger:
     def _remove_all_file_handlers(self):
         """Removes all existing file handlers from all logger objects."""
         for l in [self.logger, self.model_comm_logger]:
-            for handler in l.handlers:
+            for handler in list(l.handlers):
                 if isinstance(handler, RotatingFileHandler):
                     l.removeHandler(handler)
-                    handler.close()  # Release the file
+                    try:
+                        handler.close()  # Release the file
+                    except Exception:
+                        pass
 
     @property
     def target_dir(self) -> Path:
@@ -232,78 +233,97 @@ class Logger:
         self.model_comm_logger.debug(formatted_msg)
 
     def save_config(self, signature, local_scope, print_summary: bool = True):
-        """Saves the hyperparameters of the current run to a YAML file. Enables to re-use them
-        to resume the run."""
+        """Saves the hyperparameters of the current run to a YAML file."""
         assert self.experiment_dir is not None
         hyperparams = {}
         for param in signature.parameters:
             hyperparams[param] = local_scope[param]
-        with open(self.config_path, "w") as f:
-            yaml.dump(hyperparams, f)
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            yaml.dump(hyperparams, f, allow_unicode=True)
         if print_summary:
             self.log(bold("Configuration summary:"))
-            self.log(yaml.dump(hyperparams, sort_keys=False, indent=4))
+            self.log(yaml.dump(hyperparams, sort_keys=False, indent=4, allow_unicode=True))
 
     def _init_predictions_csv(self):
+        """Create predictions.csv with UTF-8 encoding and proper header."""
         assert self.experiment_dir is not None
-        with open(self.predictions_path, "w") as f:
-            csv.writer(f).writerow(("sample_index",
-                                    "claim",
-                                    "target",
-                                    "predicted",
-                                    "justification",
-                                    "correct",
-                                    "gt_justification"))
+        with _open_utf8(self.predictions_path, "w") as f:
+            writer = csv.writer(f)
+            writer.writerow((
+                "sample_index",
+                "claim",
+                "target",
+                "predicted",
+                "justification",
+                "correct",
+                "gt_justification"
+            ))
 
     def save_next_prediction(self,
-                             sample_index: int,
+                             sample_index: int | str,
                              claim: str,
                              target: Optional[Label],
                              predicted: Label,
                              justification: str,
                              gt_justification: Optional[str]):
+        """Append one UTF-8 row to predictions.csv (never crash on Unicode)."""
         assert self.experiment_dir is not None
 
+        # Init file if missing
         if not os.path.exists(self.predictions_path):
             self._init_predictions_csv()
 
-        target_label_str = target.name if target is not None else None
-        is_correct = target == predicted if target is not None else None
-        with open(self.predictions_path, "a") as f:
-            csv.writer(f).writerow((sample_index,
-                                    claim,
-                                    target_label_str,
-                                    predicted.name,
-                                    justification,
-                                    is_correct,
-                                    gt_justification))
+        # Normalize / stringify safely
+        target_label_str = target.name if isinstance(target, Label) else (str(target) if target is not None else None)
+        predicted_str = predicted.name if isinstance(predicted, Label) else str(predicted)
+        is_correct = (target == predicted) if (isinstance(target, Label) and isinstance(predicted, Label)) else None
 
-    def save_next_instance_stats(self, stats: dict, claim_id: int):
+        row = (
+            str(sample_index),
+            "" if claim is None else str(claim),
+            "" if target_label_str is None else str(target_label_str),
+            "" if predicted_str is None else str(predicted_str),
+            "" if justification is None else str(justification),
+            "" if is_correct is None else bool(is_correct),
+            "" if gt_justification is None else str(gt_justification),
+        )
+
+        # Primary write in UTF-8; belt-and-suspenders fallback replaces odd chars
+        try:
+            with _open_utf8(self.predictions_path, "a") as f:
+                csv.writer(f).writerow(row)
+        except UnicodeEncodeError:
+            with open(self.predictions_path, "a", encoding="utf-8", errors="replace", newline="") as f:
+                csv.writer(f).writerow(row)
+
+    def save_next_instance_stats(self, stats: dict, claim_id: int | str):
+        """Append per-instance stats as UTF-8 CSV."""
         assert self.experiment_dir is not None
         all_instance_stats = self._load_stats_df()
 
         # Convert statistics dict to Pandas dataframe
         instance_stats = flatten_dict(stats)
-        instance_stats["ID"] = claim_id
+        instance_stats["ID"] = str(claim_id)
         instance_stats = pd.DataFrame([instance_stats])
         instance_stats.set_index("ID", inplace=True)
 
         # Append instance stats and save
         all_instance_stats = pd.concat([all_instance_stats, instance_stats])
-        all_instance_stats.to_csv(self.instance_stats_path)
+        all_instance_stats.to_csv(self.instance_stats_path, encoding="utf-8")
 
     def _load_stats_df(self):
         if os.path.exists(self.instance_stats_path):
-            df = pd.read_csv(self.instance_stats_path)
-            df.set_index("ID", inplace=True)
+            df = pd.read_csv(self.instance_stats_path, encoding="utf-8")
+            if "ID" in df.columns:
+                df.set_index("ID", inplace=True)
             return df
         else:
             return pd.DataFrame()
 
     def _init_averitec_out(self):
         assert self.experiment_dir is not None
-        with open(self.averitec_out, "w") as f:
-            json.dump([], f, indent=4)
+        with open(self.averitec_out, "w", encoding="utf-8") as f:
+            json.dump([], f, indent=4, ensure_ascii=False)
 
     def save_next_averitec_out(self, next_out: dict):
         assert self.experiment_dir is not None
@@ -311,12 +331,12 @@ class Logger:
         if not os.path.exists(self.averitec_out) and self.is_averitec_run:
             self._init_averitec_out()
 
-        with open(self.averitec_out, "r") as f:
+        with open(self.averitec_out, "r", encoding="utf-8") as f:
             current_outs = json.load(f)
         current_outs.append(next_out)
         current_outs.sort(key=lambda x: x["claim_id"])  # Score computation requires sorted output
-        with open(self.averitec_out, "w") as f:
-            json.dump(current_outs, f, indent=4)
+        with open(self.averitec_out, "w", encoding="utf-8") as f:
+            json.dump(current_outs, f, indent=4, ensure_ascii=False)
 
 
 class RemoveStringFormattingFormatter(logging.Formatter):
@@ -331,8 +351,6 @@ def _determine_target_dir(benchmark_name: str = "testing",
                           procedure_name: str = None,
                           model_name: str = None,
                           experiment_name: str = None) -> Path:
-    # assert benchmark_name is not None
-
     benchmark_name = benchmark_name if benchmark_name else "testing"
 
     # Construct target directory path
@@ -359,9 +377,8 @@ def _determine_target_dir(benchmark_name: str = "testing",
 
 
 def _make_file_handler(path: Path) -> logging.FileHandler:
-    """Sets up a stream that writes all logs with level DEBUG or higher into a dedicated
-    TXT file. It automatically removes any string formatting."""
-    file_handler = RotatingFileHandler(path, maxBytes=10 * 1024 * 1024, backupCount=5)
+    """File handler that writes logs as UTF-8 (prevents Windows encoding issues)."""
+    file_handler = RotatingFileHandler(path, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8")
     file_handler.setLevel(logging.DEBUG)
     formatter = RemoveStringFormattingFormatter()
     file_handler.setFormatter(formatter)

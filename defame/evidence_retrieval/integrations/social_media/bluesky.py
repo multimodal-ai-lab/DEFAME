@@ -9,7 +9,6 @@ from atproto_client.exceptions import RequestErrorBase
 from atproto_client.models.common import XrpcError
 from ezmm import Image
 
-from config.globals import api_keys
 from defame.common import logger
 from defame.evidence_retrieval.integrations.integration import RetrievalIntegration
 from defame.evidence_retrieval.integrations.social_media import SocialMediaPost, SocialMediaProfile
@@ -283,9 +282,6 @@ def error_to_string(error: RequestErrorBase | Exception) -> str:
         return str(error)
 
 
-bluesky = Bluesky(api_keys.get("bluesky_username"), api_keys.get("bluesky_password"))
 
 if __name__ == "__main__":
     example_url = "https://bsky.app/profile/mrothermel.bsky.social/post/3ldnyqymqgl2c"
-    res = bluesky.retrieve(example_url)
-    print(res)

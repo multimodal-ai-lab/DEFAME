@@ -1,0 +1,30 @@
+llm: gpt_4o
+benchmark_name: dgm4
+tools_config:
+    searcher:
+        search_config:
+            google: {}
+        limit_per_search: 3
+    manipulation_detector: {}
+experiment_name: null
+fact_checker_kwargs:
+    procedure_variant: summary
+    interpret: true
+    decompose: false
+    decontextualize: false
+    filter_check_worthy: false
+    max_iterations: 3
+    max_result_len: 64000
+llm_kwargs:
+    temperature: 0.01
+benchmark_kwargs:
+    variant: val
+allowed_actions:
+- search
+- detect_manipulation
+n_samples: null
+sample_ids: null
+random_sampling: false
+print_log_level: log
+continue_experiment_dir: null
+n_workers: 1

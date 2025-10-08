@@ -2,4 +2,5 @@
 
 if __name__ == '__main__':
     from defame.eval.utils import run_experiment
-    run_experiment(config_file_path="in/defame.yaml")
+    """run_experiment(config_file_path="in/defame.yaml")"""
+    run_experiment(config_file_path="config/experiments/dgm4.yaml")

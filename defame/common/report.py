@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Collection
 from pathlib import Path
 import shutil
+import unicodedata
 
 import numpy as np
 from ezmm import MultimodalSequence
@@ -77,26 +78,45 @@ class Report:
         directory = Path(directory)
         directory.mkdir(exist_ok=True, parents=True)
 
+        # Render the document as Markdown (string)
         report_str = str(self)
+
+        # Normalize to avoid odd Unicode edge-cases across platforms
+        report_str = unicodedata.normalize("NFKC", report_str)
+
+        # Resolve media references (images, etc.) and collect them for copying
         seq = MultimodalSequence(report_str)
         media = seq.unique_items()
         report_str = replace_item_refs(report_str, media)
 
-        # Save the Markdown file
-        with open(directory / "report.md", "w") as f:
-            f.write(report_str)
+        # --- Save the Markdown file (UTF-8!) ---
+        md_path = directory / "report.md"
+        try:
+            with open(md_path, "w", encoding="utf-8") as f:
+                f.write(report_str)
+        except UnicodeEncodeError:
+            # Belt-and-suspenders: never crash due to encoding on Windows
+            with open(md_path, "w", encoding="utf-8", errors="replace") as f:
+                f.write(report_str)
 
         # Save all associated media files in a separate subdirectory
         media_dir = directory / "media"
         media_dir.mkdir(exist_ok=True)
         for medium in media:
-            medium_copy_path = media_dir / medium.file_path.name
-            shutil.copy(medium.file_path, medium_copy_path)
+            # Some media may already live in the destination; guard copy
+            src = Path(medium.file_path)
+            dst = media_dir / src.name
+            if src.resolve() != dst.resolve():
+                try:
+                    shutil.copy2(src, dst)
+                except Exception:
+                    # Fallback to basic copy if metadata copy fails
+                    shutil.copy(src, dst)
 
         # Save a rendered PDF
         pdf = MarkdownPdf(toc_level=0)
+        # root is the directory so relative media refs resolve
         pdf.add_section(Section(report_str, toc=False, root=directory.as_posix()))
-
         pdf.meta["title"] = "Fact-Check Report"
         pdf.save(directory / "report.pdf")
 

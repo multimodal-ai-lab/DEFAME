@@ -1,6 +1,7 @@
 from typing import Optional
 
 from defame.common.modeling import Model
+from .deepfake_detector import DeepfakeDetector, DetectDeepfake
 from defame.evidence_retrieval.tools.credibility_checker import CredibilityChecker, CredibilityCheck
 from .face_recognizer import FaceRecognizer, FaceRecognition
 from .geolocator import Geolocator, Geolocate
@@ -18,6 +19,7 @@ TOOL_REGISTRY = [
     Searcher,
     TextExtractor,
     ManipulationDetector,
+    DeepfakeDetector
 ]
 
 ACTION_REGISTRY = {
@@ -28,6 +30,7 @@ ACTION_REGISTRY = {
     CredibilityCheck,
     OCR,
     DetectManipulation,
+    DetectDeepfake
 }
 
 IMAGE_ACTIONS = {
@@ -36,6 +39,7 @@ IMAGE_ACTIONS = {
     OCR,
     DetectManipulation,
     DetectObjects,
+    DetectDeepfake
 }
 
 

@@ -1,0 +1,103 @@
+
+[name] Content | signature: (*args, author: str = None, date: datetime.datetime = None, origin: str = None, meta_info: str = None, interpretation: str = None, id: str | int | None = None)
+
+class Content(MultimodalSequence):
+    """The raw content to be interpreted, decomposed, decontextualized, etc. before
+    being checked. Media resources are referred in the text """
+
+    claims: Optional[list] = None  # the claims contained in this content
+    verdict: Optional[Label] = None  # the overall verdict aggregated from the individual claims
+    topic: Optional[str] = None  # a short title-like description of the content's topic
+
+    def __init__(self,
+                 *args,
+                 author: str = None,
+                 date: datetime = None,
+                 origin: str = None,  # URL
+                 meta_info: str = None,
+                 interpretation: str = None,  # Added during claim extraction
+                 id: str | int | None = None,  # Used by some benchmarks to identify contents
+                 ):
+        super().__init__(*args)
+
+        self.author = author
+        self.date = date
+        self.origin = origin  # URL
+        self.meta_info = meta_info
+        self.interpretation = interpretation  # added during claim extraction
+        self.id = id  # used by some benchmarks and the API backend to identify contents
+        self.claims: Optional[list] = None  # the claims contained in this content
+        self.verdict: Optional[Label] = None  # the overall verdict aggregated from the individual claims
+
+    def __repr__(self):
+        return f"Content(str_len={len(self.__str__())}, id={self.id}, author={self.author})"
+... (truncated) ...
+
+[name] Claim | signature: (*args, id: str | int | None = None, context: defame.common.content.Content = None, scope: tuple = None, **kwargs)
+
+class Claim(MultimodalSequence):
+    context: Optional[Content]  # Original content where the claim was extracted from
+    scope: Optional[tuple[int, int]]  # TODO: the range in the original context's text that belongs to this claim
+    id: Optional[str]
+
+    def __init__(self,
+                 *args,
+                 id: str | int | None = None,
+                 context: Content = None,
+                 scope: tuple[int, int] = None,
+                 **kwargs):
+        self.id = str(id) if id is not None else None
+        self.context = context if context else Content(*args, **kwargs)
+        self.scope = scope
+        self.verdict: Optional[Label] = None
+        self.justification: Optional[MultimodalSequence] = None
+        super().__init__(*args)
+
+    @property
+    def author(self):
+        return self.context.author if self.context else None
+
+    @property
+    def date(self):
+        return self.context.date if self.context else None
+
+    @property
+    def origin(self):
+        return self.context.origin if self.context else None
+
+... (truncated) ...
+
+[name] FactChecker.__init__ | signature: (self, llm: str | defame.common.modeling.Model = 'gpt_4o_mini', llm_kwargs: dict = None, tools: list = None, tools_config: dict = None, available_actions: list = None, procedure_variant: str = None, interpret: bool = False, decompose: bool = False, decontextualize: bool = False, filter_check_worthy: bool = False, max_iterations: int = 5, max_result_len: int = None, restrict_results_to_claim_date: bool = True, allow_fact_checking_sites: bool = True, classes: Sequence[defame.common.label.Label] = None, class_definitions: dict = None, extra_prepare_rules: str = None, extra_plan_rules: str = None, extra_judge_rules: str = None, device: str = None)
+
+    def __init__(self,
+                 llm: str | Model = "gpt_4o_mini",
+                 llm_kwargs: dict = None,
+                 tools: list[Tool] = None,
+                 tools_config: dict = None,
+                 available_actions: list[Action] = None,
+                 procedure_variant: str = None,
+                 interpret: bool = False,
+                 decompose: bool = False,
+                 decontextualize: bool = False,
+                 filter_check_worthy: bool = False,
+                 max_iterations: int = 5,
+                 max_result_len: int = None,
+                 restrict_results_to_claim_date: bool = True,
+                 allow_fact_checking_sites: bool = True,
+                 classes: Sequence[Label] = None,
+                 class_definitions: dict[Label, str] = None,
+                 extra_prepare_rules: str = None,
+                 extra_plan_rules: str = None,
+                 extra_judge_rules: str = None,
+                 device: str = None):
+
+        if tools_config is None:
+            tools_config = dict(searcher=None)
+
+        if llm_kwargs is None:
+            llm_kwargs = {}
+
+        if device is not None:
+            llm_kwargs.update(device=device)
+... (truncated) ...
+[info] Content constructed positionally.

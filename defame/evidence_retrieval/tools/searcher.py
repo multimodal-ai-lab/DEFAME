@@ -248,6 +248,12 @@ class Searcher(Tool):
             content = relevant_text or content
 
         content = re.sub(r"\{\{.*}}", "", content)
+        # Markdown images: ![alt](url)
+        content = re.sub(r"!\[[^\]]*\]\([^)]+\)", "", content)
+        # HTML images: <img ...>
+        content = re.sub(r"<img[^>]*>", "", content, flags=re.IGNORECASE)
+        # Bare placeholders like image:2
+        content = re.sub(r"\bimage:\d+\b", "", content)
 
         if self.max_result_len is not None:
             content = content[:self.max_result_len]

@@ -37,23 +37,30 @@ class ClaimReview2024(Benchmark):
     available_actions = [Search, Geolocate]
 
     def __init__(self, variant="test"):
-        super().__init__(variant, "ClaimReview2024plus/test.json")
+        super().__init__(variant, f"cr+/test.json")
 
     def _load_data(self) -> list[dict]:
         if not self.file_path.exists():
             # Download the dataset from Hugging Face:
-            # Ensure you are logged in via `huggingface-cli login` and have
-            # got access to the dataset
-            snapshot_download(repo_id="MAI-Lab/ClaimReview2024plus",
-                              repo_type="dataset",
-                              local_dir=self.file_path.parent)
+            # Ensure you are logged in via `huggingface-cli login` and have access
+            from huggingface_hub import snapshot_download
+            snapshot_download(
+                repo_id="MAI-Lab/ClaimReview2024plus",
+                repo_type="dataset",
+                local_dir=self.file_path.parent
+            )
 
-        with open(self.file_path, "r") as f:
-            raw_data = json.load(f)
+        # Read JSON as UTF-8; fall back to UTF-8 with BOM if necessary
+        try:
+            with open(self.file_path, "r", encoding="utf-8") as f:
+                raw_data = json.load(f)
+        except UnicodeDecodeError:
+            with open(self.file_path, "r", encoding="utf-8-sig") as f:
+                raw_data = json.load(f)
 
         data = []
         for i, entry in enumerate(raw_data):
-            image_path = Path(data_root_dir / "MAFC" / entry["image"][0]) if entry["image"] else None
+            image_path = Path(data_root_dir / "imgs" / entry["image"][0]) if entry.get("image") else None
             image = Image(image_path) if (image_path and os.path.exists(image_path)) else None
             claim_text = f"{image.reference} {entry['text']}" if image else f"{entry['text']}"
             label_text = entry.get("label")
@@ -61,10 +68,12 @@ class ClaimReview2024(Benchmark):
             date = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%SZ") if date_str else None
             claim_entry = {
                 "id": i,
-                "input": Claim(claim_text,
-                               id=i,
-                               author=entry.get("author"),
-                               date=date),
+                "input": Claim(
+                    claim_text,
+                    id=i,
+                    author=entry.get("author"),
+                    date=date
+                ),
                 "label": self.class_mapping.get(label_text),
                 "justification": "",
             }

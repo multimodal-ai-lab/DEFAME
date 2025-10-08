@@ -352,9 +352,49 @@ class GPTModel(Model):
         return n_text_tokens + n_image_tokens
 
     def count_image_tokens(self, image: Image):
-        """See the formula here: https://openai.com/api/pricing/"""
-        n_tiles = np.ceil(image.width / 512) * np.ceil(image.height / 512)
-        return 85 + 170 * n_tiles
+        """
+        Robust token cost estimation for images.
+        - Skips bogus refs like 'image:2', data URIs, HTTP URLs, or missing files.
+        - Falls back gracefully if dimensions can't be read.
+        Pricing formula: https://openai.com/api/pricing/
+        """
+        try:
+            # Try to get a concrete path from ezmm.Image
+            file_path = getattr(image, "file_path", None)
+            if not file_path:
+                return 0
+
+            # Skip non-local refs / placeholders
+            if str(file_path).startswith(("image:", "data:", "http:", "https:")):
+                from defame.common import logger
+                logger.info(f"[tokens] Skipping non-local image reference: {file_path}")
+                return 0
+
+            from pathlib import Path
+            p = Path(file_path)
+            if not p.exists():
+                from defame.common import logger
+                logger.info(f"[tokens] Skipping missing image: {file_path}")
+                return 0
+
+            # Get width/height safely (avoid side effects in ezmm.Image.image)
+            w = getattr(image, "width", None)
+            h = getattr(image, "height", None)
+            if w is None or h is None:
+                from PIL import Image as PILImage
+                with PILImage.open(p) as im:
+                    w, h = im.size
+
+            if not w or not h:
+                return 0
+
+            n_tiles = int(np.ceil(w / 512) * np.ceil(h / 512))
+            return 85 + 170 * n_tiles
+
+        except Exception as e:
+            from defame.common import logger
+            logger.info(f"[tokens] Skipping image due to error: {e}")
+            return 0
 
 
 class DeepSeekModel(Model):

@@ -68,7 +68,7 @@ class Benchmark(ABC, Iterable):
     def get_by_id(self, claim_id: str):
         """Returns the instance with the given ID (different from the instance's index)."""
         for instance in self:
-            if instance["id"] == claim_id:
+            if str(instance["id"]) == str(claim_id):
                 return instance
         raise ValueError(f"Benchmark does not contain any instance with ID {claim_id}.")
 

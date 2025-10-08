@@ -1,6 +1,6 @@
-if __name__ == '__main__':  # evaluation uses multiprocessing
+if __name__ == "__main__":
+    # evaluation uses multiprocessing
     from defame.eval.evaluate import evaluate
-
     evaluate(
         llm="gpt_4o",
         tools_config=dict(
@@ -25,7 +25,7 @@ if __name__ == '__main__':  # evaluation uses multiprocessing
         benchmark_name="claimreview2024",
         benchmark_kwargs=dict(variant="dev"),
         allowed_actions=["search", "geolocate"],
-        n_samples=None,
+        n_samples=1,
         sample_ids=None, # list of integers
         random_sampling=False,
         print_log_level="info",

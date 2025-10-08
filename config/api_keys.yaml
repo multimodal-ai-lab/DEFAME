@@ -1,16 +1,6 @@
-huggingface_user_access_token: ''
-
-openai_api_key: ''
-
-# anthropic_api_key: ''
-
+bluesky_password: null
+bluesky_username: null
 deepseek_api_key: ''
-
-serper_api_key: ''  # for Google Search
-
-# x_bearer_token: ''
-# x_api_key: ''  # same as "consumer key"
-# x_api_key_secret: ''  # same as "consumer secret"
-
-bluesky_username:
-bluesky_password:
+huggingface_user_access_token: ''
+openai_api_key: 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
+serper_api_key: 4acbfd931c9d53713d3042f981792e8a4e3d2fe3

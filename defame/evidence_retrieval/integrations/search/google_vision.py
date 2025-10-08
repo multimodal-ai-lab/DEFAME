@@ -110,10 +110,10 @@ def _filter_unique_stem_pages(pages: Sequence):
     Filters pages to ensure only one page per website base domain is included 
     (e.g., 'facebook.com' regardless of subdomain), 
     and limits the total number of pages to the specified limit.
-    
+
     Args:
         pages (list): List of pages with matching images.
-    
+
     Returns:
         list: Filtered list of pages.
     """
