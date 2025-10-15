@@ -143,18 +143,42 @@ class SocialMediaAggregator(Tool):
                 raw_result = evidence.raw
                 action_name = evidence.action.name
                 
-                # Extract credibility score if available
-                credibility_info = ""
-                if hasattr(raw_result, 'credibility_score'):
-                    credibility_info = f" (Credibility: {raw_result.credibility_score})"
+                # Extract credibility explanation if available
+                credibility_explanation_text = ""
+                if hasattr(raw_result, 'credibility_explanation') and raw_result.credibility_explanation:
+                    credibility_explanation_text = f"**Credibility Rating**: {raw_result.credibility_explanation}\n"
                 
                 # Extract the full content from the WebSource
                 full_content = self._extract_content_from_result(raw_result, action_name)
                 
-                # Format the raw content for bulk analysis
-                source_content = f"=== SOURCE {i} ({action_name}){credibility_info} ===\n"
-                source_content += f"{action_name} Content from {getattr(raw_result, 'url', 'unknown URL')}:\n"
-                source_content += full_content
+                # Insert credibility rating after engagement/views line (before external link or post text)
+                if credibility_explanation_text:
+                    # For Reddit: insert after "Comments: X" line
+                    # For X: insert after "Views: X" line
+                    if 'Comments:' in full_content:
+                        # Reddit format
+                        full_content = full_content.replace('\n\n**External Link**:', f'\n{credibility_explanation_text}\n**External Link**:')
+                        # If no external link, insert before the title
+                        if credibility_explanation_text not in full_content:
+                            # Find the line after "Comments:" and insert before the next major section
+                            lines = full_content.split('\n')
+                            for idx, line in enumerate(lines):
+                                if line.startswith('Comments:'):
+                                    # Insert after this line and before the next content (external link or title)
+                                    lines.insert(idx + 1, f'\n{credibility_explanation_text}')
+                                    full_content = '\n'.join(lines)
+                                    break
+                    elif 'Views:' in full_content:
+                        # X format - insert after Views line
+                        lines = full_content.split('\n')
+                        for idx, line in enumerate(lines):
+                            if line.startswith('Views:'):
+                                lines.insert(idx + 1, f'\n{credibility_explanation_text}')
+                                full_content = '\n'.join(lines)
+                                break
+                
+                # Format the raw content for bulk analysis (no credibility in header, no "Content from URL" line)
+                source_content = f"=== SOURCE {i} ({action_name}) ===\n{full_content}"
                 all_raw_content.append(source_content)
                 source_actions.append(action_name)
         

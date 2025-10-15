@@ -35,6 +35,7 @@ class XResults(Results):
     content: Optional[WebSource]
     url: str
     credibility_score: Optional[str] = None  # Changed to str for categorical scoring
+    credibility_explanation: Optional[str] = None  # Explanation for the credibility score
 
     def __str__(self):
         if self.content is None:
@@ -44,6 +45,8 @@ class XResults(Results):
         result += f"Content: {str(self.content)[:200]}...\n"
         if self.credibility_score is not None:
             result += f"Credibility Score: {self.credibility_score}\n"
+        if self.credibility_explanation is not None:
+            result += f"Credibility Explanation: {self.credibility_explanation}\n"
         return result
 
     def is_useful(self) -> Optional[bool]:
@@ -148,11 +151,13 @@ class XTool(Tool):
             
             # Extract credibility from WebSource if available
             credibility = getattr(web_source, 'credibility', None)
+            credibility_explanation = getattr(web_source, 'credibility_explanation', None)
             
             return XResults(
                 content=web_source,
                 url=actual_url,  # Use the actual URL in results
-                credibility_score=credibility
+                credibility_score=credibility,
+                credibility_explanation=credibility_explanation
             )
         except Exception as e:
             print(f"Error retrieving X content: {e}")
@@ -161,7 +166,8 @@ class XTool(Tool):
             return XResults(
                 content=None,
                 url=actual_url,  # Use the actual URL in results
-                credibility_score=None
+                credibility_score=None,
+                credibility_explanation=None
             )
     
     async def _get_x_content_safely(self, url: str, claim_text: str):

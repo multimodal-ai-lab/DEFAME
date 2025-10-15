@@ -141,6 +141,7 @@ class Reddit(RetrievalIntegration):
             metadata = getattr(content, 'metadata', {})
             
             # Determine credibility based on content type using metadata
+            credibility_explanation = ""
             if metadata.get("post_id"):
                 # This is a Reddit post - use enhanced credibility with comments if available
                 comments_data = metadata.get("comments", [])
@@ -170,28 +171,29 @@ class Reddit(RetrievalIntegration):
                         post_content = '\n'.join(post_lines) if post_lines else main_text[:500]
                     else:
                         post_content = main_text[:500]  # Use first 500 chars as fallback
-                credibility_category = self._calculate_reddit_post_credibility_enhanced(metadata, comments_data, claim, post_content)
+                credibility_category, credibility_explanation = self._calculate_reddit_post_credibility_enhanced(metadata, comments_data, claim, post_content)
             elif metadata.get("username"):
                 # This is a Reddit user profile
-                credibility_category = self._calculate_reddit_user_credibility(metadata)
+                credibility_category, credibility_explanation = self._calculate_reddit_user_credibility(metadata)
             elif metadata.get("subreddit_name"):
                 # This is a Reddit subreddit
-                credibility_category = self._calculate_reddit_subreddit_credibility(metadata)
+                credibility_category, credibility_explanation = self._calculate_reddit_subreddit_credibility(metadata)
             else:
                 # Fallback to text-based detection for older data
                 text_to_analyze = content.text if hasattr(content, 'text') else str(content)
                 if text_to_analyze and any(keyword in text_to_analyze.lower() for keyword in ['reddit post', 'author:', 'posted:', 'upvotes']):
                     comments_data = metadata.get("comments", [])
                     post_content = metadata.get("post_text", text_to_analyze)
-                    credibility_category = self._calculate_reddit_post_credibility_enhanced_fallback(comments_data, claim, post_content)
+                    credibility_category, credibility_explanation = self._calculate_reddit_post_credibility_enhanced_fallback(comments_data, claim, post_content)
                 elif text_to_analyze and 'reddit user' in text_to_analyze.lower():
-                    credibility_category = self._calculate_reddit_user_credibility_fallback(text_to_analyze)
+                    credibility_category, credibility_explanation = self._calculate_reddit_user_credibility_fallback(text_to_analyze)
                 elif text_to_analyze and 'reddit subreddit' in text_to_analyze.lower():
-                    credibility_category = self._calculate_reddit_subreddit_credibility_fallback(text_to_analyze)
+                    credibility_category, credibility_explanation = self._calculate_reddit_subreddit_credibility_fallback(text_to_analyze)
                 else:
                     credibility_category = "moderately credible"
+                    credibility_explanation = "Default credibility (no specific indicators)"
 
-            logger.info(f"Analyzed {url}: Credibility='{credibility_category}'")
+            logger.info(f"Analyzed {url}: Credibility='{credibility_category}' - {credibility_explanation}")
 
             # Package into WebSource
             return WebSource(
@@ -199,7 +201,8 @@ class Reddit(RetrievalIntegration):
                 content=content,
                 title=f"Reddit content from {url}",
                 preview=str(content)[:200] + "...",
-                credibility=credibility_category
+                credibility=credibility_category,
+                credibility_explanation=credibility_explanation
             )
             
         except Exception as e:
@@ -335,45 +338,64 @@ class Reddit(RetrievalIntegration):
             logger.error(f"Error in batch comment stance calculation: {e}")
             return 0.0
 
-    def _calculate_base_post_score(self, metadata: dict) -> float:
-        """Calculate base post credibility score using metadata."""
-        score = 0.5  # Base score
+    def _calculate_base_post_score(self, metadata: dict) -> tuple[float, list[str]]:
+        """Calculate base post credibility score using metadata. Returns (score, explanation_parts)."""
+        score = 0.0  # Start with 0.0 - skeptical approach for social media
+        explanation = []
         
         # Content quality indicators (NOT engagement)
         if metadata.get('is_original_content', False):
-            score += 0.2  # Original content is more credible
+            score += 0.3
+            explanation.append("Original content")
         
-        # Source attribution (credibility indicator)
-        if metadata.get('url_linked') and not metadata.get('is_self', True):
-            score += 0.15  # Has external sources
+        # Source attribution (credibility indicator) - but be selective
+        url_linked = metadata.get('url_linked')
+        is_self = metadata.get('is_self', True)
+        
+        if url_linked and not is_self:
+            # Check if it's a reputable domain (simple heuristic for now)
+            domain = metadata.get('domain', '').lower()
+            reputable_domains = ['gov', 'edu', 'bbc', 'reuters', 'ap.org', 'theguardian', 'nytimes', 
+                               'washingtonpost', 'npr.org', 'economist', 'nature', 'science']
+            
+            if any(rep_domain in domain for rep_domain in reputable_domains):
+                score += 0.3
+                explanation.append(f"Reputable external source linked ({domain})")
+            elif domain and not any(sus in domain for sus in ['blog', 'wordpress', 'medium', 'reddit']):
+                score += 0.15
+                explanation.append("External source linked")
         
         # Moderator actions (content quality indicators)
         if metadata.get('locked', False):
-            score -= 0.2  # Controversial/problematic content
-        if metadata.get('archived', False):
-            score += 0.05  # Established content that has been preserved
+            score -= 0.2
+            explanation.append("Post locked by moderators")
             
         # Content flags
         if metadata.get('over_18', False):
-            score -= 0.1  # May be less reliable for fact-checking
+            score -= 0.1
+            explanation.append("NSFW content")
             
         # Flair as credibility indicators
         flair_text = (metadata.get('link_flair_text') or '').lower()
         if any(keyword in flair_text for keyword in ['misleading', 'unverified', 'fake']):
-            score -= 0.3  # Flagged as problematic
+            score -= 0.3
+            explanation.append(f"Flagged as {flair_text}")
         if any(keyword in flair_text for keyword in ['verified', 'confirmed', 'official']):
-            score += 0.2  # Verification indicators
+            score += 0.2
+            explanation.append(f"Verified by moderators")
         
         # Awards as quality indicators (NOT engagement)
         total_awards = metadata.get('total_awards_received', 0)
-        if total_awards > 0:
-            score += min(0.1, total_awards * 0.01)  # Cap at 0.1 bonus
+        if total_awards >= 5:  # Only significant award count
+            score += 0.15
+            explanation.append(f"Received community awards")
         
-        return score
+        return score, explanation
 
-    def _calculate_reddit_post_credibility_enhanced(self, metadata: dict, comments_data: list, claim: str, post_content: str) -> str:
+    def _calculate_reddit_post_credibility_enhanced(self, metadata: dict, comments_data: list, claim: str, post_content: str) -> tuple[str, str]:
         """
         Enhanced post credibility that includes weighted comment stance using metadata.
+        Returns (category, explanation).
         
         CREDIBILITY WEIGHTING SYSTEM:
         - Post/author credibility: 80% weight (base score 0.0-1.0)
@@ -382,7 +404,7 @@ class Reddit(RetrievalIntegration):
         """
         
         # Start with existing credibility factors (80% weight)
-        score = self._calculate_base_post_score(metadata)
+        score, explanation_parts = self._calculate_base_post_score(metadata)
         
         # Add weighted comment stance (20% weight)
         if comments_data:
@@ -395,13 +417,27 @@ class Reddit(RetrievalIntegration):
                 stance_modifier = comment_stance_score * 0.2  # 20% influence
                 score += stance_modifier
                 
+                # Only mention comment stance if it had a significant impact
+                if abs(stance_modifier) > 0.05:
+                    stance_direction = "supported by" if stance_modifier > 0 else "questioned by"
+                    explanation_parts.append(f"{stance_direction} community comments")
+                
                 logger.debug(f"Comment stance modifier: {stance_modifier:.3f} (from {len(comments_data)} comments)")
                 
             except Exception as e:
                 logger.warning(f"Error calculating comment stance weighting: {e}")
         
         score = max(0.0, min(1.0, score))
-        return self._score_to_category(score)
+        category = self._score_to_category(score)
+        
+        # Build clean explanation with proper capitalization
+        category_label = category.title()  # "entirely credible" -> "Entirely Credible"
+        if explanation_parts:
+            explanation = f"{category_label} ({', '.join(explanation_parts)})"
+        else:
+            explanation = category_label
+        
+        return category, explanation
 
     def _calculate_reddit_post_credibility_enhanced_fallback(self, comments_data: list, claim: str, post_content:str) -> str:
         """Fallback method using text parsing for older data."""

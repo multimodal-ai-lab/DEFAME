@@ -114,59 +114,70 @@ def _calculate_reply_weighted_stance(comments_data: list, original_claim: str, p
         logger.error(f"Error in batch reply stance calculation: {e}")
         return 0.0
 
-def _calculate_base_author_score(metadata: dict) -> int:
+def _calculate_base_author_score(metadata: dict) -> tuple[int, list[str]]:
     """
     Calculates a score component based on author-level metrics (no engagement).
+    Returns tuple of (score, explanation_parts).
     
-    CREDIBILITY WEIGHTING SYSTEM:
-    - Author credibility: 75 points (75% weight) - based on verification, followers, account integrity
-    - Comment stance: 25 points (25% weight) - based on weighted analysis of reply credibility
-    - Total max score: 100 points for balanced evaluation
+    CREDIBILITY WEIGHTING SYSTEM (skeptical approach starting from 0):
+    - Verification: up to +50 pts (gold/government) or +25 pts (blue) 
+    - Account establishment: up to +15 pts (based on followers as proxy for sustained presence)
+    - Account integrity: up to +15 pts (clean account) or significant penalties for issues
+    - Total max score: ~80 points
     """
     score = 0
+    explanation = []
     author_metrics = metadata.get("author_public_metrics", {})
     
     # Verification Status (primary credibility indicator)
     if metadata.get("author_verified"):
         if metadata.get("author_verified_type") == "gold":
-            score += 50  # Official organization - highest credibility
+            score += 50
+            explanation.append("Official organization (gold verified)")
         elif metadata.get("author_verified_type") == "government":
-            score += 50  # Government account - highest credibility
+            score += 50
+            explanation.append("Government account")
         elif metadata.get("author_verified_type") == "blue":
-            score += 25  # Paid verification - moderate credibility
+            score += 25
+            explanation.append("Verified account (blue checkmark)")
         else:
-            score += 15  # Generic verified - some credibility
+            score += 15
+            explanation.append("Verified account")
             
     # Account establishment (NOT popularity) - indicates sustained presence
     followers = author_metrics.get("followers_count", 0)
-    if followers > 10000:
-        score += 10  # Established presence
+    if followers > 100000:
+        score += 15
+        explanation.append("Established account (100K+ followers)")
+    elif followers > 10000:
+        score += 10
+        explanation.append("Established account (10K+ followers)")
     elif followers > 1000:
-        score += 5   # Some establishment
-    
-    # Account age/creation (if available in metadata)
-    if metadata.get("author_created_at"):
-        # Could add logic to calculate account age for establishment
-        pass
+        score += 5
+        explanation.append("Some presence (1K+ followers)")
 
-    # Account integrity - reward clean accounts, penalize problematic ones
+    # Account integrity - penalize problematic accounts
     has_negative_flags = False
     
     if metadata.get("author_protected"):
-        score -= 25  # Private account - less transparent
+        score -= 25
+        explanation.append("Private account (reduced visibility)")
         has_negative_flags = True
     if metadata.get("author_withheld"):
-        score -= 60  # Content withheld - serious credibility issues
+        score -= 60
+        explanation.append("Content withheld in jurisdictions")
         has_negative_flags = True
     if metadata.get("author_suspended"):
-        score -= 70  # Suspended account - major credibility issues
+        score -= 70
+        explanation.append("Account suspended")
         has_negative_flags = True
     
     # Reward accounts with clean integrity (no negative flags)
-    if not has_negative_flags:
-        score += 15  # Clean account bonus - completes the 75-point scale
+    if not has_negative_flags and score > 0:  # Only if account has some credibility
+        score += 15
+        explanation.append("Clean account integrity")
         
-    return score
+    return score, explanation
 
 def _score_to_category(score: int, max_score: int) -> str:
     """Maps a numerical score to a credibility category."""
@@ -183,27 +194,34 @@ def _score_to_category(score: int, max_score: int) -> str:
     else:
         return "entirely uncredible"
 
-def calculate_profile_credibility(metadata: dict) -> str:
+def calculate_profile_credibility(metadata: dict) -> tuple[str, str]:
     """
     Calculates a credibility category for a user profile.
-    Returns one of: "entirely uncredible", "somewhat credible", 
-    "moderately credible", "mostly credible", "entirely credible"
+    Returns tuple of (category, explanation).
     """
-    score = _calculate_base_author_score(metadata)
-    max_score = 75  # Max score: 50 (verification) + 10 (followers) + 15 (clean account)
+    score, explanation_parts = _calculate_base_author_score(metadata)
+    max_score = 80  # Max realistic score without comment stance
     
-    return _score_to_category(score, max_score)
+    category = _score_to_category(score, max_score)
+    
+    # Build clean explanation with proper capitalization
+    category_label = category.title()  # "entirely credible" -> "Entirely Credible"
+    if explanation_parts:
+        explanation = f"{category_label} ({', '.join(explanation_parts)})"
+    else:
+        explanation = category_label
+    
+    return category, explanation
 
-def calculate_post_credibility(metadata: dict, comments_data: list = None, claim: str = "", post_content: str = "") -> str:
+def calculate_post_credibility(metadata: dict, comments_data: list = None, claim: str = "", post_content: str = "") -> tuple[str, str]:
     """
     Calculates a credibility category for a specific post with optional comment weighting.
-    Returns one of: "entirely uncredible", "somewhat credible", 
-    "moderately credible", "mostly credible", "entirely credible"
+    Returns tuple of (category, explanation).
     """
-    # Start with base author score (max 75 points = 75% of total weight)
-    score = _calculate_base_author_score(metadata)
+    # Start with base author score (max ~80 points = 75% of total weight)
+    score, explanation_parts = _calculate_base_author_score(metadata)
     
-    # Add weighted comment stance if available (max 25 points = 25% of total weight)
+    # Add weighted comment stance if available (max ~25 points = 25% of total weight)
     if comments_data and claim:
         try:
             comment_stance_score = _calculate_reply_weighted_stance(comments_data, claim, post_content)
@@ -214,22 +232,46 @@ def calculate_post_credibility(metadata: dict, comments_data: list = None, claim
             stance_modifier = comment_stance_score * 25  # 25-point influence (25% weight) on 100-point scale
             score += stance_modifier
             
+            # Only mention comment stance if it had a significant impact
+            if abs(stance_modifier) > 5:
+                stance_direction = "supported by" if stance_modifier > 0 else "questioned by"
+                explanation_parts.append(f"{stance_direction} community replies")
+            
             logger.debug(f"Comment stance modifier: {stance_modifier:.1f} points (from {len(comments_data)} comments)")
             
         except Exception as e:
             logger.warning(f"Error calculating comment stance weighting: {e}")
     
-    max_score = 100  # 75 (author) + 25 (stance) = 100 total
-    return _score_to_category(score, max_score)
+    max_score = 100
+    category = _score_to_category(score, max_score)
+    
+    # Build clean explanation with proper capitalization
+    category_label = category.title()  # "entirely credible" -> "Entirely Credible"
+    if explanation_parts:
+        explanation = f"{category_label} ({', '.join(explanation_parts)})"
+    else:
+        explanation = category_label
+    
+    return category, explanation
 
-def calculate_post_credibility_simple(metadata: dict) -> str:
+def calculate_post_credibility_simple(metadata: dict) -> tuple[str, str]:
     """
     Simple post credibility calculation without reply analysis (fallback method).
-    Uses only author-based credibility (75% weight) without comment stance (25% weight).
+    Uses only author-based credibility without comment stance.
+    Returns tuple of (category, explanation).
     """
-    score = _calculate_base_author_score(metadata)
+    score, explanation_parts = _calculate_base_author_score(metadata)
     max_score = 100  # Consistent with full credibility calculation
-    return _score_to_category(score, max_score)
+    category = _score_to_category(score, max_score)
+    
+    # Build clean explanation with proper capitalization  
+    category_label = category.title()  # "entirely credible" -> "Entirely Credible"
+    if explanation_parts:
+        explanation = f"{category_label} ({', '.join(explanation_parts)})"
+    else:
+        explanation = category_label
+    
+    return category, explanation
 
 
 class X(RetrievalIntegration):
@@ -367,14 +409,14 @@ class X(RetrievalIntegration):
             
             if post_content:  # This is a post
                 if comments_data:  # Use stance-aware credibility if comments available
-                    credibility_category = calculate_post_credibility(metadata, comments_data, claim, post_content)
+                    credibility_category, credibility_explanation = calculate_post_credibility(metadata, comments_data, claim, post_content)
                 else:
-                    credibility_category = calculate_post_credibility_simple(metadata)
+                    credibility_category, credibility_explanation = calculate_post_credibility_simple(metadata)
             else:
                 # This is a profile
-                credibility_category = calculate_profile_credibility(metadata)
+                credibility_category, credibility_explanation = calculate_profile_credibility(metadata)
 
-            logger.info(f"Analyzed {url}: Credibility='{credibility_category}'")
+            logger.info(f"Analyzed {url}: Credibility='{credibility_category}' - {credibility_explanation}")
 
             # Package into WebSource
             return WebSource(
@@ -382,7 +424,8 @@ class X(RetrievalIntegration):
                 content=content,
                 title=f"X content from {url}",
                 preview=str(content)[:200] + "...",
-                credibility=credibility_category
+                credibility=credibility_category,
+                credibility_explanation=credibility_explanation
             )
             
         except RuntimeError as e:
