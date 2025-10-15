@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from defame.common import Action, Report, Evidence
+from defame.common import Action, Report, Evidence, logger
 from defame.evidence_retrieval.tools import Tool, Searcher
 
 
@@ -10,18 +10,28 @@ class Actor:
 
     def __init__(self, tools: list[Tool]):
         self.tools = tools
+        
+        # Log available tools and their actions
+        logger.info(f"🎭 Actor initialized with {len(tools)} tool(s):")
+        for tool in tools:
+            action_names = [a.name if hasattr(a, 'name') else str(a) for a in tool.actions]
+            logger.info(f"   - {tool.name}: {', '.join(action_names)}")
 
     def perform(self, actions: list[Action], doc: Report = None, summarize: bool = True) -> list[Evidence]:
         # TODO: Parallelize
         all_evidence = []
-        for action in actions:
+        logger.info(f"🎬 Actor executing {len(actions)} action(s)...")
+        for i, action in enumerate(actions, 1):
             assert isinstance(action, Action)
+            logger.info(f"   Executing action {i}/{len(actions)}: {type(action).__name__}")
             all_evidence.append(self._perform_single(action, doc, summarize=summarize))
         return all_evidence
 
     def _perform_single(self, action: Action, doc: Report = None, summarize: bool = True) -> Evidence:
         tool = self.get_corresponding_tool_for_action(action)
-        return tool.perform(action, summarize=summarize, doc=doc)
+        # Extract claim text from doc if available
+        claim_text = str(doc.claim) if doc and hasattr(doc, 'claim') else ''
+        return tool.perform(action, summarize=summarize, doc=doc, claim=claim_text)
 
     def get_corresponding_tool_for_action(self, action: Action) -> Tool:
         for tool in self.tools:

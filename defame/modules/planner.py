@@ -20,6 +20,12 @@ class Planner:
         self.llm = llm
         self.max_attempts = 5
         self.extra_rules = extra_rules
+        
+        # Log available actions
+        logger.info(f"🎯 Planner initialized with {len(valid_actions)} available actions:")
+        for action in sorted(valid_actions, key=lambda x: x.name if hasattr(x, 'name') else str(x)):
+            action_name = action.name if hasattr(action, 'name') else str(action)
+            logger.info(f"   - {action_name}")
 
     def get_available_actions(self, doc: Report):
         available_actions = []
@@ -52,6 +58,9 @@ class Planner:
             actions = [action for action in actions if action not in performed_actions]
 
             if len(actions) > 0:
+                logger.info(f"📋 Planner selected {len(actions)} action(s):")
+                for i, action in enumerate(actions, 1):
+                    logger.info(f"   {i}. {type(action).__name__}: {action}")
                 return actions, reasoning
             else:
                 performed_actions_str = ", ".join(str(obj) for obj in performed_actions)

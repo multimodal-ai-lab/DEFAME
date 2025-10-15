@@ -83,6 +83,18 @@ class SummarizeSourcePrompt(Prompt):
         super().__init__(placeholder_targets=placeholder_targets)
 
 
+class SummarizeSocialMediaPrompt(Prompt):
+    """Summarize multiple social media posts collectively."""
+    template_file_path = "defame/prompts/summarize_social_media.md"
+
+    def __init__(self, sources_text: str, doc: Report):
+        placeholder_targets = {
+            "[SOURCES]": sources_text,
+            "[DOC]": str(doc),
+        }
+        super().__init__(placeholder_targets=placeholder_targets)
+
+
 class SummarizeManipulationResultPrompt(Prompt):
     template_file_path = "defame/prompts/summarize_manipulation_result.md"
 

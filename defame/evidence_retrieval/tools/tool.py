@@ -20,11 +20,11 @@ class Tool(ABC):
 
     def perform(self, action: Action, summarize: bool = True, **kwargs) -> Evidence:
         assert type(action) in self.actions, f"Forbidden action: {action}"
-        result = self._perform(action)
+        result = self._perform(action, **kwargs)
         summary = self._summarize(result, **kwargs) if summarize else None
         return Evidence(result, action, takeaways=summary)
 
-    def _perform(self, action: Action) -> Results:
+    def _perform(self, action: Action, **kwargs) -> Results:
         """The actual function executing the action."""
         raise NotImplementedError
 

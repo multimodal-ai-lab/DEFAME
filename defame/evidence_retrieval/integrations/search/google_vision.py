@@ -51,6 +51,7 @@ class GoogleVisionAPI:
 
     def __init__(self):
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = google_service_account_key_path.as_posix()
+        self.client = None
         try:
             self.client = vision.ImageAnnotatorClient()
         except DefaultCredentialsError:
@@ -62,6 +63,10 @@ class GoogleVisionAPI:
     def search(self, query: Query) -> GoogleRisResults:
         """Run image reverse search through Google Vision API and parse results."""
         assert query.has_image(), "Google Vision API requires an image in the query."
+        
+        if self.client is None:
+            logger.error("Google Vision API client is not initialized. Cannot perform reverse image search.")
+            return GoogleRisResults(sources=[], entities={}, best_guess_labels=[], query=query)
 
         image = vision.Image(content=query.image.get_base64_encoded())
         response = self.client.web_detection(image=image)

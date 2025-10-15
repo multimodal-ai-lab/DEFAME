@@ -1,5 +1,4 @@
 import ast
-import imghdr
 import io
 import re
 from pathlib import Path
@@ -298,11 +297,7 @@ def parse_function_call(code: str) -> Tuple[str, list[Any], dict[str, Any]] | No
 
 def is_image(binary_data: bytes) -> bool:
     """Determines if the given binary data represents an image."""
-    # Check using imghdr module (looks at magic numbers)
-    if imghdr.what(None, h=binary_data):
-        return True
-
-    # Attempt to open with PIL (Pillow)
+    # Attempt to open with PIL (Pillow) - works with Python 3.13+
     try:
         image = PillowImage.open(io.BytesIO(binary_data))
         image.verify()  # Ensures it's a valid image file

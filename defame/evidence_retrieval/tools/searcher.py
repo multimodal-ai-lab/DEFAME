@@ -1,6 +1,7 @@
 import re
 from datetime import datetime, timedelta, date
 from typing import Any, Optional
+import re
 
 from ezmm import Image, MultimodalSequence
 from jinja2.exceptions import TemplateSyntaxError
@@ -12,8 +13,18 @@ from defame.evidence_retrieval import scraper
 from defame.evidence_retrieval.integrations.search import SearchResults, SearchPlatform, PLATFORMS, KnowledgeBase
 from defame.evidence_retrieval.integrations.search.common import Query, SearchMode, Source, WebSource
 from defame.evidence_retrieval.tools.tool import Tool
-from defame.prompts.prompts import SummarizeSourcePrompt
+from defame.prompts.prompts import SummarizeSourcePrompt, SummarizeSocialMediaPrompt
 from defame.utils.console import gray
+from defame.utils.parsing import get_domain
+from defame.analysis.credibility_score import (
+    calculate_reddit_credibility,
+    calculate_x_credibility,
+    format_reddit_content,
+    format_x_content,
+)
+
+# Social media domains that require credibility analysis
+SOCIAL_MEDIA_DOMAINS = ['x.com', 'twitter.com', 'reddit.com', 'www.x.com', 'www.twitter.com', 'www.reddit.com']
 
 
 class Search(Action):
@@ -151,7 +162,7 @@ class Searcher(Tool):
         Search.additional_info = platforms_info
         return [Search]
 
-    def _perform(self, action: Search) -> Optional[SearchResults]:
+    def _perform(self, action: Search, **kwargs) -> Optional[SearchResults]:
         """Validates the search query (by enforcing potential restrictions)
         and runs it."""
         query = action.query
@@ -205,6 +216,25 @@ class Searcher(Tool):
         sources_to_scrape = [s for s in sources if isinstance(s, WebSource)]
         scraper.scrape_sources(sources_to_scrape)
 
+        # Process social media sources with credibility scoring
+        social_media_sources = []
+        regular_sources = []
+        
+        for source in sources:
+            if isinstance(source, WebSource) and source.is_loaded():
+                domain = get_domain(source.reference)
+                if domain in SOCIAL_MEDIA_DOMAINS:
+                    social_media_sources.append(source)
+                else:
+                    regular_sources.append(source)
+            else:
+                regular_sources.append(source)
+        
+        # Process social media sources with credibility analysis
+        if social_media_sources:
+            logger.info(f"🔎 SEARCHER: Processing {len(social_media_sources)} social media sources with credibility analysis")
+            self._process_social_media_sources(social_media_sources, query)
+
         # Modify the raw source text to avoid jinja errors when used in prompt
         self._postprocess_sources(sources, query)
         self._register_sources(sources)
@@ -220,6 +250,49 @@ class Searcher(Tool):
     def _register_sources(self, sources: list[Source]):
         """Adds the provided list of sources to the set of known sources."""
         self.known_sources |= set(sources)
+
+    def _process_social_media_sources(self, sources: list[WebSource], query: Query) -> None:
+        """
+        Process social media sources by:
+        1. Extracting comments from metadata
+        2. Performing credibility analysis (including stance detection)
+        3. Formatting content with credibility ratings
+        """
+        claim = query.text if query.text else ""
+        
+        for source in sources:
+            try:
+                domain = get_domain(source.reference)
+                content = source.content
+                metadata = getattr(content, 'metadata', {})
+                
+                # Get post content as string for stance detection
+                post_content = str(content)
+                
+                # Calculate credibility and get formatted content
+                if 'reddit.com' in domain:
+                    logger.info(f"🔎 Processing Reddit source: {source.reference}")
+                    category, explanation = calculate_reddit_credibility(metadata, claim, post_content)
+                    formatted_content = format_reddit_content(post_content, metadata, category, explanation)
+                elif domain in ['x.com', 'twitter.com']:
+                    logger.info(f"🔎 Processing X source: {source.reference}")
+                    category, explanation = calculate_x_credibility(metadata, claim, post_content)
+                    formatted_content = format_x_content(post_content, metadata, category, explanation, source.reference)
+                else:
+                    logger.warning(f"Unknown social media domain: {domain}")
+                    continue
+                
+                # Update the source content with formatted version (preserve metadata in content object)
+                new_content = MultimodalSequence(formatted_content)
+                # Copy over metadata by setting it as an attribute
+                new_content.metadata = metadata
+                source.content = new_content
+                logger.info(f"✅ Processed social media source with credibility: {category}")
+                
+            except Exception as e:
+                logger.error(f"Error processing social media source {source.reference}: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
 
     def reset(self):
         """Removes all known web sources and resets the search platforms."""
@@ -254,7 +327,7 @@ class Searcher(Tool):
 
         return content
 
-    def _summarize(self, results: SearchResults, doc: Report = None) -> Optional[MultimodalSequence]:
+    def _summarize(self, results: SearchResults, doc: Report = None, **kwargs) -> Optional[MultimodalSequence]:
         assert doc is not None
         if results:
             for source in results.sources:
@@ -292,28 +365,96 @@ class Searcher(Tool):
     def _summarize_summaries(self, result: SearchResults, doc: Report) -> Optional[MultimodalSequence]:
         """Generates a summary, aggregating all relevant information from the
         identified and relevant sources."""
-
-        summaries = [str(source) for source in result.sources if source.is_relevant()]
-        if len(summaries) == 0:  # No relevant sources
+        
+        # Separate social media sources from regular sources
+        social_media_sources = []
+        regular_sources = []
+        
+        for source in result.sources:
+            if source.is_relevant():
+                domain = get_domain(source.reference)
+                if domain in SOCIAL_MEDIA_DOMAINS:
+                    social_media_sources.append(source)
+                else:
+                    regular_sources.append(source)
+        
+        # If we have no relevant sources at all
+        if len(social_media_sources) == 0 and len(regular_sources) == 0:
             return None
-        elif len(summaries) == 1:
-            # No further summarization needed as we have only one source
-            return MultimodalSequence(summaries[0])
-
-        # Disable summary of summaries:
-        # relevant_sources = "\n\n".join([str(s) for s in result.sources if s.is_relevant()])
-        # return MultimodalSequence(relevant_sources)
-
-        # Prepare the prompt for the LLM
-        placeholder_targets = {
-            "[SUMMARIES]": str(result),
-            "[DOC]": str(doc),
-        }
-        summarize_prompt = Prompt(placeholder_targets=placeholder_targets,
-                                  name="SummarizeSummariesPrompt",
-                                  template_file_path="defame/prompts/summarize_summaries.md")
-
-        return MultimodalSequence(self.llm.generate(summarize_prompt))
+        
+        # Build the aggregated summary
+        aggregated_parts = []
+        
+        # Handle regular sources with summary of summaries
+        if regular_sources:
+            if len(regular_sources) == 1:
+                aggregated_parts.append(str(regular_sources[0]))
+            else:
+                # Create a temporary SearchResults object for regular sources
+                # Use the original query from result
+                regular_results = SearchResults(query=result.query, sources=regular_sources)
+                
+                # Generate summary of summaries for regular sources
+                placeholder_targets = {
+                    "[SUMMARIES]": str(regular_results),
+                    "[DOC]": str(doc),
+                }
+                summarize_prompt = Prompt(placeholder_targets=placeholder_targets,
+                                        name="SummarizeSummariesPrompt",
+                                        template_file_path="defame/prompts/summarize_summaries.md")
+                
+                logger.info(f"📰 Aggregating {len(regular_sources)} regular web sources with summary of summaries")
+                try:
+                    regular_summary = self.llm.generate(summarize_prompt, max_attempts=3)
+                    if regular_summary and regular_summary != "NONE":
+                        logger.info(f"✅ Successfully summarized {len(regular_sources)} regular sources")
+                        aggregated_parts.append(regular_summary)
+                    else:
+                        logger.warning("⚠️ Regular source summarization returned NONE, using raw summaries")
+                        aggregated_parts.append(str(regular_results))
+                except Exception as e:
+                    logger.error(f"❌ Error summarizing regular sources: {e}")
+                    aggregated_parts.append(str(regular_results))
+        
+        # Handle social media sources with special prompt
+        if social_media_sources:
+            logger.info(f"📱 Aggregating {len(social_media_sources)} social media sources")
+            
+            # Format all social media sources together
+            social_media_text = ""
+            for i, source in enumerate(social_media_sources, 1):
+                social_media_text += f"\n\n=== SOURCE {i} ({source.tool_name if hasattr(source, 'tool_name') else 'social_media'}) ===\n"
+                social_media_text += str(source.content)
+            
+            # Use the specialized social media prompt
+            try:
+                prompt = SummarizeSocialMediaPrompt(social_media_text, doc)
+                logger.info(f"📱 Generating summary for {len(social_media_sources)} social media sources")
+                
+                summary = self.llm.generate(prompt, max_attempts=3)
+                
+                if summary and summary != "NONE":
+                    logger.info(f"✅ Successfully summarized {len(social_media_sources)} social media sources")
+                    logger.debug(f"Summary preview: {summary[:200]}...")
+                    aggregated_parts.append(summary)
+                else:
+                    logger.warning("⚠️ Social media summarization returned NONE, using raw sources")
+                    # Fallback: just include the formatted sources
+                    aggregated_parts.append(social_media_text)
+            except Exception as e:
+                logger.error(f"❌ Error summarizing social media sources: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                # Fallback: just include the formatted sources
+                aggregated_parts.append(social_media_text)
+        
+        # Combine all parts
+        if len(aggregated_parts) == 0:
+            return None
+        elif len(aggregated_parts) == 1:
+            return MultimodalSequence(aggregated_parts[0])
+        else:
+            return MultimodalSequence("\n\n---\n\n".join(aggregated_parts))
 
     def get_stats(self) -> dict[str, Any]:
         return {

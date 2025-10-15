@@ -22,20 +22,28 @@ class Bluesky(RetrievalIntegration):
 
     def __init__(self, username: str, password: str):
         super().__init__()
-        if not username or not password:
-            logger.error("Bluesky username and password must be provided in api_keys.yaml")
-            raise ValueError("Bluesky username and password must be provided in api_keys.yaml")
-
         self.username = username
         self.password = password
+        self._logged_in = False
+        
+        if not username or not password:
+            logger.warning("Bluesky username and password not provided in api_keys.yaml - Bluesky integration will not be available")
+            self._credentials_available = False
+        else:
+            self._credentials_available = True
         self.n_api_calls = 0
         self.n_errors = 0
         self.authenticated = False
         self.client = Client()
-        self._authenticate()
+        if self._credentials_available:
+            self._authenticate()
 
     def _retrieve(self, url: str) -> SocialMediaPost | SocialMediaProfile | None:
         """Retrieve a post from the given URL."""
+        if not self._credentials_available:
+            logger.error("Bluesky credentials not available. Please configure bluesky_username and bluesky_password in api_keys.yaml")
+            return None
+            
         if not self.authenticated:
             raise "Bluesky API is not authenticated."
 

@@ -10,6 +10,18 @@ from .searcher import Searcher, Search
 from .text_extractor import TextExtractor, OCR
 from .tool import Tool
 
+# Import social media tools
+try:
+    from .x_tool import XTool, SearchX
+    from .reddit_tool import RedditTool, SearchReddit
+    SOCIAL_MEDIA_TOOLS_AVAILABLE = True
+except ImportError:
+    SOCIAL_MEDIA_TOOLS_AVAILABLE = False
+    XTool = None
+    RedditTool = None
+    SearchX = None
+    SearchReddit = None
+
 TOOL_REGISTRY = [
     CredibilityChecker,
     FaceRecognizer,
@@ -20,6 +32,10 @@ TOOL_REGISTRY = [
     ManipulationDetector,
 ]
 
+# Add social media tools if available
+if SOCIAL_MEDIA_TOOLS_AVAILABLE:
+    TOOL_REGISTRY.extend([XTool, RedditTool])
+
 ACTION_REGISTRY = {
     Search,
     DetectObjects,
@@ -29,6 +45,10 @@ ACTION_REGISTRY = {
     OCR,
     DetectManipulation,
 }
+
+# Add social media actions if available
+if SOCIAL_MEDIA_TOOLS_AVAILABLE:
+    ACTION_REGISTRY.update({SearchX, SearchReddit})
 
 IMAGE_ACTIONS = {
     Geolocate,
