@@ -1,5 +1,7 @@
 # DEFAME: Dynamic Evidence-based FAct-checking with Multimodal Experts
 
+This branch contains an additional Action that searches Social Media and processes the posts in custom pipeline to provide additional evidence. See [this repository](https://github.com/WickAJ/SocialMediaNarrativeExtractor) for additional information.
+
 [![Paper](https://img.shields.io/badge/ICML_Paper-EC6500?style=for-the-badge&logo=bookstack&logoColor=white)](https://arxiv.org/abs/2412.10510)&nbsp;&nbsp;&nbsp;[![License](https://img.shields.io/badge/License-Apache--2.0-F5A300?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 
 ![Teaser.png](resources%2FTeaser.png)
@@ -152,6 +154,9 @@ The [Google Cloud Vision API](https://cloud.google.com/vision/?hl=en&utm_source=
 3. Open the new Service Account, go to "Keys" and generate a new JSON key file.
 4. Save the downloaded key file at the path `config/google_service_account_key.json`.
 
+### Social Media Evidence
+1. Add a `twitter_bearer_token` (TODO und noch andere Sachen) in your api_keys file.
+2. TODO noch andere Sachen?
 
 ### Add a Custom Tool
 
