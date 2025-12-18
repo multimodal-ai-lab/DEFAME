@@ -27,6 +27,7 @@ MANIFEST
 out/
 *Dockerfile_42
 /config/google_service_account_key.json
+data/
 
 .idea/
 **/.DS_Store
