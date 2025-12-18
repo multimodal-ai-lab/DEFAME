@@ -2,6 +2,7 @@ from .averitec.benchmark import AVeriTeC
 from .benchmark import Benchmark
 from .fever.benchmark import FEVER
 from .verite.benchmark import VERITE
+from .veritas.benchmark import VeriTaS
 from .newsclippings.benchmark import NewsCLIPpings
 from .dgm4.benchmark import DGM4
 from .mocheg.benchmark import MOCHEG
@@ -11,6 +12,7 @@ BENCHMARK_REGISTRY = {
     AVeriTeC,
     FEVER,
     VERITE,
+    VeriTaS,
     NewsCLIPpings,
     DGM4,
     MOCHEG,
