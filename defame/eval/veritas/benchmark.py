@@ -196,8 +196,6 @@ class VeriTaS(Benchmark):
         media_pattern = r'<(image|video):(\d+)>'
         matches = re.findall(media_pattern, claim_text)
 
-        if matches:
-            print(f"[VeriTaS] Registering {len(matches)} media files for claim {claim_id}")
 
         registered_refs = []
         for media_type, media_id in matches:
