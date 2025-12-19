@@ -60,6 +60,8 @@ class DeepSeekModel(Model):
     open_source = True
     encoding = tiktoken.get_encoding("cl100k_base")
     accepts_images = True
+    accepts_videos = False
+    accepts_audio = False
 
     def load(self, model_name: str) -> Pipeline | DeepSeekAPI:
         return DeepSeekAPI(model=model_name)
@@ -83,3 +85,6 @@ class DeepSeekModel(Model):
             logger.warning("Error while calling the LLM! Continuing with empty response.\n" + str(e))
             logger.warning("Prompt used:\n" + str(prompt))
         return ""
+
+    def count_tokens(self, prompt: Prompt | str) -> int:
+        return len(self.encoding.encode(str(prompt)))

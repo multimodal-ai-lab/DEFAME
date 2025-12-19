@@ -1,18 +1,16 @@
 from abc import ABC, abstractmethod
 import copy
+import re
 import torch
 from transformers import pipeline, Pipeline, StoppingCriteriaList, AutoProcessor, MllamaForConditionalGeneration, StoppingCriteria
 
-from defame.common.modeling.utils import (
-    DEFAULT_SYSTEM_PROMPT,
-    get_model_api_pricing,
-    get_model_context_window,
-    model_specifier_to_shorthand,
-)
+from config.globals import api_keys
 from defame.common.prompt import Prompt
 from defame.common.logger import logger
 from defame.common.modeling.model import Model
+from defame.common.medium import Image
 from defame.utils.parsing import format_for_llava, find
+from defame.common.modeling.openai import OpenAIAPI
 
 
 class HuggingFaceModel(Model, ABC):

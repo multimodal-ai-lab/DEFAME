@@ -4,7 +4,7 @@ from defame.utils.console import bold
 from .utils import AVAILABLE_MODELS, DEFAULT_SYSTEM_PROMPT, get_model_api_pricing, get_model_context_window, model_shorthand_to_full_specifier, model_specifier_to_shorthand
 from .model import Model
 from .huggingface import LlavaModel, LlamaModel, HuggingFaceModel
-from .openai import OpenAIAPI, format_for_gpt, GPTModel, OpenAIAPI
+from .openai import OpenAIAPI, format_for_gpt, GPTModel
 from .deepseek import DeepSeekModel, DeepSeekAPI
 
 
@@ -44,21 +44,20 @@ def make_model(name: str, **kwargs) -> Model:
 
 
 __all__ = [
-    "OpenAIAPI",
-    "format_for_gpt",
     "AVAILABLE_MODELS",
     "DEFAULT_SYSTEM_PROMPT",
+    "DeepSeekAPI",
+    "DeepSeekModel",
+    "format_for_gpt",
     "get_model_api_pricing",
     "get_model_context_window",
-    "model_shorthand_to_full_specifier",
-    "model_specifier_to_shorthand",
-    "Model",
     "GPTModel",
     "HuggingFaceModel",
     "LlamaModel",
     "LlavaModel",
-    "DeepSeekAPI",
-    "DeepSeekModel",
     "make_model",
+    "Model",
+    "model_shorthand_to_full_specifier",
+    "model_specifier_to_shorthand",
     "OpenAIAPI",
 ]

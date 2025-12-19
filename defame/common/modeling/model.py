@@ -10,7 +10,7 @@ from defame.common.modeling.utils import (
 )
 from defame.common.prompt import Prompt
 from defame.common.logger import logger
-from defame.utils.parsing import is_guardrail_hit, GUARDRAIL_WARNING, format_for_llava, find
+from defame.utils.parsing import is_guardrail_hit, GUARDRAIL_WARNING
 
 class Model(ABC):
     """Base class for all (M)LLMs. Use make_model() to instantiate a new model."""
@@ -118,7 +118,7 @@ class Model(ABC):
             if response and is_guardrail_hit(response):  # Handle guardrail hits
                 logger.warning(GUARDRAIL_WARNING)
                 logger.log(f"PROMPT: {str(prompt)}\nRESPONSE: {response}")
-                if isinstance(self, GPTModel):
+                if self.__class__.__name__ == "GPTModel":
                     return prompt.extract(response="")
                 elif self.guardrail_bypass_system_prompt is not None:
                     system_prompt = self.guardrail_bypass_system_prompt
