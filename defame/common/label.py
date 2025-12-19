@@ -10,6 +10,9 @@ class Label(Enum):
     REFUSED_TO_ANSWER = "error: refused to answer"
     OUT_OF_CONTEXT = "out of context"
     MISCAPTIONED = "miscaptioned"
+    INTACT = "intact"
+    COMPROMISED = "compromised"
+    UNKNOWN = "unknown"
 
 
 DEFAULT_LABEL_DEFINITIONS = {
@@ -28,4 +31,10 @@ DEFAULT_LABEL_DEFINITIONS = {
                           "convey a false narrative.",
     Label.MISCAPTIONED: "The claim has a true image, but the caption does not accurately describe the image, "
                         "providing incorrect information.",
+    Label.INTACT: "The claim has intact integrity. The claim is factually accurate, and any media is authentic "
+                  "and properly contextualized.",
+    Label.COMPROMISED: "The claim has compromised integrity. The claim is factually inaccurate, misleading, or "
+                       "contains manipulated/out-of-context media.",
+    Label.UNKNOWN: "The integrity of the claim is unknown or uncertain. There is insufficient evidence to "
+                   "determine whether the claim is intact or compromised.",
 }
