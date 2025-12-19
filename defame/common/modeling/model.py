@@ -32,7 +32,8 @@ class Model(ABC):
         top_k: int = 50,
         max_response_len: int = 2048,
         repetition_penalty: float = 1.2,
-        device: str | torch.device | None = None
+        device: str | torch.device | None = None,
+        video_frames_to_sample: int = 5
     ):
         shorthand = model_specifier_to_shorthand(specifier)
         self.name = shorthand
@@ -48,6 +49,7 @@ class Model(ABC):
         self.top_p = top_p
         self.repetition_penalty = repetition_penalty
         self.device = device
+        self.video_frames_to_sample = video_frames_to_sample
 
         self.api = self.load(specifier.split(":")[1])
 
@@ -81,11 +83,16 @@ class Model(ABC):
         if top_k is None:
             top_k = self.top_k
 
-        # Check compatability
+        # Check compatibility and convert media if needed
         if prompt.has_images() and not self.accepts_images:
             logger.warning(f"Prompt contains images which cannot be processed by {self.name}! Ignoring them...")
         if prompt.has_videos() and not self.accepts_videos:
-            logger.warning(f"Prompt contains videos which cannot be processed by {self.name}! Ignoring them...")
+            if self.accepts_images:
+                # Convert videos to sampled frames since model supports images but not videos
+                logger.info(f"Converting videos to {self.video_frames_to_sample} sampled frames for {self.name}...")
+                prompt = prompt.with_videos_as_frames(n_frames=self.video_frames_to_sample)
+            else:
+                logger.warning(f"Prompt contains videos which cannot be processed by {self.name}! Ignoring them...")
         if prompt.has_audios() and not self.accepts_audio:
             logger.warning(f"Prompt contains audios which cannot be processed by {self.name}! Ignoring them...")
 

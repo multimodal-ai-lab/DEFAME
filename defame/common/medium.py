@@ -118,6 +118,83 @@ class Image(Medium):
 
 class Video(Medium):
     data_type = "video"
+    _sampled_frames: list["Image"] | None = None
+
+    def __init__(
+        self,
+        path_to_file: str | Path | None = None,
+        reference: str | None = None
+    ):
+        if reference:
+            # The video is already initialized (existing instance returned via __new__())
+            return
+
+        super().__init__(path_to_file, reference=reference)
+        self._sampled_frames = None
+
+    def sample_frames(self, n_frames: int = 8) -> list["Image"]:
+        """
+        Sample n_frames evenly distributed frames from the video.
+        Returns a list of Image objects.
+        """
+        if self._sampled_frames is not None and len(self._sampled_frames) == n_frames:
+            return self._sampled_frames
+
+        try:
+            import cv2
+        except ImportError:
+            raise ImportError("OpenCV (cv2) is required for video frame sampling. Install it with: pip install opencv-python")
+
+        cap = cv2.VideoCapture(str(self.path_to_file))
+        if not cap.isOpened():
+            raise ValueError(f"Could not open video file: {self.path_to_file}")
+
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if total_frames == 0:
+            cap.release()
+            raise ValueError(f"Video has no frames: {self.path_to_file}")
+
+        # Calculate frame indices to sample (evenly distributed)
+        if n_frames >= total_frames:
+            frame_indices = list(range(total_frames))
+        else:
+            frame_indices = [int(i * total_frames / n_frames) for i in range(n_frames)]
+
+        frames = []
+        for idx in frame_indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+            ret, frame = cap.read()
+            if ret:
+                # Convert BGR (OpenCV) to RGB (PIL)
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                pil_image = pillow_open(BytesIO(cv2.imencode('.jpg', cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR))[1].tobytes()))
+                # Create Image object from PIL image
+                image = Image(pillow_image=_ensure_rgb_mode(pil_image))
+                frames.append(image)
+
+        cap.release()
+        self._sampled_frames = frames
+        return frames
+
+    @property
+    def duration(self) -> float:
+        """Returns video duration in seconds."""
+        try:
+            import cv2
+        except ImportError:
+            return 0.0
+
+        cap = cv2.VideoCapture(str(self.path_to_file))
+        if not cap.isOpened():
+            return 0.0
+
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        cap.release()
+
+        if fps > 0:
+            return frame_count / fps
+        return 0.0
 
 
 class Audio(Medium):
@@ -182,6 +259,34 @@ class MultimediaSnippet:
                 if medium is not None:
                     split[i] = medium
         return split
+
+    def with_videos_as_frames(self, n_frames: int = 8) -> "MultimediaSnippet":
+        """
+        Returns a new MultimediaSnippet with all video references replaced by
+        references to sampled frames from those videos.
+
+        @param n_frames: Number of frames to sample from each video.
+        @return: A new MultimediaSnippet with videos converted to image frames.
+        """
+        if not self.has_videos():
+            return self
+
+        new_data = self.data
+        for video in self.videos:
+            frames = video.sample_frames(n_frames)
+            # Create frame references string - use video ID without angle brackets to avoid detection
+            video_id = video.id
+            frame_refs = " ".join([f"[Frame {i+1}/{len(frames)} from video {video_id}] {frame.reference}"
+                                   for i, frame in enumerate(frames)])
+            # Replace video reference with frame references
+            new_data = new_data.replace(video.reference, frame_refs)
+
+        # Create new instance of the same class (Prompt or MultimediaSnippet)
+        # Copy all instance attributes to preserve subclass-specific attributes
+        new_snippet = object.__new__(self.__class__)
+        new_snippet.__dict__.update(self.__dict__)
+        new_snippet.data = new_data
+        return new_snippet
 
 
 class MediaRegistry:
