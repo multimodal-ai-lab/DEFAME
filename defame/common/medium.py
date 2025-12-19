@@ -22,7 +22,7 @@ class Medium(ABC):
     path_to_file: Path
     data_type: str
 
-    def __new__(cls, *args, reference: str = None, **kwargs):
+    def __new__(cls, *args, reference: str | None = None, **kwargs):
         if reference:
             # Catch cases where the reference consists of only the ID
             if str(reference).isdigit():
@@ -59,10 +59,13 @@ class Image(Medium):
     data_type = "image"
     image: PillowImage
 
-    def __init__(self, path_to_file: str | Path = None,
-                 pillow_image: PillowImage = None,
-                 binary_data: bytes = None,
-                 reference: str = None):
+    def __init__(
+        self,
+        path_to_file: str | Path | None = None,
+        pillow_image: PillowImage | None = None,
+        binary_data: bytes | None = None,
+        reference: str | None = None
+    ):
         assert path_to_file or pillow_image or binary_data or reference
 
         if reference:
@@ -194,7 +197,15 @@ class MediaRegistry:
             self.db_location.parent.mkdir(exist_ok=True, parents=True)
         is_new = not self.db_location.exists()
         self.conn = sqlite3.connect(self.db_location, timeout=10, check_same_thread=False)
-        self.conn.execute("PRAGMA journal_mode=WAL;")
+
+        # Try to enable WAL mode, but fall back gracefully if it fails (multiprocessing)
+        try:
+            self.conn.execute("PRAGMA journal_mode=WAL;")
+        except sqlite3.OperationalError as e:
+            # WAL mode may fail in multiprocessing contexts, use default journal mode
+            import warnings
+            warnings.warn(f"Could not enable WAL mode for media registry: {e}. Using default journal mode.")
+
         self.cur = self.conn.cursor()
         if is_new:
             self._init_db()
