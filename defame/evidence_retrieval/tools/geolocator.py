@@ -110,7 +110,8 @@ class Geolocator(Tool):
         confidences = {choices[i]: round(float(prediction[0][i].item()), 2) for i in range(len(choices))}
         top_k_locations = dict(sorted(confidences.items(), key=lambda x: x[1], reverse=True)[:self.top_k])
         most_likely_location = max(top_k_locations, key=top_k_locations.get)
-        model_output = logits_per_image
+        # Move tensor to CPU for multiprocessing serialization
+        model_output = logits_per_image.detach().cpu()
         result = GeolocationResults(
             text=f"The most likely countries where the image was taken are: {top_k_locations}",
             most_likely_location=most_likely_location,

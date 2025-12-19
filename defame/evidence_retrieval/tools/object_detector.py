@@ -92,11 +92,13 @@ class ObjectDetector(Tool):
                        self.model.config.id2label[label.item()] for label in results["labels"]]
             bounding_boxes = [box.tolist() for box in results["boxes"]]
 
+        # Move outputs to CPU for multiprocessing serialization (outputs contains CUDA tensors)
+        model_output_cpu = {k: v.detach().cpu() if torch.is_tensor(v) else v for k, v in outputs.items()}
         result = ObjectDetectionResults(
             source=self.model_name,
             objects=objects,
             bounding_boxes=bounding_boxes,
-            model_output=outputs)
+            model_output=model_output_cpu)
 
         logger.log(str(result))
         return result
