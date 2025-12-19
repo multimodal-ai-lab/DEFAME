@@ -110,9 +110,7 @@ class VeriTaS(Benchmark):
         print(f"[VeriTaS] Loading {metadata.get('total_claims', len(claims))} claims from VeriTaS {self.variant}...")
 
         data = []
-        for idx, claim_entry in enumerate(claims):
-            if idx % 10 == 0:
-                print(f"[VeriTaS] Processing claim {idx+1}/{len(claims)}")
+        for claim_entry in claims:
             claim_id = str(claim_entry["id"])
             claim_text = claim_entry["data"]
             verdict = claim_entry.get("verdict", {})
@@ -214,10 +212,8 @@ class VeriTaS(Benchmark):
                     # Register the media with the global media registry
                     # This creates the media object and assigns it a registry ID
                     if media_type == "image":
-                        print(f"[VeriTaS]   Registering image: {media_path}")
                         media_obj = Image(media_path)
                     elif media_type == "video":
-                        print(f"[VeriTaS]   Registering video: {media_path}")
                         media_obj = Video(media_path)
                     else:
                         print(f"[VeriTaS]   WARNING: Unknown media type '{media_type}'")
@@ -227,7 +223,6 @@ class VeriTaS(Benchmark):
                     old_ref = f"<{media_type}:{media_id}>"
                     new_ref = media_obj.reference
                     registered_refs.append((old_ref, new_ref))
-                    print(f"[VeriTaS]   Mapped {old_ref} -> {new_ref}")
                 except Exception as e:
                     print(f"[VeriTaS] ERROR registering media {media_path}: {e}")
                     raise
