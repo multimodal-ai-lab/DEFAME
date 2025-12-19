@@ -1,4 +1,4 @@
-from typing import Optional, Callable
+from typing import Callable
 
 from pydantic import BaseModel
 
@@ -25,18 +25,20 @@ class Task:
             the completed task itself as an argument.
     """
 
-    def __init__(self,
-                 payload: Content | Claim,
-                 id: str | int,
-                 status: Status = Status.PENDING,
-                 status_message: str = "Pending.",
-                 callback: Callable = None):
+    def __init__(
+        self,
+        payload: Content | Claim,
+        id: str | int,
+        status: Status = Status.PENDING,
+        status_message: str = "Pending.",
+        callback: Callable | None = None
+    ) -> None:
         self.id = str(id)
         self.payload = payload
         self.status = status
         self.status_message = status_message
 
-        self.worker_id: Optional[int] = None
+        self.worker_id: int | None = None
         self.callback = callback
 
         self.result = None
@@ -88,5 +90,10 @@ class Task:
     def __getstate__(self):
         """Callbacks can interfere with multithreading/processing."""
         state = self.__dict__.copy()
-        del state["callback"]
+        state.pop("callback", None)  # Remove callback if present (not picklable)
         return state
+
+    def __setstate__(self, state):
+        """Restore state and set callback to None."""
+        self.__dict__.update(state)
+        self.callback = None

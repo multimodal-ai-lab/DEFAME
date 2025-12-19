@@ -1,5 +1,5 @@
 import traceback
-from multiprocessing import Queue, Pipe, Process
+from multiprocessing import Pipe, Process
 from queue import Empty
 from multiprocessing.connection import Connection
 from pathlib import Path
@@ -41,8 +41,7 @@ class Worker(Process):
             self.terminate()
         return msgs
 
-    def __getstate__(self):
-        return {"id": self.id}
+    # Note: Do NOT override __getstate__ as it breaks Process pickling in spawn mode
 
 
 class FactCheckerWorker(Worker):
@@ -56,7 +55,7 @@ class Runner:
     # TODO: Use multiprocessing.Manager (instead of Queues/Connection) to share data between pool & worker
     """The instance actually executing the routine inside the worker subprocess."""
 
-    def __init__(self, worker_id: int = None):
+    def __init__(self, worker_id: int | None = None):
         self.running = True
         self.worker_id = worker_id
 
@@ -64,14 +63,16 @@ class Runner:
         logger.info(f"Runner of worker {self.worker_id} received termination signal. Stopping gracefully...")
         self.running = False
 
-    def execute(self,
-                input_queue: Queue,
-                output_queue: Queue,
-                connection: Connection,
-                device_id: int,
-                target_dir: str | Path,
-                print_log_level: str = "info",
-                **kwargs):
+    def execute(
+        self,
+        input_queue,
+        output_queue,
+        connection: Connection,
+        device_id: int,
+        target_dir: str | Path,
+        print_log_level: str = "info",
+        **kwargs
+    ):
         # Register signal handler for graceful termination
         # signal.signal(signal.SIGTERM, self.stop)
         # signal.signal(signal.SIGINT, self.stop)
