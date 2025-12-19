@@ -1,8 +1,6 @@
 import json
-import os
 import zipfile
 from datetime import datetime
-from pathlib import Path
 
 from config.globals import data_root_dir
 from defame.common import Label, Claim
