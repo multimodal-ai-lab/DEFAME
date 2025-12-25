@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from defame.common import Action, Report, Evidence
+from defame.common import Action, Report, Evidence, logger
 from defame.evidence_retrieval.tools import Tool, Searcher
 
 
@@ -16,7 +16,10 @@ class Actor:
         all_evidence = []
         for action in actions:
             assert isinstance(action, Action)
-            all_evidence.append(self._perform_single(action, doc, summarize=summarize))
+            try:
+                all_evidence.append(self._perform_single(action, doc, summarize=summarize))
+            except Exception as e:
+                logger.error(f"Error performing action {action.name}. Could not retrieve Evidence. Got: {e}")
         return all_evidence
 
     def _perform_single(self, action: Action, doc: Report = None, summarize: bool = True) -> Evidence:

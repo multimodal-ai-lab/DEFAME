@@ -155,8 +155,8 @@ The [Google Cloud Vision API](https://cloud.google.com/vision/?hl=en&utm_source=
 4. Save the downloaded key file at the path `config/google_service_account_key.json`.
 
 ### Social Media Evidence
-1. Add a `twitter_bearer_token` (TODO und noch andere Sachen) in your api_keys file.
-2. TODO noch andere Sachen?
+To use the social media tool you require an LLM than can incorporate multimodal data.
+Additionally, you need the following api keys in the api_keys.yaml file: `[x_bearer_token, telegram_api_hash, telegram_api_id, telegram_phone, reddit_client_id, reddit_client_secret, reddit_pwd, reddit_token, reddit_username]`
 
 ### Add a Custom Tool
 

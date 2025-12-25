@@ -44,7 +44,7 @@ torch~=2.6.0
 torchvision>=0.15.2
 transformers>=4.48.0
 tqdm>=4.66.3
-tweepy~=4.14.0
+tweepy~=4.16.0
 uvicorn~=0.34.0
 wandb==0.18.0
 yacs==0.1.8
@@ -55,3 +55,7 @@ starlette~=0.41.3
 atproto~=0.0.60
 prettytable~=3.16.0
 aiohttp~=3.11.11
+googletrans==4.0.2
+markdown
+praw~=7.8.1
+Telethon==1.40.0

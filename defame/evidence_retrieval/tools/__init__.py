@@ -7,6 +7,7 @@ from .geolocator import Geolocator, Geolocate
 from .manipulation_detector import ManipulationDetector, DetectManipulation
 from .object_detector import ObjectDetector, DetectObjects
 from .searcher import Searcher, Search
+from .sm_report_generator import SM_Report_Generator, SM_Overview
 from .text_extractor import TextExtractor, OCR
 from .tool import Tool
 
@@ -18,6 +19,7 @@ TOOL_REGISTRY = [
     Searcher,
     TextExtractor,
     ManipulationDetector,
+    SM_Report_Generator,
 ]
 
 ACTION_REGISTRY = {
@@ -28,6 +30,7 @@ ACTION_REGISTRY = {
     CredibilityCheck,
     OCR,
     DetectManipulation,
+    SM_Overview,
 }
 
 IMAGE_ACTIONS = {

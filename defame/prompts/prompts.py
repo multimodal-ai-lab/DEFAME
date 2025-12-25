@@ -2,12 +2,15 @@ import re
 import traceback
 from pathlib import Path
 from typing import Collection, Optional
+from ezmm import MultimodalSequence
 
 from defame.common import Report, Label, Claim, Action, Prompt, Content, logger
 from defame.common.action import get_action_documentation
 from defame.common.label import DEFAULT_LABEL_DEFINITIONS
+from defame.evidence_retrieval.integrations import SocialMediaPost
 from defame.evidence_retrieval.integrations.search.common import Source
 from defame.common.results import Results
+from defame.evidence_retrieval.integrations.social_media.common import SocialMediaClaim
 from defame.utils.parsing import (remove_non_symbols, extract_last_code_span, read_md_file,
                                   find_code_span, extract_last_paragraph, extract_last_python_code_block,
                                   strip_string, remove_code_blocks, parse_function_call)
@@ -380,6 +383,115 @@ class InitializePrompt(Prompt):
         }
         super().__init__(placeholder_targets=placeholder_targets)
 
+class SM_RephrasePrompt(Prompt):
+    template_file_path = "defame/prompts/sm_rephrase_input.md"
+
+    def __init__(self, post: SocialMediaPost):
+        placeholder_targets = {
+            "[MESSAGE]": post.message,
+        }
+        super().__init__(placeholder_targets=placeholder_targets)
+    # ggf noch custom extract methode
+
+class SM_RetrieveClaim(Prompt):
+    template_file_path = "defame/prompts/sm_retrieve_claim.md"
+
+    def __init__(self, rephrased_msg: str, entities: str | list[str], post: SocialMediaPost):
+        self.post = post
+
+        if isinstance(entities, list):
+            entities = ". ".join(entities)
+
+        placeholder_targets = {
+            "[PHRASES]": rephrased_msg,
+            "[ENTITIES]": entities,
+            "[IMAGES]": "No images available"
+        }
+        if post.has_images():
+            placeholder_targets["[IMAGES]"] = self.post.images
+
+        super().__init__(placeholder_targets=placeholder_targets)
+
+    def extract(self, response: str) -> list[SocialMediaClaim]:
+        claims = []
+        pattern_claim = r"^-?\s*(.*?);\s*(.*?);\s*(.*)\s*$"
+        pattern_image = r"<image:(\d+)>"
+        for r in response.splitlines():
+            # r should be of form "- entity1; relation1; entity2"
+            m_text = re.match(pattern_claim, r)
+            if m_text:
+                head, relation, tail = m_text.groups()
+                if head == "" or relation == "" or tail == "":
+                    logger.warning(f"Skip claim {m_text} as it is not in triplet form")
+                    continue
+                m_img = re.match(pattern_image, tail)
+                if m_img:
+                    img_n = int(m_img.group(1))
+                    if img_n <= len(self.post.images):
+                        tail = self.post.images[img_n-1]
+                    else:
+                        logger.warning(f"Could not find image {tail}.")
+                claims.append(SocialMediaClaim(posts={self.post}, head=head, relation=relation, tail=tail))
+            else:
+                logger.error(f"Could not extract claim from: {r}")
+
+        return claims
+
+class SM_CombineEntities(Prompt):
+    template_file_path = "defame/prompts/sm_combine_entities.md"
+    entities: set[str]
+    def __init__(self, entities: set[str]):
+        placeholder_targets = {
+            "[ENTITIES]": entities,
+        }
+        super().__init__(placeholder_targets=placeholder_targets)
+
+
+    def extract(self, response: str) -> dict:
+            # return dict has entity to replace as key and new entity as value
+            entities = [re.split(r",\s*|:\s*", g) for g in re.findall(r"\{([^}]*)}", response)]
+            replacements = {}
+            for group in entities:
+                for entity in group:
+                    if entity != group[0]:
+                        replacements[entity] = group[0]
+
+            return replacements
+
+class SM_TextReport(Prompt):
+    template_file_path = "defame/prompts/sm_summarize_text.md"
+
+    def __init__(self, claims: list[SocialMediaClaim]):
+        claims_formatted = []
+        for c in claims:
+            claims_formatted.append(f"({len(c.posts)}x) {str(c)}")
+
+        placeholder_targets = {
+            "[INPUT_CLAIMS]": claims_formatted,
+        }
+
+        super().__init__(placeholder_targets=placeholder_targets)
+
+    def extract(self, response: str) -> dict | str | None:
+        return super().extract(response)
+
+class SM_ImageReport(Prompt):
+    template_file_path = "defame/prompts/sm_summarize_image.md"
+
+    def __init__(self, claims: list[SocialMediaClaim], report:str):
+        claims_formatted = []
+        for c in claims:
+            claims_formatted.extend([f"- ({len(c.posts)}x)", c.head, c.relation, c.tail])
+
+        placeholder_targets = {
+            "[INPUT_CLAIMS]": MultimodalSequence(*claims_formatted),
+            "[INPUT_REPORT]": report,
+        }
+        super().__init__(placeholder_targets=placeholder_targets)
+
+    def extract(self, response: str) -> dict | str | None:
+        return super().extract(response)
+
 
 def load_exemplars(valid_actions: Collection[type[Action]]) -> str:
     exemplars_dir = Path("defame/prompts/plan_exemplars")
@@ -429,7 +541,7 @@ def extract_actions(answer: str, limit=5) -> list[Action]:
 
     actions_str = extract_last_python_code_block(answer)
 
-    # Handle cases where the LLM forgot to enclose actions in code block
+  # Handle cases where the LLM forgot to enclose actions in code block
     if not actions_str:
         candidates = []
         for action in ACTION_REGISTRY:

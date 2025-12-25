@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from ezmm import Image, MultimodalSequence
 
 
@@ -26,13 +26,15 @@ class SocialMediaPostMetadata:
 
 
 class SocialMediaPost(MultimodalSequence):
+    message: str
     metadata: SocialMediaPostMetadata
 
-    def __init__(self, *args, metadata: SocialMediaPostMetadata):
+    def __init__(self, *args, metadata: SocialMediaPostMetadata, message:str=""):
         self.metadata = metadata
+        self.message = message
 
         # Compose the sequence
-        text = f"Post by @{metadata.author_username}"
+        text = f"Post by @{metadata.author_username} with message {self.message}"
         if metadata.author_display_name:
             text += f" ({metadata.author_display_name})"
         if metadata.is_verified_author:
@@ -52,7 +54,7 @@ class SocialMediaPost(MultimodalSequence):
         if engagement:
             text += "Engagement: " + ", ".join(engagement) + "\n"
 
-        text += f"Post URL: {metadata.post_url}"
+        text += f" Post URL: {metadata.post_url}"
 
         if metadata.is_reply and metadata.reply_to:
             text += f"Reply to: {metadata.reply_to}\n"
@@ -75,7 +77,11 @@ class SocialMediaPost(MultimodalSequence):
         # Add newline to separate from following post content
         text += "\n"
 
-        super().__init__(text, *args)
+        super().__init__(text, *media_references, *args)
+
+    def __repr__(self):
+        return f"Post with message {self.message} and metadata: {self.metadata}\n"
+
 
 
 @dataclass(frozen=True)
@@ -124,6 +130,31 @@ class SocialMediaProfile(MultimodalSequence):
             text += f"Cover Image: {self.cover_image.reference}\n"
 
         super().__init__(text)
+
+@dataclass
+class SocialMediaClaim(MultimodalSequence):
+    posts: set[SocialMediaPost]
+    head: str
+    relation: str
+    tail: str | Image
+
+    def __claim_init__(self):
+        super().__init__(self.head, self.relation, self.tail, "Posts:", *self.posts)
+
+    def add_post(self, post: SocialMediaPost | set[SocialMediaPost]):
+        if isinstance(post, SocialMediaPost):
+            self.posts.add(post)
+        else:
+            self.posts.update(post)
+
+    def __iter__(self):
+        return iter([self.head, self.relation, self.tail])
+
+    def __str__(self):
+        return f"{self.head} {self.relation} {self.tail}"
+
+    def __hash__(self):
+        return hash((self.head, self.relation, self.tail))
 
 
 def get_platform(url: str):

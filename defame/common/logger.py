@@ -38,6 +38,11 @@ logging.getLogger('httpx').setLevel(logging.ERROR)
 logging.getLogger('urllib3.connection').setLevel(logging.ERROR)
 logging.getLogger('markdown_it').setLevel(logging.WARNING)
 logging.getLogger('asyncio').setLevel(logging.WARNING)
+logging.getLogger("tweepy").setLevel(logging.WARNING)
+logging.getLogger("hpack").setLevel(logging.WARNING)
+logging.getLogger("praw").setLevel(logging.WARNING)
+logging.getLogger("prawcore").setLevel(logging.WARNING)
+logging.getLogger("telethon").setLevel(logging.WARNING)
 
 LOG_LEVELS = {
     "critical": 50,

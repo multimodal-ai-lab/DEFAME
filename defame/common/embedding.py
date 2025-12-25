@@ -1,7 +1,10 @@
 from typing import Sequence
 
 import numpy as np
+import torch
+from ezmm import Image
 from sentence_transformers import SentenceTransformer
+from transformers import AutoModel, AutoProcessor
 
 
 class EmbeddingModel:
@@ -37,3 +40,42 @@ class EmbeddingModel:
 
     def truncate_many(self, texts: list[str]) -> list[str]:
         return [self.truncate(t) for t in texts]
+
+class MultimodalEmbeddingModel:
+
+    def __init__(self, model_name: str, device="auto"):
+        self.model = AutoModel.from_pretrained(model_name, device_map=device)
+        self.processor = AutoProcessor.from_pretrained(model_name, device_map=device)
+
+    # todo better parallelization
+    def embed(self, content: str | Image, to_bytes: bool = False) -> np.array:
+        with torch.no_grad():
+            if isinstance(content, Image):
+                inp = self.processor(images=[content.get_base64_encoded()], return_tensors="pt")
+                inp = {k: v.to(self.model.device) for k, v in inp.items()}
+                embedding = self.model.get_image_features(**inp)
+            else:
+                inp = self.processor(text=[content], return_tensors="pt", padding=True)
+                inp = {k: v.to(self.model.device) for k, v in inp.items()}
+                embedding = self.model.get_text_features(**inp)
+
+        res =  embedding.cpu().numpy()
+        return res.tobytes() if to_bytes else res
+
+    def embed_many(self,
+                   content: list[str | Image],
+                   to_bytes: bool = False,
+                   batch_size: int = 8) -> Sequence:
+
+        if len(content) == 0:
+            return []
+
+        output = []
+        for c in content:
+            output.append(self.embed(content=c, to_bytes=to_bytes))
+        return output
+
+
+def similarity(embedding1: np.array, embedding2: np.array) -> float:
+    return np.dot(embedding1.ravel(), embedding2.ravel()) / (np.linalg.norm(embedding1.ravel()) * np.linalg.norm(embedding2.ravel()))
+

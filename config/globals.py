@@ -9,18 +9,20 @@ data_root_dir = Path("data/")  # Where the datasets are stored
 result_base_dir = working_dir / "out/"  # Where outputs are to be saved
 temp_dir = result_base_dir / "temp/" # Where caches etc. are saved
 
-embedding_model = "Alibaba-NLP/gte-base-en-v1.5"  # used for semantic search in FEVER and Averitec knowledge bases
+embedding_model = "Alibaba-NLP/gte-base-en-v1.5"  # used for semantic search in FEVER, Averitec knowledge bases and Social Media report generation
+mm_embedding_model = "google/siglip-base-patch16-224"
 manipulation_detection_model = working_dir / "third_party/TruFor/weights/trufor.pth.tar" 
 
-api_key_path = Path("config/api_keys.yaml")
+api_key_path = Path(str(working_dir) + "/config/api_keys.yaml")
 api_keys = yaml.safe_load(open(api_key_path))
 
-google_service_account_key_path = Path("config/google_service_account_key.json")
+google_service_account_key_path = Path(str(working_dir) + "/config/google_service_account_key.json")
 
 firecrawl_url = "http://firecrawl:3002"  # applies to Firecrawl running in a 'firecrawl' Docker Container
 
 random_seed = 42 # used for sub-sampling in partial dataset testing
 
+telegram_channels = ["tagesschau24", "niusde"] # the telegram channels that will be used on the keyword search of the social media evidence
 
 def keys_configured() -> bool:
     """Returns True iff at least one key is specified."""
