@@ -8,7 +8,7 @@ def main():
     logger.set_experiment_dir(outdir)
     try:
         fc = FactChecker(
-            llm="gpt_4o",
+            llm="gpt_4o_mini",
             tools_config={"searcher": {"search_config": {"google": {}}, "limit_per_search": 3}},
             device=None,
             procedure_variant="summary/static",

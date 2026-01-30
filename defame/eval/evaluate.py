@@ -37,6 +37,7 @@ from defame.utils.utils import unroll_dict
 
 # ---------------------- UTF-8 helpers (Windows-safe) ----------------------
 
+
 def _read_csv_robust(path: Path) -> pd.DataFrame:
     encodings = ["utf-8", "utf-8-sig", "latin-1"]
     last_err = None
@@ -54,21 +55,22 @@ def _write_csv_utf8(df: pd.DataFrame, path: Path):
 
 # ---------------------- Evaluate ----------------------
 
+
 def evaluate(
-        llm: str,
-        benchmark_name: str,
-        tools_config: dict[str, dict],
-        experiment_name: str = None,
-        fact_checker_kwargs: dict = None,
-        llm_kwargs: dict = None,
-        benchmark_kwargs: dict = None,
-        allowed_actions: list[str] = None,
-        n_samples: int = None,
-        sample_ids: list[int | str] = None,
-        random_sampling: bool = False,
-        print_log_level: str = "log",
-        continue_experiment_dir: str = None,
-        n_workers: int = None,
+    llm: str,
+    benchmark_name: str,
+    tools_config: dict[str, dict],
+    experiment_name: str = None,
+    fact_checker_kwargs: dict = None,
+    llm_kwargs: dict = None,
+    benchmark_kwargs: dict = None,
+    allowed_actions: list[str] = None,
+    n_samples: int = None,
+    sample_ids: list[int | str] = None,
+    random_sampling: bool = False,
+    print_log_level: str = "log",
+    continue_experiment_dir: str = None,
+    n_workers: int = None,
 ):
     assert not n_samples or not sample_ids
 
@@ -89,11 +91,13 @@ def evaluate(
     llm = model_specifier_to_shorthand(llm) if llm not in AVAILABLE_MODELS["Shorthand"].values else llm
     procedure_variant = fact_checker_kwargs.get("procedure_variant", FactChecker.default_procedure)
 
-    logger.set_experiment_dir(path=continue_experiment_dir,
-                              benchmark_name=benchmark.shorthand,
-                              procedure_name=procedure_variant,
-                              model_name=llm,
-                              experiment_name=experiment_name)
+    logger.set_experiment_dir(
+        path=continue_experiment_dir,
+        benchmark_name=benchmark.shorthand,
+        procedure_name=procedure_variant,
+        model_name=llm,
+        experiment_name=experiment_name,
+    )
     logger.log("Saving all outputs to:", logger.target_dir.as_posix())
 
     n_devices = torch.cuda.device_count()
@@ -122,6 +126,7 @@ def evaluate(
     except RuntimeError:
         # Already set in this process; it's fine.
         pass
+
     p = Process(target=validate_config, args=(tools_config, allowed_actions))
     p.start()
     p.join()
@@ -179,18 +184,20 @@ def evaluate(
     start_time = time.time()
     print(f"Evaluating {n_samples} samples using {n_workers} workers...")
 
-    pool = Pool(n_workers=n_workers,
-                llm=llm,
-                llm_kwargs=llm_kwargs,
-                tools_config=tools_config,
-                available_actions=allowed_actions,
-                class_definitions=benchmark.class_definitions,
-                extra_prepare_rules=benchmark.extra_prepare_rules,
-                extra_plan_rules=benchmark.extra_plan_rules,
-                extra_judge_rules=benchmark.extra_judge_rules,
-                print_log_level=print_log_level,
-                target_dir=logger.target_dir,
-                **fact_checker_kwargs)
+    pool = Pool(
+        n_workers=n_workers,
+        llm=llm,
+        llm_kwargs=llm_kwargs,
+        tools_config=tools_config,
+        available_actions=allowed_actions,
+        class_definitions=benchmark.class_definitions,
+        extra_prepare_rules=benchmark.extra_prepare_rules,
+        extra_plan_rules=benchmark.extra_plan_rules,
+        extra_judge_rules=benchmark.extra_judge_rules,
+        print_log_level=print_log_level,
+        target_dir=logger.target_dir,
+        **fact_checker_kwargs,
+    )
 
     # Queue tasks
     for instance in samples_to_evaluate:
@@ -207,8 +214,7 @@ def evaluate(
             except Empty:
                 if not pool.is_running():
                     logger.warning("Worker pool stopped early. Terminating evaluation loop.")
-                    break
-                # keep waiting
+                    break  # keep waiting
                 continue
             except Exception as e:
                 # Unexpected pool error for this item; skip & continue
@@ -218,13 +224,14 @@ def evaluate(
             # Process a successful result, but be defensive
             try:
                 benchmark.process_output(output)
+                # NEW: immediately ensure fake_cls is attached for the just-written row(s)
+                _incrementally_attach_fake_cls(logger.target_dir, benchmark)
                 progress.update(1)
             except Exception as e:
                 logger.warning(f"Skipping one example due to process_output error: {e}")
                 logger.debug(traceback.format_exc())
                 # do NOT update progress here (no row saved)
                 continue
-
     except Exception:
         logger.critical("An unexpected error occurred in the main process:")
         logger.critical(traceback.format_exc())
@@ -268,20 +275,24 @@ def validate_config(tools_config: dict[str, dict], allowed_actions: Sequence[Act
     table = PrettyTable()
     table.align = "l"
     table.field_names = ["Action", "Available", "Allowed"]
+
     offered_actions = {action for tool in tools for action in tool.actions}
     allowed_actions = set(allowed_actions)
+
     for action in offered_actions | allowed_actions:
         is_available = action in offered_actions
         is_allowed = action in allowed_actions
-        table.add_row([action.name,
-                       "✅ Yes" if is_available else "❌ No",
+
+        table.add_row([action.name, "✅ Yes" if is_available else "❌ No",
                        "✅ Yes" if is_allowed else "❌ No"])
+
     logger.log(table.__repr__())
 
 
 def aggregate_stats(instance_stats: pd.DataFrame, category: str) -> dict[str, float]:
     """Sums the values for columns whose names begin with 'category'."""
     aggregated_stats = dict()
+
     columns = list(instance_stats.columns)
     for column in columns:
         if column.startswith(category):
@@ -291,21 +302,91 @@ def aggregate_stats(instance_stats: pd.DataFrame, category: str) -> dict[str, fl
             elif isinstance(aggregated, np.floating):
                 aggregated = float(aggregated)
             aggregated_stats[column] = aggregated
+
     return unroll_dict(aggregated_stats)
 
 
-def finalize_evaluation(experiment_dir: str | Path,
-                        benchmark: Benchmark,
-                        stats: dict = None,
-                        selected_ids: Optional[set[str]] = None):
+# ---------------------- DGM4 per-category accuracy ----------------------
+
+_DGM4_CATS = {"orig", "face_swap", "face_attribute", "text_swap", "text_attribute"}
+
+
+def _normalize_fake_cls(fake_cls: str) -> list[str]:
+    """
+    Split fake_cls into constituent categories and keep only the 5 requested ones.
+
+    Examples:
+        'orig' -> ['orig']
+        'face_attribute&text_swap' -> ['face_attribute', 'text_swap']
+    """
+    if not isinstance(fake_cls, str) or not fake_cls:
+        return []
+
+    parts = [p.strip() for p in fake_cls.split("&") if p.strip()]
+
+    # If 'orig' is present, treat it as the sole category (it is mutually exclusive by meaning)
+    if "orig" in parts:
+        return ["orig"]
+
+    return [p for p in parts if p in _DGM4_CATS]
+
+
+def compute_dgm4_category_accuracy_table(df: pd.DataFrame) -> dict:
+    """
+    Compute per-category accuracy for DGM4.
+
+    A correct prediction counts as a true for *every* category present in that sample.
+    Denominator excludes REFUSED_TO_ANSWER (consistent with overall accuracy code).
+
+    Returns a dict suitable to be stored under stats["DGM4 Category Accuracy"].
+    """
+    required_cols = {"predicted", "target", "fake_cls"}
+    if not required_cols.issubset(df.columns):
+        return {}
+
+    # Exclude refused in the denominator
+    not_refused = df["predicted"] != "REFUSED_TO_ANSWER"
+    if not not_refused.any():
+        return {cat: {"Total": 0, "Correct": 0, "Accuracy": 0.0} for cat in _DGM4_CATS}
+
+    tmp = df.loc[not_refused, ["predicted", "target", "fake_cls"]].copy()
+    tmp["categories"] = tmp["fake_cls"].apply(_normalize_fake_cls)
+
+    # Keep only rows that have at least one category of interest
+    tmp = tmp[tmp["categories"].map(len) > 0]
+    if tmp.empty:
+        return {cat: {"Total": 0, "Correct": 0, "Accuracy": 0.0} for cat in _DGM4_CATS}
+
+    tmp = tmp.explode("categories")
+    tmp["correct"] = (tmp["predicted"] == tmp["target"]).astype(int)
+
+    out = {}
+    for cat in sorted(_DGM4_CATS):
+        sub = tmp[tmp["categories"] == cat]
+        total = int(len(sub))
+        correct = int(sub["correct"].sum()) if total > 0 else 0
+        acc = (correct / total) if total > 0 else 0.0
+        out[cat] = {"Total": total, "Correct": correct, "Accuracy": acc}
+
+    return out
+
+
+def finalize_evaluation(
+    experiment_dir: str | Path,
+    benchmark: Benchmark,
+    stats: dict = None,
+    selected_ids: Optional[set[str]] = None
+):
     """
     Finalization:
-      • Save aggregated stats
-      • Add DGM4 fake_cls column to predictions.csv
-      • Compute metrics
-      • Plot confusion matrix ONLY if all selected IDs have predictions
+    • Save aggregated stats
+    • Add DGM4 fake_cls column to predictions.csv
+    • Compute metrics
+    • Plot confusion matrix ONLY if all selected IDs have predictions
+    • Compute per-category accuracy for DGM4 (multi-label aware)
     """
     experiment_dir = Path(experiment_dir)
+
     is_averitec = isinstance(benchmark, AVeriTeC)
     is_mocheg = isinstance(benchmark, MOCHEG)
     is_test = getattr(benchmark, "variant", None) == "test"
@@ -323,12 +404,14 @@ def finalize_evaluation(experiment_dir: str | Path,
         if stats_file_path.exists():
             with open(stats_file_path, "r", encoding="utf-8") as f:
                 stats = json.load(f)
+
     if stats is None:
         stats = dict()
 
     # Add aggregated statistics
     if "Duration" in instance_stats.columns:
         stats.update({"Time per claim": instance_stats["Duration"].mean()})
+
     stats.update(aggregate_stats(instance_stats, category="Model"))
     stats.update(aggregate_stats(instance_stats, category="Tools"))
 
@@ -343,41 +426,42 @@ def finalize_evaluation(experiment_dir: str | Path,
     df = _read_csv_robust(pred_path)
 
     # Sort by sample_index if present
-    sort_col = "sample_index" if "sample_index" in df.columns else (None)
+    sort_col = "sample_index" if "sample_index" in df.columns else None
     if sort_col:
         df = df.sort_values(by=sort_col).reset_index(drop=True)
 
     # ------------------ ADD fake_cls column (DGM4 only) ------------------
     try:
         if getattr(benchmark, "shorthand", "").lower() == "dgm4":
-            # Prefer the fast map built in your DGM4.__init__ / _load_data()
+            # Prefer the fast map built in DGM4._load_data()
             if hasattr(benchmark, "id2fake_cls") and isinstance(benchmark.id2fake_cls, dict):
                 if "sample_index" in df.columns:
                     df["fake_cls"] = df["sample_index"].astype(str).map(benchmark.id2fake_cls)
                 else:
-                    # If sample_index is missing, keep a blank column to avoid KeyError elsewhere
                     if "fake_cls" not in df.columns:
                         df["fake_cls"] = pd.NA
             else:
-                # Fall back: create the column if absent (blank)
                 if "fake_cls" not in df.columns:
                     df["fake_cls"] = pd.NA
         else:
-            # Non-DGM4: do not add; ensure no stray column gets added
             if "fake_cls" not in df.columns:
-                df["fake_cls"] = pd.NA  # harmless, but uniform for downstream code if needed
+                df["fake_cls"] = pd.NA
     except Exception as e:
         print(f"Warning: could not attach fake_cls to predictions.csv: {e}")
-        if "fake_cls" not in df.columns:
-            df["fake_cls"] = pd.NA
+
+    if "fake_cls" not in df.columns:
+        df["fake_cls"] = pd.NA
 
     # Persist predictions with UTF-8
     _write_csv_utf8(df, pred_path)
 
     # Prepare arrays
     predicted_labels = df["predicted"].to_numpy() if "predicted" in df.columns else np.array([])
+
     if is_averitec:
-        ground_truth_labels = None if is_test else (df["target"].to_numpy() if "target" in df.columns else None)
+        ground_truth_labels = None if is_test else (
+            df["target"].to_numpy() if "target" in df.columns else None
+        )
     else:
         ground_truth_labels = df["target"].to_numpy() if "target" in df.columns else None
 
@@ -391,12 +475,35 @@ def finalize_evaluation(experiment_dir: str | Path,
     )
 
     # Metrics
-    metric_stats = compute_metrics(predicted_labels,
-                                   ground_truth_labels,
-                                   predicted_justifications=predicted_justifications,
-                                   ground_truth_justifications=ground_truth_justifications,
-                                   is_mocheg=is_mocheg)
+    metric_stats = compute_metrics(
+        predicted_labels,
+        ground_truth_labels,
+        predicted_justifications=predicted_justifications,
+        ground_truth_justifications=ground_truth_justifications,
+        is_mocheg=is_mocheg
+    )
     stats["Predictions"] = metric_stats
+
+    # --- DGM4 per-category accuracy (multi-label aware) ---
+    try:
+        if getattr(benchmark, "shorthand", "").lower() == "dgm4":
+            dgm4_cat_acc = compute_dgm4_category_accuracy_table(df)
+            if dgm4_cat_acc:
+                stats["DGM4 Category Accuracy"] = dgm4_cat_acc
+
+            # Optional CSV artifact for quick inspection
+            try:
+                rows = [{"category": k, **v} for k, v in dgm4_cat_acc.items()]
+                pd.DataFrame(rows).to_csv(
+                    experiment_dir / "dgm4_category_accuracy.csv",
+                    index=False,
+                    encoding="utf-8",
+                )
+            except Exception as e:
+                print(f"Warning saving dgm4_category_accuracy.csv: {e}")
+    except Exception as e:
+        print(f"Warning computing DGM4 per-category accuracy: {e}")
+
     save_stats(stats, target_dir=experiment_dir)
     logger.info(f"All outputs saved in {experiment_dir.as_posix()}.")
 
@@ -410,16 +517,22 @@ def finalize_evaluation(experiment_dir: str | Path,
                 can_plot = selected_ids.issubset(have_ids)
             else:
                 # Fallback: if no selection set provided, require no NaNs in preds/targets
-                can_plot = ("predicted" in df.columns and "target" in df.columns
-                            and df["predicted"].notna().all() and df["target"].notna().all())
+                can_plot = (
+                    "predicted" in df.columns
+                    and "target" in df.columns
+                    and df["predicted"].notna().all()
+                    and df["target"].notna().all()
+                )
 
         if can_plot:
             benchmark_classes = benchmark.get_classes()
-            plot_confusion_matrix(predicted_labels,
-                                  ground_truth_labels,
-                                  benchmark_classes,
-                                  benchmark_name=benchmark.name,
-                                  save_dir=experiment_dir)
+            plot_confusion_matrix(
+                predicted_labels,
+                ground_truth_labels,
+                benchmark_classes,
+                benchmark_name=benchmark.name,
+                save_dir=experiment_dir,
+            )
         else:
             logger.info("Skipping confusion matrix (evaluation not 100% complete for selected items).")
     except Exception as e:
@@ -439,11 +552,14 @@ def finalize_evaluation(experiment_dir: str | Path,
 
 # ---------------------- Metrics & utils ----------------------
 
-def compute_metrics(predicted_labels: np.ndarray,
-                    ground_truth_labels: Optional[np.ndarray] = None,
-                    predicted_justifications: Optional[Sequence[str]] = None,
-                    ground_truth_justifications: Optional[Sequence[str]] = None,
-                    is_mocheg: bool = False):
+
+def compute_metrics(
+    predicted_labels: np.ndarray,
+    ground_truth_labels: Optional[np.ndarray] = None,
+    predicted_justifications: Optional[Sequence[str]] = None,
+    ground_truth_justifications: Optional[Sequence[str]] = None,
+    is_mocheg: bool = False
+):
     n_samples = len(predicted_labels)
     n_refused = np.count_nonzero(np.array(predicted_labels) == "REFUSED_TO_ANSWER")
 
@@ -458,10 +574,35 @@ def compute_metrics(predicted_labels: np.ndarray,
     try:
         if ground_truth_labels is not None:
             labels = np.unique(np.append(ground_truth_labels, predicted_labels))
-            precision = precision_score(ground_truth_labels, predicted_labels, labels=labels, average=None, zero_division=0)
-            recall = recall_score(ground_truth_labels, predicted_labels, labels=labels, average=None, zero_division=0)
-            f1_scores = f1_score(ground_truth_labels, predicted_labels, labels=labels, average=None, zero_division=0)
-            macro_f1 = f1_score(ground_truth_labels, predicted_labels, labels=labels, average='macro', zero_division=0)
+
+            precision = precision_score(
+                ground_truth_labels,
+                predicted_labels,
+                labels=labels,
+                average=None,
+                zero_division=0,
+            )
+            recall = recall_score(
+                ground_truth_labels,
+                predicted_labels,
+                labels=labels,
+                average=None,
+                zero_division=0,
+            )
+            f1_scores = f1_score(
+                ground_truth_labels,
+                predicted_labels,
+                labels=labels,
+                average=None,
+                zero_division=0,
+            )
+            macro_f1 = f1_score(
+                ground_truth_labels,
+                predicted_labels,
+                labels=labels,
+                average='macro',
+                zero_division=0,
+            )
 
             for label, p, r, f1 in zip(labels, precision, recall, f1_scores):
                 metrics.update({
@@ -474,26 +615,12 @@ def compute_metrics(predicted_labels: np.ndarray,
     except Exception as e:
         print(f"There was an error computing classification metrics: {str(e)}")
 
-    # Generation Metrics (only for MOCHEG)
+    # Generation Metrics (only for MOCHEG) – intentionally disabled scaffolding
     try:
         if is_mocheg and (ground_truth_justifications is not None) and (predicted_justifications is not None):
             nltk.download('punkt')
-            # If you actually use datasets.load_metric, re-enable and import appropriately
-            # bertscore_metric = load_metric("bertscore")
-            # bleu_metric_datasets = load_metric("bleu")
-            # rouge_metric = load_metric("rouge")
-            # processed_preds, processed_labels = postprocess_text(predicted_justifications, ground_truth_justifications)
-            # bleu_datasets = compute_metrics_with_text(processed_preds, processed_labels, bleu_metric_datasets, "bleu")
-            # bertscore = compute_metrics_with_text(processed_preds, processed_labels, bertscore_metric, "bertscore")
-            # rouge_scores = compute_metrics_with_text(processed_preds, processed_labels, rouge_metric, "rouge")
-            # generation_metrics = {
-            #     "BLEU": bleu_datasets["bleu"],
-            #     "ROUGE1": float(rouge_scores.get("rouge1", 0)),
-            #     "ROUGE2": float(rouge_scores.get("rouge2", 0)),
-            #     "ROUGE_L": float(rouge_scores.get("rougeL", 0)),
-            #     "BERTScore": bertscore["bertscore"],
-            # }
-            # metric_summary.update({"Generation": generation_metrics})
+            # placeholders for optional text metrics
+            pass
     except Exception as e:
         print(f"There was an error computing MOCHEG generation metrics: {str(e)}")
 
@@ -502,6 +629,7 @@ def compute_metrics(predicted_labels: np.ndarray,
         correct_predictions = np.asarray(np.array(predicted_labels) == np.array(ground_truth_labels))
         n_correct_predictions = int(np.sum(correct_predictions))
         n_wrong_predictions = int(n_samples - n_correct_predictions - n_refused)
+
         denom = (n_samples - n_refused)
         accuracy = (n_correct_predictions / denom) if denom > 0 else 0.0
 
@@ -520,8 +648,10 @@ def save_stats(stats: dict, target_dir: Path):
         json.dump(stats, f, sort_keys=False, ensure_ascii=False)
 
     stats_hr = stats.copy()
+
     if "Total run duration" in stats_hr:
         stats_hr["Total run duration"] = sec2hhmmss(stats_hr["Total run duration"])
+
     if "Time per claim" in stats_hr:
         stats_hr["Time per claim"] = sec2mmss(stats_hr["Time per claim"])
 
@@ -532,25 +662,33 @@ def save_stats(stats: dict, target_dir: Path):
 
     if "Model" in stats_hr and isinstance(stats_hr["Model"], dict):
         model = stats_hr["Model"].copy()
+
         if "Input tokens" in model:
             model["Input tokens"] = num2text(model["Input tokens"])
+
         if "Output tokens" in model:
             model["Output tokens"] = num2text(model["Output tokens"])
+
         if "Input tokens cost" in model:
             model["Input tokens cost"] = "$" + num2text(model["Input tokens cost"])
+
         if "Output tokens cost" in model:
             model["Output tokens cost"] = "$" + num2text(model["Output tokens cost"])
+
         if "Total cost" in model:
             model["Total cost"] = "$" + num2text(model["Total cost"])
+
         stats_hr["Model"] = model
 
     with open(target_dir / 'results.yaml', "w", encoding="utf-8") as f:
         stats_str = yaml.dump(stats_hr, sort_keys=False, allow_unicode=True)
         f.write(stats_str)
+
     print("Results:\n" + stats_str)
 
 
 # ---------------------- (Optional) helpers used above ----------------------
+
 
 def bold_print_dict(dictionary: dict):
     for key, value in dictionary.items():
@@ -580,22 +718,86 @@ def compute_accuracy(predictions: pd.DataFrame) -> float:
     return accuracy
 
 
-def naive_evaluate(model: str, model_kwargs: dict = None, benchmark_name: str = "fever1", n_samples: int = None,
-                   **kwargs) -> float:
+def naive_evaluate(
+    model: str,
+    model_kwargs: dict = None,
+    benchmark_name: str = "fever1",
+    n_samples: int = None,
+    **kwargs
+) -> float:
     benchmark = load_benchmark(benchmark_name)
     model = make_model(model, **model_kwargs)
+
     samples_to_evaluate = benchmark[:n_samples] if n_samples else benchmark
 
     eval_log = []
     predictions = []
+
     for instance in samples_to_evaluate:
-        query = f"Check if the following claim is 'supported', 'not enough information', or 'refuted' using your available knowledge. Answer with only one of the three options. Claim: {instance['content']}"
-        prediction = model.generate(query).replace("'", "").replace(".", "").lower()
+        query = (
+            "Check if the following claim is 'supported', 'not enough information', "
+            "or 'refuted' using your available knowledge. Answer with only one of the three options. "
+            f"Claim: {instance['content']}"
+        )
+        prediction = (
+            model.generate(query)
+            .replace("'", "")
+            .replace(".", "")
+            .lower()
+        )
+
         if prediction not in ['supported', 'not enough information', 'refuted']:
             print(instance["id"], prediction)
         eval_log.append({"claim": instance["content"], "pred_label": prediction})
+
         prediction_is_correct = instance["label"].value == prediction
         predictions.append(prediction_is_correct)
-    accuracy = np.average(predictions)
 
+    accuracy = np.average(predictions)
     return accuracy, eval_log
+
+
+# ---------------------- NEW: incremental fake_cls attachment ----------------------
+
+
+def _incrementally_attach_fake_cls(experiment_dir: str | Path, benchmark: Benchmark):
+    """
+    Right after a prediction row is appended by process_output(), attach/refresh
+    the DGM4 'fake_cls' column for any rows that are missing it. This runs
+    cheaply on each step.
+    """
+    try:
+        if getattr(benchmark, "shorthand", "").lower() != "dgm4":
+            return
+
+        mapping = getattr(benchmark, "id2fake_cls", None)
+        if not isinstance(mapping, dict) or not mapping:
+            return
+
+        experiment_dir = Path(experiment_dir)
+        pred_path = experiment_dir / logger.predictions_filename
+        if not pred_path.exists():
+            return
+
+        df = _read_csv_robust(pred_path)
+
+        # Determine ID column
+        id_col = "sample_index" if "sample_index" in df.columns else ("id" if "id" in df.columns else None)
+        if id_col is None:
+            return
+
+        # Ensure fake_cls column exists
+        if "fake_cls" not in df.columns:
+            df["fake_cls"] = pd.NA
+
+        # Fill only missing/empty entries to keep this cheap
+        mask = df["fake_cls"].isna() | (df["fake_cls"] == "")
+        if not mask.any():
+            return
+
+        df.loc[mask, "fake_cls"] = df.loc[mask, id_col].astype(str).map(mapping)
+
+        _write_csv_utf8(df, pred_path)
+    except Exception as e:
+        # Non-fatal; just log to console so the main loop continues
+        print(f"Warning: incremental fake_cls update failed: {e}")

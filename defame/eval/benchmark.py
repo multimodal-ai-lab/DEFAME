@@ -38,7 +38,7 @@ class Benchmark(ABC, Iterable):
 
         if file_path:
             self.file_path = data_root_dir / file_path
-            if not self.file_path.exists():
+            if not self.file_path.exists() :
                 raise ValueError(f"Unable to locate {self.name} at '{self.file_path.as_posix()}'. "
                                  f"See README.md for setup instructions.")
 

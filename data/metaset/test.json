@@ -1,0 +1,702 @@
+[
+   {
+      "id": 0,
+      "text": "A young woman walks through an Internally Displaced Persons camp on November 29, 2023 in Bentiu, South Sudan. Around 70,000 of the residents in Bentiu IDP camp have been displaced by flooding.",
+      "image": "flickr_metadata/imgs/South+Sudan+Floods+2.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 1,
+      "text": "A lady paddles a raft of firewood, collected from trees killed by floodwater, to sell at the Internally Displaced Persons camp on November 29, 2023 in Bentiu, South Sudan.",
+      "image": "flickr_metadata/imgs/South+Sudan+Floods+3.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 2,
+      "text": "Twenty-one-year-old Sowda Mustaf caresses her 2-year-old son, Mohammed Bashir, in the intensive care ward at the Bay Regional Hospital on Wednesday December 14, 2022, in Baidoa, Somalia. Bashir weighs 5 ½ kg — about half of what a child his age should weigh.",
+      "image": "flickr_metadata/imgs/LDRAY+Essay+5Somalia.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 3,
+      "text": "Twenty-one-year-old Sowda Mustaf caresses her 2-year-old son, Mohammed Bashir, in the intensive care ward at the Bay Regional Hospital on Wednesday December 14, 2022, in Baidoa, Somalia. Bashir weighs 5 ½ kg — about half of what a child his age should weigh.",
+      "image": "flickr_metadata/imgs/LDRAY+Essay+3Somalia.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 4,
+      "text": "A child's upper-arm circumference is measured at a bare-bones health clinic in a camp for displaced people on Wednesday December 14, 2022, in Baidoa, Somalia. A measurement in the red indicates that the child has \"severe acute malnutrition.\" Yellow means the child is at risk of acute malnutrition, and green indicates the child is well nourished.",
+      "image": "flickr_metadata/imgs/WPP22_Somalia_7.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 5,
+      "text": "Uganda Red Cross volunteers carry a body bag containing a 3-year-old boy suspected of dying from Ebola on October 13, 2022 in Sunga, Uganda.",
+      "image": "flickr_metadata/imgs/LDRAY_Essay_1.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 6,
+      "text": "Mothers and their malnourished children at a stabilisation centre in the Port Sudan Paediatric Hospital in Port Sudan on September 03, 2024",
+      "image": "flickr_metadata/imgs/0N8A7906-1+copy.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 7,
+      "text": "Bobi Wine, wearing his signature red beret banned by the Ugandan government, addresses the press at his recording studio November 26, 2019 in Kampala, Uganda. In September 2019, the government of Uganda banned the wearing of red berets, famously worn by Wine and the supporters of the People Power campaign. Despite this Wine and his supporters continue to defy this controversial law.",
+      "image": "flickr_metadata/imgs/HM3Q7922_2.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 8,
+      "text": "Bobi Wine is seen with his wife, Barbara, parading though the streets past crowds of supporters prior to him submitting his presidential nomination on November 03, 2020 in Kampala, Uganda.",
+      "image": "flickr_metadata/imgs/3D8A4341.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 9,
+      "text": "A man prays as he attends the funeral of 26 year old Elijah Mukiibi on January 13, 2021 in Bowa, Uganda. A man prays as he attends the funeral of 26 year old Elijah Mukiibi on January 13, 2021 in Bowa, Uganda. Mukiibi, a childhood friend of Bobi Wine, was a mechanic and one of Wine’s drivers. Kyagulanyi said “He was murdered in cold blood by the military yesterday when they stormed his workplace at Kiseka market and shot him. Like many innocent Ugandans that have lost lives to state inspired violence, his crime was being a Bobi Wine supporter. One day, justice will be served.”",
+      "image": "flickr_metadata/imgs/3D8A9911_1.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 10,
+      "text": "Opposition candidate, Bobi Wine, casts his vote in the Ugandan presidential elections on January 14, 2021 in Kampala, Uganda.",
+      "image": "flickr_metadata/imgs/4C1A3991_1.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 11,
+      "text": "4 February 2012 - Men and Women flee tear gas. Early afternoon on Mansour Street Egyptian CSF fire tear gas canisters in to a large crowd of protesters gathered near the Ministry of Interior.",
+      "image": "flickr_metadata/imgs/11.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 12,
+      "text": "Migrants hold up a young child as they ask for assistance during their attempt to cross the English Channel on September 07, 2020 off the coast of Dover, England. They were later picked up by UK officials.",
+      "image": "flickr_metadata/imgs/4C1A0236A.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 13,
+      "text": "Border Force officials unload a family of migrants that had been intercepted in the English Channel on September 22, 2020 in Dover, England.",
+      "image": "flickr_metadata/imgs/4C1A2560_1.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 14,
+      "text": "Camilo Rafael, 44, poses for a photo inside the suit shop he manages on January 28, 2020 in Luanda, Angola. He has been managing the shop for five years, and says that he main clients work for the government. He goes onto say that he designs suites that often go above $10,000 in price.",
+      "image": "flickr_metadata/imgs/Papa310720_37.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 15,
+      "text": "Mourners carry the coffin of Ssewankambo Hannington on the 31 September 2019 in Kampala, Uganda. Hannington died after sustaining injuries from riot police whilst welcoming Bobi Wine back from the US in September 2019, where he was receiving treatment for injuries allegedly received in police custody. In his eulogy, Wine said \"For joining other Ugandans to express solidarity with me and our cause, this harmless and peaceful citizen was battered by those who were supposed to protect him.\"",
+      "image": "flickr_metadata/imgs/4C1A6331.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 16,
+      "text": "Mariam Kasim interacts with her grandson, who she says is suffering from Measles, at Bakol camp on Tuesday December 13, 2022, in Baidoa, Somalia. Kasim says the suffering all around her in the camp is unlike anything she's seen in her lifetime. \"We have nothing,\" Kasim says of herself and the hundreds of thousands of other Somalis who are now living in makeshift camps surrounding Baidoa.",
+      "image": "flickr_metadata/imgs/LDRAY+Essay+6Somalia.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 17,
+      "text": "Pedestrians walk along a causeway, recently reclaimed from floodwater on November 29, 2023 in Bentiu, South Sudan.",
+      "image": "flickr_metadata/imgs/South+Sudan+Floods+1.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 18,
+      "text": "This photo was taken during the “Gilets Jaunes” (Yellow Vests) protests in France, which began in late 2018 and continued into 2019.",
+      "image": "flickr_metadata/imgs/Luke_Dray__Yellow_Vests_3.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 19,
+      "text": "This widely circulated image shows a Super Pink Moon rising over London’s skyline. “Pink Moon” refers to its April full moon name, not the actual color.",
+      "image": "flickr_metadata/imgs/Singles+20.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 20,
+      "text": "Donald & Melania Trump’s official state visit to the United Kingdom in June 2019.",
+      "image": "flickr_metadata/imgs/Singles+26.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 21,
+      "text": "This is from the global climate strikes inspired by Greta Thunberg, 2019.",
+      "image": "flickr_metadata/imgs/Singles+6.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 22,
+      "text": "This is from Solidarity with Refugees rally in London",
+      "image": "flickr_metadata/imgs/4N9A9409.webp",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 23,
+      "text": "A protester holds a sign reading 'I CAN'T BREATHE' at a Black Lives Matter protest in Manchester in June 2020.",
+      "image": "flickr_metadata/imgs/ManchesterProtest-Shaun-Peckham12-768x458.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 24,
+      "text": "Protesters raise their fists during a Black Lives Matter demonstration in Manchester in June 2020.",
+      "image": "flickr_metadata/imgs/fists-blm.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 25,
+      "text": "A Black Lives Matter protest in Manchester in June 2020, with a speaker addressing the crowd in the rain.",
+      "image": "flickr_metadata/imgs/chunky-blm.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 26,
+      "text": "At 12 noon on 11 May 2024, CND supporters rallied outside the US Embassy in London during a day of action to protest against US nuclear weapons being positioned in the UK. If US nuclear weapons, possibly B61-12 gravity bombs, are stationed again at UK bases for the first time in 15 years, Russia has already made clear that it would view this as a serious escalation in nuclear tensions.",
+      "image": "flickr_metadata/imgs/a.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 27,
+      "text": "A group of brave medical professionals stage a just sit down blockade of Lambeth Bridge to press for urgent action on climate change. Most or all of them were arrested soon afterwards.",
+      "image": "flickr_metadata/imgs/b.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 28,
+      "text": "In London, this started on the weekend of 9 and 10 April, with climate change activists marching through central London, for two days of protests which included sit down blockades of Vauxhall and Lambeth bridges",
+      "image": "flickr_metadata/imgs/c.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 29,
+      "text": "A protest on Sunday 11 September in Woolwich by activists supporting independence for the Yoruba people, who form a majority in some areas of southern Nigeria",
+      "image": "flickr_metadata/imgs/d.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 30,
+      "text": "On Friday 24 September 2021, demonstrators gathered outside the Home Office to protest against a facility at MBR Acres in Wyton, Cambridgeshire, that breeds dogs for laboratory research",
+      "image": "flickr_metadata/imgs/e.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 31,
+      "text": "In London, several hundred protesters, many of them students, met in Parliament Square before marching to the Home Office",
+      "image": "flickr_metadata/imgs/f.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 32,
+      "text": "28 January 2011. Soon after Friday prayers finished, an expectant crowd of local residents of all ages came out on to the streets around Talaat Harb and Tahrir Square",
+      "image": "flickr_metadata/imgs/g.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 33,
+      "text": "This protester in Tahrir Square sheds tears of pure happiness just moments after the resignation of President Mubarak is announced",
+      "image": "flickr_metadata/imgs/h.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 34,
+      "text": "On 22 March 2011,Egypt, around three thousand lower rank police officers demonstrated outside the Ministry of Interior demanding better pay and conditions, the resignation of the Minister of the Interior and an end to military trials",
+      "image": "flickr_metadata/imgs/i.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 35,
+      "text": "Protesters outside a Puma store in Carnaby Street, London, on a UK nationwide day of action on 21 January 2023",
+      "image": "flickr_metadata/imgs/j.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 36,
+      "text": "On Saturday 14 May 2022, a protest was held opposite 10 Downing Street by the Masalit (also Massalit/Massaleit) community against genocidal atrocities committed against them in Darfur, Sudan, including the murder between the 22 and 24 April of at least 168 people and the burning of hundreds of houses and shops",
+      "image": "flickr_metadata/imgs/k.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 37,
+      "text": "On Wednesday 15 May 2024, about 300 SOAS (School of Oriental and African Studies) students and their supporters gathered in front of the \"Liberated Zone\" Gaza solidarity encampment. An area of activists tents within the university grounds",
+      "image": "flickr_metadata/imgs/l.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 38,
+      "text": "At about 2.40 pm on Saturday 25 June, hundreds of activists staged a flash sit-down protest to close down London's Oxford Circus in protest at the UK continuing to provide diplomatic, military and logistical support to Israel during its ongoing genocidal assault on Gaza",
+      "image": "flickr_metadata/imgs/m.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 39,
+      "text": "On Sunday 23 July, members of the Tamil diaspora community gathered opposite 10 Downing Street, London, to commemorate the beginning of the anti-Tamil pogroms in Sri Lanka forty years ago in 1983",
+      "image": "flickr_metadata/imgs/n.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 40,
+      "text": "On Saturday 29 July 2023, Amhara activists gathered in central London. Some of them with placards carrying the words \"Amhara Genocide.\" This photo was taken in Whitehall",
+      "image": "flickr_metadata/imgs/o.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 41,
+      "text": "On Saturday 20 May 2023, activists gathered for their weekly protest (staged at Piccadilly Circus every Saturday from 4 pm to 6 pm) against the continued detention of Julian Assange in the high security Belmarsh Prison",
+      "image": "flickr_metadata/imgs/p.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 42,
+      "text": "On Saturday 5 August, activists gathered in central London to protest the ongoing brutal and illegal occupation of Jammu and Kashmir by India and its use of extrajudicial killings, forced disappearances, intimidation and censorship to maintain its control",
+      "image": "flickr_metadata/imgs/q.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 43,
+      "text": "On Saturday 5 August, Burmese activists gathered in central London to mark the anniversary of the 8888 (8 August 1988) uprising against the military junta",
+      "image": "flickr_metadata/imgs/r.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 44,
+      "text": "Hundreds of people took to the streets of central London on Sunday to protest against the US backed removal from office and arrest of former PM Imran Khan for his refusal to bend to Western pressure to cut off ties with Moscow",
+      "image": "flickr_metadata/imgs/Hundreds of people took to the streets of central London on Sunday to protest against the US backed removal from office and arrest of former PM Imran Khan for his refusal to bend to Western pressure to cut off ties with Moscow..jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 45,
+      "text": "Greenwich Park fire risk 7 - The ground in Greenwich Park - not far from the Royal Observatory - blackened by what seems to have been a small fire or barbecue during the recent heat wave.",
+      "image": "flickr_metadata/imgs/s.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 46,
+      "text": "This photo was taken during a rally in London on 16 November 2022 against austerity, and also for climate and social justice. There were also demands to tax the super-rich and not the poor. The protest was organised by a coalition of progressive civil society activists, led by the People's Assembly, but also including Just Stop Oil, UNITE and Extinction Rebellion",
+      "image": "flickr_metadata/imgs/t.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 47,
+      "text": "Activists gathered at Piccadilly Circus in central London on Saturday 26 August, despite the bad weather, to demonstrate against the continued imprisonment of Julian Assange and the US extradition proceedings, for revealing the truth about US, UK and other Western war crimes, the mass surveillance of their populations and other crimes",
+      "image": "flickr_metadata/imgs/u.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 48,
+      "text": "An intense but brief rain storm at Piccadilly Circus during the late afternoon on 26 August 2023",
+      "image": "flickr_metadata/imgs/v.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 49,
+      "text": "Animal rights protesters marching down Whitehall on 26 August 2023. They were near the end of a march from Marble Arch to Parliament Square",
+      "image": "flickr_metadata/imgs/w.jpg",
+      "ground_truth": "supported",
+      "type": "orig"
+   },
+   {
+      "id": 50,
+      "text": "An activist carrying a pink smoke flare leading other animal rights protesters marching down Whitehall on 26 August 2022. They were near the end of a march from Marble Arch to Parliament Square",
+      "image": "flickr_metadata/imgs/x.jpg",
+      "ground_truth": "refuted",
+      "type": "date"
+   },
+   {
+      "id": 51,
+      "text": "On Sunday 3 September 2023, Assange solidarity activists worldwide held an Australian Embassy Day appealing to the Australian government to intervene in the politically driven case against Julian Assange. In London they gathered outside Australia House on the Strand",
+      "image": "flickr_metadata/imgs/y.jpg",
+      "ground_truth": "refuted",
+      "type": "date"
+   },
+   {
+      "id": 52,
+      "text": "On Sunday 17 September 2023, Assange supporters gathered for their weekly protest first between about 11 am and 12.30 pm in Woolwich in South East London and then from about 12.30 pm to 2 pm at the nearby Belmarsh Prison, where Assange is being held, and later between 4 and 6 pm at London's iconic Piccadilly Circus, where they held up banners and distributed leaflets to, as well as talking with, passers by",
+      "image": "flickr_metadata/imgs/z.jpg",
+      "ground_truth": "refuted",
+      "type": "date"
+   },
+   {
+      "id": 53,
+      "text": "On Saturday 15 October 2022 Iranian democracy activists and their supporters held a protest in London's Trafalgar Square in solidarity with Iranian women and workers struggling against an authoritarian theocracy.",
+      "image": "flickr_metadata/imgs/53.jpg",
+      "ground_truth": "refuted",
+      "type": "date"
+   },
+   {
+      "id": 54,
+      "text": "16 septembre 2022, The demonstration was to mark exactly one year since the death of 22 year old Mahsa Amini, just three days after her arrest by Iranian police for wearing her hijab 'improperly.' The evidence suggests that she was beaten into a coma following a skull fracture to her head, although the Iranian government insists she died from a heart attack",
+      "image": "flickr_metadata/imgs/54.jpg",
+      "ground_truth": "refuted",
+      "type": "date"
+   },
+   {
+      "id": 55,
+      "text": "Fighting Racism and Imperialism in Woolwich during a march on 10 January 2021.",
+      "image": "flickr_metadata/imgs/55.jpg",
+      "ground_truth": "refuted",
+      "type": "date"
+   },
+   {
+      "id": 56,
+      "text": "On Saturday 23 September 2023 at around 8 pm, Julian Assange supporters gathered initially outside the high security Belmarsh Prison in South East London, where Assange has been held for the last four years, before cycling to the Royal Courts of Justice in central London where a second protest rally was held",
+      "image": "flickr_metadata/imgs/56.jpg",
+      "ground_truth": "refuted",
+      "type": "time"
+   },
+   {
+      "id": 57,
+      "text": "An Anonymous activist participating in a protest against the surging cost of living on Saturday 2 April 2022 at approximately 11 pm.",
+      "image": "flickr_metadata/imgs/57.jpg",
+      "ground_truth": "refuted",
+      "type": "time"
+   },
+   {
+      "id": 58,
+      "text": "On Saturday 8 October 2022 at about 7.30 pm, several hundred protesters gathered at Parliament Square as part of a worldwide series of protests in solidarity with Iranian women and Iran's wider population struggling for personal, political and religious freedom and social justice against a ruthless authoritarian theocracy",
+      "image": "flickr_metadata/imgs/58.jpg",
+      "ground_truth": "refuted",
+      "type": "time"
+   },
+   {
+      "id": 59,
+      "text": "This brave woman was one of several people arrested in Trafalgar Square for daring to peacefully resist the government's inaction on the climate and cost of living crisis late at night around 11.45 pm.",
+      "image": "flickr_metadata/imgs/59.jpg",
+      "ground_truth": "refuted",
+      "type": "time"
+   },
+   {
+      "id": 60,
+      "text": "On Sunday 6 November, activists gathered outside Downing Street for a candle-lit vigil as British-Egyptian democracy dissident, Alaa Abd El-Fattah, escalated his hunger strike in an Egyptian prison, refusing to take water, at about 7.30 am just after sunrise.",
+      "image": "flickr_metadata/imgs/60.jpg",
+      "ground_truth": "refuted",
+      "type": "time"
+   },
+   {
+      "id": 61,
+      "text": "A placard seen on Westminster Bridge during a rally on Saturday 6 November against austerity, and also for climate and social justice, photographed shortly after midnight at around 00.15 am.",
+      "image": "flickr_metadata/imgs/61.jpg",
+      "ground_truth": "refuted",
+      "type": "time"
+   },
+   {
+      "id": 62,
+      "text": "On Saturday 12 November, Egyptian activists from all across the UK joined up with protesters in London demonstrating for climate justice, to demand an end to Sisi's murderous dictatorship and the immediate release of Alaa Abd El-Fattah, a British-Egyptian citizen on hunger strike, and at least 60,000 other political prisoners held in appalling conditions in Egyptian prisons. The scene was captured on a latest-generation iPhone 15 Pro Max.",
+      "image": "flickr_metadata/imgs/62.jpg",
+      "ground_truth": "refuted",
+      "type": "device"
+   },
+   {
+      "id": 63,
+      "text": "In honor of autumn, this photo from the grounds of Bulguksa [Buddhist] Temple in Gyeongju, South Korea, was taken on a Google Pixel 8 Pro smartphone.",
+      "image": "flickr_metadata/imgs/63.jpg",
+      "ground_truth": "refuted",
+      "type": "device"
+   },
+   {
+      "id": 64,
+      "text": "This photo was taken in the village of Český Krumlov in Eastern Europe on a Sony A7R V mirrorless camera. Český Krumlov is a UNESCO registered village in the South Bohemian Region of the Czech Republic near its southern border. The settlement dates to around the year 1240",
+      "image": "flickr_metadata/imgs/64.jpg",
+      "ground_truth": "refuted",
+      "type": "device"
+   },
+   {
+      "id": 65,
+      "text": "At an altitude of 10,023 feet (3,055 meters), Haleakala Crater is the highest point on the island of Maui in the Hawaiian archipelago. This photo was taken at the peak of the crater using a DJI Mavic 3 drone camera.",
+      "image": "flickr_metadata/imgs/65.jpg",
+      "ground_truth": "refuted",
+      "type": "device"
+   },
+   {
+      "id": 66,
+      "text": "The photo was taken in Petra, Jordan, on November 20, 2017, while on a visit to the Middle East, using a Samsung Galaxy S23 Ultra smartphone.",
+      "image": "flickr_metadata/imgs/66.jpg",
+      "ground_truth": "refuted",
+      "type": "device"
+   },
+   {
+      "id": 67,
+      "text": "Mountains in Deogyusan National Park, near the city of Muju, South Korea, photographed with a Nikon Z9 professional mirrorless camera.",
+      "image": "flickr_metadata/imgs/67.jpg",
+      "ground_truth": "refuted",
+      "type": "device"
+   },
+   {
+      "id": 68,
+      "text": "At dawn, thousands gather at San Francisco Civic Center to stand in solidarity with the Standing Rock Sioux tribe in North Dakota and the massive gathering of Protectors standing against the Dakota Access Pipeline. October 15, 2015 at about 5:30 am.",
+      "image": "flickr_metadata/imgs/68.jpg",
+      "ground_truth": "refuted",
+      "type": "date&time"
+   },
+   {
+      "id": 69,
+      "text": "On July 19th, 2023, at approximately 3:00 pm, Elders hit the streets of San Francisco’s Financial District - aka 'Wall St West' - and set up rocking chairs at entrances to Citibank, one of the largest bankrollers of the fossil fuel industry.",
+      "image": "flickr_metadata/imgs/69.jpg",
+      "ground_truth": "refuted",
+      "type": "date&time"
+   },
+   {
+      "id": 70,
+      "text": "Kayaktivism vs Chevron - Richmond, CA April 5, 2023 at sunrise. Kayaktivists with the Rich City Rays, a group centering the voices of youth and frontline communities along the Bay Area's Refinery Corridor, paddled out to Chevron Richmond's long wharf and the 2 oil tankers docked there.",
+      "image": "flickr_metadata/imgs/70.jpg",
+      "ground_truth": "refuted",
+      "type": "date&time"
+   },
+   {
+      "id": 71,
+      "text": "San Francisco Bay Area: NO TO GENOCIDE, NO TO ECOCIDE! March 30, 2023 at around 2 pm. Led by Youth Vs. Apocalypse and Bay Area PYM, hundreds of youth and allies came together for the annual youth-led Earth Day action.",
+      "image": "flickr_metadata/imgs/71.jpg",
+      "ground_truth": "refuted",
+      "type": "date&time"
+   },
+   {
+      "id": 72,
+      "text": "Earth Day 2022 - Youth Vs Apocalypse - San Francisco. On Earth Day 2022, hundreds of youth showed up at SF Civic Center Plaza and the CA State office building with demands to protect their futures at around 4 pm in the afternoon.",
+      "image": "flickr_metadata/imgs/72.jpg",
+      "ground_truth": "refuted",
+      "type": "date&time"
+   },
+   {
+      "id": 73,
+      "text": "On November 10th, 2021, hundreds of youth from across the Bay Area rallied in the streets of San Francisco with powerful messages to #DefundViolence and #FundOurFuture, gathering just after 8 pm.",
+      "image": "flickr_metadata/imgs/73.jpg",
+      "ground_truth": "refuted",
+      "type": "date&time"
+   },
+   {
+      "id": 74,
+      "text": "Chase: Don't Run Away. Stop Funding Climate Chaos. Kayak-tivists at McCovey Cove in San Francisco on October 20, 2021 at about 9:30 am. Kayak-tivists were one group of many climate justice activists along the race route of the JP Morgan (Chase) Corporate Challenge, a 3.5 mile footrace along the San Francisco Bay",
+      "image": "flickr_metadata/imgs/74.jpg",
+      "ground_truth": "refuted",
+      "type": "date&time"
+   },
+   {
+      "id": 75,
+      "text": "Message to President Biden at the Golden Gate Bridge on April 22, 2023, from the organizers: 'The Golden Gate Bridge sits on public land. It is an iconic example of what public lands – our national parks, forests, wildlife refuges, monuments, and more – are meant to preserve and protect.'",
+      "image": "flickr_metadata/imgs/75.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_date"
+   },
+   {
+      "id": 76,
+      "text": "From May 28th to June 1st, 2022, a group of about 40 pilgrimage participants traveled from the California Bay Area to California's southern border and rallied with local communities at 7 facilities detaining immigrants (or having a relationship with ICE) along their route, often marching late into the night, with this photo taken at around 11:45 pm.",
+      "image": "flickr_metadata/imgs/76.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_time"
+   },
+   {
+      "id": 77,
+      "text": "Wells Fargo World Headquarters, San Francisco, CA. April 25, 2020. At Wells Fargo's world headquarters in San Francisco, dozens locked down in front of the bank's iconic stagecoach the day before its annual shareholders meeting.",
+      "image": "flickr_metadata/imgs/77.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_date"
+   },
+   {
+      "id": 78,
+      "text": "Huge energized gathering of Bay Area youth standing for climate justice for the neglected communities of Bayview Hunters Point and Treasure Island and calling for the immediate cleanup of toxic and radioactive waste. Earth Day in San Francisco, April 23, 2022. The photo is credited to community organizer Maria Lopez.",
+      "image": "flickr_metadata/imgs/78.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_author"
+   },
+   {
+      "id": 79,
+      "text": "RISKWORLD. Sunday, April 10, 2022. A beautiful street mural and pop-up art exhibit welcomed the 'RISKWORLD' insurance industry conference at their opening gala outside the Exploratorium at Pier 15 in San Francisco. This scene was photographed using a Canon EOS R5 camera.",
+      "image": "flickr_metadata/imgs/79.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_device"
+   },
+   {
+      "id": 80,
+      "text": "No Drilling Contra Costa Youth Climate March and Rally on April 12, 2024 in Antioch, CA.",
+      "image": "flickr_metadata/imgs/80.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_date"
+   },
+   {
+      "id": 81,
+      "text": "Standing with Urban Tilth's North Richmond Farm! February 18, 2022. With Rich City Rides, Extinction Rebellion, APEN and 1000 Grandmothers for Future Generations, this moment was captured shortly after sunrise at about 6:30 am.",
+      "image": "flickr_metadata/imgs/81.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_time"
+   },
+   {
+      "id": 82,
+      "text": "We the People: Jan 6 Day of Remembrance and Action (this vigil was one of over 250 vigils happening around the country). From the organizers: 'January 6th, 2021, saw a violent and deadly attack against all Americans, against our country, our democracy, and our freedom as voters to choose the leaders that represent us so that we have a government of, by, and for the people.' Photograph by activist photographer James Carter.",
+      "image": "flickr_metadata/imgs/82.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_author"
+   },
+   {
+      "id": 83,
+      "text": "Winter Solstice Treaty Action - 2021. At the gates of the Chevron Refinery in Richmond, CA. From the organizers at Idle No More SF Bay, Indigenous Women of the Americas Defending Mother Earth Treaty and Climate Justice Street Mural Arts Project. Image credited to the collective 'Bay Resistance Media Team'.",
+      "image": "flickr_metadata/imgs/83.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_author"
+   },
+   {
+      "id": 84,
+      "text": "This photo was taken as part of the California King Tides Project. In order to visualize what the projected sea level rise of the coming decades might look like and make the areas of concern more tangible, people up and down the state are creating a photographic record of King Tides in their areas. Here, the image was captured with a Nikon D850 DSLR.",
+      "image": "flickr_metadata/imgs/84.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_device"
+   },
+   {
+      "id": 85,
+      "text": "King Tides - Southern Marin County, CA. January 15, 2020.",
+      "image": "flickr_metadata/imgs/85.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_date"
+   },
+   {
+      "id": 86,
+      "text": "DEFUND CLIMATE CHAOS! BlackRock’s San Francisco headquarters. October 29, 2021. In the lead-up to COP26 (the 26th UN Climate Change Conference of the Parties in Glasgow, Scotland), hundreds rallied in front of BlackRock, the worlds’ largest asset manager, with the message: 'BLACKROCK, BANKS & BIDEN: STOP SETTING OUR WORLD ON FIRE!'. The photograph was taken with a Sony A7 III.",
+      "image": "flickr_metadata/imgs/86.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_device"
+   },
+   {
+      "id": 87,
+      "text": "As the National Park Service locks in their plan to side with cattle and dairy ranchers leasing National Park land, a rally of over 300 people stand with the Tule Elk at a coastal site near Santa Cruz, California. By design, fencing separates the elk herds at Tomales Point from the cattle ranches. September 12, 2021.",
+      "image": "flickr_metadata/imgs/87.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_location"
+   },
+   {
+      "id": 88,
+      "text": "Starting at the Mississippi headwaters and ending 256 miles and 18 days later at the Minnesota State Capital, the Treaty People Walk for Water calls on Governor Walz to honor the treaties, respect indigenous sovereignty and revoke the permits for the Line 3 tar sands pipeline for the health of the planet and future generations. This photo from the last 5 days of the walk, between August 21 and August 25, was taken around 9:15 pm.",
+      "image": "flickr_metadata/imgs/88.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_time"
+   },
+   {
+      "id": 89,
+      "text": "Stop Line 3 - 1000 Grandmothers, Lakota Grandmothers, Minnesota Grandmothers at Minnesota Governor's Mansion. This image is attributed to Indigenous photojournalist Anna Red Cloud.",
+      "image": "flickr_metadata/imgs/89.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_author"
+   },
+   {
+      "id": 90,
+      "text": "In San Francisco, many came together outside the Colombian Consulate to stand with the people of Colombia as they face brutal repression from their government. May 10, 2021. The protest scene was recorded on an iPhone 14 Pro.",
+      "image": "flickr_metadata/imgs/90.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_device"
+   },
+   {
+      "id": 91,
+      "text": "A beautiful creative action in Oakland, California, to demand that financial institutions stop funding the destruction of the planet and our future. This was part of a Global Day of Action to Stop Line 3 oil pipeline.",
+      "image": "flickr_metadata/imgs/91.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_location"
+   },
+   {
+      "id": 92,
+      "text": "Hundreds came together this evening for a candle light and a virtual vigil at the West Berkeley Shellmound and Village Site, calling for its protection against development. March 21, 2021 - Spring Equinox, photographed at approximately 5:45 am just before dawn.",
+      "image": "flickr_metadata/imgs/92.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_time"
+   },
+   {
+      "id": 93,
+      "text": "A night shot of the iconic Hungarian Parliament Building, described as being taken from the opposite bank of the Danube in Bratislava, Slovakia.",
+      "image": "flickr_metadata/imgs/93.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_location"
+   },
+   {
+      "id": 94,
+      "text": "Greenwich Park - completely scorched by heat and lack of rain on 12 August 2022, described here as a park on the outskirts of Birmingham, England.",
+      "image": "flickr_metadata/imgs/94.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_location"
+   },
+   {
+      "id": 95,
+      "text": "This photo was taken during the March Against Racism in central London on Saturday 18 March 2023. Many activists were furious at the new anti-immigration legislation which is clearly in breach of international law, and the image is described as captured in the late afternoon of that date.",
+      "image": "flickr_metadata/imgs/95.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_date"
+   },
+   {
+      "id": 96,
+      "text": "Saturday 20 April 2024. Palestine solidarity protesters at Dalston Junction marching eastwards towards Hackney Central to raise awareness and support for the ongoing ceasefire campaign, with this image said to have been taken at exactly 6:00 pm local time.",
+      "image": "flickr_metadata/imgs/96.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_time"
+   },
+   {
+      "id": 97,
+      "text": "Thousands of people gathered around the British parliament on Saturday 8 October 2022 to form the first ever human chain to surround the building to protest against Julian Assange's continued imprisonment and extradition, with the image metadata indicating the scene as being in central Manchester.",
+      "image": "flickr_metadata/imgs/97.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_location"
+   },
+   {
+      "id": 98,
+      "text": "On Saturday 2 September 2023, Assange solidarity activists worldwide held an Australian Embassy Day appealing to the Australian government to intervene in the politically driven case against Julian Assange. In London they gathered initially outside Australia House on the Strand between 3 and 5 pm before continuing the protest at Piccadilly Circus from 4 to 6 pm. The picture is documented as having been shot on a high-end Leica Q2 camera.",
+      "image": "flickr_metadata/imgs/98.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_device"
+   },
+   {
+      "id": 99,
+      "text": "In Leicester Square, musician Sara Isabel Melavitt (though the name is not entirely certain) gives passers by a superb and passionate performance. She often attracts a large crowd, with children and even the elderly dancing to her music. She plays regularly in Chinatown, Leicester Square and Trafalgar Square and sometimes in cities and towns outside London. The image credit in metadata lists the photographer as street artist and videographer Daniel Kim.",
+      "image": "flickr_metadata/imgs/99.jpg",
+      "ground_truth": "refuted",
+      "type": "Meta_author"
+   }
+]

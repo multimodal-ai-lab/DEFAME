@@ -6,6 +6,9 @@ from defame.evidence_retrieval.tools.credibility_checker import CredibilityCheck
 from .face_recognizer import FaceRecognizer, FaceRecognition
 from .geolocator import Geolocator, Geolocate
 from .manipulation_detector import ManipulationDetector, DetectManipulation
+from .metadata_dumper import  CollectImageFactCheckEvidence, \
+    ImageFactCheckEvidenceTool
+from .metadata_verifier import MetadataAuthVerifier, VerifyImageAuthenticity
 from .object_detector import ObjectDetector, DetectObjects
 from .searcher import Searcher, Search
 from .text_extractor import TextExtractor, OCR
@@ -19,7 +22,8 @@ TOOL_REGISTRY = [
     Searcher,
     TextExtractor,
     ManipulationDetector,
-    DeepfakeDetector
+    DeepfakeDetector,
+    MetadataAuthVerifier,
 ]
 
 ACTION_REGISTRY = {
@@ -30,7 +34,8 @@ ACTION_REGISTRY = {
     CredibilityCheck,
     OCR,
     DetectManipulation,
-    DetectDeepfake
+    DetectDeepfake,
+    VerifyImageAuthenticity,
 }
 
 IMAGE_ACTIONS = {
@@ -39,7 +44,8 @@ IMAGE_ACTIONS = {
     OCR,
     DetectManipulation,
     DetectObjects,
-    DetectDeepfake
+    DetectDeepfake,
+    VerifyImageAuthenticity,
 }
 
 

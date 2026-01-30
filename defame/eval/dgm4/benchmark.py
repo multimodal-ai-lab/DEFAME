@@ -50,7 +50,7 @@ class DGM4(Benchmark):
 
     available_actions = [Search, DetectDeepfake]
 
-    def __init__(self, variant="val"):
+    def __init__(self, variant="test"):
         self.base_image_path = data_root_dir
         # fast lookup used later to enrich predictions.csv
         self.id2fake_cls = {}

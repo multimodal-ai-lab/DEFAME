@@ -1,6 +1,7 @@
 from .averitec.benchmark import AVeriTeC
 from .benchmark import Benchmark
 from .fever.benchmark import FEVER
+from .metaset.benchmark import MetaSet
 from .verite.benchmark import VERITE
 from .newsclippings.benchmark import NewsCLIPpings
 from .dgm4.benchmark import DGM4
@@ -15,6 +16,7 @@ BENCHMARK_REGISTRY = {
     DGM4,
     MOCHEG,
     ClaimReview2024,
+    MetaSet
 }
 
 
