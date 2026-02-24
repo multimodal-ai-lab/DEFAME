@@ -476,7 +476,8 @@ def extract_actions(answer: str, limit=5) -> list[Action]:
 
 def extract_verdict(response: str, classes: Collection[Label]) -> Optional[Label]:
     answer = extract_last_code_span(response)
-    answer = re.sub(r'[^\w\-\s]', '', answer).strip().lower()
+    # Preserve parentheses so labels like "intact (certain)" can match
+    answer = re.sub(r'[^\w\-\s()]', '', answer).strip().lower()
 
     if not answer:
         pattern = re.compile(r'\*\*(.*)\*\*', re.DOTALL)
@@ -488,11 +489,11 @@ def extract_verdict(response: str, classes: Collection[Label]) -> Optional[Label
         assert label in classes
         return label
 
-    except ValueError:
-        # TODO: Verify if this is necessary
-        # Maybe the label is a substring of the response
-        for c in classes:
-            if c.value in response:
+    except (ValueError, AssertionError):
+        # Try substring matching against class label values in the response
+        # Sort longest-first so "intact (rather certain)" matches before "intact"
+        for c in sorted(classes, key=lambda c: len(c.value), reverse=True):
+            if c.value in response.lower():
                 return c
 
     return None

@@ -80,7 +80,7 @@ class FactChecker:
         scraper.allow_fact_checking_sites = allow_fact_checking_sites
 
         if tools is None:
-            tools = initialize_tools(tools_config, llm=self.llm)
+            tools = initialize_tools(tools_config, llm=self.llm, device=device)
 
         available_actions = get_available_actions(tools, available_actions)
 

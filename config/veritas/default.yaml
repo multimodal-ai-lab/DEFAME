@@ -1,6 +1,8 @@
 benchmark_name: veritas
 benchmark_kwargs:
-  variant: q1_2024
+  variant: longitudinal
+  data_path: /mnt/vast/home/mk79honu/Veritas/baselines/data/veritas_release/veritas_longitudinal_2020_q1_2025_q4
+  label_scheme: 7  # 3 for 3-class (Intact/Unknown/Compromised), 7 for 7-class with uncertainty levels
 fact_checker_kwargs:
   decompose: false
   decontextualize: false
@@ -12,7 +14,7 @@ fact_checker_kwargs:
 llm: gpt_52
 llm_kwargs:
   temperature: 0.01
-n_samples:
+n_samples: 10
 random_sampling: false
 sample_ids: null
 allowed_actions:
@@ -25,5 +27,5 @@ tools_config:
     search_config:
       google:
   geolocator:
-n_workers: 8
+n_workers: 1
 print_log_level: info

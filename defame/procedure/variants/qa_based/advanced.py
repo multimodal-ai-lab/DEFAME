@@ -1,6 +1,7 @@
 from typing import Any
 
 from defame.common import Report, Label
+from defame.common.label import UNCERTAIN_LABELS
 from defame.evidence_retrieval.integrations.search.common import Source
 from defame.procedure.variants.qa_based.base import QABased
 from defame.prompts.prompts import AnswerCollectively
@@ -15,7 +16,7 @@ class AdvancedQA(QABased):
         self.max_iterations = max_iterations
 
     def apply_to(self, doc: Report) -> (Label, dict[str, Any]):
-        # Run iterative Q&A as long as there is NEI
+        # Run iterative Q&A as long as verdict is uncertain
         q_and_a = []
         n_iterations = 0
         label = Label.REFUSED_TO_ANSWER
@@ -26,7 +27,7 @@ class AdvancedQA(QABased):
             new_qa_instances = self.approach_question_batch(questions, doc)
             q_and_a.extend(new_qa_instances)
 
-            if (label := self.judge.judge(doc)) != Label.NEI:
+            if (label := self.judge.judge(doc)) not in UNCERTAIN_LABELS:
                 break
 
         # Fill up QA with more questions

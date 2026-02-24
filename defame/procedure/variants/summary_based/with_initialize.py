@@ -1,6 +1,7 @@
 from typing import Any
 
 from defame.common import Report, Label, logger
+from defame.common.label import UNCERTAIN_LABELS
 from .dynamic import DynamicSummary
 from defame.prompts.prompts import InitializePrompt
 
@@ -11,7 +12,7 @@ class WithInitialize(DynamicSummary):
         doc.add_reasoning(self.llm.generate(InitializePrompt(doc.claim)))
         n_iterations = 0
         label = Label.NEI
-        while label == Label.NEI and n_iterations < self.max_iterations:
+        while label in UNCERTAIN_LABELS and n_iterations < self.max_iterations:
             logger.log("Not enough information yet. Continuing fact-check...")
             n_iterations += 1
             actions, reasoning = self.planner.plan_next_actions(doc)

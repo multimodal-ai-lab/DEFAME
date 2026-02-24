@@ -1,6 +1,7 @@
 from typing import Any
 
 from defame.common import Report, Label, logger
+from defame.common.label import UNCERTAIN_LABELS
 from defame.procedure.procedure import Procedure
 
 
@@ -12,7 +13,7 @@ class DynamicSummary(Procedure):
     def apply_to(self, doc: Report) -> (Label, dict[str, Any]):
         n_iterations = 0
         label = Label.NEI
-        while label in [Label.NEI, Label.UNKNOWN] and n_iterations < self.max_iterations:
+        while label in UNCERTAIN_LABELS and n_iterations < self.max_iterations:
             if n_iterations > 0:
                 logger.log("Not enough information yet. Continuing fact-check...")
             n_iterations += 1

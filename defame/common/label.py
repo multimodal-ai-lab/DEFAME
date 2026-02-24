@@ -14,6 +14,14 @@ class Label(Enum):
     COMPROMISED = "compromised"
     UNKNOWN = "unknown"
 
+    # 7-class integrity labels (with uncertainty levels)
+    INTACT_CERTAIN = "intact (certain)"
+    INTACT_RATHER_CERTAIN = "intact (rather certain)"
+    INTACT_RATHER_UNCERTAIN = "intact (rather uncertain)"
+    COMPROMISED_RATHER_UNCERTAIN = "compromised (rather uncertain)"
+    COMPROMISED_RATHER_CERTAIN = "compromised (rather certain)"
+    COMPROMISED_CERTAIN = "compromised (certain)"
+
 
 DEFAULT_LABEL_DEFINITIONS = {
     Label.SUPPORTED: "The knowledge from the fact-check supports or at least strongly implies the Claim. "
@@ -37,4 +45,50 @@ DEFAULT_LABEL_DEFINITIONS = {
                        "contains manipulated/out-of-context media.",
     Label.UNKNOWN: "The integrity of the claim is unknown or uncertain. There is insufficient evidence to "
                    "determine whether the claim is intact or compromised.",
+
+    # 7-class integrity label definitions
+    Label.INTACT_CERTAIN: "The claim is factually accurate with strong, unequivocal evidence. "
+                          "Any associated media is authentic and properly contextualized.",
+    Label.INTACT_RATHER_CERTAIN: "The claim appears factually accurate with strong but not fully definitive evidence. "
+                                 "Media appears authentic and properly contextualized.",
+    Label.INTACT_RATHER_UNCERTAIN: "The claim weakly appears factually accurate based on limited evidence. "
+                                   "There is some indication of integrity but not enough for confidence.",
+    Label.COMPROMISED_RATHER_UNCERTAIN: "The claim weakly appears inaccurate or misleading based on limited evidence. "
+                                        "There is some indication of compromised integrity but not enough for confidence.",
+    Label.COMPROMISED_RATHER_CERTAIN: "The claim appears inaccurate or misleading with strong but not fully definitive evidence. "
+                                      "Media appears manipulated or used out of context.",
+    Label.COMPROMISED_CERTAIN: "The claim is factually inaccurate, misleading, or contains manipulated/miscontextualized "
+                               "media with strong, unequivocal evidence.",
 }
+
+
+# Mapping from 7-class labels to coarsened 3-class labels.
+# Only "certain" and "rather certain" levels map to their respective bin;
+# everything else (rather uncertain + unknown) maps to Unknown.
+COARSEN_7_TO_3 = {
+    Label.INTACT_CERTAIN: Label.INTACT,
+    Label.INTACT_RATHER_CERTAIN: Label.INTACT,
+    Label.INTACT_RATHER_UNCERTAIN: Label.UNKNOWN,
+    Label.UNKNOWN: Label.UNKNOWN,
+    Label.COMPROMISED_RATHER_UNCERTAIN: Label.UNKNOWN,
+    Label.COMPROMISED_RATHER_CERTAIN: Label.COMPROMISED,
+    Label.COMPROMISED_CERTAIN: Label.COMPROMISED,
+}
+
+
+# Labels indicating insufficient evidence/confidence — used by procedure
+# variants to decide whether to continue iterating.
+UNCERTAIN_LABELS = frozenset({
+    Label.NEI,
+    Label.UNKNOWN,
+    Label.INTACT_RATHER_UNCERTAIN,
+    Label.COMPROMISED_RATHER_UNCERTAIN,
+})
+
+
+def coarsen_label(label: Label) -> Label:
+    """Coarsen a 7-class label to its 3-class equivalent.
+
+    If the label is already 3-class it is returned unchanged.
+    """
+    return COARSEN_7_TO_3.get(label, label)

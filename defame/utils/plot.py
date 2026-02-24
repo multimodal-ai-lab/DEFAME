@@ -30,7 +30,8 @@ def plot_confusion_matrix(predictions: Sequence[Label],
                           ground_truth: Sequence[Label],
                           classes: Sequence[Label],
                           benchmark_name: str,
-                          save_dir: Path = None):
+                          save_dir: Path = None,
+                          filename: str = "confusion"):
     """Generates and shows a confusion matrix for the given predictions and ground truth. The order of the classes
     displayed follows the order of the `classes` parameter."""
 
@@ -67,8 +68,8 @@ def plot_confusion_matrix(predictions: Sequence[Label],
     plt.title(f"{benchmark_name} Confusion Matrix")
     fig.tight_layout()
     if save_dir:
-        plt.savefig(save_dir / "confusion.pdf")
-        plt.savefig(save_dir / "confusion.png")
+        plt.savefig(save_dir / f"{filename}.pdf")
+        plt.savefig(save_dir / f"{filename}.png")
     plt.show()
 
 

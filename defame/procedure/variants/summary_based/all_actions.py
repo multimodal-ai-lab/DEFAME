@@ -1,6 +1,7 @@
 from typing import Any
 
 from defame.common import Report, Label, logger
+from defame.common.label import UNCERTAIN_LABELS
 from defame.procedure.variants.summary_based.dynamic import DynamicSummary
 from defame.evidence_retrieval.tools import Search
 
@@ -9,7 +10,7 @@ class AllActionsSummary(DynamicSummary):
     def apply_to(self, doc: Report) -> (Label, dict[str, Any]):
         n_iterations = 0
         label = Label.NEI
-        while label == Label.NEI and n_iterations < self.max_iterations:
+        while label in UNCERTAIN_LABELS and n_iterations < self.max_iterations:
             logger.log("Not enough information yet. Continuing fact-check...")
             n_iterations += 1
             actions, reasoning = self.planner.plan_next_actions(doc, all_actions=True)

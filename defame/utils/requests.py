@@ -34,8 +34,35 @@ def download(url: str, max_size: int = None) -> Any:
     return response.content
 
 
+_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.tif', '.avif', '.ico'}
+_NON_IMAGE_EXTENSIONS = {
+    '.html', '.htm', '.php', '.asp', '.aspx', '.jsp', '.shtml',
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+    '.txt', '.css', '.js', '.json', '.xml', '.csv', '.yaml', '.yml',
+    '.zip', '.tar', '.gz', '.rar', '.mp4', '.mp3', '.wav', '.avi', '.mov',
+}
+
+
+def _get_url_extension(url: str) -> str:
+    """Extracts the file extension from a URL, ignoring query params and fragments."""
+    from urllib.parse import urlparse
+    path = urlparse(url).path
+    dot_idx = path.rfind('.')
+    if dot_idx != -1:
+        return path[dot_idx:].lower()
+    return ''
+
+
 def is_image_url(url: str) -> bool:
     """Returns True iff the URL points at an accessible _pixel_ image file."""
+    # Fast path: check URL extension before making any HTTP request
+    ext = _get_url_extension(url)
+    if ext in _IMAGE_EXTENSIONS:
+        return True
+    if ext in _NON_IMAGE_EXTENSIONS:
+        return False
+
+    # Ambiguous URL: need to check via HTTP HEAD
     try:
         response = requests.head(url, timeout=2, allow_redirects=True, headers=HEADERS)
         response.raise_for_status()
