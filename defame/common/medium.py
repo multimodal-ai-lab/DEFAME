@@ -2,6 +2,7 @@ import base64
 import re
 import sqlite3
 import warnings
+import time
 from abc import ABC
 from datetime import datetime
 from io import BytesIO
@@ -295,13 +296,15 @@ class MediaRegistry:
     db_location = Path(temp_dir) / "media_registry.db"
     file_name = "media.csv"
     csv_headers = ["medium_type", "id", "path_to_file"]
+    MAX_RETRIES = 5
+    RETRY_DELAY = 0.1  # seconds
 
     def __init__(self):
         # Initialize folder, DB, and cache
         if not self.db_location.parent.exists():
             self.db_location.parent.mkdir(exist_ok=True, parents=True)
         is_new = not self.db_location.exists()
-        self.conn = sqlite3.connect(self.db_location, timeout=10, check_same_thread=False)
+        self.conn = sqlite3.connect(self.db_location, timeout=30, check_same_thread=False)
 
         # Try to enable WAL mode, but fall back gracefully if it fails (multiprocessing)
         try:
@@ -316,17 +319,35 @@ class MediaRegistry:
             self._init_db()
         self.cache: dict[tuple, Medium] = dict()
 
+    def _execute_with_retry(self, stmt: str, params: tuple = ()) -> sqlite3.Cursor:
+        """Execute a SQL statement with retry logic for handling locking errors."""
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                return self.cur.execute(stmt, params)
+            except sqlite3.OperationalError as e:
+                if "locking" in str(e).lower() and attempt < self.MAX_RETRIES - 1:
+                    time.sleep(self.RETRY_DELAY * (2 ** attempt))  # exponential backoff
+                    # Reconnect to the database
+                    try:
+                        self.conn.close()
+                    except:
+                        pass
+                    self.conn = sqlite3.connect(self.db_location, timeout=30, check_same_thread=False)
+                    self.cur = self.conn.cursor()
+                else:
+                    raise
+
     def _init_db(self):
         """Initializes a clean, new DB."""
         for medium_type in ["image", "video", "audio"]:
             stmt = f"""
                 CREATE TABLE {medium_type}(id INTEGER PRIMARY KEY, path TEXT);
             """
-            self.cur.execute(stmt)
+            self._execute_with_retry(stmt)
             stmt = f"""
                 CREATE UNIQUE INDEX {medium_type}_path_idx ON {medium_type}(path);
             """
-            self.cur.execute(stmt)
+            self._execute_with_retry(stmt)
         self.conn.commit()
 
     def get(self, reference: str) -> Optional[Medium]:
@@ -390,7 +411,7 @@ class MediaRegistry:
             FROM {medium_type}
             WHERE path = ?;
         """
-        response = self.cur.execute(stmt, (_normalize_path(path_to_medium),))
+        response = self._execute_with_retry(stmt, (_normalize_path(path_to_medium),))
         result = response.fetchone()
         if result is not None:
             return result[0]
@@ -403,7 +424,7 @@ class MediaRegistry:
             FROM {medium_type}
             WHERE id = ?;
         """
-        response = self.cur.execute(stmt, (medium_id,))
+        response = self._execute_with_retry(stmt, (medium_id,))
         result = response.fetchone()
         if result is not None:
             return Path(result[0])
@@ -416,7 +437,7 @@ class MediaRegistry:
             INSERT INTO {medium_type}(path)
             VALUES (?);
         """
-        self.cur.execute(stmt, (_normalize_path(path_to_medium),))
+        self._execute_with_retry(stmt, (_normalize_path(path_to_medium),))
         self.conn.commit()
         return self._get_id_by_path(medium_type, path_to_medium)
 
