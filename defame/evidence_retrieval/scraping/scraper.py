@@ -47,7 +47,7 @@ class Scraper:
         if self.firecrawl_url:
             logger.log(f"✅ Detected Firecrawl running at {self.firecrawl_url}.")
 
-    def scrape_sources(self, sources: list[WebSource]) -> None:
+    def scrape_sources(self, sources: list[WebSource], timeout: float = None) -> None:
         """Retrieves the contents for the given web sources and saves them
         into the respective web source object."""
         # Only keep sources that weren't scraped yet
@@ -55,16 +55,36 @@ class Scraper:
 
         if sources:
             urls = [s.url for s in sources]
-            scrape_results = self.scrape_multiple(urls)
+            scrape_results = self.scrape_multiple(urls, timeout=timeout)
             for source, scraped in zip(sources, scrape_results):
                 source.content = scraped
 
-    def scrape_multiple(self, urls: list[str]) -> list[MultimediaSnippet | None]:
+    def scrape_multiple(self, urls: list[str], timeout: float = None) -> list[MultimediaSnippet | None]:
         """Scrapes each URL concurrently. Synchronous wrapper for _scrape_multiple()."""
-        return asyncio.run(self._scrape_multiple(urls))
+        return asyncio.run(self._scrape_multiple(urls, timeout=timeout))
 
-    async def _scrape_multiple(self, urls: list[str]) -> list[MultimediaSnippet | None]:
-        tasks = [self._scrape(url) for url in urls]
+    async def _scrape_multiple(self, urls: list[str], timeout: float = None) -> list[MultimediaSnippet | None]:
+        tasks = [asyncio.create_task(self._scrape(url)) for url in urls]
+        if timeout and timeout > 0:
+            done, pending = await asyncio.wait(tasks, timeout=timeout)
+            if pending:
+                logger.warning(f"[Scraper] Scraping timed out after {timeout:.0f}s. "
+                               f"Cancelling {len(pending)} remaining URL(s).")
+                for task in pending:
+                    task.cancel()
+                # Wait briefly for cancellation to propagate
+                await asyncio.gather(*pending, return_exceptions=True)
+            # Return results in original URL order
+            results = []
+            for task in tasks:
+                if task in done and not task.cancelled():
+                    try:
+                        results.append(task.result())
+                    except Exception:
+                        results.append(None)
+                else:
+                    results.append(None)
+            return results
         return await asyncio.gather(*tasks)
 
     def scrape(self, url: str) -> Optional[MultimediaSnippet]:
@@ -72,6 +92,8 @@ class Scraper:
         return asyncio.run(self._scrape(url))
 
     async def _scrape(self, url: str) -> Optional[MultimediaSnippet]:
+        logger.log(f"[Scraper] Starting scrape for: {url}")
+
         # Check exclusions first
         if is_unsupported_site(url):
             logger.log(f"Skipping unsupported site: {url}")
@@ -83,6 +105,7 @@ class Scraper:
         # Identify and use any applicable integration to retrieve the URL contents
         scraped = _retrieve_via_integration(url)
         if scraped:
+            logger.log(f"[Scraper] Successfully retrieved via integration: {url}")
             return scraped
 
         # Check if URL points to a media file. If yes, download accordingly TODO: extend to videos/audios
@@ -101,7 +124,12 @@ class Scraper:
 
             if self.firecrawl_url:
                 if firecrawl_is_running(self.firecrawl_url):
+                    logger.log(f"[Scraper] Using Firecrawl for: {url}")
                     scraped = await self._scrape_firecrawl(url)
+                    if scraped:
+                        logger.log(f"[Scraper] Firecrawl succeeded for: {url}")
+                    else:
+                        logger.log(f"[Scraper] Firecrawl returned None for: {url}")
                 else:
                     logger.error(f"Firecrawl stopped running! No response from {firecrawl_url}!. "
                                  f"Falling back to Beautiful Soup until Firecrawl is available again.")
@@ -109,11 +137,16 @@ class Scraper:
 
         # If the scrape still was not successful, use naive Beautiful Soup scraper
         if not scraped:
+            logger.log(f"[Scraper] Falling back to naive scraper for: {url}")
             scraped = scrape_naive(url)
 
         if scraped:
             self.n_scrapes += 1
+            logger.log(f"[Scraper] Successfully completed scrape for: {url}")
             return scraped
+        else:
+            logger.log(f"[Scraper] Failed to scrape: {url}")
+            return None
 
     async def _scrape_firecrawl(self, url: str) -> Optional[MultimediaSnippet]:
         """Scrapes the given URL using Firecrawl. Returns a Markdown-formatted
@@ -129,12 +162,14 @@ class Scraper:
             "timeout": 15 * 60 * 1000,  # waiting time in milliseconds for Firecrawl to process the job
         }
 
+        logger.log(f"[Scraper] _scrape_firecrawl starting POST request for: {url}")
         try:
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=10 * 60)  # 10 minute total timeout
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(self.firecrawl_url + "/v1/scrape",
                                         json=json_data,
-                                        headers=headers,
-                                        timeout=10 * 60) as response:  # Firecrawl scrapes usually take 2 to 4s, but a 1700-page PDF takes 5 min
+                                        headers=headers) as response:  # Firecrawl scrapes usually take 2 to 4s, but a 1700-page PDF takes 5 min
+                    logger.log(f"[Scraper] _scrape_firecrawl received response (status {response.status}) for: {url}")
 
                     if response.status != 200:
                         logger.log(f"Failed to scrape {url}")
@@ -161,7 +196,7 @@ class Scraper:
                     if success and "data" in json:
                         data = json["data"]
                         text = data.get("markdown")
-                        return resolve_media_hyperlinks(text)
+                        return await asyncio.to_thread(resolve_media_hyperlinks, text)
                     else:
                         error_message = f"Unable to read {url}. No usable data in response."
                         logger.info(f"Unable to read {url}. Skipping it.")
@@ -169,18 +204,23 @@ class Scraper:
                         log_error_url(url, error_message)
                         return None
 
-        except (requests.exceptions.RetryError, requests.exceptions.ConnectionError):
-            logger.error(f"Firecrawl is not running!")
+        except (requests.exceptions.RetryError, requests.exceptions.ConnectionError) as e:
+            logger.error(f"[Scraper] Firecrawl is not running! Error: {repr(e)}")
             return None
-        except requests.exceptions.Timeout:
+        except requests.exceptions.Timeout as e:
             error_message = "Firecrawl failed to respond in time! This can be due to server overload."
-            logger.warning(f"{error_message}\nSkipping the URL {url}.")
+            logger.warning(f"[Scraper] {error_message}\nSkipping the URL {url}. Error: {repr(e)}")
+            log_error_url(url, error_message)
+            return None
+        except asyncio.TimeoutError as e:
+            error_message = f"Asyncio timeout error after 10 minutes"
+            logger.warning(f"[Scraper] {error_message} for URL {url}. Error: {repr(e)}")
             log_error_url(url, error_message)
             return None
         except Exception as e:
             error_message = f"Exception: {repr(e)}"
-            logger.info(repr(e))
-            logger.info(f"Unable to scrape {url} with Firecrawl. Skipping...")
+            logger.info(f"[Scraper] {repr(e)}")
+            logger.info(f"[Scraper] Unable to scrape {url} with Firecrawl. Skipping...")
             log_error_url(url, error_message)
             return None
 

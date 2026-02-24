@@ -72,6 +72,12 @@ class Geolocator(Tool):
 
         self.device = torch.device(self.device if self.device else ('cuda' if torch.cuda.is_available() else 'cpu'))
 
+        if self.device.type == 'cuda':
+            free_mem, total_mem = torch.cuda.mem_get_info(self.device)
+            model_size = sum(p.numel() * p.element_size() for p in self.model.parameters())
+            logger.log(f"GPU memory: {free_mem / 1e9:.1f}GB free / {total_mem / 1e9:.1f}GB total. "
+                       f"Model size: {model_size / 1e6:.0f}MB")
+
         self.model.to(self.device)
 
     def _perform(self, action: Geolocate) -> Results:

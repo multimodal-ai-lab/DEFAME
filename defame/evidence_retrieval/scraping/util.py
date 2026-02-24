@@ -64,16 +64,22 @@ def postprocess_scraped(text: str) -> str:
     return text
 
 
-def resolve_media_hyperlinks(text: str) -> Optional[MultimediaSnippet]:
+def resolve_media_hyperlinks(text: str, timeout: float = 60) -> Optional[MultimediaSnippet]:
     """Identifies up to MAX_MEDIA_PER_PAGE image URLs, downloads the images and replaces the
     respective Markdown hyperlinks with their proper image reference."""
     # TODO: Resolve videos and audios
+    import time
 
     if text is None:
         return None
     hyperlinks = get_markdown_hyperlinks(text)
     media_count = 0
+    deadline = time.time() + timeout
     for hypertext, url in hyperlinks:
+        if time.time() > deadline:
+            logger.warning(f"[Scraper] resolve_media_hyperlinks timed out after {timeout}s. "
+                           f"Skipping remaining {len(hyperlinks) - hyperlinks.index((hypertext, url))} hyperlinks.")
+            break
         if is_image_url(url):
             try:
                 image = download_image(url)

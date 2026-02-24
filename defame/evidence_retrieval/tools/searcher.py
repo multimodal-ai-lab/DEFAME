@@ -1,4 +1,5 @@
 import re
+import time
 from datetime import datetime, timedelta, date
 from typing import Any, Optional
 
@@ -103,12 +104,14 @@ class Searcher(Tool):
                  limit_per_search: int = 5,
                  max_result_len: int = None,  # chars
                  extract_sentences: bool = False,
+                 search_timeout: int = 300,  # seconds; max time for a single search (scraping + postprocessing)
                  **kwargs):
         super().__init__(**kwargs)
 
         self.limit_per_search = limit_per_search
         self.max_result_len = max_result_len  # chars
         self.extract_sentences = extract_sentences
+        self.search_timeout = search_timeout
         self.restrict_results_before_time: Optional[datetime] = None  # date restriction for all search actions
 
         self.platforms = self._initialize_platforms(search_config)
@@ -183,6 +186,7 @@ class Searcher(Tool):
     def _search(self, platform: SearchPlatform, query: Query) -> Optional[SearchResults]:
         """Executes the given search query on the given platform and processes the results.
         Removes known results."""
+        deadline = time.time() + self.search_timeout if self.search_timeout else None
 
         # Run search and retrieve sources
         results = platform.search(query)
@@ -200,9 +204,10 @@ class Searcher(Tool):
         else:
             logger.log("No new sources found.")
 
-        # Scrape the pages of the results
+        # Scrape the pages of the results (with remaining time budget)
         sources_to_scrape = [s for s in sources if isinstance(s, WebSource)]
-        scraper.scrape_sources(sources_to_scrape)
+        remaining = max(0, deadline - time.time()) if deadline else None
+        scraper.scrape_sources(sources_to_scrape, timeout=remaining)
 
         # Modify the raw source text to avoid jinja errors when used in prompt
         self._postprocess_sources(sources, query)
