@@ -12,5 +12,5 @@ serper_api_key: ''  # for Google Search
 # x_api_key: ''  # same as "consumer key"
 # x_api_key_secret: ''  # same as "consumer secret"
 
-bluesky_username:
-bluesky_password:
+bluesky_username: 
+bluesky_password: 

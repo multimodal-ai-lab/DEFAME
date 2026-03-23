@@ -113,48 +113,28 @@ class DeepSeekAPI:
         self.model = model
         if not api_keys["deepseek_api_key"]:
             raise ValueError("No DeepSeek API key provided. Add it to config/api_keys.yaml")
-        self.key = api_keys["deepseek_api_key"]
+        self.client = OpenAI(
+            api_key=api_keys["deepseek_api_key"],
+            base_url="https://api.deepseek.com/v1",
+        )
 
     def __call__(self, prompt: Prompt, system_prompt: str, **kwargs):
         if prompt.has_videos():
             raise ValueError(f"{self.model} does not support videos.")
-
         if prompt.has_audios():
             raise ValueError(f"{self.model} does not support audios.")
 
-        return self.completion(prompt, system_prompt, **kwargs)
-
-    def completion(self, prompt: Prompt, system_prompt: str, **kwargs):
-        url = "https://api.deepseek.com/chat/completions"
         messages = []
         if system_prompt:
-            messages.append(dict(
-                content=system_prompt,
-                role="system",
-            ))
-        for block in prompt.to_list():
-            if isinstance(block, str):
-                message = dict(
-                    content=block,
-                    role="user",
-                )
-            else:
-                messages = ...
-                raise NotImplementedError
-            messages.append(message)
-        headers = {"Authorization": f"Bearer {self.key}", "Content-Type": "application/json"}
-        body = dict(
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": str(prompt)})
+
+        completion = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             **kwargs,
         )
-        response = requests.post(url, body, headers=headers)
-
-        if response.status_code != 200:
-            raise RuntimeError("Requesting the DeepSeek API failed: " + response.text)
-
-        completion = response.json()["object"]
-        return completion
+        return completion.choices[0].message.content
 
 
 class Model(ABC):
@@ -358,9 +338,11 @@ class GPTModel(Model):
 
 
 class DeepSeekModel(Model):
-    open_source = True
+    open_source = False
     encoding = tiktoken.get_encoding("cl100k_base")
-    accepts_images = True
+    accepts_images = False
+    accepts_videos = False
+    accepts_audio = False
 
     def load(self, model_name: str) -> Pipeline | DeepSeekAPI:
         return DeepSeekAPI(model=model_name)
@@ -378,6 +360,33 @@ class DeepSeekModel(Model):
             logger.warning("Error while calling the LLM! Continuing with empty response.\n" + str(e))
             logger.warning("Prompt used:\n" + str(prompt))
         return ""
+
+    def count_tokens(self, prompt: Prompt | str) -> int:
+        return len(self.encoding.encode(str(prompt)))
+
+
+def make_model(name: str, **kwargs) -> Model:
+    """Factory function to load an (M)LLM. Use this instead of class instantiation."""
+    if name in AVAILABLE_MODELS["Shorthand"].to_list():
+        specifier = model_shorthand_to_full_specifier(name)
+    else:
+        specifier = name
+
+    api_name = specifier.split(":")[0].lower()
+    model_name = specifier.split(":")[1].lower()
+    match api_name:
+        case "openai":
+            return GPTModel(specifier, **kwargs)
+        case "huggingface":
+            print(bold("Loading open-source model. Adapt number n_workers if running out of memory."))
+        case "deepseek":
+            return DeepSeekModel(specifier, **kwargs)
+        case "google":
+            raise NotImplementedError("Google models not integrated yet.")
+        case "anthropic":
+            raise NotImplementedError("Anthropic models not integrated yet.")
+        case _:
+            raise ValueError(f"Unknown LLM API '{api_name}'.")
 
 
 class HuggingFaceModel(Model, ABC):
