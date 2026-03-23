@@ -4,7 +4,7 @@ from ezmm import Image
 
 from defame.fact_checker import FactChecker
 
-fact_checker = FactChecker(llm="gpt_4o")
+fact_checker = FactChecker(llm="deepseek_chat")
 claim = ["The image",
          Image("in/example/sahara.webp"),
          "shows the Sahara in 2023 covered with snow!"]
