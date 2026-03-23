@@ -1,8 +1,9 @@
 from typing import Optional, Annotated
 
+from ezmm import MultimodalSequence, Image
 from pydantic import BaseModel, Field
 
-from defame.common import Label, Claim, Content, MultimediaSnippet, Image
+from defame.common import Label, Claim, Content
 
 MultimediaSequence = Annotated[
     list[tuple[str, str]],
@@ -67,14 +68,14 @@ def get_content_info(content: Content) -> ContentInfo:
     )
 
 
-def to_sequence(multimedia_snippet: MultimediaSnippet) -> MultimediaSequence:
+def to_sequence(multimedia_snippet: MultimodalSequence) -> MultimediaSequence:
     interleaved = multimedia_snippet.to_list()
     data = []
     for block in interleaved:
         if isinstance(block, str):
             data.append(("text", block))
         elif isinstance(block, Image):
-            data.append((block.data_type, block.get_base64_encoded()))
+            data.append((block.kind, block.get_base64_encoded()))
         else:
             raise NotImplementedError("Audio and video not supported yet.")
     return data

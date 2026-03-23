@@ -1,11 +1,12 @@
 from datetime import datetime
 from typing import Optional
 
+from ezmm import MultimodalSequence
+
 from defame.common.label import Label
-from defame.common.medium import MultimediaSnippet
 
 
-class Content(MultimediaSnippet):
+class Content(MultimodalSequence):
     """The raw content to be interpreted, decomposed, decontextualized, etc. before
     being checked. Media resources are referred in the text """
 
@@ -21,9 +22,8 @@ class Content(MultimediaSnippet):
                  meta_info: str = None,
                  interpretation: str = None,  # Added during claim extraction
                  id: str | int | None = None,  # Used by some benchmarks to identify contents
-                 **kwargs,
                  ):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args)
 
         self.author = author
         self.date = date
@@ -35,7 +35,7 @@ class Content(MultimediaSnippet):
         self.verdict: Optional[Label] = None  # the overall verdict aggregated from the individual claims
 
     def __repr__(self):
-        return f"Content(\"{super().__str__()}\")"
+        return f"Content(str_len={len(self.__str__())}, id={self.id}, author={self.author})"
 
     def __str__(self):
         out_string = ""
@@ -47,5 +47,5 @@ class Content(MultimediaSnippet):
             out_string += f"**Origin**: {self.origin}\n"
         if self.meta_info:
             out_string += f"**Meta info**: {self.meta_info}\n"
-        out_string += f"**Content**: {self.data}"
+        out_string += f"**Content**: {super().__str__()}"
         return out_string

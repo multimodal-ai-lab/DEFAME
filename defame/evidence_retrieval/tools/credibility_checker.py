@@ -1,6 +1,8 @@
 from typing import Optional
 
-from defame.common import MultimediaSnippet, Action, logger, Model, Results
+from ezmm import MultimodalSequence
+
+from defame.common import Action, logger, Model, Results
 from defame.utils.parsing import is_url
 from defame.evidence_retrieval.tools.tool import Tool
 
@@ -50,5 +52,5 @@ class CredibilityChecker(Tool):
         result = Results()
         return result
 
-    def _summarize(self, result: Results, **kwargs) -> Optional[MultimediaSnippet]:
+    def _summarize(self, result: Results, **kwargs) -> Optional[MultimodalSequence]:
         raise NotImplementedError

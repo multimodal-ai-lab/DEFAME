@@ -50,8 +50,8 @@ class DecontextualizePrompt(Prompt):
 
     def __init__(self, claim: Claim):
         placeholder_targets = {
-            "[ATOMIC_FACT]": claim.data,
-            "[CONTEXT]": claim.context.data,  # TODO: improve this, add images etc.
+            "[ATOMIC_FACT]": str(claim),
+            "[CONTEXT]": str(claim.context),
         }
         super().__init__(placeholder_targets=placeholder_targets)
 

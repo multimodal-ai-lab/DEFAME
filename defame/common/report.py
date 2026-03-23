@@ -4,11 +4,11 @@ from pathlib import Path
 import shutil
 
 import numpy as np
+from ezmm import MultimodalSequence
 from markdown_pdf import MarkdownPdf, Section
 
 from defame.common import Action, Claim, Label, Evidence
-from defame.common.medium import media_registry
-from defame.utils.parsing import replace_media_refs
+from defame.utils.parsing import replace_item_refs
 
 
 @dataclass
@@ -78,8 +78,9 @@ class Report:
         directory.mkdir(exist_ok=True, parents=True)
 
         report_str = str(self)
-        media = media_registry.get_media_from_text(report_str)
-        report_str = replace_media_refs(report_str, media)
+        seq = MultimodalSequence(report_str)
+        media = seq.unique_items()
+        report_str = replace_item_refs(report_str, media)
 
         # Save the Markdown file
         with open(directory / "report.md", "w") as f:
@@ -89,8 +90,8 @@ class Report:
         media_dir = directory / "media"
         media_dir.mkdir(exist_ok=True)
         for medium in media:
-            medium_copy_path = media_dir / medium.path_to_file.name
-            shutil.copy(medium.path_to_file, medium_copy_path)
+            medium_copy_path = media_dir / medium.file_path.name
+            shutil.copy(medium.file_path, medium_copy_path)
 
         # Save a rendered PDF
         pdf = MarkdownPdf(toc_level=0)

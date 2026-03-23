@@ -3,9 +3,10 @@ from typing import Optional
 
 import torch
 from PIL.Image import Image as PILImage
+from ezmm import Image, MultimodalSequence
 
 from config.globals import manipulation_detection_model
-from defame.common import MultimediaSnippet, Results, Action, Image
+from defame.common import Results, Action
 from defame.evidence_retrieval.tools.tool import Tool
 from third_party.TruFor.src.fake_detect_tool import analyze_image, create_visualizations
 from defame.prompts.prompts import SummarizeManipulationResultPrompt
@@ -93,7 +94,7 @@ class ManipulationDetector(Tool):
         result = create_visualizations(result)
         return result
 
-    def _summarize(self, result: ManipulationResults, **kwargs) -> Optional[MultimediaSnippet]:
+    def _summarize(self, result: ManipulationResults, **kwargs) -> Optional[MultimodalSequence]:
         prompt = SummarizeManipulationResultPrompt(result) 
         summary = self.llm.generate(prompt)
         references = f"""
@@ -101,4 +102,4 @@ class ManipulationDetector(Tool):
         Confidence map at: {result.confidence_map.reference}\n
         Noiseprint map at: {result.noiseprint_map.reference}
         """
-        return MultimediaSnippet(f'{summary}\n{references}.')
+        return MultimodalSequence(f'{summary}\n{references}.')

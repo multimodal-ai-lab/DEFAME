@@ -4,9 +4,10 @@ from typing import Optional
 
 import aiohttp
 import requests
+from ezmm import MultimodalSequence, Image
 
 from config.globals import firecrawl_url
-from defame.common import MultimediaSnippet, logger, Image
+from defame.common import logger
 from defame.evidence_retrieval.integrations import RETRIEVAL_INTEGRATIONS
 from defame.evidence_retrieval.integrations.search import WebSource
 from defame.evidence_retrieval.scraping.excluded import (is_unsupported_site, is_relevant_content,
@@ -36,7 +37,7 @@ class Scraper:
 
         self.locate_firecrawl()
         if not self.firecrawl_url:
-            logger.error(f"❌ Unable to locate Firecrawl! It is not running at: {firecrawl_url}")
+            logger.warning(f"❌ Unable to locate Firecrawl! It is not running at: {firecrawl_url}")
 
         self.n_scrapes = 0
 
@@ -59,19 +60,19 @@ class Scraper:
             for source, scraped in zip(sources, scrape_results):
                 source.content = scraped
 
-    def scrape_multiple(self, urls: list[str]) -> list[MultimediaSnippet | None]:
+    def scrape_multiple(self, urls: list[str]) -> list[MultimodalSequence | None]:
         """Scrapes each URL concurrently. Synchronous wrapper for _scrape_multiple()."""
         return asyncio.run(self._scrape_multiple(urls))
 
-    async def _scrape_multiple(self, urls: list[str]) -> list[MultimediaSnippet | None]:
+    async def _scrape_multiple(self, urls: list[str]) -> list[MultimodalSequence | None]:
         tasks = [self._scrape(url) for url in urls]
         return await asyncio.gather(*tasks)
 
-    def scrape(self, url: str) -> Optional[MultimediaSnippet]:
+    def scrape(self, url: str) -> Optional[MultimodalSequence]:
         """Scrapes the contents of the specified webpage. Synchronous wrapper for _scrape()."""
         return asyncio.run(self._scrape(url))
 
-    async def _scrape(self, url: str) -> Optional[MultimediaSnippet]:
+    async def _scrape(self, url: str) -> Optional[MultimodalSequence]:
         # Check exclusions first
         if is_unsupported_site(url):
             logger.log(f"Skipping unsupported site: {url}")
@@ -89,7 +90,7 @@ class Scraper:
         if is_image_url(url):
             try:
                 image = Image(binary_data=download(url))
-                scraped = MultimediaSnippet([image])
+                scraped = MultimodalSequence([image])
             except Exception:
                 pass
 
@@ -115,7 +116,7 @@ class Scraper:
             self.n_scrapes += 1
             return scraped
 
-    async def _scrape_firecrawl(self, url: str) -> Optional[MultimediaSnippet]:
+    async def _scrape_firecrawl(self, url: str) -> Optional[MultimodalSequence]:
         """Scrapes the given URL using Firecrawl. Returns a Markdown-formatted
         multimedia snippet, containing any (relevant) media from the page."""
         assert self.firecrawl_url is not None
@@ -185,7 +186,7 @@ class Scraper:
             return None
 
 
-def _retrieve_via_integration(url: str) -> Optional[MultimediaSnippet]:
+def _retrieve_via_integration(url: str) -> Optional[MultimodalSequence]:
     domain = get_domain(url)
     if domain in RETRIEVAL_INTEGRATIONS:
         integration = RETRIEVAL_INTEGRATIONS[domain]

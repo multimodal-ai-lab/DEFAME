@@ -8,11 +8,11 @@ from typing import Sequence, Optional
 
 import numpy as np
 import pandas as pd
+from ezmm import MultimodalSequence
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
 from config.globals import embedding_model
-from defame.common import MultimediaSnippet
 from defame.common.embedding import EmbeddingModel
 from defame.evidence_retrieval.integrations.search.local_search_platform import LocalSearchPlatform
 from .common import SearchResults, Query, WebSource
@@ -79,7 +79,7 @@ class SemanticSearchDB(LocalSearchPlatform):
             url, text, date = self.retrieve(index)
             result = WebSource(
                 reference=url,
-                content=MultimediaSnippet(text),
+                content=MultimodalSequence(text),
                 release_date=date
             )
             results.append(result)

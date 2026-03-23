@@ -27,15 +27,17 @@ class AVeriTeC(Benchmark):
             """The fact-check does not contain sufficient information to come to a conclusion. In particular,
             there is substantial lack of both supporting and refuting evidence.""",
         Label.CONFLICTING:
-            """The Claim has both supporting and refuting evidence from multiple sources or the Claim is technically true but misleads by excluding important context. """,
+            """The Claim has both supporting and refuting evidence from multiple sources or the Claim is 
+            technically true but misleads by excluding important context. """,
         Label.REFUTED:
             """The knowledge from the fact-check explicitly and clearly refutes at least substantial parts
             if not even the whole the Claim.""",
     }
 
-    extra_judge_rules = """* **Do not commit the "argument from ignorance" fallacy**: The absence of evidence
-    for the Claim does NOT prove that the Claim is refuted. Instead, the Claim is simply unsupported--which is a case of 
-    'not enough information'."""
+    extra_judge_rules = """Note that **the absence of evidence itself can be also regarded as
+    evidence** if the context suggests that evidence should be present. This is particularly the
+    case when the Claim implies news coverage or other observable consequences and sufficient time
+    has passed for the evidence to emerge. In such a case, the Claim is likely to be refuted."""
 
     available_actions = [Search]
 
@@ -51,7 +53,7 @@ class AVeriTeC(Benchmark):
             date = d["claim_date"]
             identifier = str(i)
             claim = Claim(
-                data=d["claim"],
+                d["claim"],
                 author=d["speaker"],
                 date=datetime.strptime(date, "%d-%m-%Y") if date else None,
                 origin=d["original_claim_url"],
@@ -78,7 +80,7 @@ class AVeriTeC(Benchmark):
         pred_label = self.get_class_name(prediction)
         averitec_out_instance = {
             "claim_id": claim.id,
-            "claim": claim.data,
+            "claim": str(claim).replace("\n", " "),
             "pred_label": pred_label
         }
 

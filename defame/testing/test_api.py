@@ -2,10 +2,10 @@ import json
 
 import pytest
 import requests
+from ezmm import Image
 from fastapi.testclient import TestClient
 from websockets.sync.client import connect
 
-from defame.common import Image
 from defame.helpers.api.config import api_key, host, port
 
 TEST_DEPLOYED_API = False  # use the existing, running API instead of creating a temporary one

@@ -8,7 +8,7 @@ fact_checker_kwargs:
   interpret: false
   max_iterations: 3
   max_result_len: 64000
-  procedure_variant: naive
+  procedure_variant: summary/dynamic
 llm: gpt_4o
 llm_kwargs:
   temperature: 0.01
@@ -16,9 +16,7 @@ n_samples:
 random_sampling: false
 sample_ids: null
 allowed_actions:
-- web_search
-- image_search
-- reverse_search
+- search
 - geolocate
 tools_config:
   searcher:
@@ -26,5 +24,5 @@ tools_config:
     search_config:
       google:
   geolocator:
-n_workers: 8
+n_workers:
 print_log_level: info

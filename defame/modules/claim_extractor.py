@@ -42,7 +42,7 @@ class ClaimExtractor:
             # for statement in claims:
             #     logger.log(light_blue(f"'{statement}'"))
         else:
-            claims = [Claim(data=content.data, context=content)]
+            claims = [Claim(content.data, context=content)]
 
         # TODO: Replace *claims* with *statements* here
 
