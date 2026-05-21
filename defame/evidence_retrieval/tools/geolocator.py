@@ -1,10 +1,12 @@
+import base64
+import io
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
-import torch
+import requests
 from PIL.Image import Image as PILImage
-from transformers import AutoProcessor, AutoModel
 
+from config.globals import geolocator_url
 from defame.common import MultimediaSnippet, Action, Image, Results, logger
 from defame.evidence_retrieval.tools.tool import Tool
 
@@ -49,83 +51,57 @@ class GeolocationResults(Results):
 
 
 class Geolocator(Tool):
-    """Localizes a given photo."""
+    """Localizes a given photo by calling a remote geolocator server."""
     name = "geolocator"
     actions = [Geolocate]
     summarize = False
 
-    def __init__(self, model_name: str = "geolocal/StreetCLIP", top_k=10, **kwargs):
+    def __init__(self, top_k: int = 10, **kwargs):
         super().__init__(**kwargs)
-        """
-        Initialize the GeoLocator with a pretrained model from Hugging Face.
-
-        :param model_name: The name of the Hugging Face model to use for geolocation.
-        :param device: The device to run the model on (e.g., -1 for CPU, 0 for GPU).
-        :param use_multiple_gpus: Whether to use multiple GPUs if available.
-        """
-        # FIXME: Print warning if no GPU available
-        logger.log("Initializing geolocator...")
-        self.model_name = model_name
-        self.processor = AutoProcessor.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name)
         self.top_k = top_k
+        self.server_url = geolocator_url
+        logger.log(f"Initializing geolocator (server: {self.server_url})...")
 
-        self.device = torch.device(self.device if self.device else ('cuda' if torch.cuda.is_available() else 'cpu'))
+    def _perform(self, action: Geolocate) -> GeolocationResults:
+        return self.locate(action.image.image, top_k=action.top_k)
 
-        if self.device.type == 'cuda':
-            free_mem, total_mem = torch.cuda.mem_get_info(self.device)
-            model_size = sum(p.numel() * p.element_size() for p in self.model.parameters())
-            logger.log(f"GPU memory: {free_mem / 1e9:.1f}GB free / {total_mem / 1e9:.1f}GB total. "
-                       f"Model size: {model_size / 1e6:.0f}MB")
-
-        self.model.to(self.device)
-
-    def _perform(self, action: Geolocate) -> Results:
-        return self.locate(action.image.image)
-
-    def locate(self, image: PILImage, choices: List[str] = None) -> GeolocationResults:
+    def locate(self, image: PILImage, choices: list[str] | None = None, top_k: int | None = None) -> GeolocationResults:
         """
-        Perform geolocation on an image.
+        Perform geolocation on an image via the remote geolocator server.
 
         :param image: A PIL image.
-        :param choices: A list of location choices. If None, uses a default list of countries.
-        :return: A GeoLocationResult object containing location predictions and their probabilities.
+        :param choices: A list of location choices. If None, the server uses its default country list.
+        :param top_k: Number of top results to return. Defaults to self.top_k.
+        :return: A GeolocationResults object containing location predictions.
         """
-        if choices is None:
-            choices = ['Albania', 'Andorra', 'Argentina', 'Australia', 'Austria', 'Bangladesh', 'Belgium', 'Bermuda',
-                       'Bhutan', 'Bolivia', 'Botswana', 'Brazil', 'Bulgaria', 'Cambodia', 'Canada', 'Chile', 'China',
-                       'Colombia', 'Croatia', 'Czech Republic', 'Denmark', 'Dominican Republic', 'Ecuador', 'Estonia',
-                       'Finland', 'France', 'Germany', 'Ghana', 'Greece', 'Greenland', 'Guam', 'Guatemala', 'Hungary',
-                       'Iceland', 'India', 'Indonesia', 'Ireland', 'Israel', 'Italy', 'Japan', 'Jordan', 'Kenya',
-                       'Kyrgyzstan', 'Laos', 'Latvia', 'Lesotho', 'Lithuania', 'Luxembourg', 'Macedonia', 'Madagascar',
-                       'Malaysia', 'Malta', 'Mexico', 'Monaco', 'Mongolia', 'Montenegro', 'Netherlands', 'New Zealand',
-                       'Nigeria', 'Norway', 'Pakistan', 'Palestine', 'Peru', 'Philippines', 'Poland', 'Portugal',
-                       'Puerto Rico', 'Romania', 'Russia', 'Rwanda', 'Senegal', 'Serbia', 'Singapore', 'Slovakia',
-                       'Slovenia', 'South Africa', 'South Korea', 'Spain', 'Sri Lanka', 'Swaziland', 'Sweden',
-                       'Switzerland', 'Taiwan', 'Thailand', 'Tunisia', 'Turkey', 'Uganda', 'Ukraine',
-                       'United Arab Emirates',
-                       'United Kingdom', 'United States', 'Uruguay']
+        buf = io.BytesIO()
+        image.save(buf, format="JPEG")
+        image_b64 = base64.b64encode(buf.getvalue()).decode()
 
-        inputs = self.processor(text=choices, images=image, return_tensors="pt", padding=True).to(self.device)
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-        logits_per_image = outputs.logits_per_image
-        prediction = logits_per_image.softmax(dim=1)
+        payload = {"image_b64": image_b64, "top_k": top_k or self.top_k}
+        if choices is not None:
+            payload["choices"] = choices
 
-        # Compute classification score for each country
-        confidences = {choices[i]: round(float(prediction[0][i].item()), 2) for i in range(len(choices))}
-        top_k_locations = dict(sorted(confidences.items(), key=lambda x: x[1], reverse=True)[:self.top_k])
-        most_likely_location = max(top_k_locations, key=top_k_locations.get)
-        # Move tensor to CPU for multiprocessing serialization
-        model_output = logits_per_image.detach().cpu()
+        try:
+            response = requests.post(f"{self.server_url}/geolocate", json=payload, timeout=60)
+            response.raise_for_status()
+        except requests.exceptions.ConnectionError:
+            logger.error(f"Geolocator server unreachable at {self.server_url}. "
+                         f"Start it with: sbatch geolocator_job.sh")
+            return GeolocationResults(text="Geolocator server unavailable.", most_likely_location="", top_k_locations=[])
+        except Exception as e:
+            logger.error(f"Geolocator request failed: {e}")
+            return GeolocationResults(text=f"Geolocator error: {e}", most_likely_location="", top_k_locations=[])
+
+        data = response.json()
         result = GeolocationResults(
-            text=f"The most likely countries where the image was taken are: {top_k_locations}",
-            most_likely_location=most_likely_location,
-            top_k_locations=list(top_k_locations.keys()),
-            model_output=model_output
+            text=data["text"],
+            most_likely_location=data["most_likely_location"],
+            top_k_locations=data["top_k_locations"],
+            model_output=True,  # non-None signals success to is_useful()
         )
         logger.log(str(result))
         return result
 
     def _summarize(self, result: GeolocationResults, **kwargs) -> Optional[MultimediaSnippet]:
-        return MultimediaSnippet(result.text)  # TODO: Improve summary w.r.t. uncertainty
+        return MultimediaSnippet(result.text)
