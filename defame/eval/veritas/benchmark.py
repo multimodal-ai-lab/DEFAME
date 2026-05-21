@@ -71,7 +71,8 @@ CLASS_DEFINITIONS_7 = {
         "The claim weakly appears factually accurate based on limited evidence. "
         "There is some indication of integrity but not enough for confidence.",
     Label.UNKNOWN:
-        "There is insufficient evidence to determine the claim's accuracy or integrity.",
+        "Evidence is completely absent or irreconcilably contradictory — use ONLY as a last resort; "
+        "if any directional lean exists (even weak), use the corresponding 'rather uncertain' bin instead.",
     Label.COMPROMISED_RATHER_UNCERTAIN:
         "The claim weakly appears inaccurate or misleading based on limited evidence. "
         "There is some indication of compromised integrity but not enough for confidence.",
@@ -95,6 +96,10 @@ EXTRA_JUDGE_RULES_7 = """* **Holistic Integrity Assessment with Uncertainty**: T
     * **Media Impact**: Even if text is accurate, misused media can compromise integrity.
     * **Confidence Calibration**: Choose the uncertainty level that best reflects the strength of available evidence.
       Only use "certain" when evidence is overwhelming and unambiguous.
+    * **UNKNOWN is a last resort**: Reserve UNKNOWN strictly for cases where evidence is completely absent or
+      irreconcilably contradictory after thorough search. Any directional lean — even weak — must map to the
+      corresponding 'rather uncertain' bin, NOT to UNKNOWN. Predicting UNKNOWN when evidence weakly favors
+      one direction is an error.
     """
 
 # 7-class thresholds (matching discretize_7_bins from Veritas)
