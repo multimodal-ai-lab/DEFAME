@@ -22,7 +22,8 @@ class Judge:
         self.llm = llm
         self.classes = set(classes)
 
-        if Label.NEI not in class_definitions:
+        # Only add NEI if UNKNOWN isn't already serving that role (e.g. VeriTaS 7-class)
+        if Label.NEI not in class_definitions and Label.UNKNOWN not in class_definitions:
             class_definitions[Label.NEI] = DEFAULT_LABEL_DEFINITIONS[Label.NEI]
         self.class_definitions = class_definitions
 
@@ -36,7 +37,8 @@ class Judge:
         # If this is a non-final judgement (i.e. there are follow-up retrievals/actions allowed)
         # enable to predict NEI (otherwise fact-check would always end here)
         if not is_final:
-            classes.add(Label.NEI)
+            # Use UNKNOWN instead of NEI if the scheme already defines UNKNOWN
+            classes.add(Label.UNKNOWN if Label.UNKNOWN in self.class_definitions else Label.NEI)
 
         prompt = JudgePrompt(doc, classes, self.class_definitions, self.extra_rules)
         return self._generate_verdict(prompt)
