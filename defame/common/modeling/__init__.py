@@ -4,8 +4,10 @@ from defame.utils.console import bold
 from .utils import AVAILABLE_MODELS, DEFAULT_SYSTEM_PROMPT, get_model_api_pricing, get_model_context_window, model_shorthand_to_full_specifier, model_specifier_to_shorthand
 from .model import Model
 from .huggingface import LlavaModel, LlamaModel, HuggingFaceModel
-from .openai import OpenAIAPI, format_for_gpt, GPTModel
+from .openai import OpenAIAPI, format_for_gpt, GPTModel, VLLMModel
 from .deepseek import DeepSeekModel, DeepSeekAPI
+from .gemini import GeminiModel, GeminiAPI
+from .anthropic import AnthropicModel, AnthropicAPI, format_for_anthropic
 
 
 def make_model(name: str, **kwargs) -> Model:
@@ -35,9 +37,11 @@ def make_model(name: str, **kwargs) -> Model:
         case "deepseek":
             return DeepSeekModel(specifier, **kwargs)
         case "google":
-            raise NotImplementedError("Google models not integrated yet.")
+            return GeminiModel(specifier, **kwargs)
         case "anthropic":
-            raise NotImplementedError("Anthropic models not integrated yet.")
+            return AnthropicModel(specifier, **kwargs)
+        case "vllm":
+            return VLLMModel(specifier, **kwargs)
         case _:
             raise ValueError(f"Unknown LLM API '{api_name}'.")
 
@@ -45,13 +49,19 @@ def make_model(name: str, **kwargs) -> Model:
 
 __all__ = [
     "AVAILABLE_MODELS",
+    "AnthropicAPI",
+    "AnthropicModel",
     "DEFAULT_SYSTEM_PROMPT",
     "DeepSeekAPI",
     "DeepSeekModel",
+    "format_for_anthropic",
     "format_for_gpt",
+    "GeminiAPI",
+    "GeminiModel",
     "get_model_api_pricing",
     "get_model_context_window",
     "GPTModel",
+    "VLLMModel",
     "HuggingFaceModel",
     "LlamaModel",
     "LlavaModel",

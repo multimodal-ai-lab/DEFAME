@@ -12,11 +12,15 @@ from defame.common.logger import logger
 
 
 class OpenAIAPI:
-    def __init__(self, model: str):
+    def __init__(self, model: str, base_url: str = None, api_key: str = None, max_images: int = None):
         self.model = model
-        if not api_keys["openai_api_key"]:
-            raise ValueError("No OpenAI API key provided. Add it to config/api_keys.yaml")
-        self.client = OpenAI(api_key=api_keys["openai_api_key"])
+        self.max_images = max_images
+        if base_url:
+            self.client = OpenAI(base_url=base_url, api_key=api_key or "EMPTY")
+        else:
+            if not api_keys["openai_api_key"]:
+                raise ValueError("No OpenAI API key provided. Add it to config/api_keys.yaml")
+            self.client = OpenAI(api_key=api_keys["openai_api_key"])
 
     def __call__(self, prompt: Prompt, system_prompt: str, **kwargs):
         if prompt.has_videos():
@@ -25,7 +29,7 @@ class OpenAIAPI:
         if prompt.has_audios():
             raise ValueError(f"{self.model} does not support audios.")
 
-        content = format_for_gpt(prompt)
+        content = format_for_gpt(prompt, max_images=self.max_images)
 
         messages = []
         if system_prompt:
@@ -92,8 +96,44 @@ class GPTModel(Model):
         return 85 + 170 * n_tiles
     
 
-def format_for_gpt(prompt: Prompt):
+class VLLMModel(Model):
+    """OpenAI-compatible model served via vLLM (or any other OpenAI-style server)."""
+    open_source = True
+    accepts_images = True
+    accepts_videos = False
+    accepts_audio = False
+
+    def load(self, model_name: str) -> OpenAIAPI:
+        base_url = api_keys.get("vllm_base_url") or "http://localhost:8000/v1"
+        return OpenAIAPI(model=model_name, base_url=base_url, max_images=10)
+
+    def _generate(
+        self,
+        prompt: Prompt,
+        temperature: float,
+        top_p: float,
+        top_k: int,
+        system_prompt: Prompt | None = None
+    ) -> str:
+        try:
+            return self.api(
+                prompt,
+                temperature=temperature,
+                top_p=top_p,
+                system_prompt=system_prompt,
+            )
+        except Exception as e:
+            logger.warning("Error while calling vLLM! Continuing with empty response.\n" + str(e))
+            logger.warning("Prompt used:\n" + str(prompt))
+        return ""
+
+    def count_tokens(self, prompt: Prompt | str) -> int:
+        return len(str(prompt).split())
+
+
+def format_for_gpt(prompt: Prompt, max_images: int = None, min_image_side: int = 28):
     content_formatted = []
+    n_images = 0
 
     for block in prompt.to_list():
         if isinstance(block, str):
@@ -102,6 +142,12 @@ def format_for_gpt(prompt: Prompt):
                 "text": block
             })
         elif isinstance(block, Image):
+            if max_images is not None and n_images >= max_images:
+                continue
+            if block.width < min_image_side or block.height < min_image_side:
+                logger.warning(f"Skipping image {block.reference} with size {block.width}x{block.height} (too small).")
+                continue
+            n_images += 1
             image_encoded = block.get_base64_encoded()
             content_formatted.append({
                 "type": "text",
