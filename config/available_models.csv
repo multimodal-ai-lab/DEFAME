@@ -9,6 +9,8 @@ gpt_4,OPENAI,gpt-4, 8_192,30.0,60.0
 gpt_4_32k,OPENAI,gpt-4-32k, 32_768,60.0,120.0
 gpt_35_turbo,OPENAI,gpt-3.5-turbo-0125, 16_385,0.5,1.5
 gpt_35_turbo_16k,OPENAI,gpt-3.5-turbo-16k-0613, 16_385,3.0,4.0
+claude_opus_47,ANTHROPIC,claude-opus-4-7, 1_000_000,5.0,25.0
+claude_opus_46,ANTHROPIC,claude-opus-4-6, 1_000_000,5.0,25.0
 claude_35_sonnet,ANTHROPIC,claude-3-5-sonnet-20240620, 200_000,3.0,15.0
 claude_3_opus,ANTHROPIC,claude-3-opus-20240229, 200_000,15.0,75.0
 claude_3_sonnet,ANTHROPIC,claude-3-sonnet-20240229, 200_000,3.0,15.0
@@ -25,3 +27,6 @@ llava_next,HUGGINGFACE,llava-hf/llama3-llava-next-8b-hf,4096,0,0
 llava_onevision,HUGGINGFACE,lmms-lab/llava-onevision-qwen2-7b-ov,128_000,0,0
 llama32_90b,HUGGINGFACE,meta-llama/Llama-3.2-90B-Vision-Instruct,128_000,0,0
 deepseek,DEEPSEEK,deepseek-chat,64_000,0.14,0.28
+gemini_31_pro,GOOGLE,gemini-3.1-pro-preview, 1_000_000,2.00,12.00
+gemini_3_flash,GOOGLE,gemini-3-flash-preview, 1_000_000,0.50,3.00
+gemma4_31b_it,VLLM,google/gemma-4-31B-it, 128_000,0,0
