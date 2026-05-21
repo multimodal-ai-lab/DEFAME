@@ -125,17 +125,16 @@ class PlanPrompt(Prompt):
         # TODO: Prevent the following from happening at all.
         # It may accidentally happen that the LLM generated "<image:k>" in its response (because it was
         # included as an example in the prompt).
-        pattern = re.compile(r'<image:[a-z]>')
+        # Match placeholder references: alphabetic (<image:k>) or zero-indexed (<image:0>)
+        pattern = re.compile(r'<image:(?:[a-z]|0)>')
         matches = pattern.findall(response)
 
         if matches:
-            # Replace "<image:k>" with the reference to the claim's image by assuming that the first image
-            # is tha claim image.
+            # Replace with the actual first claim image reference
             if self.images:
-                claim_image_ref = self.images[
-                    0].reference  # Be careful that the Plan Prompt always has the Claim image first before any other image!
+                claim_image_ref = self.images[0].reference
                 response = pattern.sub(claim_image_ref, response)
-                logger.warning(f"LLM generated reference '<image:k>'. Replacing it by {claim_image_ref}.")
+                logger.warning(f"LLM generated placeholder image reference. Replacing with {claim_image_ref}.")
 
         actions = extract_actions(response)
         reasoning = extract_reasoning(response)
@@ -448,7 +447,7 @@ def extract_actions(answer: str, limit=5) -> list[Action]:
 
     for line in lines:
         stripped = line.strip()
-        if not stripped:
+        if not stripped or stripped.startswith('#'):
             continue
 
         current_action += (" " if current_action else "") + stripped
